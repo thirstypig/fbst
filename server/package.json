@@ -1,0 +1,41 @@
+{
+  "name": "fbst-server",
+  "version": "1.0.0",
+  "description": "FBST Server",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "prisma:seed": "tsx prisma/seed.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+  "@prisma/client": "6.19.0",
+  "cors": "^2.8.5",
+  "dotenv": "^16.4.5",
+  "express": "^4.21.1",
+  "socket.io": "^4.8.1"
+},
+"devDependencies": {
+  "@types/express": "^4.17.21",
+  "@types/node": "^22.7.4",
+  "nodemon": "^3.1.7",
+  "prisma": "6.19.0",
+  "ts-node": "^10.9.2",
+  "tsx": "^4.19.2",
+  "typescript": "^5.6.3"
+}
+
+}
+
+
+
+
+
+
