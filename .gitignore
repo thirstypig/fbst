@@ -1,0 +1,27 @@
+# OS junk
+.DS_Store
+
+# Node
+node_modules/
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Env files
+.env
+
+# Vite
+dist/
+client/dist/
+
+# Prisma generated
+server/node_modules/.prisma/
+
+# Logs
+*.log
+
+# Build
+/.vite
+tsx
+fbst-server@1.0.0

@@ -1,3 +1,7 @@
+// ======================
+//  Datasource + Generator
+// ======================
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -5,125 +9,144 @@ datasource db {
 
 generator client {
   provider = "prisma-client-js"
+  // Generate Prisma Client into the server .prisma folder
+  output   = "../server/node_modules/.prisma/client"
 }
+
+
+// ======================
+//  Models
+// ======================
 
 model Team {
   id        Int      @id @default(autoincrement())
-  name      String
+  name      String   @unique
   owner     String?
   budget    Int      @default(400)
   createdAt DateTime @default(now())
 
+  // Relations
   rosters       Roster[]
   stats         TeamStatsPeriod[]
   season        TeamStatsSeason?
   financeEvents FinanceLedger[]
 }
 
-
 model Player {
-  id          Int      @id @default(autoincrement())
-  mlbId       Int?
-  name        String
-  posPrimary  String
-  posList     String   // comma-separated for now
-  createdAt   DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  mlbId      Int?
+  name       String
+  posPrimary String
+  posList    String // comma-separated for now
+  createdAt  DateTime @default(now())
 
-  rosters     Roster[]
-  lots        AuctionLot[]
+  rosters Roster[]
+  lots    AuctionLot[]
 }
 
 model Period {
   id        Int      @id @default(autoincrement())
-  name      String
+  name      String   @unique
   startDate DateTime
   endDate   DateTime
-  status    String   // planned, active, closed
-
+  status    String
   teamStats TeamStatsPeriod[]
 }
 
-model TeamStatsPeriod {
-  id            Int      @id @default(autoincrement())
-  teamId        Int
-  periodId      Int
-  R             Int      @default(0)
-  HR            Int      @default(0)
-  RBI           Int      @default(0)
-  SB            Int      @default(0)
-  AVG           Float    @default(0)
-  W             Int      @default(0)
-  SV            Int      @default(0)
-  ERA           Float    @default(0)
-  WHIP          Float    @default(0)
-  K             Int      @default(0)
-  gamesPlayed   Int      @default(0)
 
-  team          Team     @relation(fields: [teamId], references: [id])
-  period        Period   @relation(fields: [periodId], references: [id])
+
+model TeamStatsPeriod {
+  id       Int @id @default(autoincrement())
+  teamId   Int
+  periodId Int
+
+  // Batting
+  R   Int   @default(0)
+  HR  Int   @default(0)
+  RBI Int   @default(0)
+  SB  Int   @default(0)
+  AVG Float @default(0)
+
+  // Pitching
+  W    Int   @default(0)
+  S    Int   @default(0) // changed from SV to S for consistency
+  ERA  Float @default(0)
+  WHIP Float @default(0)
+  K    Int   @default(0)
+
+  // Misc
+  gamesPlayed Int @default(0)
+
+  team   Team   @relation(fields: [teamId], references: [id])
+  period Period @relation(fields: [periodId], references: [id])
 
   @@unique([teamId, periodId])
 }
 
 model TeamStatsSeason {
-  id          Int    @id @default(autoincrement())
-  teamId      Int    @unique
-  R           Int    @default(0)
-  HR          Int    @default(0)
-  RBI         Int    @default(0)
-  SB          Int    @default(0)
-  AVG         Float  @default(0)
-  W           Int    @default(0)
-  SV          Int    @default(0)
-  ERA         Float  @default(0)
-  WHIP        Float  @default(0)
-  K           Int    @default(0)
-  gamesPlayed Int    @default(0)
+  id     Int @id @default(autoincrement())
+  teamId Int @unique
 
-  team        Team   @relation(fields: [teamId], references: [id])
+  // Batting
+  R   Int   @default(0)
+  HR  Int   @default(0)
+  RBI Int   @default(0)
+  SB  Int   @default(0)
+  AVG Float @default(0)
+
+  // Pitching
+  W    Int   @default(0)
+  S    Int   @default(0)
+  ERA  Float @default(0)
+  WHIP Float @default(0)
+  K    Int   @default(0)
+
+  gamesPlayed Int @default(0)
+
+  team Team @relation(fields: [teamId], references: [id])
 }
 
 model Roster {
-  id          Int      @id @default(autoincrement())
-  teamId      Int
-  playerId    Int
-  acquiredAt  DateTime @default(now())
-  releasedAt  DateTime?
-  source      String
-  price       Int      @default(1)
+  id         Int       @id @default(autoincrement())
+  teamId     Int
+  playerId   Int
+  acquiredAt DateTime  @default(now())
+  releasedAt DateTime?
+  source     String
+  price      Int       @default(1)
 
-  team        Team     @relation(fields: [teamId], references: [id])
-  player      Player   @relation(fields: [playerId], references: [id])
+  team   Team   @relation(fields: [teamId], references: [id])
+  player Player @relation(fields: [playerId], references: [id])
 }
 
 model AuctionLot {
-  id               Int      @id @default(autoincrement())
+  id               Int       @id @default(autoincrement())
   playerId         Int
   nominatingTeamId Int
-  status           String   // idle, nominating, bidding, closing, assigned
-  startTs          DateTime @default(now())
+  status           String // idle, nominating, bidding, closing, assigned
+  startTs          DateTime  @default(now())
   endTs            DateTime?
   finalPrice       Int?
   winnerTeamId     Int?
 
-  player           Player   @relation(fields: [playerId], references: [id])
+  player Player @relation(fields: [playerId], references: [id])
 }
 
 model AuctionBid {
-  id      Int      @id @default(autoincrement())
-  lotId   Int
-  teamId  Int
-  amount  Int
-  ts      DateTime @default(now())
+  id     Int      @id @default(autoincrement())
+  lotId  Int
+  teamId Int
+  amount Int
+  ts     DateTime @default(now())
 }
 
 model FinanceLedger {
-  id      Int      @id @default(autoincrement())
-  teamId  Int
-  type    String   // entry_fee, bonus, il_fee, auction_adjust, etc.
-  amount  Int
-  reason  String?
-  ts      DateTime @default(now())
+  id     Int      @id @default(autoincrement())
+  teamId Int
+  type   String // entry_fee, bonus, il_fee, auction_adjust, etc.
+  amount Int
+  reason String?
+  ts     DateTime @default(now())
 
-  team    Team     @relation(fields: [teamId], references: [id])
+  team Team @relation(fields: [teamId], references: [id])
 }
