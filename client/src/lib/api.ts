@@ -2,7 +2,6 @@
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000/api";
 
-
 /* ---------- Types ---------- */
 
 export interface PeriodStandingRow {
@@ -121,6 +120,21 @@ export interface TeamSummaryResponse {
   }[];
 }
 
+/* ---------- Period types ---------- */
+
+export interface PeriodInfo {
+  id: number;
+  name: string;
+  startDate: string;
+  endDate: string;
+  status: string;
+  isActive: boolean;
+}
+
+export interface PeriodsResponse {
+  data: PeriodInfo[];
+}
+
 /* ---------- Auction types ---------- */
 
 export interface AuctionTeamBudget {
@@ -202,12 +216,10 @@ export async function getTeamSummary(
 
 /* ---------- Periods ---------- */
 
-export async function getPeriods() {
+export async function getPeriods(): Promise<PeriodsResponse> {
   const res = await fetch(`${API_BASE}/periods`);
-  return handleJson<{ data: { id: number; name: string; startDate: string; endDate: string; status: string; isActive: boolean }[] }>(res);
+  return handleJson<PeriodsResponse>(res);
 }
-
-
 
 /* ---------- Auction ---------- */
 
