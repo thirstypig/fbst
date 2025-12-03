@@ -1,6 +1,6 @@
 // client/src/lib/api.ts
 const API_BASE =
-  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000/api";
+  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000";
 
 /* ---------- Types ---------- */
 
@@ -184,24 +184,26 @@ async function handleJson<T>(res: Response): Promise<T> {
 /* ---------- Standings ---------- */
 
 export async function getCurrentPeriodStandings(): Promise<PeriodStandingsResponse> {
-  const res = await fetch(`${API_BASE}/standings/period/current`);
+  const res = await fetch(`${API_BASE}/api/standings/period/current`);
   return handleJson<PeriodStandingsResponse>(res);
 }
 
 export async function getCategoryStandings(): Promise<CategoryStandingsResponse> {
-  const res = await fetch(`${API_BASE}/standings/period/current/categories`);
+  const res = await fetch(
+    `${API_BASE}/api/standings/period/current/categories`
+  );
   return handleJson<CategoryStandingsResponse>(res);
 }
 
 export async function getSeasonStandings(): Promise<SeasonStandingsResponse> {
-  const res = await fetch(`${API_BASE}/standings/season`);
+  const res = await fetch(`${API_BASE}/api/standings/season`);
   return handleJson<SeasonStandingsResponse>(res);
 }
 
 /* ---------- Teams ---------- */
 
 export async function getTeams() {
-  const res = await fetch(`${API_BASE}/teams`);
+  const res = await fetch(`${API_BASE}/api/teams`);
   return handleJson<
     { id: number; name: string; owner: string | null; budget: number }[]
   >(res);
@@ -210,20 +212,20 @@ export async function getTeams() {
 export async function getTeamSummary(
   teamId: number
 ): Promise<TeamSummaryResponse> {
-  const res = await fetch(`${API_BASE}/teams/${teamId}/summary`);
+  const res = await fetch(`${API_BASE}/api/teams/${teamId}/summary`);
   return handleJson<TeamSummaryResponse>(res);
 }
 
 /* ---------- Periods ---------- */
 
 export async function getPeriods(): Promise<PeriodsResponse> {
-  const res = await fetch(`${API_BASE}/periods`);
+  const res = await fetch(`${API_BASE}/api/periods`);
   return handleJson<PeriodsResponse>(res);
 }
 
 /* ---------- Auction ---------- */
 
 export async function getAuctionState(): Promise<AuctionState> {
-  const res = await fetch(`${API_BASE}/auction/state`);
+  const res = await fetch(`${API_BASE}/api/auction/state`);
   return handleJson<AuctionState>(res);
 }
