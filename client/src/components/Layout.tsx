@@ -1,64 +1,106 @@
-import { ReactNode } from "react";
-import { NavLink } from "react-router-dom";
-import { Separator } from "@/components/ui/separator";
+// client/src/components/Layout.tsx
+import { NavLink, Outlet } from "react-router-dom";
+import { useState } from "react";
 
-interface LayoutProps {
-  children: ReactNode;
-}
+const sideLinkBase =
+  "block w-full text-left px-3 py-2 rounded-md text-sm font-medium";
+const sideActive = "bg-slate-200 text-slate-900";
+const sideInactive =
+  "text-slate-700 hover:bg-slate-700 hover:text-white";
 
-const Layout = ({ children }: LayoutProps) => {
-  const links = [
-    { label: "Period", to: "/standings" },
-    { label: "Season", to: "/standings/season" },
-    { label: "Categories", to: "/standings/categories" },
-    { label: "Teams", to: "/teams" },
-    { label: "Auction", to: "/auction" },
-    { label: "Periods", to: "/periods" },
-  ];
-  
+const Layout = () => {
+  const [isDark, setIsDark] = useState(true);
+
+  const shellClass = isDark
+    ? "min-h-screen bg-slate-950 text-slate-50 flex"
+    : "min-h-screen bg-slate-100 text-slate-900 flex";
+
+  const mainBorder = isDark ? "border-slate-800" : "border-slate-300";
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
+    <div className={shellClass}>
       {/* Sidebar */}
-      <aside className="w-60 border-r bg-card flex flex-col">
-        <div className="px-4 py-3 border-b">
-          <div className="text-lg font-semibold tracking-tight">FBST</div>
-          <div className="text-xs text-muted-foreground">OGBA Stat Tool</div>
+      <aside
+        className={`w-60 ${
+          isDark ? "bg-slate-900" : "bg-slate-200"
+        } border-r ${mainBorder} p-4 space-y-6`}
+      >
+        <div>
+          <h1 className="text-2xl font-bold">FBST</h1>
+          <p className="text-xs text-slate-400">
+            Fantasy Baseball Stat Tool
+          </p>
         </div>
 
-        <nav className="flex-1 px-2 py-3 space-y-1">
-          {links.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              className={({ isActive }) =>
-                [
-                  "flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  isActive
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                ].join(" ")
-              }
-            >
-              {link.label}
-            </NavLink>
-          ))}
+        <nav className="space-y-2">
+          {/* Period – exact match only */}
+          <NavLink
+            to="/standings"
+            end
+            className={({ isActive }) =>
+              `${sideLinkBase} ${
+                isActive ? sideActive : sideInactive
+              }`
+            }
+          >
+            Period
+          </NavLink>
+
+          <NavLink
+            to="/standings/season"
+            className={({ isActive }) =>
+              `${sideLinkBase} ${
+                isActive ? sideActive : sideInactive
+              }`
+            }
+          >
+            Season
+          </NavLink>
+
+          <NavLink
+            to="/teams"
+            className={({ isActive }) =>
+              `${sideLinkBase} ${
+                isActive ? sideActive : sideInactive
+              }`
+            }
+          >
+            Teams
+          </NavLink>
+
+          <NavLink
+            to="/auction"
+            className={({ isActive }) =>
+              `${sideLinkBase} ${
+                isActive ? sideActive : sideInactive
+              }`
+            }
+          >
+            Auction
+          </NavLink>
         </nav>
-
-        <div className="px-3 py-2 text-[11px] text-muted-foreground border-t">
-          OGBA • Fantasy Baseball
-        </div>
       </aside>
 
       {/* Main content */}
       <main className="flex-1 flex flex-col">
-        <header className="border-b px-6 py-3 flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            OGBA Fantasy Baseball Stat Tool
-          </div>
+        <header
+          className={`px-6 py-3 border-b ${mainBorder} flex items-center justify-between`}
+        >
+          <h2 className="text-sm font-semibold">
+            OGBA 2026 – Fantasy Baseball Stat Tool
+          </h2>
+
+          <button
+            onClick={() => setIsDark((v) => !v)}
+            className="text-xs px-3 py-1 rounded border border-slate-500 hover:bg-slate-700 hover:text-white"
+          >
+            {isDark ? "Light mode" : "Dark mode"}
+          </button>
         </header>
-        <Separator />
-        <div className="flex-1 overflow-auto px-6 py-4">{children}</div>
+
+        <section className="flex-1 px-6 py-4 overflow-auto">
+          <Outlet />
+        </section>
       </main>
     </div>
   );

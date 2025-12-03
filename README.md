@@ -1,6 +1,10 @@
-# 📘 FBST – Fantasy Baseball Stat Tool
+# FBST – Fantasy Baseball Stat Tool
 
-A modern, extensible fantasy baseball platform built initially for **OGBA**, with a long-term vision to support any custom league format.
+FBST is a web app for running fantasy baseball auctions and drafts, starting with the **OGBA** league and designed to eventually support **multiple leagues** with custom rules, scoring, and draft types.
+
+- Current status: Internal tool for OGBA with a working auction room.
+- Short-term direction: Clean up UI, add dark mode, and refactor the app to be **league-aware**.
+- Medium-term direction: Multi-league support (multiple commissioners, league settings, and site admin analytics).
 
 ---
 
@@ -39,6 +43,56 @@ The MVP must enable OGBA to run a full season with:
 - Ties award 0.5 points  
 - Period resets  
 - Season cumulative standings decide champion  
+
+### 2.1 Core entities
+
+- **User**
+  - Represents a person using the app.
+  - May belong to multiple leagues.
+  - Has optional site-level role flags (e.g. `isSuperAdmin`).
+
+- **League**
+  - Represents a single fantasy league (e.g. “OGBA 2026”).
+  - Key fields:
+    - `id`
+    - `name`
+    - `season` (year)
+    - `draftSettings`:
+      - `mode`: `'auction' | 'draft'`
+      - `order`: `'snake' | 'linear' | null` (only used when `mode = 'draft'`)
+  - Owns teams, auctions, league settings, etc.
+
+- **UserLeagueRole**
+  - Join between `User` and `League`.
+  - Fields:
+    - `userId`
+    - `leagueId`
+    - `role`: `owner | admin | member`
+  - Determines who can edit settings vs just manage a team.
+
+- **LeagueSettings**
+  - Per-league configuration for rules and scoring.
+  - Examples:
+    - Scoring type: `roto | points`
+    - Categories: (e.g. R, HR, RBI, SB, AVG)
+    - Roster slots (C, 1B, 2B, etc.)
+    - Budget (e.g. $260)
+    - Draft / auction timing and other league options.
+
+- **Team**
+  - A fantasy team within a league.
+  - Fields:
+    - `leagueId`, `ownerUserId`, `name`, `abbrev`, etc.
+
+- **Auction**
+  - Represents a specific auction event for a league/season.
+  - Tied to `leagueId`.
+  - Stores budget, state (upcoming / live / complete), and snapshots of rules.
+
+- **PlayerValue / Projections**
+  - Store projections, calculated values, and/or price suggestions **per league**.
+  - Tied to `leagueId` so different leagues can use different settings/weights.
+
 
 ### 3. Standings UI
 - Period standings  
@@ -91,22 +145,33 @@ fbst/
 
 ---
 
-# ⚙️ Tech Stack
+## Tech stack
 
-| Area | Technology |
-|------|------------|
-| Frontend | React, TypeScript, Vite, TailwindCSS, React Router |
-| Backend | Node.js, Express, TypeScript |
-| Database | Neon PostgreSQL |
-| ORM | Prisma |
-| Realtime | Socket.IO (for auction) |
-| Dev Tools | Cursor, GitHub, Vite, tsx |
+> ⚠️ Update this section to reflect your actual stack.
+
+- Frontend: (React / Next / Vite / etc.)
+- Backend: (Node / Express / tRPC / etc.)
+- Database: (Postgres / SQLite / etc.)
+- Language: TypeScript
 
 ---
 
-# 🚀 Getting Started (Local Development)
+## Getting started
 
-## 1. Clone & Install
+> Adjust commands as needed for your setup.
+
+```bash
+# Install dependencies
+npm install
+
+# Start dev server
+npm run dev
+
+# Build for production
+npm run build
+
+# Run production build
+npm start
 
 ```bash
 git clone https://github.com/thirstypig/fbst.git

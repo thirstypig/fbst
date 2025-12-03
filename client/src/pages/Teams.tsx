@@ -1,385 +1,224 @@
+// client/src/pages/Teams.tsx
 import { useEffect, useState } from "react";
-import {
-  getTeams,
-  getTeamSummary,
-  TeamListItem,
-  TeamSummary,
-} from "../lib/api";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+
+type Team = {
+  id: number;
+  name: string;
+  owner: string | null;
+  budget: number;
+  leagueId: number;
+};
+
+type PeriodSummary = {
+  periodId: number;
+  label: string;
+  periodPoints: number | null | undefined;
+  seasonPoints: number | null | undefined;
+};
+
+type TeamSummaryResponse = {
+  team: Team;
+  periodSummaries: PeriodSummary[];
+  seasonTotal: number;
+  [key: string]: any;
+};
 
 const TeamsPage = () => {
-  const [teams, setTeams] = useState<TeamListItem[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
-  const [summary, setSummary] = useState<TeamSummary | null>(null);
+  const [summary, setSummary] = useState<TeamSummaryResponse | null>(null);
   const [loadingTeams, setLoadingTeams] = useState(true);
   const [loadingSummary, setLoadingSummary] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [teamsError, setTeamsError] = useState<string | null>(null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
-  // Load teams list on mount
+  // Load teams list
   useEffect(() => {
     const loadTeams = async () => {
+      setLoadingTeams(true);
+      setTeamsError(null);
+
       try {
-        const data = await getTeams();
+        const res = await fetch(`${API_BASE}/api/teams`);
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+
+        if (!Array.isArray(data)) {
+          throw new Error("Expected array of teams");
+        }
+
         setTeams(data);
         if (data.length > 0) {
           setSelectedTeamId(data[0].id);
         }
-      } catch (e) {
-        console.error(e);
-        setError("Failed to load teams.");
+      } catch (err) {
+        console.error("Failed to load teams:", err);
+        setTeamsError("Failed to load teams");
+        setTeams([]);
+        setSelectedTeamId(null);
       } finally {
         setLoadingTeams(false);
       }
     };
+
     loadTeams();
   }, []);
 
-  // Load team summary whenever selectedTeamId changes
+  // Load summary for selected team
   useEffect(() => {
+    if (!selectedTeamId) return;
+
     const loadSummary = async () => {
-      if (selectedTeamId == null) return;
       setLoadingSummary(true);
-      setError(null);
+      setSummaryError(null);
+
       try {
-        const data = await getTeamSummary(selectedTeamId);
+        const res = await fetch(
+          `${API_BASE}/api/teams/${selectedTeamId}/summary`
+        );
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+
+        const data = (await res.json()) as TeamSummaryResponse;
         setSummary(data);
-      } catch (e) {
-        console.error(e);
-        setError("Failed to load team summary.");
+      } catch (err) {
+        console.error("Failed to load team summary:", err);
+        setSummaryError("Failed to load team summary");
+        setSummary(null);
       } finally {
         setLoadingSummary(false);
       }
     };
+
     loadSummary();
   }, [selectedTeamId]);
 
-  const handleTeamChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const id = Number(e.target.value);
-    if (!Number.isNaN(id)) {
-      setSelectedTeamId(id);
-    }
+  const handleSelectTeam = (id: number) => {
+    setSelectedTeamId(id);
   };
 
-  if (loadingTeams) {
-    return (
-      <div className="w-full flex justify-center mt-16 text-muted-foreground">
-        Loading teams…
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="w-full flex justify-center mt-16 text-red-500">
-        {error}
-      </div>
-    );
-  }
-
-  if (!summary || selectedTeamId == null) {
-    return (
-      <div className="w-full flex justify-center mt-16 text-muted-foreground">
-        No team selected.
-      </div>
-    );
-  }
-
-  const { team, period, periodStats, seasonStats, currentRoster, droppedPlayers } =
-    summary;
-
   return (
-    <div className="space-y-8 max-w-6xl mx-auto">
-      {/* Header + Team Selector */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <h1 className="text-3xl font-bold">Team Overview</h1>
+    <>
+      {/* This content is rendered inside Layout's <main>, so no extra sidebar here */}
 
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Select team:</span>
-          <select
-            className="border rounded-md px-2 py-1 text-sm bg-background"
-            value={selectedTeamId ?? ""}
-            onChange={handleTeamChange}
-          >
-            {teams.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
+      <header className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-semibold">
+          OGBA 2026 – Fantasy Baseball Stat Tool
+        </h1>
+      </header>
+
+      {/* Errors */}
+      {teamsError && (
+        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-700 px-3 py-2 rounded">
+          {teamsError}
         </div>
-      </div>
+      )}
+      {summaryError && (
+        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-700 px-3 py-2 rounded">
+          {summaryError}
+        </div>
+      )}
 
-      {/* Team Info + Period info */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>{team.name}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <div>
-              <span className="font-medium">Owner:</span>{" "}
-              {team.owner || "—"}
-            </div>
-            <div>
-              <span className="font-medium">Budget:</span> ${team.budget}
-            </div>
-          </CardContent>
-        </Card>
+      {/* Team buttons */}
+      <section className="mb-6">
+        <h2 className="text-xl font-semibold mb-3 text-center">Teams</h2>
+        {loadingTeams ? (
+          <div className="text-sm text-slate-300 text-center">
+            Loading teams…
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2 justify-center">
+            {teams.map((team) => {
+              const selected = team.id === selectedTeamId;
+              return (
+                <button
+                  key={team.id}
+                  onClick={() => handleSelectTeam(team.id)}
+                  className={`px-4 py-2 rounded-lg border text-sm ${
+                    selected
+                      ? "bg-blue-500 text-white border-blue-400"
+                      : "bg-slate-900 border-slate-700 hover:bg-slate-800"
+                  }`}
+                >
+                  {team.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Active Period</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            {period ? (
-              <>
-                <div>
-                  <span className="font-medium">Name:</span> {period.name}
-                </div>
-                <div>
-                  <span className="font-medium">Start:</span>{" "}
-                  {new Date(period.startDate).toLocaleDateString()}
-                </div>
-                <div>
-                  <span className="font-medium">End:</span>{" "}
-                  {new Date(period.endDate).toLocaleDateString()}
-                </div>
-              </>
-            ) : (
-              <div className="text-muted-foreground">
-                No active period found.
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      {/* Season Summary */}
+      <section className="mb-8">
+        <h3 className="text-lg font-semibold mb-3 text-center">
+          Season Summary
+          {summary?.team ? ` – ${summary.team.name}` : ""}
+        </h3>
 
-      {/* Stats cards */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Period Stats</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loadingSummary ? (
-              <div className="text-muted-foreground text-sm">
-                Loading…
-              </div>
-            ) : periodStats ? (
-              <Table>
-                <TableBody>
-                  <TableRow>
-                    <TableCell>R</TableCell>
-                    <TableCell>{periodStats.R}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>HR</TableCell>
-                    <TableCell>{periodStats.HR}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>RBI</TableCell>
-                    <TableCell>{periodStats.RBI}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>SB</TableCell>
-                    <TableCell>{periodStats.SB}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>AVG</TableCell>
-                    <TableCell>{periodStats.AVG.toFixed(3)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>W</TableCell>
-                    <TableCell>{periodStats.W}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>S</TableCell>
-                    <TableCell>{periodStats.S}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>ERA</TableCell>
-                    <TableCell>{periodStats.ERA.toFixed(2)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>WHIP</TableCell>
-                    <TableCell>{periodStats.WHIP.toFixed(2)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>K</TableCell>
-                    <TableCell>{periodStats.K}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>Games Played</TableCell>
-                    <TableCell>{periodStats.gamesPlayed}</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            ) : (
-              <div className="text-muted-foreground text-sm">
-                No period stats for this team.
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {loadingSummary && (
+          <div className="text-sm text-slate-300 text-center">
+            Loading summary…
+          </div>
+        )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Season Stats (YTD)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {seasonStats ? (
-              <Table>
-                <TableBody>
-                  <TableRow>
-                    <TableCell>R</TableCell>
-                    <TableCell>{seasonStats.R}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>HR</TableCell>
-                    <TableCell>{seasonStats.HR}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>RBI</TableCell>
-                    <TableCell>{seasonStats.RBI}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>SB</TableCell>
-                    <TableCell>{seasonStats.SB}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>AVG</TableCell>
-                    <TableCell>{seasonStats.AVG.toFixed(3)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>W</TableCell>
-                    <TableCell>{seasonStats.W}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>S</TableCell>
-                    <TableCell>{seasonStats.S}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>ERA</TableCell>
-                    <TableCell>{seasonStats.ERA.toFixed(2)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>WHIP</TableCell>
-                    <TableCell>{seasonStats.WHIP.toFixed(2)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>K</TableCell>
-                    <TableCell>{seasonStats.K}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>Games Played</TableCell>
-                    <TableCell>{seasonStats.gamesPlayed}</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            ) : (
-              <div className="text-muted-foreground text-sm">
-                No YTD stats for this team yet.
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+        {!loadingSummary && summary && (
+          <div className="max-w-3xl mx-auto overflow-x-auto border border-slate-800 rounded-xl">
+            <table className="min-w-full text-sm border-collapse">
+              <thead className="bg-slate-900">
+                <tr>
+                  <th className="border border-slate-800 px-3 py-2 text-left">
+                    Period
+                  </th>
+                  <th className="border border-slate-800 px-3 py-2 text-right">
+                    Period Pts
+                  </th>
+                  <th className="border border-slate-800 px-3 py-2 text-right">
+                    Season Pts
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {(summary.periodSummaries || []).map((p) => {
+                  const periodPoints = Number(p.periodPoints ?? 0);
+                  const seasonPoints = Number(p.seasonPoints ?? 0);
 
-      {/* Current Roster */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Current Roster</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {currentRoster.length === 0 ? (
-            <div className="text-muted-foreground text-sm">
-              No active players on this roster (yet).
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Player</TableHead>
-                  <TableHead className="w-24">Pos</TableHead>
-                  <TableHead className="w-32">Acquired</TableHead>
-                  <TableHead className="w-20 text-right">Price</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {currentRoster.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell>{p.name}</TableCell>
-                    <TableCell>{p.posList || p.posPrimary}</TableCell>
-                    <TableCell>
-                      {new Date(p.acquiredAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      ${p.price}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Dropped Players */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Dropped Players (Contributions TBD)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {droppedPlayers.length === 0 ? (
-            <div className="text-muted-foreground text-sm">
-              No dropped players recorded.
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Player</TableHead>
-                  <TableHead className="w-24">Pos</TableHead>
-                  <TableHead className="w-32">Acquired</TableHead>
-                  <TableHead className="w-32">Released</TableHead>
-                  <TableHead className="w-20 text-right">Price</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {droppedPlayers.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell>{p.name}</TableCell>
-                    <TableCell>{p.posList || p.posPrimary}</TableCell>
-                    <TableCell>
-                      {new Date(p.acquiredAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      {new Date(p.releasedAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      ${p.price}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+                  return (
+                    <tr key={p.periodId} className="odd:bg-slate-950">
+                      <td className="border border-slate-800 px-3 py-2">
+                        {p.label}
+                      </td>
+                      <td className="border border-slate-800 px-3 py-2 text-right">
+                        {periodPoints.toFixed(1)}
+                      </td>
+                      <td className="border border-slate-800 px-3 py-2 text-right">
+                        {seasonPoints.toFixed(1)}
+                      </td>
+                    </tr>
+                  );
+                })}
+                <tr className="bg-slate-900 font-semibold">
+                  <td className="border border-slate-800 px-3 py-2">
+                    Season Total
+                  </td>
+                  <td className="border border-slate-800 px-3 py-2" />
+                  <td className="border border-slate-800 px-3 py-2 text-right">
+                    {Number(summary.seasonTotal ?? 0).toFixed(1)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </>
   );
 };
 

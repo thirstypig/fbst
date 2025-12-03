@@ -1,7 +1,8 @@
+// prisma/schema.prisma
+
 // ======================
 //  Datasource + Generator
 // ======================
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -9,27 +10,57 @@ datasource db {
 
 generator client {
   provider = "prisma-client-js"
-  // Generate Prisma Client into the server .prisma folder
-  output   = "../server/node_modules/.prisma/client"
 }
 
+// ======================
+//  Enums
+// ======================
+
+enum DraftMode {
+  AUCTION
+  DRAFT
+}
+
+enum DraftOrder {
+  SNAKE
+  LINEAR
+}
 
 // ======================
 //  Models
 // ======================
 
+model League {
+  id         Int      @id @default(autoincrement())
+  name       String
+  season     Int
+  draftMode  DraftMode
+  draftOrder DraftOrder?
+  createdAt  DateTime @default(now())
+
+  // Relations
+  teams Team[]
+
+  @@unique([name, season])
+}
+
 model Team {
   id        Int      @id @default(autoincrement())
-  name      String   @unique
+  leagueId  Int
+  name      String
   owner     String?
   budget    Int      @default(400)
   createdAt DateTime @default(now())
 
   // Relations
+  league        League            @relation(fields: [leagueId], references: [id])
   rosters       Roster[]
   stats         TeamStatsPeriod[]
   season        TeamStatsSeason?
   financeEvents FinanceLedger[]
+
+  // Ensure team names are unique *within* a league
+  @@unique([leagueId, name])
 }
 
 model Player {
@@ -37,7 +68,7 @@ model Player {
   mlbId      Int?
   name       String
   posPrimary String
-  posList    String // comma-separated for now
+  posList    String   // comma-separated for now
   createdAt  DateTime @default(now())
 
   rosters Roster[]
@@ -50,10 +81,9 @@ model Period {
   startDate DateTime
   endDate   DateTime
   status    String
+
   teamStats TeamStatsPeriod[]
 }
-
-
 
 model TeamStatsPeriod {
   id       Int @id @default(autoincrement())
@@ -69,7 +99,7 @@ model TeamStatsPeriod {
 
   // Pitching
   W    Int   @default(0)
-  S    Int   @default(0) // changed from SV to S for consistency
+  S    Int   @default(0) // saves
   ERA  Float @default(0)
   WHIP Float @default(0)
   K    Int   @default(0)
@@ -120,11 +150,11 @@ model Roster {
 }
 
 model AuctionLot {
-  id               Int       @id @default(autoincrement())
+  id               Int      @id @default(autoincrement())
   playerId         Int
   nominatingTeamId Int
-  status           String // idle, nominating, bidding, closing, assigned
-  startTs          DateTime  @default(now())
+  status           String   // idle, nominating, bidding, closing, assigned
+  startTs          DateTime @default(now())
   endTs            DateTime?
   finalPrice       Int?
   winnerTeamId     Int?

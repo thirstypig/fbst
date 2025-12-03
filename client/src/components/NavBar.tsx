@@ -1,39 +1,53 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
+// client/src/components/NavBar.tsx
+import { NavLink } from "react-router-dom";
 
-const NavBar = () => {
+const linkBase =
+  "px-3 py-2 rounded text-sm font-medium border border-transparent";
+const activeClasses = "bg-blue-600 text-white";
+const inactiveClasses = "text-gray-200 hover:bg-blue-700 hover:text-white";
+
+function NavBar() {
   return (
-    <nav className="w-56 bg-slate-900 text-white flex flex-col p-4 space-y-4">
-      <div className="text-xl font-bold">FBST</div>
+    <nav className="bg-blue-800 text-white">
+      <div className="mx-auto max-w-6xl px-4 py-2 flex gap-3">
+        <NavLink
+          to="/standings"
+          className={({ isActive }) =>
+            `${linkBase} ${isActive ? activeClasses : inactiveClasses}`
+          }
+        >
+          Period
+        </NavLink>
 
-      <NavLink
-        to="/standings"
-        className={({ isActive }) =>
-          `p-2 rounded ${isActive ? 'bg-slate-700' : 'hover:bg-slate-800'}`
-        }
-      >
-        Standings
-      </NavLink>
+        <NavLink
+          to="/standings/season"
+          className={({ isActive }) =>
+            `${linkBase} ${isActive ? activeClasses : inactiveClasses}`
+          }
+        >
+          Season
+        </NavLink>
 
-      <NavLink
-        to="/auction"
-        className={({ isActive }) =>
-          `p-2 rounded ${isActive ? 'bg-slate-700' : 'hover:bg-slate-800'}`
-        }
-      >
-        Auction
-      </NavLink>
+        <NavLink
+          to="/teams"
+          className={({ isActive }) =>
+            `${linkBase} ${isActive ? activeClasses : inactiveClasses}`
+          }
+        >
+          Teams
+        </NavLink>
 
-      <NavLink
-        to="/teams/1"
-        className={({ isActive }) =>
-          `p-2 rounded ${isActive ? 'bg-slate-700' : 'hover:bg-slate-800'}`
-        }
-      >
-        Teams
-      </NavLink>
+        <NavLink
+          to="/auction"
+          className={({ isActive }) =>
+            `${linkBase} ${isActive ? activeClasses : inactiveClasses}`
+          }
+        >
+          Auction
+        </NavLink>
+      </div>
     </nav>
   );
-};
+}
 
 export default NavBar;

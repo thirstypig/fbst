@@ -1,29 +1,41 @@
+// client/src/App.tsx
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import Layout from "@/components/Layout";
+
 import Standings from "@/pages/Standings";
-import CategoryStandings from "@/pages/CategoryStandings";
 import SeasonStandings from "@/pages/SeasonStandings";
 import Teams from "@/pages/Teams";
 import Auction from "@/pages/Auction";
-import Periods from "@/pages/Periods";
 
 function App() {
   return (
     <BrowserRouter>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Navigate to="/standings" replace />} />
-          <Route path="/standings" element={<Standings />} />
-          <Route path="/standings/season" element={<SeasonStandings />} />
-          <Route
-            path="/standings/categories"
-            element={<CategoryStandings />}
-          />
-          <Route path="/teams" element={<Teams />} />
-          <Route path="/auction" element={<Auction />} />
-          <Route path="/periods" element={<Periods />} />
-        </Routes>
-      </Layout>
+      <Routes>
+        {/* Redirect old top-level /periods URL to /standings */}
+        <Route path="/periods" element={<Navigate to="/standings" replace />} />
+        {/* Redirect old /standings/categories URL to /standings */}
+        <Route
+          path="/standings/categories"
+          element={<Navigate to="/standings" replace />}
+        />
+
+        {/* Main app layout */}
+        <Route path="/" element={<Layout />}>
+          <Route index element={<Navigate to="standings" replace />} />
+
+          {/* Period standings (period + per-category tables) */}
+          <Route path="standings" element={<Standings />} />
+
+          {/* Season standings (per period columns + season total) */}
+          <Route path="standings/season" element={<SeasonStandings />} />
+
+          {/* Teams page (hitters, pitchers, season summary) */}
+          <Route path="teams" element={<Teams />} />
+
+          {/* Static auction placeholder (no API calls yet) */}
+          <Route path="auction" element={<Auction />} />
+        </Route>
+      </Routes>
     </BrowserRouter>
   );
 }

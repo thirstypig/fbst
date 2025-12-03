@@ -1,19 +1,21 @@
-// Simple hard-coded base URL for local dev
-const API_BASE_URL = "http://localhost:4000/api";
+// client/src/lib/api.ts
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000/api";
 
-// ---------- Standings types ----------
 
-export interface PeriodStanding {
+/* ---------- Types ---------- */
+
+export interface PeriodStandingRow {
   teamId: number;
   teamName: string;
   points: number;
   rank: number;
-  delta: number;
+  delta: number | null;
 }
 
 export interface PeriodStandingsResponse {
   periodId: number;
-  data: PeriodStanding[];
+  data: PeriodStandingRow[];
 }
 
 export interface CategoryRow {
@@ -24,38 +26,40 @@ export interface CategoryRow {
   rank: number;
 }
 
+export interface CategoryBlock {
+  key: string;
+  label: string;
+  rows: CategoryRow[];
+}
+
 export interface CategoryStandingsResponse {
   periodId: number;
-  categories: {
-    key: string;
-    label: string;
-    rows: CategoryRow[];
-  }[];
+  categories: CategoryBlock[];
 }
 
-export interface PeriodInfo {
-  id: number;
-  name: string;
-  startDate: string;
-  endDate: string;
-  status: string;
-  isActive: boolean;
+export interface SeasonStandingRow {
+  teamId: number;
+  teamName: string;
+  points: number;
+  rank: number;
+  delta: number | null;
+  R: number;
+  HR: number;
+  RBI: number;
+  SB: number;
+  AVG: number;
+  W: number;
+  S: number;
+  ERA: number;
+  WHIP: number;
+  K: number;
 }
 
-export interface PeriodsResponse {
-  data: PeriodInfo[];
+export interface SeasonStandingsResponse {
+  data: SeasonStandingRow[];
 }
 
-// ---------- Teams types ----------
-
-export interface TeamListItem {
-  id: number;
-  name: string;
-  owner: string | null;
-  budget: number;
-}
-
-export interface TeamSummary {
+export interface TeamSummaryResponse {
   team: {
     id: number;
     name: string;
@@ -68,8 +72,37 @@ export interface TeamSummary {
     startDate: string;
     endDate: string;
   } | null;
-  periodStats: any | null; // can be narrowed later
-  seasonStats: any | null; // can be narrowed later
+  periodStats: {
+    id: number;
+    teamId: number;
+    periodId: number;
+    R: number;
+    HR: number;
+    RBI: number;
+    SB: number;
+    AVG: number;
+    W: number;
+    S: number;
+    ERA: number;
+    WHIP: number;
+    K: number;
+    gamesPlayed: number;
+  } | null;
+  seasonStats: {
+    id: number;
+    teamId: number;
+    R: number;
+    HR: number;
+    RBI: number;
+    SB: number;
+    AVG: number;
+    W: number;
+    S: number;
+    ERA: number;
+    WHIP: number;
+    K: number;
+    gamesPlayed: number;
+  } | null;
   currentRoster: {
     id: number;
     playerId: number;
@@ -78,74 +111,107 @@ export interface TeamSummary {
     posList: string;
     acquiredAt: string;
     price: number;
-    gamesByPos: Record<string, number>;
   }[];
   droppedPlayers: {
     id: number;
     playerId: number;
     name: string;
-    posPrimary: string;
-    posList: string;
-    acquiredAt: string;
     releasedAt: string;
     price: number;
-    gamesByPos: Record<string, number>;
   }[];
 }
 
+/* ---------- Auction types ---------- */
 
-// ---------- Standings API ----------
+export interface AuctionTeamBudget {
+  teamId: number;
+  name: string;
+  budget: number;
+  spent: number;
+}
+
+export interface AuctionBid {
+  id: number;
+  teamName: string;
+  amount: number;
+  ts: string; // ISO timestamp
+}
+
+export interface AuctionLot {
+  lotId: number;
+  playerName: string;
+  mlbTeam: string;
+  positions: string[];
+  nominatedBy: string;
+  currentPrice: number;
+  currentLeader: string;
+  secondsRemaining: number;
+}
+
+export interface AuctionState {
+  status: "idle" | "nominating" | "bidding" | "paused" | "closed";
+  lot: AuctionLot | null;
+  teams: AuctionTeamBudget[];
+  recentBids: AuctionBid[];
+}
+
+/* ---------- Helpers ---------- */
+
+async function handleJson<T>(res: Response): Promise<T> {
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(
+      `API ${res.status} ${res.statusText} – ${text || "request failed"}`
+    );
+  }
+  return res.json() as Promise<T>;
+}
+
+/* ---------- Standings ---------- */
 
 export async function getCurrentPeriodStandings(): Promise<PeriodStandingsResponse> {
-  const res = await fetch(`${API_BASE_URL}/standings/period/current`);
-  if (!res.ok) {
-    console.error("Standings fetch failed:", res.status, res.statusText);
-    throw new Error("Failed to fetch period standings");
-  }
-  return res.json();
+  const res = await fetch(`${API_BASE}/standings/period/current`);
+  return handleJson<PeriodStandingsResponse>(res);
 }
 
 export async function getCategoryStandings(): Promise<CategoryStandingsResponse> {
-  const res = await fetch(
-    `${API_BASE_URL}/standings/period/current/categories`
-  );
-  if (!res.ok) {
-    console.error(
-      "Category standings fetch failed:",
-      res.status,
-      res.statusText
-    );
-    throw new Error("Failed to fetch category standings");
-  }
-  return res.json();
+  const res = await fetch(`${API_BASE}/standings/period/current/categories`);
+  return handleJson<CategoryStandingsResponse>(res);
 }
 
-export async function getPeriods(): Promise<PeriodsResponse> {
-  const res = await fetch(`${API_BASE_URL}/periods`);
-  if (!res.ok) {
-    console.error("Periods fetch failed:", res.status, res.statusText);
-    throw new Error("Failed to fetch periods");
-  }
-  return res.json();
+export async function getSeasonStandings(): Promise<SeasonStandingsResponse> {
+  const res = await fetch(`${API_BASE}/standings/season`);
+  return handleJson<SeasonStandingsResponse>(res);
+}
+
+/* ---------- Teams ---------- */
+
+export async function getTeams() {
+  const res = await fetch(`${API_BASE}/teams`);
+  return handleJson<
+    { id: number; name: string; owner: string | null; budget: number }[]
+  >(res);
+}
+
+export async function getTeamSummary(
+  teamId: number
+): Promise<TeamSummaryResponse> {
+  const res = await fetch(`${API_BASE}/teams/${teamId}/summary`);
+  return handleJson<TeamSummaryResponse>(res);
+}
+
+/* ---------- Periods ---------- */
+
+export async function getPeriods() {
+  const res = await fetch(`${API_BASE}/periods`);
+  return handleJson<{ data: { id: number; name: string; startDate: string; endDate: string; status: string; isActive: boolean }[] }>(res);
 }
 
 
-// ---------- Teams API ----------
 
-export async function getTeams(): Promise<TeamListItem[]> {
-  const res = await fetch(`${API_BASE_URL}/teams`);
-  if (!res.ok) {
-    console.error("Teams fetch failed:", res.status, res.statusText);
-    throw new Error("Failed to fetch teams");
-  }
-  return res.json();
-}
+/* ---------- Auction ---------- */
 
-export async function getTeamSummary(teamId: number): Promise<TeamSummary> {
-  const res = await fetch(`${API_BASE_URL}/teams/${teamId}/summary`);
-  if (!res.ok) {
-    console.error("Team summary fetch failed:", res.status, res.statusText);
-    throw new Error("Failed to fetch team summary");
-  }
-  return res.json();
+export async function getAuctionState(): Promise<AuctionState> {
+  const res = await fetch(`${API_BASE}/auction/state`);
+  return handleJson<AuctionState>(res);
 }
