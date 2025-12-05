@@ -1,53 +1,76 @@
 // client/src/components/NavBar.tsx
 import { NavLink } from "react-router-dom";
 
-const linkBase =
-  "px-3 py-2 rounded text-sm font-medium border border-transparent";
-const activeClasses = "bg-blue-600 text-white";
-const inactiveClasses = "text-gray-200 hover:bg-blue-700 hover:text-white";
+const baseLinkClasses =
+  "block px-4 py-2 rounded-md text-sm font-medium transition-colors";
+const activeClasses = "bg-slate-800 text-white";
+const inactiveClasses = "text-slate-300 hover:bg-slate-800 hover:text-white";
 
-function NavBar() {
+function LinkItem({ to, label }: { to: string; label: string }) {
   return (
-    <nav className="bg-blue-800 text-white">
-      <div className="mx-auto max-w-6xl px-4 py-2 flex gap-3">
-        <NavLink
-          to="/standings"
-          className={({ isActive }) =>
-            `${linkBase} ${isActive ? activeClasses : inactiveClasses}`
-          }
-        >
-          Period
-        </NavLink>
-
-        <NavLink
-          to="/standings/season"
-          className={({ isActive }) =>
-            `${linkBase} ${isActive ? activeClasses : inactiveClasses}`
-          }
-        >
-          Season
-        </NavLink>
-
-        <NavLink
-          to="/teams"
-          className={({ isActive }) =>
-            `${linkBase} ${isActive ? activeClasses : inactiveClasses}`
-          }
-        >
-          Teams
-        </NavLink>
-
-        <NavLink
-          to="/auction"
-          className={({ isActive }) =>
-            `${linkBase} ${isActive ? activeClasses : inactiveClasses}`
-          }
-        >
-          Auction
-        </NavLink>
-      </div>
-    </nav>
+    <NavLink
+      to={to}
+      className={({ isActive }) =>
+        `${baseLinkClasses} ${isActive ? activeClasses : inactiveClasses}`
+      }
+    >
+      {label}
+    </NavLink>
   );
 }
 
-export default NavBar;
+export default function NavBar() {
+  return (
+    <aside className="w-64 bg-slate-950 text-slate-100 flex flex-col border-r border-slate-800">
+      <div className="px-4 py-4 border-b border-slate-800">
+        <h1 className="text-lg font-semibold tracking-tight">FBST · OGBA</h1>
+        <p className="text-xs text-slate-400">Fantasy Baseball Stat Tool</p>
+      </div>
+
+      <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto text-sm">
+        {/* Standings section */}
+        <div>
+          <div className="px-2 pb-1 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+            Standings
+          </div>
+          <div className="space-y-1">
+            <LinkItem to="/standings" label="Current Period" />
+            <LinkItem to="/season" label="Season Totals" />
+          </div>
+        </div>
+
+        {/* Teams / Players */}
+        <div>
+          <div className="px-2 pb-1 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+            League
+          </div>
+          <div className="space-y-1">
+            <LinkItem to="/teams" label="Teams" />
+            <LinkItem to="/players" label="Players Pool" />
+          </div>
+        </div>
+
+        {/* Auction */}
+        <div>
+          <div className="px-2 pb-1 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+            Auction
+          </div>
+          <div className="space-y-1">
+            <LinkItem to="/auction" label="Auction Values" />
+            {/* Later you can add a live "Auction Room" route */}
+          </div>
+        </div>
+
+        {/* Utilities / internal */}
+        <div>
+          <div className="px-2 pb-1 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+            Tools
+          </div>
+          <div className="space-y-1">
+            <LinkItem to="/periods" label="Periods (debug)" />
+          </div>
+        </div>
+      </nav>
+    </aside>
+  );
+}

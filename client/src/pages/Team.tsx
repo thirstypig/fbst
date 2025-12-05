@@ -1,243 +1,246 @@
-// client/src/pages/Team.tsx
-import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { getTeamSummary, type TeamSummaryResponse } from "../lib/api";
+// client/src/pages/Teams.tsx
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  getTeams,
+  getPlayers,
+  type Team,
+  type PlayerSeasonRow,
+} from "@/lib/api";
 
-type ViewState = "idle" | "loading" | "loaded" | "error";
+const Teams: React.FC = () => {
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [players, setPlayers] = useState<PlayerSeasonRow[]>([]);
+  const [activeTeamId, setActiveTeamId] = useState<number | null>(null);
 
-function StatItem({ label, value }: { label: string; value: number | string }) {
-  return (
-    <>
-      <dt className="text-gray-500">{label}</dt>
-      <dd className="font-medium">{value}</dd>
-    </>
-  );
-}
-
-const TeamPage = () => {
-  const { teamId } = useParams<{ teamId: string }>();
-
-  const [state, setState] = useState<ViewState>("idle");
-  const [data, setData] = useState<TeamSummaryResponse | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!teamId) return;
+    let cancelled = false;
 
-    setState("loading");
-    setError(null);
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
 
-    getTeamSummary(Number(teamId))
-      .then((res) => {
-        setData(res);
-        setState("loaded");
-      })
-      .catch((err) => {
-        console.error("Error loading team summary", err);
-        setError(err.message || "Failed to load team");
-        setState("error");
-      });
-  }, [teamId]);
+        const [teamsData, playersData] = await Promise.all([
+          getTeams(),
+          getPlayers(),
+        ]);
 
-  if (!teamId) {
-    return <div className="p-4 text-sm">No team specified.</div>;
-  }
+        if (cancelled) return;
 
-  if (state === "loading" || state === "idle") {
-    return <div className="p-4 text-sm">Loading team…</div>;
-  }
+        setTeams(teamsData);
+        setPlayers(playersData);
 
-  if (state === "error") {
-    return (
-      <div className="p-4">
-        <p className="mb-2 text-sm text-red-600">Error: {error}</p>
-        <Link
-          to="/teams"
-          className="inline-flex items-center rounded-md border px-3 py-1 text-sm hover:bg-gray-100"
-        >
-          ← Back to teams
-        </Link>
-      </div>
-    );
-  }
+        if (teamsData.length > 0) {
+          setActiveTeamId(teamsData[0].id);
+        }
+      } catch (err: any) {
+        console.error("Failed to load teams/players", err);
+        if (!cancelled) {
+          setError(err?.message ?? "Failed to load teams");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
 
-  if (!data) {
-    return null;
-  }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  const { team, period, periodStats, seasonStats, currentRoster, droppedPlayers } =
-    data;
+  const activeTeam = useMemo(
+    () => teams.find((t) => t.id === activeTeamId) ?? null,
+    [teams, activeTeamId]
+  );
+
+  // Players whose CSV `team` value matches the fantasy team name
+  const activeRoster: PlayerSeasonRow[] = useMemo(() => {
+    if (!activeTeam) return [];
+    const target = activeTeam.name.trim().toLowerCase();
+
+    return players.filter((p) => {
+      const teamName = (p.team ?? "").trim().toLowerCase();
+      return teamName === target;
+    });
+  }, [players, activeTeam]);
 
   return (
-    <div className="p-4 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">{team.name}</h1>
-          <p className="text-sm text-gray-600">
-            Owner: {team.owner || "—"} · Budget: ${team.budget}
-          </p>
-          {period && (
-            <p className="mt-1 text-xs text-gray-400">
-              Active period: {period.name} (
-              {new Date(period.startDate).toLocaleDateString()} –{" "}
-              {new Date(period.endDate).toLocaleDateString()})
-            </p>
-          )}
-        </div>
-        <Link
-          to="/teams"
-          className="inline-flex items-center rounded-md border px-3 py-1 text-sm hover:bg-gray-100"
-        >
-          ← Back to teams
-        </Link>
-      </div>
+    <div className="flex flex-col gap-8">
+      <header className="flex flex-col gap-2">
+        <h1 className="text-2xl font-semibold text-slate-100">
+          OGBA 2026 – Fantasy Baseball Stat Tool
+        </h1>
+        <p className="text-sm text-slate-400">
+          View OGBA fantasy teams, season summaries, and each team&apos;s roster
+          from the 2025 stats CSV.
+        </p>
+      </header>
 
-      {/* Stat blocks */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-lg border bg-white p-4">
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-            Period totals
-          </h2>
-          {periodStats ? (
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-              <StatItem label="R" value={periodStats.R} />
-              <StatItem label="HR" value={periodStats.HR} />
-              <StatItem label="RBI" value={periodStats.RBI} />
-              <StatItem label="SB" value={periodStats.SB} />
-              <StatItem label="AVG" value={periodStats.AVG.toFixed(3)} />
-              <StatItem label="W" value={periodStats.W} />
-              <StatItem label="S" value={periodStats.S} />
-              <StatItem label="ERA" value={periodStats.ERA.toFixed(2)} />
-              <StatItem label="WHIP" value={periodStats.WHIP.toFixed(2)} />
-              <StatItem label="K" value={periodStats.K} />
-              <StatItem label="Games" value={periodStats.gamesPlayed} />
-            </dl>
-          ) : (
-            <p className="text-sm text-gray-500">No period stats yet.</p>
-          )}
+      {error && (
+        <div className="rounded-md border border-red-500/60 bg-red-500/10 px-4 py-2 text-sm text-red-200">
+          Failed to load teams: {error}
         </div>
+      )}
 
-        <div className="rounded-lg border bg-white p-4">
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-            Season totals
-          </h2>
-          {seasonStats ? (
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-              <StatItem label="R" value={seasonStats.R} />
-              <StatItem label="HR" value={seasonStats.HR} />
-              <StatItem label="RBI" value={seasonStats.RBI} />
-              <StatItem label="SB" value={seasonStats.SB} />
-              <StatItem label="AVG" value={seasonStats.AVG.toFixed(3)} />
-              <StatItem label="W" value={seasonStats.W} />
-              <StatItem label="S" value={seasonStats.S} />
-              <StatItem label="ERA" value={seasonStats.ERA.toFixed(2)} />
-              <StatItem label="WHIP" value={seasonStats.WHIP.toFixed(2)} />
-              <StatItem label="K" value={seasonStats.K} />
-              <StatItem label="Games" value={seasonStats.gamesPlayed} />
-            </dl>
-          ) : (
-            <p className="text-sm text-gray-500">No season stats yet.</p>
-          )}
-        </div>
-      </div>
+      {/* Team selector */}
+      <section className="flex flex-col gap-4">
+        <h2 className="text-lg font-semibold text-slate-100">Teams</h2>
 
-      {/* Current roster */}
-      <section className="overflow-hidden rounded-lg border bg-white">
-        <div className="flex items-center justify-between border-b px-4 py-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-            Current roster ({currentRoster.length})
-          </h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-gray-50">
+        {loading && !teams.length ? (
+          <p className="text-sm text-slate-400">Loading teams…</p>
+        ) : (
+          <div className="flex flex-wrap gap-3">
+            {teams.map((team) => (
+              <button
+                key={team.id}
+                type="button"
+                onClick={() => setActiveTeamId(team.id)}
+                className={`px-4 py-2 rounded-lg border text-sm transition ${
+                  team.id === activeTeamId
+                    ? "bg-sky-600 border-sky-500 text-white"
+                    : "bg-slate-900 border-slate-700 text-slate-200 hover:bg-slate-800"
+                }`}
+              >
+                {team.name.trim()}
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Season summary (still stubbed) */}
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold text-slate-100">
+          Season Summary{activeTeam ? ` – ${activeTeam.name.trim()}` : ""}
+        </h2>
+
+        <div className="border border-slate-800 rounded-lg overflow-hidden bg-slate-950/60">
+          <table className="w-full text-xs md:text-sm border-collapse">
+            <thead className="bg-slate-900 text-slate-300">
               <tr>
-                <th className="px-3 py-2 text-left font-medium text-gray-600">
-                  Player
-                </th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600">
-                  Pos
-                </th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600">
-                  Pos list
-                </th>
-                <th className="px-3 py-2 text-right font-medium text-gray-600">
-                  Price
-                </th>
-                <th className="px-3 py-2 text-left font-medium text-gray-600">
-                  Acquired
-                </th>
+                <th className="px-4 py-2 text-left font-medium">Period</th>
+                <th className="px-4 py-2 text-right font-medium">Period Pts</th>
+                <th className="px-4 py-2 text-right font-medium">Season Pts</th>
               </tr>
             </thead>
             <tbody>
-              {currentRoster.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="px-3 py-4 text-center text-gray-500"
-                  >
-                    No players on roster yet.
-                  </td>
-                </tr>
-              ) : (
-                currentRoster.map((p) => (
-                  <tr key={p.id} className="border-t">
-                    <td className="px-3 py-2">{p.name}</td>
-                    <td className="px-3 py-2">{p.posPrimary}</td>
-                    <td className="px-3 py-2">{p.posList}</td>
-                    <td className="px-3 py-2 text-right">${p.price}</td>
-                    <td className="px-3 py-2">
-                      {new Date(p.acquiredAt).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))
-              )}
+              <tr className="border-b border-slate-800 text-slate-100">
+                <td className="px-4 py-2">Period 1</td>
+                <td className="px-4 py-2 text-right">0.0</td>
+                <td className="px-4 py-2 text-right">0.0</td>
+              </tr>
+              <tr className="text-slate-100">
+                <td className="px-4 py-2 font-semibold">Season Total</td>
+                <td className="px-4 py-2 text-right font-semibold">0.0</td>
+                <td className="px-4 py-2 text-right font-semibold">0.0</td>
+              </tr>
             </tbody>
           </table>
         </div>
       </section>
 
-      {/* Dropped players */}
-      {droppedPlayers.length > 0 && (
-        <section className="overflow-hidden rounded-lg border bg-white">
-          <div className="border-b px-4 py-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Dropped players ({droppedPlayers.length})
-            </h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-gray-50">
+      {/* Roster */}
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold text-slate-100">
+          Roster{activeTeam ? ` – ${activeTeam.name.trim()}` : ""}
+        </h2>
+        <p className="text-xs text-slate-400">
+          Players are pulled from <code>/api/players</code>. Any rows with an
+          empty <code>team</code> field are treated as free agents and won&apos;t
+          appear here.
+        </p>
+
+        {!activeTeam && !loading && (
+          <p className="text-sm text-slate-400">
+            No team selected. Choose a team above.
+          </p>
+        )}
+
+        {activeTeam && (
+          <div className="border border-slate-800 rounded-lg overflow-hidden bg-slate-950/60">
+            <table className="w-full text-xs md:text-sm border-collapse">
+              <thead className="bg-slate-900 text-slate-300">
                 <tr>
-                  <th className="px-3 py-2 text-left font-medium text-gray-600">
-                    Player
-                  </th>
-                  <th className="px-3 py-2 text-right font-medium text-gray-600">
-                    Price
-                  </th>
-                  <th className="px-3 py-2 text-left font-medium text-gray-600">
-                    Released
-                  </th>
+                  <th className="px-4 py-2 text-left font-medium">Player</th>
+                  <th className="px-4 py-2 text-center font-medium">Pos</th>
+                  <th className="px-4 py-2 text-center font-medium">R</th>
+                  <th className="px-4 py-2 text-center font-medium">HR</th>
+                  <th className="px-4 py-2 text-center font-medium">RBI</th>
+                  <th className="px-4 py-2 text-center font-medium">SB</th>
+                  <th className="px-4 py-2 text-center font-medium">AVG</th>
+                  <th className="px-4 py-2 text-center font-medium">W</th>
+                  <th className="px-4 py-2 text-center font-medium">S</th>
+                  <th className="px-4 py-2 text-center font-medium">K</th>
+                  <th className="px-4 py-2 text-center font-medium">ERA</th>
+                  <th className="px-4 py-2 text-center font-medium">WHIP</th>
                 </tr>
               </thead>
               <tbody>
-                {droppedPlayers.map((p) => (
-                  <tr key={p.id} className="border-t">
-                    <td className="px-3 py-2">{p.name}</td>
-                    <td className="px-3 py-2 text-right">${p.price}</td>
-                    <td className="px-3 py-2">
-                      {new Date(p.releasedAt).toLocaleDateString()}
+                {activeRoster.map((p, idx) => {
+                  const anyPlayer = p as any;
+                  const displayName: string =
+                    anyPlayer.name ??
+                    anyPlayer.player_name ??
+                    anyPlayer.Player ??
+                    anyPlayer.full_name ??
+                    "";
+
+                  return (
+                    <tr
+                      key={`${p.mlb_id ?? "no-id"}-${idx}`}
+                      className="border-b border-slate-800 hover:bg-slate-800/40 text-slate-100"
+                    >
+                      <td className="px-4 py-2 text-left">
+                        {displayName || "—"}
+                      </td>
+                      <td className="px-4 py-2 text-center">
+                        {p.pos ?? "—"}
+                      </td>
+                      <td className="px-4 py-2 text-center">{p.R ?? "—"}</td>
+                      <td className="px-4 py-2 text-center">{p.HR ?? "—"}</td>
+                      <td className="px-4 py-2 text-center">{p.RBI ?? "—"}</td>
+                      <td className="px-4 py-2 text-center">{p.SB ?? "—"}</td>
+                      <td className="px-4 py-2 text-center">
+                        {typeof p.AVG === "number"
+                          ? p.AVG.toFixed(3)
+                          : p.AVG ?? "—"}
+                      </td>
+                      <td className="px-4 py-2 text-center">{p.W ?? "—"}</td>
+                      <td className="px-4 py-2 text-center">{p.S ?? "—"}</td>
+                      <td className="px-4 py-2 text-center">{p.K ?? "—"}</td>
+                      <td className="px-4 py-2 text-center">
+                        {p.ERA ?? "—"}
+                      </td>
+                      <td className="px-4 py-2 text-center">
+                        {p.WHIP ?? "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+
+                {activeRoster.length === 0 && !loading && (
+                  <tr>
+                    <td
+                      colSpan={12}
+                      className="px-4 py-6 text-center text-slate-400"
+                    >
+                      No roster data for this team yet. Once the 2025 stats CSV
+                      has a <code>team</code> value matching this fantasy team
+                      name, players will appear here.
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
-        </section>
-      )}
+        )}
+      </section>
     </div>
   );
 };
 
-export default TeamPage;
+export default Teams;
