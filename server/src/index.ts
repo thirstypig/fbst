@@ -6,7 +6,10 @@ import teamsRouter from "./routes/teams";
 import standingsRouter from "./routes/standings";
 import auctionRouter from "./routes/auction";
 import periodsRouter from "./routes/periods";
+import playersRouter from "./routes/players";
 import { loadAuctionValues } from "./data/auctionValues";
+import { loadPlayers } from "./data/players";
+
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 4000;
@@ -14,7 +17,7 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 4000;
 app.use(cors());
 app.use(express.json());
 
-// Simple logger so we can see requests
+// Simple logger
 app.use((req, _res, next) => {
   console.log(`${req.method} ${req.url}`);
   next();
@@ -50,11 +53,18 @@ app.get("/api/auction-values/:mlbId", (req, res) => {
   }
 });
 
-// Mount routers under /api/*
+app.get("/api/players", async (_req, res) => {
+  const players = await loadPlayers();
+  res.json(players);
+});
+
+
+// Routers
 app.use("/api/teams", teamsRouter);
 app.use("/api/standings", standingsRouter);
 app.use("/api/auction", auctionRouter);
 app.use("/api/periods", periodsRouter);
+app.use("/api/players", playersRouter);
 
 // Catch-all 404
 app.use((req, res) => {

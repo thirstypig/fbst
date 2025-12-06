@@ -1,7 +1,16 @@
 {
+  "name": "fbst-server",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "npx tsx src/index.ts",
+    "seed": "npx tsx src/seed.ts",
+    "db:push": "npx prisma db push --schema ../prisma/schema.prisma --accept-data-loss"
+  },
   "dependencies": {
     "@prisma/client": "^5.22.0",
-    "csv-parse": "^6.1.0"
+    "@types/papaparse": "^5.5.1",
+    "csv-parse": "^6.1.0",
+    "papaparse": "^5.5.3"
   },
   "devDependencies": {
     "prisma": "^5.22.0"

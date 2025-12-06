@@ -7,7 +7,7 @@ type Team = {
   id: number;
   name: string;
   owner: string | null;
-  budget: number;
+  budget: number | null;
   leagueId: number;
 };
 
@@ -25,7 +25,7 @@ type TeamSummaryResponse = {
   [key: string]: any;
 };
 
-const TeamsPage = () => {
+export default function Teams() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
   const [summary, setSummary] = useState<TeamSummaryResponse | null>(null);
@@ -36,7 +36,7 @@ const TeamsPage = () => {
 
   // Load teams list
   useEffect(() => {
-    const loadTeams = async () => {
+    async function loadTeams() {
       setLoadingTeams(true);
       setTeamsError(null);
 
@@ -47,7 +47,7 @@ const TeamsPage = () => {
           throw new Error(`HTTP ${res.status}`);
         }
 
-        const data = await res.json();
+        const data = (await res.json()) as Team[];
 
         if (!Array.isArray(data)) {
           throw new Error("Expected array of teams");
@@ -65,22 +65,24 @@ const TeamsPage = () => {
       } finally {
         setLoadingTeams(false);
       }
-    };
+    }
 
     loadTeams();
   }, []);
 
   // Load summary for selected team
   useEffect(() => {
-    if (!selectedTeamId) return;
+    if (selectedTeamId == null) return;
 
-    const loadSummary = async () => {
+    let cancelled = false;
+
+    async function loadSummary() {
       setLoadingSummary(true);
       setSummaryError(null);
 
       try {
         const res = await fetch(
-          `${API_BASE}/api/teams/${selectedTeamId}/summary`
+          `${API_BASE}/api/teams/${selectedTeamId}/summary`,
         );
 
         if (!res.ok) {
@@ -88,17 +90,27 @@ const TeamsPage = () => {
         }
 
         const data = (await res.json()) as TeamSummaryResponse;
-        setSummary(data);
+        if (!cancelled) {
+          setSummary(data);
+        }
       } catch (err) {
         console.error("Failed to load team summary:", err);
-        setSummaryError("Failed to load team summary");
-        setSummary(null);
+        if (!cancelled) {
+          setSummaryError("Failed to load team summary");
+          setSummary(null);
+        }
       } finally {
-        setLoadingSummary(false);
+        if (!cancelled) {
+          setLoadingSummary(false);
+        }
       }
-    };
+    }
 
     loadSummary();
+
+    return () => {
+      cancelled = true;
+    };
   }, [selectedTeamId]);
 
   const handleSelectTeam = (id: number) => {
@@ -106,47 +118,48 @@ const TeamsPage = () => {
   };
 
   return (
-    <>
-      {/* This content is rendered inside Layout's <main>, so no extra sidebar here */}
-
-      <header className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold">
-          OGBA 2026 – Fantasy Baseball Stat Tool
-        </h1>
+    <div className="space-y-8">
+      {/* Page header */}
+      <header className="space-y-1">
+        <h1 className="text-3xl font-semibold tracking-tight">Teams</h1>
+        <p className="text-sm text-slate-400">
+          OGBA 2025 · League ID 1
+        </p>
       </header>
 
       {/* Errors */}
       {teamsError && (
-        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-700 px-3 py-2 rounded">
+        <div className="text-red-400 text-sm bg-red-950/40 border border-red-700 px-3 py-2 rounded">
           {teamsError}
         </div>
       )}
       {summaryError && (
-        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-700 px-3 py-2 rounded">
+        <div className="text-red-400 text-sm bg-red-950/40 border border-red-700 px-3 py-2 rounded">
           {summaryError}
         </div>
       )}
 
-      {/* Team buttons */}
-      <section className="mb-6">
-        <h2 className="text-xl font-semibold mb-3 text-center">Teams</h2>
+      {/* Team selector */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium text-slate-300 uppercase tracking-[0.16em]">
+          Select team
+        </h2>
         {loadingTeams ? (
-          <div className="text-sm text-slate-300 text-center">
-            Loading teams…
-          </div>
+          <div className="text-sm text-slate-300">Loading teams…</div>
         ) : (
-          <div className="flex flex-wrap gap-2 justify-center">
+          <div className="flex flex-wrap gap-2">
             {teams.map((team) => {
               const selected = team.id === selectedTeamId;
               return (
                 <button
                   key={team.id}
                   onClick={() => handleSelectTeam(team.id)}
-                  className={`px-4 py-2 rounded-lg border text-sm ${
+                  className={[
+                    "px-4 py-2 rounded-full border text-xs font-medium transition-colors",
                     selected
-                      ? "bg-blue-500 text-white border-blue-400"
-                      : "bg-slate-900 border-slate-700 hover:bg-slate-800"
-                  }`}
+                      ? "bg-sky-500 text-white border-sky-400"
+                      : "bg-slate-950 border-slate-700 text-slate-200 hover:bg-slate-900",
+                  ].join(" ")}
                 >
                   {team.name}
                 </button>
@@ -157,20 +170,18 @@ const TeamsPage = () => {
       </section>
 
       {/* Season Summary */}
-      <section className="mb-8">
-        <h3 className="text-lg font-semibold mb-3 text-center">
-          Season Summary
+      <section className="space-y-3">
+        <h3 className="text-lg font-semibold">
+          Season summary
           {summary?.team ? ` – ${summary.team.name}` : ""}
         </h3>
 
         {loadingSummary && (
-          <div className="text-sm text-slate-300 text-center">
-            Loading summary…
-          </div>
+          <div className="text-sm text-slate-300">Loading summary…</div>
         )}
 
         {!loadingSummary && summary && (
-          <div className="max-w-3xl mx-auto overflow-x-auto border border-slate-800 rounded-xl">
+          <div className="max-w-3xl overflow-x-auto border border-slate-800 rounded-xl">
             <table className="min-w-full text-sm border-collapse">
               <thead className="bg-slate-900">
                 <tr>
@@ -178,10 +189,10 @@ const TeamsPage = () => {
                     Period
                   </th>
                   <th className="border border-slate-800 px-3 py-2 text-right">
-                    Period Pts
+                    Period pts
                   </th>
                   <th className="border border-slate-800 px-3 py-2 text-right">
-                    Season Pts
+                    Season pts
                   </th>
                 </tr>
               </thead>
@@ -206,7 +217,7 @@ const TeamsPage = () => {
                 })}
                 <tr className="bg-slate-900 font-semibold">
                   <td className="border border-slate-800 px-3 py-2">
-                    Season Total
+                    Season total
                   </td>
                   <td className="border border-slate-800 px-3 py-2" />
                   <td className="border border-slate-800 px-3 py-2 text-right">
@@ -218,8 +229,6 @@ const TeamsPage = () => {
           </div>
         )}
       </section>
-    </>
+    </div>
   );
-};
-
-export default TeamsPage;
+}

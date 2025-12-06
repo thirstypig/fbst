@@ -1,109 +1,89 @@
-// client/src/components/Layout.tsx
 import { NavLink, Outlet } from "react-router-dom";
 import { useState } from "react";
 
-const sideLinkBase =
-  "block w-full text-left px-3 py-2 rounded-md text-sm font-medium";
-const sideActive = "bg-slate-200 text-slate-900";
-const sideInactive =
-  "text-slate-700 hover:bg-slate-700 hover:text-white";
+const navItems = [
+  { to: "/standings", label: "Period" },
+  { to: "/season", label: "Season" },
+  { to: "/teams", label: "Teams" },
+  { to: "/players", label: "Players" },
+  { to: "/auction", label: "Auction" },
+];
 
-const Layout = () => {
-  const [isDark, setIsDark] = useState(true);
+function Layout() {
+  const [isLight, setIsLight] = useState(false);
 
-  const shellClass = isDark
-    ? "min-h-screen bg-slate-950 text-slate-50 flex"
-    : "min-h-screen bg-slate-100 text-slate-900 flex";
+  const toggleTheme = () => {
+    setIsLight((prev) => !prev);
+  };
 
-  const mainBorder = isDark ? "border-slate-800" : "border-slate-300";
+  const shellBg = isLight ? "bg-slate-50 text-slate-900" : "bg-slate-950 text-slate-100";
+  const sidebarBg = isLight
+    ? "bg-slate-100 border-slate-200"
+    : "bg-slate-950/95 border-slate-800";
+  const mainBg = isLight ? "bg-slate-50" : "bg-slate-950";
+  const headerBorder = isLight ? "border-slate-200" : "border-slate-800";
 
   return (
-    <div className={shellClass}>
+    <div className={`flex min-h-screen ${shellBg}`}>
       {/* Sidebar */}
-      <aside
-        className={`w-60 ${
-          isDark ? "bg-slate-900" : "bg-slate-200"
-        } border-r ${mainBorder} p-4 space-y-6`}
-      >
-        <div>
-          <h1 className="text-2xl font-bold">FBST</h1>
-          <p className="text-xs text-slate-400">
+      <aside className={`flex w-56 flex-col border-r ${sidebarBg}`}>
+        <div className="border-b border-slate-800/60 px-5 py-4">
+          <div className="text-lg font-semibold tracking-wide">FBST</div>
+          <div className="text-xs text-slate-500">
             Fantasy Baseball Stat Tool
-          </p>
+          </div>
         </div>
 
-        <nav className="space-y-2">
-          {/* Period – exact match only */}
-          <NavLink
-            to="/standings"
-            end
-            className={({ isActive }) =>
-              `${sideLinkBase} ${
-                isActive ? sideActive : sideInactive
-              }`
-            }
-          >
-            Period
-          </NavLink>
-
-          <NavLink
-            to="/standings/season"
-            className={({ isActive }) =>
-              `${sideLinkBase} ${
-                isActive ? sideActive : sideInactive
-              }`
-            }
-          >
-            Season
-          </NavLink>
-
-          <NavLink
-            to="/teams"
-            className={({ isActive }) =>
-              `${sideLinkBase} ${
-                isActive ? sideActive : sideInactive
-              }`
-            }
-          >
-            Teams
-          </NavLink>
-
-          <NavLink
-            to="/auction"
-            className={({ isActive }) =>
-              `${sideLinkBase} ${
-                isActive ? sideActive : sideInactive
-              }`
-            }
-          >
-            Auction
-          </NavLink>
+        <nav className="mt-4 flex flex-1 flex-col gap-1 px-3">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                [
+                  "rounded-md px-3 py-2 text-sm font-medium text-left",
+                  isActive
+                    ? isLight
+                      ? "bg-slate-900 text-slate-50"
+                      : "bg-slate-200 text-slate-900"
+                    : isLight
+                    ? "text-slate-700 hover:bg-slate-200 hover:text-slate-900"
+                    : "text-slate-300 hover:bg-slate-800 hover:text-slate-50",
+                ].join(" ")
+              }
+            >
+              {item.label}
+            </NavLink>
+          ))}
         </nav>
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 flex flex-col">
+      <main className={`flex flex-1 flex-col ${mainBg}`}>
+        {/* Top bar */}
         <header
-          className={`px-6 py-3 border-b ${mainBorder} flex items-center justify-between`}
+          className={`flex items-center justify-between border-b ${headerBorder} px-8 py-4`}
         >
-          <h2 className="text-sm font-semibold">
+          <div className="text-sm font-medium text-slate-500">
             OGBA 2026 – Fantasy Baseball Stat Tool
-          </h2>
-
+          </div>
           <button
-            onClick={() => setIsDark((v) => !v)}
-            className="text-xs px-3 py-1 rounded border border-slate-500 hover:bg-slate-700 hover:text-white"
+            type="button"
+            onClick={toggleTheme}
+            aria-pressed={isLight}
+            className="rounded-md border border-slate-400 bg-slate-100 px-3 py-1 text-xs text-slate-800 hover:bg-slate-200"
           >
-            {isDark ? "Light mode" : "Dark mode"}
+            {isLight ? "Dark mode" : "Light mode"}
           </button>
         </header>
 
-        <section className="flex-1 px-6 py-4 overflow-auto">
+        {/* Routed page body */}
+        <section className="flex-1 px-8 py-6">
           <Outlet />
         </section>
       </main>
     </div>
   );
-};
+}
 
 export default Layout;
