@@ -43,6 +43,37 @@ export interface AuctionValue {
   isPitcher: boolean;
 }
 
+// ---------- Period standings ----------
+
+export interface PeriodStandingsResponse {
+  periodId: number;
+  label: string;
+  rows: {
+    teamId: number;
+    teamName: string;
+    owner: string | null;
+    R: number;
+    HR: number;
+    RBI: number;
+    SB: number;
+    W: number;
+    S: number;
+    K: number;
+    totalPoints: number;
+  }[];
+}
+
+
+export async function getPeriodStandings(
+  periodId: number,
+): Promise<PeriodStandingsResponse> {
+  const res = await fetch(`${API_BASE}/period-standings?periodId=${periodId}`);
+  return handleJson<PeriodStandingsResponse>(res);
+}
+
+
+
+
 async function handleJson<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let message = res.statusText || `HTTP ${res.status}`;

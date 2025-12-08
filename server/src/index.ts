@@ -1,6 +1,9 @@
 // server/src/index.ts
 import express from "express";
 import cors from "cors";
+import { getAuctionValues } from "./data/auctionValues";
+
+
 
 import teamsRouter from "./routes/teams";
 import standingsRouter from "./routes/standings";
@@ -31,13 +34,17 @@ app.get("/api/health", (_req, res) => {
 // Auction values from CSV
 app.get("/api/auction-values", (_req, res) => {
   try {
-    const rows = loadAuctionValues();
-    res.json(rows);
+    const values = getAuctionValues();
+    console.log(
+      `/api/auction-values -> ${Array.isArray(values) ? values.length : 0} rows`
+    );
+    res.json(values);
   } catch (err) {
-    console.error("Error loading auction values", err);
+    console.error("Error in /api/auction-values", err);
     res.status(500).json({ error: "Failed to load auction values" });
   }
 });
+
 
 app.get("/api/auction-values/:mlbId", (req, res) => {
   try {
