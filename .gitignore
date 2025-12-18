@@ -25,3 +25,8 @@ server/node_modules/.prisma/
 /.vite
 tsx
 fbst-server@1.0.0
+
+# Env
+.env
+client/.env
+server/.env
