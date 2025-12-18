@@ -30,3 +30,6 @@ fbst-server@1.0.0
 .env
 client/.env
 server/.env
+
+# Generated MLB cache
+server/src/data/mlb_team_cache.json
