@@ -14,7 +14,11 @@
 
 export type HOrP = "hitting" | "pitching";
 
-const API_BASE: string = (import.meta as any).env?.VITE_API_BASE ?? "http://localhost:4000/api";
+const API_BASE: string =
+  (import.meta as any).env?.VITE_API_BASE ??
+  (import.meta as any).env?.VITE_API_BASE_URL ??
+  "http://localhost:4000/api";
+
 const MLB_API_BASE = "https://statsapi.mlb.com/api/v1";
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -141,13 +145,41 @@ function normalizeTwoWayRow(row: any): PlayerSeasonStat {
   return out;
 }
 
-function dedupeByRowId(rows: PlayerSeasonStat[]): PlayerSeasonStat[] {
+function dedupeByRowId(
+  rows: PlayerSeasonStat[],
+  mode: "season" | "auction" = "season"
+): PlayerSeasonStat[] {
   // Prevent React "duplicate key" warnings and duplicate rows in tables.
+  // Keep the "best" duplicate instead of arbitrarily keeping the first one.
   const m = new Map<string, PlayerSeasonStat>();
-  for (const r of rows) {
-    const k = String(r.row_id ?? "").trim() || `${r.mlb_id}-${r.group ?? (r.is_pitcher ? "P" : "H")}`;
-    if (!m.has(k)) m.set(k, r);
+
+  function score(r: PlayerSeasonStat): number {
+    if (mode === "auction") return toNum((r as any).dollar_value ?? (r as any).value);
+    // season: prefer the row that looks more “real”
+    return (
+      toNum((r as any).AB) +
+      toNum((r as any).H) +
+      toNum((r as any).IP) +
+      toNum((r as any).K) +
+      toNum((r as any).R) +
+      toNum((r as any).HR) +
+      toNum((r as any).RBI)
+    );
   }
+
+  for (const r of rows) {
+    const k =
+      String(r.row_id ?? "").trim() ||
+      `${r.mlb_id}-${r.group ?? (r.is_pitcher ? "P" : "H")}`;
+
+    const prev = m.get(k);
+    if (!prev) {
+      m.set(k, r);
+      continue;
+    }
+    if (score(r) >= score(prev)) m.set(k, r);
+  }
+
   return Array.from(m.values());
 }
 
@@ -306,14 +338,14 @@ export async function getHealth(): Promise<any> {
 
 export async function getAuctionValues(): Promise<PlayerSeasonStat[]> {
   const raw = await fetchJson<any[]>(`${API_BASE}/auction-values`);
-  return dedupeByRowId((raw ?? []).map(normalizeTwoWayRow));
+  return dedupeByRowId((raw ?? []).map(normalizeTwoWayRow), "auction");
 }
 
 export async function getPlayerSeasonStats(): Promise<PlayerSeasonStat[]> {
   if (!_seasonStatsCache) {
     _seasonStatsCache = (async () => {
       const raw = await fetchJson<any[]>(`${API_BASE}/player-season-stats`);
-      return dedupeByRowId((raw ?? []).map(normalizeTwoWayRow));
+      return dedupeByRowId((raw ?? []).map(normalizeTwoWayRow), "season");
     })();
   }
   return _seasonStatsCache;
@@ -483,7 +515,7 @@ export async function getPeriodStandings(periodId: number): Promise<PeriodStandi
     }
     const t = byTeam.get(team)!;
 
-    // Counting cats (use either direct category columns or underlying stat columns)
+    // Counting cats
     t.R += toNum(r.R);
     t.HR += toNum(r.HR);
     t.RBI += toNum(r.RBI);

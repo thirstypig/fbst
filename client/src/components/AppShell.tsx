@@ -1,77 +1,54 @@
 // client/src/components/AppShell.tsx
-//
-// FBST_CHANGELOG
-// - 2025-12-14
-//   - Do NOT render <BrowserRouter> here.
-//   - Routes must match files in client/src/pages.
-
 import React from "react";
-import { NavLink, Routes, Route, Navigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
-import Home from "../pages/Home";
-import Period from "../pages/Period";
-import Season from "../pages/Season";
-import Teams from "../pages/Teams";
-import Team from "../pages/Team";
-import Players from "../pages/Players";
-import Auction from "../pages/Auction";
+const NAV = [
+  { to: "/", label: "Home" },
+  { to: "/period", label: "Period" },
+  { to: "/season", label: "Season" },
+  { to: "/teams", label: "Teams" },
+  { to: "/players", label: "Players" },
+] as const;
 
-function SideLink(props: { to: string; label: string }) {
-  return (
-    <NavLink
-      to={props.to}
-      className={({ isActive }) =>
-        [
-          "block rounded-xl px-4 py-3 text-sm transition",
-          isActive
-            ? "bg-slate-700/70 text-slate-50"
-            : "text-slate-200 hover:bg-slate-800/60",
-        ].join(" ")
-      }
-      end
-    >
-      {props.label}
-    </NavLink>
-  );
+function isActive(pathname: string, to: string) {
+  if (to === "/") return pathname === "/";
+  return pathname === to || pathname.startsWith(to + "/");
 }
 
-export default function AppShell() {
+export default function AppShell({ children }: { children: React.ReactNode }) {
+  const loc = useLocation();
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="flex min-h-screen">
-        <aside className="w-64 border-r border-slate-800/60 bg-slate-950/60 px-4 py-6">
+    <div className="min-h-screen bg-slate-950 text-slate-50">
+      <div className="flex">
+        {/* Sidebar */}
+        <aside className="w-56 shrink-0 border-r border-white/10 px-5 py-6">
           <div className="mb-6">
-            <div className="text-lg font-semibold tracking-wide">FBST</div>
-            <div className="text-xs text-slate-400">Fantasy Baseball Stat Tool</div>
+            <div className="text-lg font-semibold">FBST</div>
+            <div className="text-xs text-white/50">Fantasy Baseball Stat Tool</div>
           </div>
 
-          <nav className="space-y-2">
-            <SideLink to="/period" label="Period" />
-            <SideLink to="/season" label="Season" />
-            <SideLink to="/teams" label="Teams" />
-            <SideLink to="/players" label="Players" />
-            <SideLink to="/auction" label="Auction" />
-            <SideLink to="/home" label="Home" />
+          <nav className="space-y-1">
+            {NAV.map((item) => {
+              const active = isActive(loc.pathname, item.to);
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={[
+                    "block rounded-xl px-3 py-2 text-sm transition-colors",
+                    active ? "bg-white/10 text-white" : "text-white/70 hover:bg-white/5 hover:text-white",
+                  ].join(" ")}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
           </nav>
         </aside>
 
-        <main className="flex-1 px-6 py-6">
-          <Routes>
-            <Route path="/" element={<Navigate to="/players" replace />} />
-
-            <Route path="/home" element={<Home />} />
-            <Route path="/period" element={<Period />} />
-            <Route path="/season" element={<Season />} />
-
-            <Route path="/teams" element={<Teams />} />
-            <Route path="/teams/:teamCode" element={<Team />} />
-
-            <Route path="/players" element={<Players />} />
-            <Route path="/auction" element={<Auction />} />
-
-            <Route path="*" element={<Navigate to="/players" replace />} />
-          </Routes>
-        </main>
+        {/* Main */}
+        <main className="flex-1">{children}</main>
       </div>
     </div>
   );

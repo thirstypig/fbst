@@ -1,15 +1,9 @@
 // client/src/main.tsx
-//
-// FBST_CHANGELOG
-// - 2025-12-14
-//   - BrowserRouter must live ONLY here.
-//   - Ensure global CSS is imported (Tailwind + app styling).
-
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 
-import "./index.css";
+import "./index.css"; // <-- REQUIRED (Tailwind + global styles)
 
 import App from "./App";
 import { ThemeProvider } from "./components/ThemeContext";

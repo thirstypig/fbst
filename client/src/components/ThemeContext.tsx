@@ -1,71 +1,33 @@
 // client/src/components/ThemeContext.tsx
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-type Theme = "light" | "dark";
+type Theme = "dark" | "light";
 
-interface ThemeContextValue {
+type ThemeCtx = {
   theme: Theme;
-  toggleTheme: () => void;
-}
+  setTheme: (t: Theme) => void;
+};
 
-const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
+const Ctx = createContext<ThemeCtx | null>(null);
 
-const STORAGE_KEY = "fbst-theme";
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setTheme] = useState<Theme>(() => {
+    const saved = localStorage.getItem("theme");
+    return (saved === "light" || saved === "dark") ? saved : "dark";
+  });
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("dark");
-
-  // Load from localStorage / system preference
   useEffect(() => {
-    let initial: Theme = "dark";
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
-      if (stored === "light" || stored === "dark") {
-        initial = stored;
-      } else if (window.matchMedia?.("(prefers-color-scheme: light)").matches) {
-        initial = "light";
-      }
-    } catch {
-      // ignore
-    }
-    setTheme(initial);
-  }, []);
-
-  // Apply to <html> and persist
-  useEffect(() => {
-    const root = document.documentElement;
-    if (theme === "dark") {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
-    try {
-      localStorage.setItem(STORAGE_KEY, theme);
-    } catch {
-      // ignore
-    }
+    localStorage.setItem("theme", theme);
+    document.documentElement.classList.toggle("light", theme === "light");
+    document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
 
-  const toggleTheme = () =>
-    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
-
-  return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  const value = useMemo(() => ({ theme, setTheme }), [theme]);
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
 export function useTheme() {
-  const ctx = useContext(ThemeContext);
-  if (!ctx) {
-    throw new Error("useTheme must be used inside <ThemeProvider>");
-  }
-  return ctx;
+  const v = useContext(Ctx);
+  if (!v) throw new Error("useTheme must be used within ThemeProvider");
+  return v;
 }
