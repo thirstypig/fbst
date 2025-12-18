@@ -1,56 +1,31 @@
-import { useEffect, useState } from 'react'
-import { io, Socket } from 'socket.io-client'
+// client/src/pages/Home.tsx
+//
+// FBST_CHANGELOG
+// - 2025-12-14
+//   - Remove socket.io-client (was calling localhost:5000 and causing CORS/403 spam).
 
-function Home() {
-  const [socket, setSocket] = useState<Socket | null>(null)
-  const [connected, setConnected] = useState(false)
+import React from "react";
+import { Link } from "react-router-dom";
 
-  useEffect(() => {
-    const newSocket = io('http://localhost:5000')
-    
-    newSocket.on('connect', () => {
-      setConnected(true)
-      console.log('Connected to server')
-    })
-
-    newSocket.on('disconnect', () => {
-      setConnected(false)
-      console.log('Disconnected from server')
-    })
-
-    setSocket(newSocket)
-
-    return () => {
-      newSocket.close()
-    }
-  }, [])
-
+export default function Home() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen">
-      <h1 className="text-4xl font-bold mb-4 text-gray-900 dark:text-white">
-        FBST
-      </h1>
-      <p className="text-lg mb-8 text-gray-600 dark:text-gray-400">
-        Full-Stack Application
+    <div className="px-10 py-8 text-slate-100">
+      <h1 className="text-3xl font-semibold">Home</h1>
+      <p className="mt-2 text-sm text-slate-400">
+        Use the sidebar to navigate. (Removed legacy socket.io connection.)
       </p>
-      <div className="flex items-center gap-2">
-        <div
-          className={`w-3 h-3 rounded-full ${
-            connected ? 'bg-green-500' : 'bg-red-500'
-          }`}
-        />
-        <span className="text-sm text-gray-600 dark:text-gray-400">
-          {connected ? 'Connected' : 'Disconnected'}
-        </span>
+
+      <div className="mt-6 flex flex-wrap gap-3">
+        <Link className="rounded-lg bg-slate-800/60 px-4 py-2 text-sm hover:bg-slate-800" to="/players">
+          Players
+        </Link>
+        <Link className="rounded-lg bg-slate-800/60 px-4 py-2 text-sm hover:bg-slate-800" to="/teams">
+          Teams
+        </Link>
+        <Link className="rounded-lg bg-slate-800/60 px-4 py-2 text-sm hover:bg-slate-800" to="/auction">
+          Auction
+        </Link>
       </div>
     </div>
-  )
+  );
 }
-
-export default Home
-
-
-
-
-
-

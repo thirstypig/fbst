@@ -1,61 +1,78 @@
 // client/src/components/AppShell.tsx
-import type { ReactNode } from "react";
-import { Link, useLocation } from "react-router-dom";
-import ThemeToggle from "./ThemeToggle";
+//
+// FBST_CHANGELOG
+// - 2025-12-14
+//   - Do NOT render <BrowserRouter> here.
+//   - Routes must match files in client/src/pages.
 
-const NAV_ITEMS = [
-  { to: "/period", label: "Period" },
-  { to: "/season", label: "Season" },
-  { to: "/teams", label: "Teams" },
-  { to: "/players", label: "Players" },
-  { to: "/auction", label: "Auction" },
-];
+import React from "react";
+import { NavLink, Routes, Route, Navigate } from "react-router-dom";
 
-export default function AppShell({ children }: { children: ReactNode }) {
-  const location = useLocation();
+import Home from "../pages/Home";
+import Period from "../pages/Period";
+import Season from "../pages/Season";
+import Teams from "../pages/Teams";
+import Team from "../pages/Team";
+import Players from "../pages/Players";
+import Auction from "../pages/Auction";
 
+function SideLink(props: { to: string; label: string }) {
   return (
-    <div className="min-h-screen flex bg-slate-950 text-slate-50">
-      {/* Sidebar */}
-      <aside className="w-60 shrink-0 border-r border-slate-800 bg-slate-950/95">
-        <div className="px-6 py-5 border-b border-slate-800">
-          <div className="text-sm font-semibold tracking-[0.18em] uppercase text-slate-400">
-            FBST
+    <NavLink
+      to={props.to}
+      className={({ isActive }) =>
+        [
+          "block rounded-xl px-4 py-3 text-sm transition",
+          isActive
+            ? "bg-slate-700/70 text-slate-50"
+            : "text-slate-200 hover:bg-slate-800/60",
+        ].join(" ")
+      }
+      end
+    >
+      {props.label}
+    </NavLink>
+  );
+}
+
+export default function AppShell() {
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100">
+      <div className="flex min-h-screen">
+        <aside className="w-64 border-r border-slate-800/60 bg-slate-950/60 px-4 py-6">
+          <div className="mb-6">
+            <div className="text-lg font-semibold tracking-wide">FBST</div>
+            <div className="text-xs text-slate-400">Fantasy Baseball Stat Tool</div>
           </div>
-          <div className="mt-1 text-xs text-slate-500">
-            Fantasy Baseball Stat Tool
-          </div>
-        </div>
 
-        <nav className="mt-4 flex flex-col gap-1 px-3">
-          {NAV_ITEMS.map((item) => {
-            const isActive = location.pathname === item.to;
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={[
-                  "rounded-xl px-3 py-2 text-sm font-medium transition-colors",
-                  isActive
-                    ? "bg-slate-800 text-slate-50"
-                    : "text-slate-300 hover:bg-slate-800/70 hover:text-slate-50",
-                ].join(" ")}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
+          <nav className="space-y-2">
+            <SideLink to="/period" label="Period" />
+            <SideLink to="/season" label="Season" />
+            <SideLink to="/teams" label="Teams" />
+            <SideLink to="/players" label="Players" />
+            <SideLink to="/auction" label="Auction" />
+            <SideLink to="/home" label="Home" />
+          </nav>
+        </aside>
 
-        <div className="mt-auto px-3 py-4">
-          <ThemeToggle />
-        </div>
-      </aside>
+        <main className="flex-1 px-6 py-6">
+          <Routes>
+            <Route path="/" element={<Navigate to="/players" replace />} />
 
-      {/* Main content */}
-      <main className="flex-1 min-w-0 bg-slate-950">
-        <div className="max-w-6xl mx-auto px-6 py-8">{children}</div>
-      </main>
+            <Route path="/home" element={<Home />} />
+            <Route path="/period" element={<Period />} />
+            <Route path="/season" element={<Season />} />
+
+            <Route path="/teams" element={<Teams />} />
+            <Route path="/teams/:teamCode" element={<Team />} />
+
+            <Route path="/players" element={<Players />} />
+            <Route path="/auction" element={<Auction />} />
+
+            <Route path="*" element={<Navigate to="/players" replace />} />
+          </Routes>
+        </main>
+      </div>
     </div>
   );
 }

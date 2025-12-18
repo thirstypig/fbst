@@ -1,160 +1,84 @@
 // server/index.js
-const express = require("express");
-const cors = require("cors");
-const { PrismaClient } = require("@prisma/client");
+// Simple FBST API server that serves dummy data for the client.
+// Uses ES modules – make sure "type": "module" is set in package.json.
 
-const prisma = new PrismaClient();
+import express from "express";
+import cors from "cors";
+
+import {
+  dummySeasonStandings,
+  dummyPeriodStandingsById,
+  dummyPlayers,
+} from "./src/dummyData.js";
+
 const app = express();
+const PORT = process.env.PORT || 4000;
 
 app.use(cors());
 app.use(express.json());
 
-// GET /api/teams?leagueId=1&season=2025
-app.get("/api/teams", async (req, res) => {
-  try {
-    // leagueId is a STRING in the DB
-    const leagueId =
-      typeof req.query.leagueId === "string" && req.query.leagueId.trim() !== ""
-        ? req.query.leagueId.trim()
-        : "1"; // default leagueId "1"
-
-    // season is an Int in the DB
-    const seasonParam =
-      typeof req.query.season === "string" && req.query.season.trim() !== ""
-        ? req.query.season.trim()
-        : "2025";
-    const season = parseInt(seasonParam, 10);
-
-    const where = { leagueId };
-    if (!Number.isNaN(season)) {
-      where.season = season;
-    }
-
-    const teams = await prisma.team.findMany({
-      where,
-      orderBy: { id: "asc" },
-    });
-
-    console.log("Fetched teams:", teams.length);
-    res.json(teams);
-  } catch (err) {
-    console.error("Error fetching teams", err);
-    res.status(500).json({ error: "Internal server error" });
-  }
+// Optional: tiny logger to see traffic in your server console
+app.use((req, _res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
 });
 
-// GET /api/teams/:id  (team detail + roster)
-app.get("/api/teams/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    // Same defaults as list endpoint
-    const leagueId =
-      typeof req.query.leagueId === "string" && req.query.leagueId.trim() !== ""
-        ? req.query.leagueId.trim()
-        : "1";
-
-    const seasonParam =
-      typeof req.query.season === "string" && req.query.season.trim() !== ""
-        ? req.query.season.trim()
-        : "2025";
-    const season = parseInt(seasonParam, 10);
-
-    const teamWhere = { id, leagueId };
-    if (!Number.isNaN(season)) {
-      teamWhere.season = season;
-    }
-
-    const team = await prisma.team.findFirst({ where: teamWhere });
-
-    if (!team) {
-      return res.status(404).json({ error: "Team not found" });
-    }
-
-    const rosterWhere = { teamId: id };
-    if (!Number.isNaN(season)) {
-      rosterWhere.season = season;
-    }
-
-    const roster = await prisma.teamRosterSlot.findMany({
-      where: rosterWhere,
-      include: {
-        player: true,
-      },
-      orderBy: { slot: "asc" },
-    });
-
-    res.json({ team, roster });
-  } catch (err) {
-    console.error("Error fetching team by id", err);
-    res.status(500).json({ error: "Internal server error" });
-  }
+// Health check / root
+app.get("/", (_req, res) => {
+  res.json({ status: "ok", message: "FBST API running" });
 });
 
-// GET /api/players  (for roster dropdown)
-app.get("/api/players", async (req, res) => {
-  try {
-    const players = await prisma.player.findMany({
-      orderBy: { name: "asc" },
-    });
-    res.json(players);
-  } catch (err) {
-    console.error("Error fetching players", err);
-    res.status(500).json({ error: "Internal server error" });
-  }
+app.get("/api/health", (_req, res) => {
+  res.json({ ok: true });
 });
 
-// POST /api/teams/:id/roster  (create a roster slot)
-app.post("/api/teams/:id/roster", async (req, res) => {
-  try {
-    const { id: teamId } = req.params;
-    const {
-      playerId,
-      slot,
-      isHitter,
-      isPitcher,
-      salary,
-      contractType,
-      contractYear,
-      season,
-    } = req.body;
-
-    if (!playerId || !slot) {
-      return res
-        .status(400)
-        .json({ error: "playerId and slot are required fields" });
-    }
-
-    const seasonNum =
-      typeof season === "number"
-        ? season
-        : parseInt(season ?? "2025", 10) || 2025;
-
-    const created = await prisma.teamRosterSlot.create({
-      data: {
-        teamId,
-        playerId,
-        slot,
-        season: seasonNum,
-        isHitter: !!isHitter,
-        isPitcher: !!isPitcher,
-        salary: salary ?? null,
-        contractType: contractType ?? null,
-        contractYear: contractYear ?? null,
-      },
-      include: {
-        player: true,
-      },
-    });
-
-    res.status(201).json(created);
-  } catch (err) {
-    console.error("Error creating roster slot", err);
-    res.status(500).json({ error: "Internal server error" });
-  }
+// ---- Season standings ----
+// Used by /season and /teams pages in the client.
+app.get("/api/season-standings", (_req, res) => {
+  res.json(dummySeasonStandings);
 });
 
-const PORT = process.env.PORT || 4000;
+// ---- Period standings ----
+// Used by /period and /teams pages. periodId is required by the client
+// but we default to 1 if it's missing.
+app.get("/api/period-standings", (req, res) => {
+  const periodIdRaw = req.query.periodId;
+  const periodId = periodIdRaw ? Number(periodIdRaw) : 1;
+
+  const data = dummyPeriodStandingsById[periodId];
+
+  if (!data) {
+    return res.status(404).json({
+      error: "Period not found",
+      periodId,
+    });
+  }
+
+  res.json(data);
+});
+
+// ---- Players ----
+// Used by /players page.
+app.get("/api/players", (_req, res) => {
+  res.json(dummyPlayers);
+});
+
+// ---- Auction values (stub) ----
+// So hitting /auction doesn't 404 the API. You can replace later.
+app.get("/api/auction-values", (_req, res) => {
+  res.json({
+    leagueId: 1,
+    seasonYear: 2025,
+    players: [],
+  });
+});
+
+// 404 handler for any unknown route
+app.use((req, res) => {
+  res.status(404).json({ error: "Not found", path: req.path });
+});
+
+// Start server
 app.listen(PORT, () => {
-  console.log(`FBST API server listening on port ${PORT}`);
+  console.log(`FBST API server listening on http://localhost:${PORT}`);
 });

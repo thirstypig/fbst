@@ -1,17 +1,109 @@
 // client/src/pages/Period.tsx
-import { useEffect, useState } from "react";
-import {
-  getPeriodStandings,
-  type PeriodStandingsResponse,
-} from "../lib/api";
+import React, { useEffect, useState } from "react";
+import { classNames } from "../lib/classNames";
+import { getPeriodStandings } from "../api";
 
-type PeriodRow = PeriodStandingsResponse["rows"][number];
+type CategoryId = "R" | "HR" | "RBI" | "SB" | "AVG" | "W" | "S" | "K" | "ERA" | "WHIP";
 
-const PERIOD_OPTIONS = [1, 2, 3, 4, 5, 6];
+type ApiPeriodRow = {
+  teamId: number;
+  teamName: string;
+  owner?: string;
+  stats: Record<string, number>;
+  points: Record<string, number>;
+  totalPoints: number;
+};
 
-export default function PeriodPage() {
-  const [activePeriod, setActivePeriod] = useState<number>(1);
-  const [data, setData] = useState<PeriodStandingsResponse | null>(null);
+type ApiPeriodResponse = {
+  periodId: number;
+  periodName?: string;
+  rows: ApiPeriodRow[];
+};
+
+type PeriodRow = {
+  teamId: number;
+  teamName: string;
+  stats: Record<CategoryId, number>;
+  points: Record<CategoryId, number>;
+  totalPoints: number;
+};
+
+const PERIOD_IDS = [1, 2, 3, 4, 5, 6];
+
+const CATEGORIES: {
+  id: CategoryId;
+  label: string;
+  decimals: number;
+  format?: (v: number) => string;
+}[] = [
+  { id: "R", label: "R", decimals: 0 },
+  { id: "HR", label: "HR", decimals: 0 },
+  { id: "RBI", label: "RBI", decimals: 0 },
+  { id: "SB", label: "SB", decimals: 0 },
+  { id: "AVG", label: "AVG", decimals: 3, format: (v) => v.toFixed(3).replace(/^0/, "") },
+  { id: "W", label: "W", decimals: 0 },
+  { id: "S", label: "S", decimals: 0 },
+  { id: "K", label: "K", decimals: 0 },
+  { id: "ERA", label: "ERA", decimals: 2 },
+  { id: "WHIP", label: "WHIP", decimals: 3 },
+];
+
+function normalizeRow(row: ApiPeriodRow): PeriodRow {
+  const stats: Record<CategoryId, number> = {
+    R: 0,
+    HR: 0,
+    RBI: 0,
+    SB: 0,
+    AVG: 0,
+    W: 0,
+    S: 0,
+    K: 0,
+    ERA: 0,
+    WHIP: 0,
+  };
+
+  const points: Record<CategoryId, number> = {
+    R: 0,
+    HR: 0,
+    RBI: 0,
+    SB: 0,
+    AVG: 0,
+    W: 0,
+    S: 0,
+    K: 0,
+    ERA: 0,
+    WHIP: 0,
+  };
+
+  for (const cat of Object.keys(stats) as CategoryId[]) {
+    const s = row.stats?.[cat];
+    const p = row.points?.[cat];
+    stats[cat] = typeof s === "number" ? s : 0;
+    points[cat] = typeof p === "number" ? p : 0;
+  }
+
+  return {
+    teamId: row.teamId,
+    teamName: row.teamName,
+    stats,
+    points,
+    totalPoints: row.totalPoints ?? 0,
+  };
+}
+
+function formatPoints(v: number): string {
+  return v.toFixed(1).replace(/\.0$/, "");
+}
+
+function formatStat(catId: CategoryId, value: number): string {
+  const cfg = CATEGORIES.find((c) => c.id === catId)!;
+  if (cfg.format) return cfg.format(value);
+  return value.toFixed(cfg.decimals);
+}
+
+const PeriodPage: React.FC = () => {
+  const [currentPeriodId, setCurrentPeriodId] = useState<number>(1);
+  const [rows, setRows] = useState<PeriodRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,178 +113,135 @@ export default function PeriodPage() {
     async function load() {
       setLoading(true);
       setError(null);
-
       try {
-        const result = await getPeriodStandings(activePeriod);
-        if (!cancelled) {
-          setData(result);
-        }
-      } catch (err) {
-        console.error("Failed to load period standings", err);
-        if (!cancelled) {
-          setError("Failed to load period standings");
-          setData(null);
-        }
+        const apiResp = (await getPeriodStandings(currentPeriodId)) as ApiPeriodResponse;
+        if (cancelled) return;
+
+        const normalized = apiResp.rows?.map(normalizeRow) ?? [];
+        normalized.sort((a, b) => b.totalPoints - a.totalPoints);
+        setRows(normalized);
+      } catch (err: any) {
+        if (cancelled) return;
+        console.error("Failed to load periods", err);
+        setError("Failed to load period standings");
+        setRows([]);
       } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        if (!cancelled) setLoading(false);
       }
     }
 
     load();
-
     return () => {
       cancelled = true;
     };
-  }, [activePeriod]);
-
-  const rows: PeriodRow[] = data?.rows ?? [];
+  }, [currentPeriodId]);
 
   return (
-    <div>
-      <header className="flex items-baseline justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">
-            Period standings
-          </h1>
-          <p className="mt-1 text-sm text-slate-400">
-            7×7 roto-style points by period (higher is better).
-          </p>
-        </div>
+    <div className="flex-1 min-h-screen bg-slate-950 text-slate-50">
+      <main className="max-w-6xl mx-auto px-6 py-10">
+        <header className="mb-6 text-center">
+          <h1 className="text-3xl font-semibold tracking-tight mb-1">Period standings</h1>
+          <p className="text-sm text-slate-400">Roto points by period (higher total is better).</p>
+        </header>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">
-            Period
-          </span>
-          <div className="inline-flex rounded-full bg-slate-900 p-1 border border-slate-700">
-            {PERIOD_OPTIONS.map((p) => {
-              const selected = p === activePeriod;
-              return (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setActivePeriod(p)}
-                  className={[
-                    "px-3 py-1 text-xs rounded-full transition-colors",
-                    selected
-                      ? "bg-slate-100 text-slate-900"
-                      : "text-slate-300 hover:bg-slate-800",
-                  ].join(" ")}
-                >
-                  P{p}
-                </button>
-              );
-            })}
+        <section className="mb-6">
+          <h2 className="text-xs font-medium tracking-[0.2em] text-slate-500 text-center mb-3 uppercase">
+            Select period
+          </h2>
+          <div className="flex flex-wrap justify-center gap-2">
+            {PERIOD_IDS.map((pid) => (
+              <button
+                key={pid}
+                type="button"
+                onClick={() => setCurrentPeriodId(pid)}
+                className={classNames(
+                  "px-3 py-1.5 rounded-full text-sm border transition-colors",
+                  currentPeriodId === pid
+                    ? "bg-sky-500 text-slate-900 border-sky-400"
+                    : "bg-slate-900/60 text-slate-200 border-slate-700 hover:bg-slate-800"
+                )}
+              >
+                Period {pid}
+              </button>
+            ))}
           </div>
-        </div>
-      </header>
+        </section>
 
-      {error && (
-        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-700 px-3 py-2 rounded">
-          {error}
-        </div>
-      )}
-
-      <section className="mt-4">
-        {loading && (
-          <div className="text-sm text-slate-300">Loading standings…</div>
-        )}
-
-        {!loading && rows.length === 0 && !error && (
-          <div className="text-sm text-slate-400">
-            No data found for this period.
+        {error && (
+          <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm text-red-200">
+            {error}
           </div>
         )}
 
-        {!loading && rows.length > 0 && (
-          <div className="overflow-x-auto border border-slate-800 rounded-2xl bg-slate-950/60">
-            <table className="min-w-full text-sm border-collapse">
-              <thead className="bg-slate-900">
-                <tr className="text-slate-300">
-                  <th className="px-3 py-2 text-left border border-slate-800 w-10">
-                    #
-                  </th>
-                  <th className="px-3 py-2 text-left border border-slate-800">
-                    Team
-                  </th>
-                  <th className="px-3 py-2 text-left border border-slate-800">
-                    Owner
-                  </th>
-                  <th className="px-3 py-2 text-right border border-slate-800">
-                    R
-                  </th>
-                  <th className="px-3 py-2 text-right border border-slate-800">
-                    HR
-                  </th>
-                  <th className="px-3 py-2 text-right border border-slate-800">
-                    RBI
-                  </th>
-                  <th className="px-3 py-2 text-right border border-slate-800">
-                    SB
-                  </th>
-                  <th className="px-3 py-2 text-right border border-slate-800">
-                    W
-                  </th>
-                  <th className="px-3 py-2 text-right border border-slate-800">
-                    S
-                  </th>
-                  <th className="px-3 py-2 text-right border border-slate-800">
-                    K
-                  </th>
-                  <th className="px-3 py-2 text-right border border-slate-800">
-                    Pts
-                  </th>
+        <section>
+          <div className="overflow-x-auto rounded-3xl border border-slate-800 bg-slate-950/70 shadow-xl">
+            <table className="min-w-full text-xs">
+              <thead className="bg-slate-900/80 border-b border-slate-800">
+                <tr>
+                  <th className="px-4 py-3 text-left font-medium uppercase tracking-wide text-slate-400">#</th>
+                  <th className="px-4 py-3 text-left font-medium uppercase tracking-wide text-slate-400">Team</th>
+                  {CATEGORIES.map((cat) => (
+                    <th
+                      key={cat.id}
+                      className="px-3 py-3 text-right font-medium uppercase tracking-wide text-slate-400"
+                    >
+                      {cat.label}
+                    </th>
+                  ))}
+                  <th className="px-4 py-3 text-right font-medium uppercase tracking-wide text-slate-400">Total</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row, idx) => (
-                  <tr
-                    key={row.teamId}
-                    className={
-                      idx % 2 === 0 ? "bg-slate-950" : "bg-slate-900/60"
-                    }
-                  >
-                    <td className="px-3 py-2 text-left border border-slate-800">
-                      {idx + 1}
-                    </td>
-                    <td className="px-3 py-2 text-left border border-slate-800">
-                      {row.teamName}
-                    </td>
-                    <td className="px-3 py-2 text-left border border-slate-800 text-slate-300">
-                      {row.owner ?? "—"}
-                    </td>
-                    <td className="px-3 py-2 text-right border border-slate-800">
-                      {row.R}
-                    </td>
-                    <td className="px-3 py-2 text-right border border-slate-800">
-                      {row.HR}
-                    </td>
-                    <td className="px-3 py-2 text-right border border-slate-800">
-                      {row.RBI}
-                    </td>
-                    <td className="px-3 py-2 text-right border border-slate-800">
-                      {row.SB}
-                    </td>
-                    <td className="px-3 py-2 text-right border border-slate-800">
-                      {row.W}
-                    </td>
-                    <td className="px-3 py-2 text-right border border-slate-800">
-                      {row.S}
-                    </td>
-                    <td className="px-3 py-2 text-right border border-slate-800">
-                      {row.K}
-                    </td>
-                    <td className="px-3 py-2 text-right border border-slate-800 font-semibold">
-                      {row.totalPoints.toFixed(1)}
+                {loading && (
+                  <tr>
+                    <td colSpan={2 + CATEGORIES.length + 1} className="px-4 py-6 text-center text-sm text-slate-400">
+                      Loading period standings…
                     </td>
                   </tr>
-                ))}
+                )}
+
+                {!loading && rows.length === 0 && (
+                  <tr>
+                    <td colSpan={2 + CATEGORIES.length + 1} className="px-4 py-6 text-center text-sm text-slate-400">
+                      No data available for this period.
+                    </td>
+                  </tr>
+                )}
+
+                {!loading &&
+                  rows.map((row, idx) => (
+                    <tr key={row.teamId} className="border-t border-slate-800/70 bg-slate-950">
+                      <td className="px-4 py-3 text-left text-slate-400">{idx + 1}</td>
+                      <td className="px-4 py-3 text-left text-slate-100">{row.teamName}</td>
+
+                      {CATEGORIES.map((cat) => {
+                        const pts = row.points[cat.id] ?? 0;
+                        const stat = row.stats[cat.id] ?? 0;
+
+                        return (
+                          <td key={cat.id} className="px-3 py-3 text-right align-top">
+                            <div className="text-[11px] font-semibold text-sky-400 leading-tight">
+                              {formatPoints(pts)}
+                            </div>
+                            <div className="text-[11px] text-slate-300 leading-tight">
+                              {formatStat(cat.id, stat)}
+                            </div>
+                          </td>
+                        );
+                      })}
+
+                      <td className="px-4 py-3 text-right align-top">
+                        <div className="text-sm font-semibold text-sky-400">{formatPoints(row.totalPoints)}</div>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
-        )}
-      </section>
+        </section>
+      </main>
     </div>
   );
-}
+};
+
+export default PeriodPage;

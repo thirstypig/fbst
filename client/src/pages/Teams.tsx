@@ -1,234 +1,143 @@
 // client/src/pages/Teams.tsx
-import { useEffect, useState } from "react";
+//
+// Teams list:
+// - Derives team roster counts from /api/player-season-stats (single fetch)
+// - Shows full team names via lib/ogbaTeams
+// - Links to /teams/:teamCode
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+import React, { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
-type Team = {
-  id: number;
+import { getPlayerSeasonStats, type PlayerSeasonStat } from "../api";
+import { getOgbaTeamName } from "../lib/ogbaTeams";
+import { isPitcher } from "../lib/playerDisplay";
+
+function normCode(v: any): string {
+  return String(v ?? "").trim().toUpperCase();
+}
+
+type TeamRow = {
+  code: string;
   name: string;
-  owner: string | null;
-  budget: number | null;
-  leagueId: number;
-};
-
-type PeriodSummary = {
-  periodId: number;
-  label: string;
-  periodPoints: number | null | undefined;
-  seasonPoints: number | null | undefined;
-};
-
-type TeamSummaryResponse = {
-  team: Team;
-  periodSummaries: PeriodSummary[];
-  seasonTotal: number;
-  [key: string]: any;
+  hitters: number;
+  pitchers: number;
+  total: number;
 };
 
 export default function Teams() {
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
-  const [summary, setSummary] = useState<TeamSummaryResponse | null>(null);
-  const [loadingTeams, setLoadingTeams] = useState(true);
-  const [loadingSummary, setLoadingSummary] = useState(false);
-  const [teamsError, setTeamsError] = useState<string | null>(null);
-  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [players, setPlayers] = useState<PlayerSeasonStat[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Load teams list
   useEffect(() => {
-    async function loadTeams() {
-      setLoadingTeams(true);
-      setTeamsError(null);
+    let mounted = true;
 
+    (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/teams`);
-
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
-        }
-
-        const data = (await res.json()) as Team[];
-
-        if (!Array.isArray(data)) {
-          throw new Error("Expected array of teams");
-        }
-
-        setTeams(data);
-        if (data.length > 0) {
-          setSelectedTeamId(data[0].id);
-        }
-      } catch (err) {
-        console.error("Failed to load teams:", err);
-        setTeamsError("Failed to load teams");
-        setTeams([]);
-        setSelectedTeamId(null);
+        setLoading(true);
+        const rows = await getPlayerSeasonStats();
+        if (!mounted) return;
+        setPlayers(rows);
+        setError(null);
+      } catch (e: any) {
+        if (!mounted) return;
+        setError(e?.message ?? "Failed to load players for teams");
       } finally {
-        setLoadingTeams(false);
+        if (mounted) setLoading(false);
       }
-    }
-
-    loadTeams();
-  }, []);
-
-  // Load summary for selected team
-  useEffect(() => {
-    if (selectedTeamId == null) return;
-
-    let cancelled = false;
-
-    async function loadSummary() {
-      setLoadingSummary(true);
-      setSummaryError(null);
-
-      try {
-        const res = await fetch(
-          `${API_BASE}/api/teams/${selectedTeamId}/summary`,
-        );
-
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
-        }
-
-        const data = (await res.json()) as TeamSummaryResponse;
-        if (!cancelled) {
-          setSummary(data);
-        }
-      } catch (err) {
-        console.error("Failed to load team summary:", err);
-        if (!cancelled) {
-          setSummaryError("Failed to load team summary");
-          setSummary(null);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoadingSummary(false);
-        }
-      }
-    }
-
-    loadSummary();
+    })();
 
     return () => {
-      cancelled = true;
+      mounted = false;
     };
-  }, [selectedTeamId]);
+  }, []);
 
-  const handleSelectTeam = (id: number) => {
-    setSelectedTeamId(id);
-  };
+  const teams: TeamRow[] = useMemo(() => {
+    if (!players.length) return [];
+
+    // group roster by OGBA team code
+    const map = new Map<string, { hitters: number; pitchers: number }>();
+
+    for (const p of players as any[]) {
+      const code = normCode(p.team ?? p.ogba_team_code ?? "");
+      if (!code) continue;
+      if (code === "FA" || code.startsWith("FA")) continue;
+
+      const slot = map.get(code) ?? { hitters: 0, pitchers: 0 };
+      if (isPitcher(p)) slot.pitchers += 1;
+      else slot.hitters += 1;
+      map.set(code, slot);
+    }
+
+    const rows: TeamRow[] = [...map.entries()].map(([code, v]) => ({
+      code,
+      name: getOgbaTeamName(code) || code,
+      hitters: v.hitters,
+      pitchers: v.pitchers,
+      total: v.hitters + v.pitchers,
+    }));
+
+    // Sort by full name, then code
+    rows.sort((a, b) => a.name.localeCompare(b.name) || a.code.localeCompare(b.code));
+
+    return rows;
+  }, [players]);
 
   return (
-    <div className="space-y-8">
-      {/* Page header */}
-      <header className="space-y-1">
-        <h1 className="text-3xl font-semibold tracking-tight">Teams</h1>
-        <p className="text-sm text-slate-400">
-          OGBA 2025 · League ID 1
+    <div className="px-10 py-8 text-slate-100">
+      <header className="mb-6">
+        <h1 className="text-3xl font-semibold">Teams</h1>
+        <p className="mt-2 text-sm text-slate-400">
+          Team roster counts derived from your season player pool.
         </p>
       </header>
 
-      {/* Errors */}
-      {teamsError && (
-        <div className="text-red-400 text-sm bg-red-950/40 border border-red-700 px-3 py-2 rounded">
-          {teamsError}
-        </div>
-      )}
-      {summaryError && (
-        <div className="text-red-400 text-sm bg-red-950/40 border border-red-700 px-3 py-2 rounded">
-          {summaryError}
+      {error && (
+        <div className="mb-4 rounded-md border border-red-400 bg-red-900/40 px-4 py-2 text-sm text-red-100">
+          Failed to load teams – {error}
         </div>
       )}
 
-      {/* Team selector */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium text-slate-300 uppercase tracking-[0.16em]">
-          Select team
-        </h2>
-        {loadingTeams ? (
-          <div className="text-sm text-slate-300">Loading teams…</div>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {teams.map((team) => {
-              const selected = team.id === selectedTeamId;
-              return (
-                <button
-                  key={team.id}
-                  onClick={() => handleSelectTeam(team.id)}
-                  className={[
-                    "px-4 py-2 rounded-full border text-xs font-medium transition-colors",
-                    selected
-                      ? "bg-sky-500 text-white border-sky-400"
-                      : "bg-slate-950 border-slate-700 text-slate-200 hover:bg-slate-900",
-                  ].join(" ")}
-                >
-                  {team.name}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </section>
+      {loading ? (
+        <div className="mt-4 text-sm text-slate-300">Loading teams…</div>
+      ) : teams.length === 0 ? (
+        <div className="mt-4 text-sm text-slate-300">No teams found.</div>
+      ) : (
+        <div className="overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-900/60">
+          <table className="min-w-full border-collapse text-sm">
+            <thead className="bg-slate-900/80">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs text-slate-300">TEAM</th>
+                <th className="px-4 py-3 text-left text-xs text-slate-300">CODE</th>
+                <th className="px-4 py-3 text-center text-xs text-slate-300">HITTERS</th>
+                <th className="px-4 py-3 text-center text-xs text-slate-300">PITCHERS</th>
+                <th className="px-4 py-3 text-center text-xs text-slate-300">TOTAL</th>
+                <th className="px-4 py-3 text-right text-xs text-slate-300"></th>
+              </tr>
+            </thead>
 
-      {/* Season Summary */}
-      <section className="space-y-3">
-        <h3 className="text-lg font-semibold">
-          Season summary
-          {summary?.team ? ` – ${summary.team.name}` : ""}
-        </h3>
-
-        {loadingSummary && (
-          <div className="text-sm text-slate-300">Loading summary…</div>
-        )}
-
-        {!loadingSummary && summary && (
-          <div className="max-w-3xl overflow-x-auto border border-slate-800 rounded-xl">
-            <table className="min-w-full text-sm border-collapse">
-              <thead className="bg-slate-900">
-                <tr>
-                  <th className="border border-slate-800 px-3 py-2 text-left">
-                    Period
-                  </th>
-                  <th className="border border-slate-800 px-3 py-2 text-right">
-                    Period pts
-                  </th>
-                  <th className="border border-slate-800 px-3 py-2 text-right">
-                    Season pts
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {(summary.periodSummaries || []).map((p) => {
-                  const periodPoints = Number(p.periodPoints ?? 0);
-                  const seasonPoints = Number(p.seasonPoints ?? 0);
-
-                  return (
-                    <tr key={p.periodId} className="odd:bg-slate-950">
-                      <td className="border border-slate-800 px-3 py-2">
-                        {p.label}
-                      </td>
-                      <td className="border border-slate-800 px-3 py-2 text-right">
-                        {periodPoints.toFixed(1)}
-                      </td>
-                      <td className="border border-slate-800 px-3 py-2 text-right">
-                        {seasonPoints.toFixed(1)}
-                      </td>
-                    </tr>
-                  );
-                })}
-                <tr className="bg-slate-900 font-semibold">
-                  <td className="border border-slate-800 px-3 py-2">
-                    Season total
-                  </td>
-                  <td className="border border-slate-800 px-3 py-2" />
-                  <td className="border border-slate-800 px-3 py-2 text-right">
-                    {Number(summary.seasonTotal ?? 0).toFixed(1)}
+            <tbody>
+              {teams.map((t) => (
+                <tr key={t.code} className="border-t border-slate-800/80">
+                  <td className="px-4 py-3 text-sm font-medium text-slate-100">{t.name}</td>
+                  <td className="px-4 py-3 text-xs text-slate-300">{t.code}</td>
+                  <td className="px-4 py-3 text-center">{t.hitters}</td>
+                  <td className="px-4 py-3 text-center">{t.pitchers}</td>
+                  <td className="px-4 py-3 text-center">{t.total}</td>
+                  <td className="px-4 py-3 text-right">
+                    <Link
+                      to={`/teams/${encodeURIComponent(t.code)}`}
+                      className="inline-flex items-center rounded-xl bg-white/10 px-4 py-2 text-xs font-medium text-slate-100 hover:bg-white/15"
+                    >
+                      View roster
+                    </Link>
                   </td>
                 </tr>
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

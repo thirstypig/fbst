@@ -3,16 +3,19 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "// NOTE_1": "Front-end (React/Vite) lives in ./client",
+    "// NOTE_2": "API server (Express/TS) lives in ./server",
+    "// NOTE_3": "These scripts are just delegators so you always run them from repo root",
+    "dev": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "preview": "cd client && npm run preview",
+    "lint": "cd client && npm run lint",
+    "server": "cd server && npm start",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:generate": "prisma generate",
-    "server": "node server/index.js"
+    "prisma:generate": "prisma generate"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.0",
+    "@prisma/client": "^6.19.1",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "react": "^18.3.1",
@@ -26,7 +29,7 @@
     "eslint": "^9.0.0",
     "eslint-plugin-react-hooks": "^5.0.0",
     "postcss": "^8.4.49",
-    "prisma": "^6.19.0",
+    "prisma": "^6.19.1",
     "tailwindcss": "^3.4.10",
     "typescript": "^5.6.3",
     "vite": "^5.4.0"

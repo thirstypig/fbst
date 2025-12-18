@@ -1,330 +1,224 @@
 // client/src/pages/Season.tsx
-import { useEffect, useState } from "react";
-import { getTeams, getPlayers } from "../lib/api";
+import React, { useEffect, useMemo, useState } from "react";
+import { getSeasonStandings } from "../lib/api";
+import { classNames } from "../lib/classNames";
 
-type Team = {
-  id: number;
-  name: string;
-  owner: string | null;
-  budget: number;
-  leagueId: number;
-};
-
-type PlayerSeasonRow = {
-  mlb_id: string | null;
-  team: string | null;
-  R: number | null;
-  HR: number | null;
-  RBI: number | null;
-  SB: number | null;
-  W: number | null;
-  S: number | null;
-  K: number | null;
-};
-
-type SeasonTotals = {
-  R: number;
-  HR: number;
-  RBI: number;
-  SB: number;
-  W: number;
-  S: number;
-  K: number;
-};
-
-type SeasonPoints = {
-  R: number;
-  HR: number;
-  RBI: number;
-  SB: number;
-  W: number;
-  S: number;
-  K: number;
-  total: number;
-};
-
-type SeasonRow = {
+type SeasonStandingsApiRow = {
   teamId: number;
   teamName: string;
-  owner: string | null;
-  totals: SeasonTotals;
-  points: SeasonPoints;
+  owner?: string;
+  totalPoints?: number;
+  periodPoints?: number[];
+  // Optional P1..P10 style fields – we’ll read them via periodIds
+  [key: string]: any;
 };
 
-function safeNum(value: number | null | undefined): number {
-  return typeof value === "number" && !Number.isNaN(value) ? value : 0;
+type SeasonStandingsApiResponse = {
+  periodIds: number[];
+  rows: SeasonStandingsApiRow[];
+};
+
+type NormalizedSeasonRow = {
+  teamId: number;
+  teamName: string;
+  owner?: string;
+  periodPoints: number[];
+  totalPoints: number;
+};
+
+function normalizeSeasonRow(
+  row: SeasonStandingsApiRow,
+  periodIds: number[]
+): NormalizedSeasonRow {
+  let periodPoints: number[] = [];
+
+  if (Array.isArray(row.periodPoints) && row.periodPoints.length) {
+    periodPoints = periodIds.map(
+      (_pid, idx) => row.periodPoints![idx] ?? 0
+    );
+  } else {
+    periodPoints = periodIds.map((pid) => {
+      const key = `P${pid}`;
+      const v = row[key];
+      return typeof v === "number" ? v : 0;
+    });
+  }
+
+  const totalPoints =
+    typeof row.totalPoints === "number"
+      ? row.totalPoints
+      : periodPoints.reduce((sum, v) => sum + v, 0);
+
+  return {
+    teamId: row.teamId,
+    teamName: row.teamName,
+    owner: row.owner,
+    periodPoints,
+    totalPoints,
+  };
 }
 
-/**
- * Standard roto scoring:
- * - More is better for every category here.
- * - Best team in a category gets N points, worst gets 1.
- * - Ties share the average of the occupied point slots.
- */
-function applyRotoScoring(rows: SeasonRow[]) {
-  const n = rows.length;
-  if (n === 0) return;
-
-  const catKeys: (keyof SeasonTotals)[] = [
-    "R",
-    "HR",
-    "RBI",
-    "SB",
-    "W",
-    "S",
-    "K",
-  ];
-
-  // reset points
-  for (const row of rows) {
-    row.points = {
-      R: 0,
-      HR: 0,
-      RBI: 0,
-      SB: 0,
-      W: 0,
-      S: 0,
-      K: 0,
-      total: 0,
-    };
-  }
-
-  for (const key of catKeys) {
-    const entries = rows
-      .map((row, index) => ({
-        index,
-        value: row.totals[key],
-      }))
-      .sort((a, b) => b.value - a.value); // higher is better
-
-    let i = 0;
-    while (i < n) {
-      let j = i + 1;
-      // group with same value
-      while (j < n && entries[j].value === entries[i].value) {
-        j++;
-      }
-      const groupSize = j - i;
-      const bestRank = i + 1;
-      const worstRank = j;
-
-      // sum points for ranks [bestRank, worstRank]
-      let sumPoints = 0;
-      for (let rank = bestRank; rank <= worstRank; rank++) {
-        sumPoints += n - rank + 1;
-      }
-      const avgPoints = sumPoints / groupSize;
-
-      for (let k = i; k < j; k++) {
-        const rowIndex = entries[k].index;
-        rows[rowIndex].points[key] = avgPoints;
-      }
-
-      i = j;
-    }
-  }
-
-  // total points per team
-  for (const row of rows) {
-    row.points.total =
-      row.points.R +
-      row.points.HR +
-      row.points.RBI +
-      row.points.SB +
-      row.points.W +
-      row.points.S +
-      row.points.K;
-  }
-
-  // sort standings by total points, desc
-  rows.sort((a, b) => b.points.total - a.points.total);
-}
-
-export default function SeasonPage() {
-  const [rows, setRows] = useState<SeasonRow[]>([]);
-  const [loading, setLoading] = useState(true);
+const SeasonPage: React.FC = () => {
+  const [periodIds, setPeriodIds] = useState<number[]>([]);
+  const [rows, setRows] = useState<NormalizedSeasonRow[]>([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const load = async () => {
+    let cancelled = false;
+
+    async function load() {
       setLoading(true);
       setError(null);
       try {
-        const [teams, players] = await Promise.all([
-          getTeams(),
-          getPlayers(),
-        ]);
+        const apiData =
+          (await getSeasonStandings()) as SeasonStandingsApiResponse;
 
-        const byTeamId: Record<number, SeasonRow> = {};
-        for (const t of teams as Team[]) {
-          byTeamId[t.id] = {
-            teamId: t.id,
-            teamName: t.name,
-            owner: t.owner,
-            totals: {
-              R: 0,
-              HR: 0,
-              RBI: 0,
-              SB: 0,
-              W: 0,
-              S: 0,
-              K: 0,
-            },
-            points: {
-              R: 0,
-              HR: 0,
-              RBI: 0,
-              SB: 0,
-              W: 0,
-              S: 0,
-              K: 0,
-              total: 0,
-            },
-          };
-        }
+        if (cancelled) return;
 
-        const norm = (s: string | null | undefined) =>
-          (s ?? "").trim().toLowerCase();
+        const pids =
+          apiData.periodIds && apiData.periodIds.length
+            ? apiData.periodIds
+            : [1, 2, 3, 4, 5, 6];
 
-        for (const p of players as PlayerSeasonRow[]) {
-          const playerTeamName = norm(p.team);
-          if (!playerTeamName) continue;
+        const normalized =
+          apiData.rows?.map((row) => normalizeSeasonRow(row, pids)) ?? [];
 
-          const team = (teams as Team[]).find(
-            (t) => norm(t.name) === playerTeamName
-          );
-          if (!team) continue;
-
-          const row = byTeamId[team.id];
-          if (!row) continue;
-
-          row.totals.R += safeNum(p.R);
-          row.totals.HR += safeNum(p.HR);
-          row.totals.RBI += safeNum(p.RBI);
-          row.totals.SB += safeNum(p.SB);
-          row.totals.W += safeNum(p.W);
-          row.totals.S += safeNum(p.S);
-          row.totals.K += safeNum(p.K);
-        }
-
-        const rowsArr = Object.values(byTeamId);
-
-        // Apply roto scoring on the derived totals
-        applyRotoScoring(rowsArr);
-
-        setRows(rowsArr);
-      } catch (err) {
+        setPeriodIds(pids);
+        setRows(normalized);
+      } catch (err: any) {
+        if (cancelled) return;
         console.error("Failed to load season standings", err);
         setError("Failed to load season standings");
+        setRows([]);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
-    };
+    }
 
     load();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
+  const sortedRows = useMemo(
+    () => [...rows].sort((a, b) => b.totalPoints - a.totalPoints),
+    [rows]
+  );
+
   return (
-    <>
-      <header className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold">Season Standings</h1>
-        <p className="text-xs text-slate-400">
-          7×7 roto-style points (higher is better).
-        </p>
-      </header>
+    <div className="flex-1 min-h-screen bg-slate-950 text-slate-50">
+      <main className="max-w-6xl mx-auto px-6 py-10">
+        <header className="mb-8 text-center">
+          <h1 className="text-3xl font-semibold tracking-tight mb-1">
+            Season Standings
+          </h1>
+          <p className="text-sm text-slate-400">
+            Roto points by period for the full season (higher total is better).
+          </p>
+        </header>
 
-      {error && (
-        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-700 px-3 py-2 rounded">
-          {error}
-        </div>
-      )}
+        {error && (
+          <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm text-red-200">
+            {error}
+          </div>
+        )}
 
-      {loading ? (
-        <div className="text-sm text-slate-300 text-center">
-          Loading season standings…
-        </div>
-      ) : (
-        <div className="max-w-5xl mx-auto overflow-x-auto border border-slate-800 rounded-xl">
-          <table className="min-w-full text-sm border-collapse">
-            <thead className="bg-slate-900">
+        <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/70 shadow-xl">
+          <table className="min-w-full text-sm">
+            <thead className="bg-slate-900/80 border-b border-slate-800">
               <tr>
-                <th className="border border-slate-800 px-3 py-2 text-left">
+                <th className="px-4 py-3 text-left w-10 text-xs font-medium uppercase tracking-wide text-slate-400">
                   #
                 </th>
-                <th className="border border-slate-800 px-3 py-2 text-left">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
                   Team
                 </th>
-                <th className="border border-slate-800 px-3 py-2 text-left">
-                  Owner
-                </th>
-                <th className="border border-slate-800 px-3 py-2 text-right">
-                  R
-                </th>
-                <th className="border border-slate-800 px-3 py-2 text-right">
-                  HR
-                </th>
-                <th className="border border-slate-800 px-3 py-2 text-right">
-                  RBI
-                </th>
-                <th className="border border-slate-800 px-3 py-2 text-right">
-                  SB
-                </th>
-                <th className="border border-slate-800 px-3 py-2 text-right">
-                  W
-                </th>
-                <th className="border border-slate-800 px-3 py-2 text-right">
-                  S
-                </th>
-                <th className="border border-slate-800 px-3 py-2 text-right">
-                  K
-                </th>
-                <th className="border border-slate-800 px-3 py-2 text-right">
-                  Pts
+                {periodIds.map((pid) => (
+                  <th
+                    key={pid}
+                    className="px-3 py-3 text-right text-xs font-medium uppercase tracking-wide text-slate-400"
+                  >
+                    P{pid}
+                  </th>
+                ))}
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-slate-400">
+                  Total
                 </th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((row, idx) => (
-                <tr key={row.teamId} className="odd:bg-slate-950">
-                  <td className="border border-slate-800 px-3 py-2 text-right">
-                    {idx + 1}
-                  </td>
-                  <td className="border border-slate-800 px-3 py-2">
-                    {row.teamName}
-                  </td>
-                  <td className="border border-slate-800 px-3 py-2">
-                    {row.owner ?? "—"}
-                  </td>
-                  <td className="border border-slate-800 px-3 py-2 text-right">
-                    {row.totals.R}
-                  </td>
-                  <td className="border border-slate-800 px-3 py-2 text-right">
-                    {row.totals.HR}
-                  </td>
-                  <td className="border border-slate-800 px-3 py-2 text-right">
-                    {row.totals.RBI}
-                  </td>
-                  <td className="border border-slate-800 px-3 py-2 text-right">
-                    {row.totals.SB}
-                  </td>
-                  <td className="border border-slate-800 px-3 py-2 text-right">
-                    {row.totals.W}
-                  </td>
-                  <td className="border border-slate-800 px-3 py-2 text-right">
-                    {row.totals.S}
-                  </td>
-                  <td className="border border-slate-800 px-3 py-2 text-right">
-                    {row.totals.K}
-                  </td>
-                  <td className="border border-slate-800 px-3 py-2 text-right font-semibold">
-                    {row.points.total.toFixed(1)}
+              {loading && (
+                <tr>
+                  <td
+                    colSpan={2 + periodIds.length + 1}
+                    className="px-4 py-6 text-center text-sm text-slate-400"
+                  >
+                    Loading season standings…
                   </td>
                 </tr>
-              ))}
+              )}
+
+              {!loading && sortedRows.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={2 + periodIds.length + 1}
+                    className="px-4 py-6 text-center text-sm text-slate-400"
+                  >
+                    No season standings available.
+                  </td>
+                </tr>
+              )}
+
+              {!loading &&
+                sortedRows.map((row, index) => {
+                  const cumulative: number[] = [];
+                  let running = 0;
+                  row.periodPoints.forEach((pts) => {
+                    running += pts;
+                    cumulative.push(running);
+                  });
+
+                  return (
+                    <tr
+                      key={row.teamId}
+                      className={classNames(
+                        "border-t border-slate-800/70",
+                        index % 2 === 0 ? "bg-slate-950" : "bg-slate-950/60"
+                      )}
+                    >
+                      <td className="px-4 py-3 text-xs text-slate-400 align-top">
+                        {index + 1}
+                      </td>
+                      <td className="px-4 py-3 align-top">
+                        <div className="text-sm font-medium text-slate-100">
+                          {row.teamName}
+                        </div>
+                      </td>
+                      {periodIds.map((pid, idx) => (
+                        <td
+                          key={pid}
+                          className="px-3 py-3 text-right align-top text-slate-100"
+                        >
+                          {row.periodPoints[idx]?.toFixed(1).replace(/\.0$/, "")}
+                        </td>
+                      ))}
+                      <td className="px-4 py-3 text-right align-top">
+                        <span className="text-sm font-semibold text-slate-50">
+                          {row.totalPoints.toFixed(1).replace(/\.0$/, "")}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
         </div>
-      )}
-    </>
+      </main>
+    </div>
   );
-}
+};
+
+export default SeasonPage;

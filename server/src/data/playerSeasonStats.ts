@@ -1,97 +1,97 @@
 // server/src/data/playerSeasonStats.ts
 import fs from "fs";
 import path from "path";
-import { parse } from "csv-parse/sync";
 
-export interface PlayerSeasonRow {
-  mlb_id: string;
-  name: string;
-  team: string; // OGBA team code or "FA" / "" for free agent
-  pos: string;
-  R: number;
-  HR: number;
-  RBI: number;
-  SB: number;
-  AVG: number;
-  W: number;
-  S: number;
-  ERA: number;
-  WHIP: number;
-  K: number;
+export type SeasonTotalsRow = {
+  [key: string]: string;
+};
 
-  // derived flags
-  isFreeAgent: boolean;
-  isPitcher: boolean;
-}
-
-const CSV_PATH = path.join(
+const SEASON_TOTALS_FILE = path.join(
   __dirname,
   "ogba_player_season_totals_2025.csv"
 );
 
-let CACHE: PlayerSeasonRow[] | null = null;
+let cachedRows: SeasonTotalsRow[] | null = null;
 
-function loadCsv(): PlayerSeasonRow[] {
-  if (CACHE) return CACHE;
+function parseCsv(text: string): SeasonTotalsRow[] {
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
 
-  if (!fs.existsSync(CSV_PATH)) {
-    console.warn(
-      `[playerSeasonStats] CSV not found at ${CSV_PATH} - returning empty array`
-    );
-    CACHE = [];
-    return CACHE;
-  }
+  if (lines.length < 2) return [];
 
-  const raw = fs.readFileSync(CSV_PATH, "utf8");
-  const records = parse(raw, {
-    columns: true,
-    skip_empty_lines: true,
-    trim: true,
-  }) as any[];
+  const headers = lines[0].split(",").map((h) => h.trim());
 
-  CACHE = records.map((row) => {
-    const team = (row.team ?? "").trim();
-    const pos = (row.pos ?? "").trim();
+  return lines.slice(1).map((line) => {
+    const cols = line.split(",");
+    const row: SeasonTotalsRow = {};
+    headers.forEach((h, i) => {
+      row[h] = (cols[i] ?? "").trim();
+    });
+    return row;
+  });
+}
 
-    const isPitcher = pos === "P";
-    const isFreeAgent =
-      team === "" ||
-      team.toUpperCase() === "FA" ||
-      team.toUpperCase() === "FREE";
+function loadAllSeasonTotals(): SeasonTotalsRow[] {
+  if (cachedRows) return cachedRows;
 
-    const num = (val: any): number => {
-      if (val === "" || val == null) return 0;
-      const n = Number(val);
-      return Number.isFinite(n) ? n : 0;
-    };
+  const raw = fs.readFileSync(SEASON_TOTALS_FILE, "utf-8");
+  const records = parseCsv(raw);
 
-    return {
-      mlb_id: String(row.mlb_id),
-      name: String(row.name),
-      team,
-      pos,
-      R: num(row.R),
-      HR: num(row.HR),
-      RBI: num(row.RBI),
-      SB: num(row.SB),
-      AVG: num(row.AVG),
-      W: num(row.W),
-      S: num(row.S),
-      ERA: num(row.ERA),
-      WHIP: num(row.WHIP),
-      K: num(row.K),
-      isFreeAgent,
-      isPitcher,
-    };
+  cachedRows = records;
+  console.log(
+    `Loaded ${records.length} season total rows from ${SEASON_TOTALS_FILE}`
+  );
+  return records;
+}
+
+/**
+ * Look up a player's season totals by mlbId (string of the mlb_id column).
+ */
+export function getPlayerSeasonStatsByMlbId(mlbId: string) {
+  const all = loadAllSeasonTotals();
+  const target = mlbId.trim();
+
+  const row = all.find((r) => {
+    const id = String(r.mlb_id ?? r.mlbId ?? "").trim();
+    return id === target;
   });
 
-  return CACHE;
-}
+  if (!row) {
+    return null;
+  }
 
-export function loadPlayerSeasonStats(): PlayerSeasonRow[] {
-  return loadCsv();
-}
+  const numericKeys = [
+    "G",
+    "AB",
+    "R",
+    "H",
+    "HR",
+    "RBI",
+    "SB",
+    "AVG",
+    "GS",
+    "IP",
+    "ER",
+    "BB",
+    "SO",
+    "W",
+    "S",
+    "ERA",
+    "WHIP",
+  ];
 
-export function getPlayerByMlbId(mlbId: string): PlayerSeasonRow | undefined {
-  return loadCsv().find((p) => p.mlb_id === mlbId);
+  const result: Record<string, number | string | null> = {};
+
+  for (const [key, value] of Object.entries(row)) {
+    if (numericKeys.includes(key)) {
+      const num = Number(value);
+      result[key] = Number.isNaN(num) ? null : num;
+    } else {
+      result[key] = value;
+    }
+  }
+
+  return result;
 }

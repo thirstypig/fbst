@@ -1,32 +1,38 @@
 // client/src/App.tsx
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { ThemeProvider } from "./components/ThemeContext";
-import AppShell from "./components/AppShell";
+import React from "react";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
-import TeamsPage from "./pages/Teams";
-import PlayersPage from "./pages/Players";
-import AuctionValuesPage from "./pages/AuctionValues";
-import PeriodPage from "./pages/Period";
-import SeasonPage from "./pages/Season";
+import AppShell from "./AppShell";
 
-function App() {
+import Home from "./pages/Home";
+import Period from "./pages/Period";
+import Season from "./pages/Season";
+import Teams from "./pages/Teams";
+import Team from "./pages/Team";
+import Players from "./pages/Players";
+
+// NOTE: Auction intentionally removed for MVP simplicity.
+
+export default function App() {
   return (
-    <ThemeProvider>
-      <BrowserRouter>
-        <AppShell>
-          <Routes>
-            <Route path="/" element={<Navigate to="/teams" replace />} />
-            <Route path="/period" element={<PeriodPage />} />
-            <Route path="/season" element={<SeasonPage />} />
-            <Route path="/teams" element={<TeamsPage />} />
-            <Route path="/players" element={<PlayersPage />} />
-            <Route path="/auction" element={<AuctionValuesPage />} />
-            <Route path="*" element={<Navigate to="/teams" replace />} />
-          </Routes>
-        </AppShell>
-      </BrowserRouter>
-    </ThemeProvider>
+    <BrowserRouter>
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<Home />} />
+          <Route path="/home" element={<Navigate to="/" replace />} />
+
+          <Route path="/period" element={<Period />} />
+          <Route path="/season" element={<Season />} />
+
+          <Route path="/teams" element={<Teams />} />
+          <Route path="/teams/:teamCode" element={<Team />} />
+
+          <Route path="/players" element={<Players />} />
+
+          {/* no /auction route */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }
-
-export default App;

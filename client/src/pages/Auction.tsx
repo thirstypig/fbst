@@ -1,34 +1,224 @@
-// client/src/pages/Auction.tsx
+import React, { useEffect, useMemo, useState } from "react";
 
-// Static placeholder page for the Auction tab.
-// This intentionally does NOT call any APIs yet.
+import { getPlayerSeasonStats, type PlayerSeasonStat } from "../api";
+import PlayerDetailModal from "../components/PlayerDetailModal";
+import { formatAvg } from "../lib/playerDisplay";
 
-const Auction = () => {
+function norm(v: any) {
+  return String(v ?? "").trim();
+}
+function isPitcherRow(p: PlayerSeasonStat) {
+  return Boolean(p.is_pitcher ?? p.isPitcher) || p.group === "P";
+}
+function ogbaTeam(p: PlayerSeasonStat) {
+  return norm(p.ogba_team_code ?? p.team);
+}
+function mlbTeam(p: PlayerSeasonStat) {
+  return norm(p.mlbTeam ?? p.mlb_team);
+}
+function playerName(p: PlayerSeasonStat) {
+  return norm(p.player_name ?? p.name);
+}
+function posStr(p: PlayerSeasonStat) {
+  return norm(p.positions ?? p.pos);
+}
+function isFreeAgent(p: PlayerSeasonStat) {
+  const t = ogbaTeam(p).toUpperCase();
+  return !t || t === "FA";
+}
+
+export default function Players() {
+  const [rows, setRows] = useState<PlayerSeasonStat[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [group, setGroup] = useState<"hitters" | "pitchers">("hitters");
+  const [scope, setScope] = useState<"all" | "fa">("all");
+
+  const [selected, setSelected] = useState<PlayerSeasonStat | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await getPlayerSeasonStats();
+        if (!mounted) return;
+        setRows(data ?? []);
+      } catch (e: any) {
+        if (!mounted) return;
+        setError(e?.message ?? "Failed to load players.");
+      } finally {
+        if (!mounted) return;
+        setLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const filtered = useMemo(() => {
+    const wantPitchers = group === "pitchers";
+    let out = rows.filter((p) => (wantPitchers ? isPitcherRow(p) : !isPitcherRow(p)));
+
+    if (scope === "fa") out = out.filter(isFreeAgent);
+
+    // Stable ordering: player name asc
+    out.sort((a, b) => playerName(a).localeCompare(playerName(b)));
+    return out;
+  }, [rows, group, scope]);
+
   return (
-    <div className="p-4 space-y-4">
-      <h1 className="text-xl font-bold">Auction (Coming Soon)</h1>
-
-      <p className="text-sm text-gray-700">
-        The Auction tab will eventually handle live or offline auction drafts
-        for the league (players, budgets, rosters, etc.).
-      </p>
-
-      <div className="border rounded-md p-3 bg-gray-50 text-sm text-gray-800 space-y-2">
-        <p className="font-semibold">Planned features:</p>
-        <ul className="list-disc list-inside space-y-1">
-          <li>Team budgets and remaining dollars</li>
-          <li>Real-time bid history and current high bid</li>
-          <li>Player queue / nomination list</li>
-          <li>Integration with team rosters and scoring</li>
-        </ul>
+    <div className="px-10 py-8">
+      <div className="mb-6 text-center">
+        <div className="text-4xl font-semibold text-white">Players</div>
+        <div className="mt-2 text-sm text-white/60">
+          Player pool and season totals from ogba_player_season_totals_*.csv.
+        </div>
       </div>
 
-      <p className="text-xs text-gray-500">
-        For now, this page is just a visual placeholder and doesn&apos;t hit the
-        backend API at all.
-      </p>
+      <div className="mb-6 flex items-center justify-center gap-3">
+        <div className="rounded-full bg-white/5 p-1">
+          <button
+            className={`rounded-full px-4 py-2 text-sm ${
+              group === "hitters" ? "bg-sky-600/80 text-white" : "text-white/70 hover:bg-white/10"
+            }`}
+            onClick={() => setGroup("hitters")}
+          >
+            Hitters
+          </button>
+          <button
+            className={`rounded-full px-4 py-2 text-sm ${
+              group === "pitchers" ? "bg-sky-600/80 text-white" : "text-white/70 hover:bg-white/10"
+            }`}
+            onClick={() => setGroup("pitchers")}
+          >
+            Pitchers
+          </button>
+        </div>
+
+        <div className="rounded-full bg-white/5 p-1">
+          <button
+            className={`rounded-full px-4 py-2 text-sm ${
+              scope === "all" ? "bg-white/10 text-white" : "text-white/70 hover:bg-white/10"
+            }`}
+            onClick={() => setScope("all")}
+          >
+            All players
+          </button>
+          <button
+            className={`rounded-full px-4 py-2 text-sm ${
+              scope === "fa" ? "bg-white/10 text-white" : "text-white/70 hover:bg-white/10"
+            }`}
+            onClick={() => setScope("fa")}
+          >
+            Free agents only
+          </button>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-6xl overflow-x-auto rounded-2xl border border-white/10 bg-white/5">
+        <table className="min-w-[1400px] w-full border-separate border-spacing-0">
+          <thead>
+            <tr className="text-xs text-white/60">
+              {/* requested order: Player, Team, TM, (pos games placeholders), POS, AB,H,R,HR,RBI,SB,AVG,GS */}
+              <Th>PLAYER</Th>
+              <Th w={80}>TEAM</Th>
+              <Th w={70}>TM</Th>
+
+              {/* keep these columns for future (API working) */}
+              <Th w={60}>DH</Th>
+              <Th w={60}>C</Th>
+              <Th w={60}>1B</Th>
+              <Th w={60}>2B</Th>
+              <Th w={60}>3B</Th>
+              <Th w={60}>SS</Th>
+              <Th w={60}>OF</Th>
+
+              <Th w={90}>POS</Th>
+
+              <Th w={70}>AB</Th>
+              <Th w={70}>H</Th>
+              <Th w={70}>R</Th>
+              <Th w={70}>HR</Th>
+              <Th w={70}>RBI</Th>
+              <Th w={70}>SB</Th>
+              <Th w={90}>AVG</Th>
+              <Th w={70}>GS</Th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {loading ? (
+              <tr>
+                <td className="px-4 py-6 text-sm text-white/60" colSpan={20}>
+                  Loading…
+                </td>
+              </tr>
+            ) : error ? (
+              <tr>
+                <td className="px-4 py-6 text-sm text-red-300" colSpan={20}>
+                  {error}
+                </td>
+              </tr>
+            ) : (
+              filtered.map((p) => {
+                const avg = formatAvg((p as any).AVG ?? 0);
+                const gs = (p as any).GS ?? "";
+                return (
+                  <tr
+                    key={`${p.mlb_id}-${ogbaTeam(p)}-${playerName(p)}`}
+                    className="cursor-pointer text-sm text-white/90 hover:bg-white/5"
+                    onClick={() => setSelected(p)}
+                  >
+                    <Td className="font-medium">{playerName(p)}</Td>
+                    <Td className="text-white/80">{ogbaTeam(p) || "FA"}</Td>
+                    <Td className="text-white/80">{mlbTeam(p) || "—"}</Td>
+
+                    {/* placeholders until we wire a real source */}
+                    <Td className="text-white/40">—</Td>
+                    <Td className="text-white/40">—</Td>
+                    <Td className="text-white/40">—</Td>
+                    <Td className="text-white/40">—</Td>
+                    <Td className="text-white/40">—</Td>
+                    <Td className="text-white/40">—</Td>
+                    <Td className="text-white/40">—</Td>
+
+                    <Td className="text-white/80">{posStr(p)}</Td>
+
+                    <Td className="tabular-nums">{(p as any).AB ?? 0}</Td>
+                    <Td className="tabular-nums">{(p as any).H ?? 0}</Td>
+                    <Td className="tabular-nums">{(p as any).R ?? 0}</Td>
+                    <Td className="tabular-nums">{(p as any).HR ?? 0}</Td>
+                    <Td className="tabular-nums">{(p as any).RBI ?? 0}</Td>
+                    <Td className="tabular-nums">{(p as any).SB ?? 0}</Td>
+                    <Td className="tabular-nums">{avg}</Td>
+                    <Td className="tabular-nums">{gs === "" ? "—" : String(gs)}</Td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <PlayerDetailModal open={!!selected} onClose={() => setSelected(null)} player={selected} />
     </div>
   );
-};
+}
 
-export default Auction;
+function Th({ children, w }: { children: React.ReactNode; w?: number }) {
+  return (
+    <th
+      style={w ? { width: w } : undefined}
+      className="border-b border-white/10 px-3 py-3 text-left font-medium"
+    >
+      {children}
+    </th>
+  );
+}
+function Td({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <td className={`border-b border-white/10 px-3 py-3 ${className ?? ""}`}>{children}</td>;
+}

@@ -1,0 +1,41 @@
+// server/src/data/seasonStandings.ts
+import fs from "fs";
+import path from "path";
+
+export type SeasonStandingRow = {
+  [key: string]: any;
+};
+
+const SEASON_STANDINGS_FILE = path.join(
+  __dirname,
+  "ogba_season_standings_2025.json"
+);
+
+let cachedRows: SeasonStandingRow[] | null = null;
+
+function loadAllSeasonStandings(): SeasonStandingRow[] {
+  if (cachedRows) return cachedRows;
+
+  const raw = fs.readFileSync(SEASON_STANDINGS_FILE, "utf-8");
+  const json = JSON.parse(raw);
+
+  let rows: SeasonStandingRow[] = [];
+
+  if (Array.isArray(json)) {
+    rows = json;
+  } else if (Array.isArray((json as any).rows)) {
+    rows = (json as any).rows;
+  } else if (Array.isArray((json as any).standings)) {
+    rows = (json as any).standings;
+  }
+
+  cachedRows = rows;
+  console.log(
+    `Loaded ${rows.length} season standings rows from ${SEASON_STANDINGS_FILE}`
+  );
+  return rows;
+}
+
+export function getSeasonStandings(): SeasonStandingRow[] {
+  return loadAllSeasonStandings();
+}
