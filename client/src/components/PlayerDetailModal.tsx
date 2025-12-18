@@ -34,6 +34,69 @@ function isPitcher(p: PlayerSeasonStat) {
   return Boolean(p.is_pitcher ?? p.isPitcher);
 }
 
+/**
+ * TM (team) abbreviation helper for Career table:
+ * - If TM is already "SEA", returns "SEA"
+ * - If TM is "Toronto Blue Jays", returns "TOR"
+ * - If TM is "TOT" or "—", returns as-is
+ * - Also supports common MLB full names used by StatsAPI
+ */
+const TEAM_NAME_TO_ABBR: Record<string, string> = {
+  "Arizona Diamondbacks": "ARI",
+  "Atlanta Braves": "ATL",
+  "Baltimore Orioles": "BAL",
+  "Boston Red Sox": "BOS",
+  "Chicago Cubs": "CHC",
+  "Chicago White Sox": "CWS",
+  "Cincinnati Reds": "CIN",
+  "Cleveland Guardians": "CLE",
+  "Colorado Rockies": "COL",
+  "Detroit Tigers": "DET",
+  "Houston Astros": "HOU",
+  "Kansas City Royals": "KC",
+  "Los Angeles Angels": "LAA",
+  "Los Angeles Dodgers": "LAD",
+  "Miami Marlins": "MIA",
+  "Milwaukee Brewers": "MIL",
+  "Minnesota Twins": "MIN",
+  "New York Mets": "NYM",
+  "New York Yankees": "NYY",
+  "Oakland Athletics": "OAK",
+  "Philadelphia Phillies": "PHI",
+  "Pittsburgh Pirates": "PIT",
+  "San Diego Padres": "SD",
+  "San Francisco Giants": "SF",
+  "Seattle Mariners": "SEA",
+  "St. Louis Cardinals": "STL",
+  "Tampa Bay Rays": "TB",
+  "Texas Rangers": "TEX",
+  "Toronto Blue Jays": "TOR",
+  "Washington Nationals": "WSH",
+
+  // A couple of common alternates people use:
+  "Cleveland Indians": "CLE",
+  "Tampa Bay Devil Rays": "TB",
+  "Montreal Expos": "MON",
+};
+
+function tmAbbr(tm: any): string {
+  const s = String(tm ?? "").trim();
+  if (!s) return "—";
+
+  const up = s.toUpperCase();
+
+  // Preserve totals / blank marker
+  if (up === "TOT") return "TOT";
+  if (s === "—") return "—";
+
+  // If it already looks like an abbreviation (2-4 letters), keep it.
+  // (KC, SD, SEA, NYY, etc.)
+  if (/^[A-Z]{2,4}$/.test(up) && !s.includes(" ")) return up;
+
+  // Map full MLB team name -> abbreviation
+  return TEAM_NAME_TO_ABBR[s] ?? s;
+}
+
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -232,22 +295,22 @@ function RecentTable({
             <Td className="text-white/80">{r.label}</Td>
             {group === "hitting" ? (
               <>
-                <Td>{r.AB}</Td>
-                <Td>{r.H}</Td>
-                <Td>{r.R}</Td>
-                <Td>{r.HR}</Td>
-                <Td>{r.RBI}</Td>
-                <Td>{r.SB}</Td>
-                <Td className="tabular-nums">{r.AVG}</Td>
+                <Td className="text-right tabular-nums">{r.AB}</Td>
+                <Td className="text-right tabular-nums">{r.H}</Td>
+                <Td className="text-right tabular-nums">{r.R}</Td>
+                <Td className="text-right tabular-nums">{r.HR}</Td>
+                <Td className="text-right tabular-nums">{r.RBI}</Td>
+                <Td className="text-right tabular-nums">{r.SB}</Td>
+                <Td className="text-right tabular-nums">{r.AVG}</Td>
               </>
             ) : (
               <>
-                <Td>{r.IP}</Td>
-                <Td>{r.W}</Td>
-                <Td>{r.SV}</Td>
-                <Td>{r.K}</Td>
-                <Td className="tabular-nums">{r.ERA}</Td>
-                <Td className="tabular-nums">{r.WHIP}</Td>
+                <Td className="text-right tabular-nums">{r.IP}</Td>
+                <Td className="text-right tabular-nums">{r.W}</Td>
+                <Td className="text-right tabular-nums">{r.SV}</Td>
+                <Td className="text-right tabular-nums">{r.K}</Td>
+                <Td className="text-right tabular-nums">{r.ERA}</Td>
+                <Td className="text-right tabular-nums">{r.WHIP}</Td>
               </>
             )}
           </tr>
@@ -269,59 +332,73 @@ function CareerTable({
   // Rows already come oldest -> newest + totals at bottom (from api.ts).
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-[760px] w-full border-separate border-spacing-0">
+      <table className="min-w-[760px] w-full border-separate border-spacing-0 text-xs">
         <thead>
-          <tr className="text-xs text-white/60">
-            <Th w={80}>YR</Th>
-            <Th>TM</Th>
+          <tr className="text-[11px] text-white/60">
+            <ThCompact w={70}>YR</ThCompact>
+            <ThCompact w={60}>TM</ThCompact>
             {group === "hitting" ? (
               <>
-                <Th w={80}>R</Th>
-                <Th w={80}>HR</Th>
-                <Th w={80}>RBI</Th>
-                <Th w={80}>SB</Th>
-                <Th w={90}>AVG</Th>
+                <ThCompact w={60} className="text-right">R</ThCompact>
+                <ThCompact w={60} className="text-right">HR</ThCompact>
+                <ThCompact w={60} className="text-right">RBI</ThCompact>
+                <ThCompact w={60} className="text-right">SB</ThCompact>
+                <ThCompact w={70} className="text-right">AVG</ThCompact>
               </>
             ) : (
               <>
-                <Th w={80}>W</Th>
-                <Th w={80}>SV</Th>
-                <Th w={80}>K</Th>
-                <Th w={90}>ERA</Th>
-                <Th w={90}>WHIP</Th>
+                <ThCompact w={60} className="text-right">W</ThCompact>
+                <ThCompact w={60} className="text-right">SV</ThCompact>
+                <ThCompact w={60} className="text-right">K</ThCompact>
+                <ThCompact w={70} className="text-right">ERA</ThCompact>
+                <ThCompact w={70} className="text-right">WHIP</ThCompact>
               </>
             )}
           </tr>
         </thead>
         <tbody>
           {rows.map((r: any, idx) => {
-            const isTotals = r.year === "TOT";
+            // Your API normalizes to { year, tm, ... } in client/api.ts
+            const year = String(r.year ?? r.YR ?? "");
+            const tm = String(r.tm ?? r.TM ?? "");
+
+            const isTotals = year === "TOT";
+            const tmShort = tmAbbr(tm);
+
             return (
               <tr
-                key={`${r.year}-${idx}`}
+                key={`${year}-${idx}`}
                 className={clsx(
-                  "border-t border-white/10 text-sm",
+                  "border-t border-white/10",
                   isTotals ? "bg-white/5 text-white" : "text-white/90"
                 )}
               >
-                <Td className={clsx("text-white/80", isTotals && "font-semibold")}>{r.year}</Td>
-                <Td className={clsx("text-white/80", isTotals && "font-semibold")}>{r.tm}</Td>
+                <TdCompact className={clsx("text-white/80", isTotals && "font-semibold")}>
+                  {year}
+                </TdCompact>
+
+                <TdCompact
+                  className={clsx("text-white/80 whitespace-nowrap", isTotals && "font-semibold")}
+                  title={tm && tm !== "TOT" && tm !== "—" ? tm : undefined}
+                >
+                  {tmShort}
+                </TdCompact>
 
                 {group === "hitting" ? (
                   <>
-                    <Td className="tabular-nums">{r.R}</Td>
-                    <Td className="tabular-nums">{r.HR}</Td>
-                    <Td className="tabular-nums">{r.RBI}</Td>
-                    <Td className="tabular-nums">{r.SB}</Td>
-                    <Td className="tabular-nums">{r.AVG}</Td>
+                    <TdCompact className="text-right tabular-nums">{r.R}</TdCompact>
+                    <TdCompact className="text-right tabular-nums">{r.HR}</TdCompact>
+                    <TdCompact className="text-right tabular-nums">{r.RBI}</TdCompact>
+                    <TdCompact className="text-right tabular-nums">{r.SB}</TdCompact>
+                    <TdCompact className="text-right tabular-nums">{r.AVG}</TdCompact>
                   </>
                 ) : (
                   <>
-                    <Td className="tabular-nums">{r.W}</Td>
-                    <Td className="tabular-nums">{r.SV}</Td>
-                    <Td className="tabular-nums">{r.K}</Td>
-                    <Td className="tabular-nums">{r.ERA}</Td>
-                    <Td className="tabular-nums">{r.WHIP}</Td>
+                    <TdCompact className="text-right tabular-nums">{r.W}</TdCompact>
+                    <TdCompact className="text-right tabular-nums">{r.SV}</TdCompact>
+                    <TdCompact className="text-right tabular-nums">{r.K}</TdCompact>
+                    <TdCompact className="text-right tabular-nums">{r.ERA}</TdCompact>
+                    <TdCompact className="text-right tabular-nums">{r.WHIP}</TdCompact>
                   </>
                 )}
               </tr>
@@ -371,4 +448,51 @@ function Th({ children, w }: { children: React.ReactNode; w?: number }) {
 
 function Td({ children, className }: { children: React.ReactNode; className?: string }) {
   return <td className={clsx("border-b border-white/10 px-3 py-2", className)}>{children}</td>;
+}
+
+/**
+ * Compact table primitives (Career table uses these)
+ * - smaller padding
+ * - smaller font
+ * - better density in modal
+ */
+function ThCompact({
+  children,
+  w,
+  className,
+}: {
+  children: React.ReactNode;
+  w?: number;
+  className?: string;
+}) {
+  return (
+    <th
+      style={w ? { width: w } : undefined}
+      className={clsx(
+        "border-b border-white/10 bg-transparent px-2 py-1 text-left font-medium",
+        className
+      )}
+    >
+      {children}
+    </th>
+  );
+}
+
+function TdCompact({
+  children,
+  className,
+  title,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  title?: string;
+}) {
+  return (
+    <td
+      title={title}
+      className={clsx("border-b border-white/10 px-2 py-1", className)}
+    >
+      {children}
+    </td>
+  );
 }
