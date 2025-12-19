@@ -15,10 +15,93 @@ function clsx(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
 }
 
+/**
+ * MLB team name -> abbreviation
+ * - also normalizes common short forms (Was, Phi, etc.)
+ */
+const MLB_TEAM_ABBR: Record<string, string> = {
+  // AL East
+  "baltimore orioles": "BAL",
+  "boston red sox": "BOS",
+  "new york yankees": "NYY",
+  "tampa bay rays": "TB",
+  "toronto blue jays": "TOR",
+  // AL Central
+  "chicago white sox": "CWS",
+  "cleveland guardians": "CLE",
+  "detroit tigers": "DET",
+  "kansas city royals": "KC",
+  "minnesota twins": "MIN",
+  // AL West
+  "houston astros": "HOU",
+  "los angeles angels": "LAA",
+  "oakland athletics": "OAK",
+  "seattle mariners": "SEA",
+  "texas rangers": "TEX",
+  // NL East
+  "atlanta braves": "ATL",
+  "miami marlins": "MIA",
+  "new york mets": "NYM",
+  "philadelphia phillies": "PHI",
+  "washington nationals": "WSH",
+  // NL Central
+  "chicago cubs": "CHC",
+  "cincinnati reds": "CIN",
+  "milwaukee brewers": "MIL",
+  "pittsburgh pirates": "PIT",
+  "st. louis cardinals": "STL",
+  "st louis cardinals": "STL",
+  // NL West
+  "arizona diamondbacks": "ARI",
+  "colorado rockies": "COL",
+  "los angeles dodgers": "LAD",
+  "san diego padres": "SD",
+  "san francisco giants": "SF",
+
+  // Common short codes you might see (passthrough/normalize)
+  "was": "WSH",
+  "wsh": "WSH",
+  "phi": "PHI",
+  "lad": "LAD",
+  "nym": "NYM",
+  "nyy": "NYY",
+  "sd": "SD",
+  "sf": "SF",
+  "tb": "TB",
+  "kc": "KC",
+  "chc": "CHC",
+  "chw": "CWS",
+  "cws": "CWS",
+};
+
+function normalizeTeamAbbr(v: any): string {
+  const raw = String(v ?? "").trim();
+  if (!raw) return "";
+  if (raw === "—") return "";
+  if (raw.toUpperCase() === "TOT") return "TOT";
+
+  // If already looks like an abbreviation, just normalize casing
+  const simple = raw.replace(/\./g, "").trim();
+  if (/^[A-Za-z]{2,3}$/.test(simple)) {
+    const up = simple.toUpperCase();
+    if (up === "WSH" || up === "WAS") return "WSH";
+    if (up === "SDP" || up === "SD") return "SD";
+    if (up === "SFG" || up === "SF") return "SF";
+    if (up === "TBR" || up === "TB") return "TB";
+    if (up === "KCR" || up === "KC") return "KC";
+    if (up === "CHW" || up === "CWS") return "CWS";
+    return up;
+  }
+
+  const key = raw.toLowerCase();
+  return MLB_TEAM_ABBR[key] ?? raw;
+}
+
 function getName(p: PlayerSeasonStat) {
   return p.player_name ?? p.name ?? "—";
 }
 function getMlbId(p: PlayerSeasonStat) {
+  // Still needed internally for API calls (profile/career/recent).
   return p.mlb_id ?? (p as any).mlbId ?? "—";
 }
 function getOgbaTeam(p: PlayerSeasonStat) {
@@ -34,67 +117,29 @@ function isPitcher(p: PlayerSeasonStat) {
   return Boolean(p.is_pitcher ?? p.isPitcher);
 }
 
-/**
- * TM (team) abbreviation helper for Career table:
- * - If TM is already "SEA", returns "SEA"
- * - If TM is "Toronto Blue Jays", returns "TOR"
- * - If TM is "TOT" or "—", returns as-is
- * - Also supports common MLB full names used by StatsAPI
- */
-const TEAM_NAME_TO_ABBR: Record<string, string> = {
-  "Arizona Diamondbacks": "ARI",
-  "Atlanta Braves": "ATL",
-  "Baltimore Orioles": "BAL",
-  "Boston Red Sox": "BOS",
-  "Chicago Cubs": "CHC",
-  "Chicago White Sox": "CWS",
-  "Cincinnati Reds": "CIN",
-  "Cleveland Guardians": "CLE",
-  "Colorado Rockies": "COL",
-  "Detroit Tigers": "DET",
-  "Houston Astros": "HOU",
-  "Kansas City Royals": "KC",
-  "Los Angeles Angels": "LAA",
-  "Los Angeles Dodgers": "LAD",
-  "Miami Marlins": "MIA",
-  "Milwaukee Brewers": "MIL",
-  "Minnesota Twins": "MIN",
-  "New York Mets": "NYM",
-  "New York Yankees": "NYY",
-  "Oakland Athletics": "OAK",
-  "Philadelphia Phillies": "PHI",
-  "Pittsburgh Pirates": "PIT",
-  "San Diego Padres": "SD",
-  "San Francisco Giants": "SF",
-  "Seattle Mariners": "SEA",
-  "St. Louis Cardinals": "STL",
-  "Tampa Bay Rays": "TB",
-  "Texas Rangers": "TEX",
-  "Toronto Blue Jays": "TOR",
-  "Washington Nationals": "WSH",
+function toNum(v: any): number | null {
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
 
-  // A couple of common alternates people use:
-  "Cleveland Indians": "CLE",
-  "Tampa Bay Devil Rays": "TB",
-  "Montreal Expos": "MON",
-};
+function fmtInt(v: any): string {
+  const n = toNum(v);
+  return n === null ? "—" : String(Math.trunc(n));
+}
 
-function tmAbbr(tm: any): string {
-  const s = String(tm ?? "").trim();
-  if (!s) return "—";
+function fmt3(v: any): string {
+  const n = toNum(v);
+  if (n === null) return "—";
+  return n.toFixed(3).replace(/^0\./, ".");
+}
 
-  const up = s.toUpperCase();
-
-  // Preserve totals / blank marker
-  if (up === "TOT") return "TOT";
-  if (s === "—") return "—";
-
-  // If it already looks like an abbreviation (2-4 letters), keep it.
-  // (KC, SD, SEA, NYY, etc.)
-  if (/^[A-Z]{2,4}$/.test(up) && !s.includes(" ")) return up;
-
-  // Map full MLB team name -> abbreviation
-  return TEAM_NAME_TO_ABBR[s] ?? s;
+function fmt2(v: any): string {
+  const n = toNum(v);
+  if (n === null) return "—";
+  return n.toFixed(2);
 }
 
 type Props = {
@@ -153,14 +198,13 @@ export default function PlayerDetailModal({ open, onClose, player }: Props) {
   const headerName = getName(player);
   const headerPos = getPos(player);
   const headerOgba = getOgbaTeam(player);
-  const headerMlb = getMlbTeam(player);
-  const headerMlbId = getMlbId(player);
+  const headerMlb = normalizeTeamAbbr(getMlbTeam(player) || profile?.currentTeam || "");
 
   return (
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="absolute left-1/2 top-1/2 w-[1100px] max-w-[95vw] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-white/10 bg-zinc-950/95 shadow-2xl">
-        <div className="flex items-start justify-between gap-4 border-b border-white/10 p-6">
+      <div className="absolute left-1/2 top-1/2 w-[980px] max-w-[95vw] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-white/10 bg-zinc-950/95 shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-white/10 p-5">
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <div className="text-2xl font-semibold text-white">{headerName}</div>
@@ -169,9 +213,6 @@ export default function PlayerDetailModal({ open, onClose, player }: Props) {
               {headerMlb ? (
                 <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs text-white/80">{headerMlb}</span>
               ) : null}
-              <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs text-white/70">
-                MLB ID: {headerMlbId}
-              </span>
             </div>
             <div className="mt-1 text-sm text-white/60">{isPitcher(player) ? "Pitcher detail" : "Hitter detail"}</div>
           </div>
@@ -184,7 +225,7 @@ export default function PlayerDetailModal({ open, onClose, player }: Props) {
           </button>
         </div>
 
-        <div className="flex items-center gap-2 px-6 pt-4">
+        <div className="flex items-center gap-2 px-5 pt-3">
           <button
             className={clsx(
               "rounded-xl px-4 py-2 text-sm",
@@ -208,32 +249,22 @@ export default function PlayerDetailModal({ open, onClose, player }: Props) {
           {err ? <div className="ml-auto text-sm text-red-300">{err}</div> : null}
         </div>
 
-        <div className="p-6 pt-4">
+        <div className="p-5 pt-3">
           {tab === "stats" ? (
             <div className="space-y-4">
-              <Section title="Recent (7 / 14 / 21 days)">
-                <RecentTable group={group} rows={recent as any} />
+              <Section title="YTD + Last 7 (same cell)">
+                <YtdPlusRecentRow group={group} player={player} recentRows={recent as any} />
               </Section>
 
-              <Section title="Career (fantasy columns)">
+              <Section title="Career (compact)">
                 <CareerTable group={group} rows={career as any} />
               </Section>
-
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/60">
-                Projections are not available from MLB StatsAPI. If you want projections, we either (1) derive a simple
-                “pace” projection, or (2) integrate a projections provider.
-              </div>
             </div>
           ) : (
             <div className="space-y-4">
               <Section title="Profile">
                 <ProfilePanel profile={profile} />
               </Section>
-
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/60">
-                Player news is not available from MLB StatsAPI. If you want “last 4 months” news, we need a separate
-                provider/feed (Fantrax, Rotowire, MLB RSS, etc.).
-              </div>
             </div>
           )}
         </div>
@@ -245,78 +276,122 @@ export default function PlayerDetailModal({ open, onClose, player }: Props) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5">
-      <div className="flex items-center justify-between border-b border-white/10 px-5 py-3">
+      <div className="flex items-center justify-between border-b border-white/10 px-4 py-2">
         <div className="text-sm font-semibold text-white/90">{title}</div>
       </div>
-      <div className="p-4">{children}</div>
+      <div className="p-3">{children}</div>
     </div>
   );
 }
 
-function RecentTable({
+function YtdPlusRecentRow({
   group,
-  rows,
+  player,
+  recentRows,
 }: {
   group: "hitting" | "pitching";
-  rows: Array<RecentHittingRow | RecentPitchingRow>;
+  player: PlayerSeasonStat;
+  recentRows: Array<RecentHittingRow | RecentPitchingRow>;
 }) {
-  if (!rows?.length) return <div className="text-sm text-white/60">No recent stats.</div>;
+  const last7: any =
+    (recentRows || []).find((r: any) => String(r.label || "").toLowerCase().includes("last 7")) ??
+    (recentRows || [])[0] ??
+    null;
+
+  if (!last7) return <div className="text-sm text-white/60">No period stats yet.</div>;
 
   return (
-    <table className="w-full table-fixed border-separate border-spacing-0">
-      <thead>
-        <tr className="text-xs text-white/60">
-          <Th w={80}>WIN</Th>
-          {group === "hitting" ? (
-            <>
-              <Th>AB</Th>
-              <Th>H</Th>
-              <Th>R</Th>
-              <Th>HR</Th>
-              <Th>RBI</Th>
-              <Th>SB</Th>
-              <Th w={90}>AVG</Th>
-            </>
-          ) : (
-            <>
-              <Th>IP</Th>
-              <Th>W</Th>
-              <Th>SV</Th>
-              <Th>K</Th>
-              <Th w={90}>ERA</Th>
-              <Th w={90}>WHIP</Th>
-            </>
-          )}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r: any) => (
-          <tr key={r.label} className="border-t border-white/10 text-sm text-white/90">
-            <Td className="text-white/80">{r.label}</Td>
+    <div className="overflow-x-auto">
+      <table className="min-w-[720px] w-full border-separate border-spacing-0 text-xs">
+        <thead>
+          <tr className="text-white/60">
             {group === "hitting" ? (
               <>
-                <Td className="text-right tabular-nums">{r.AB}</Td>
-                <Td className="text-right tabular-nums">{r.H}</Td>
-                <Td className="text-right tabular-nums">{r.R}</Td>
-                <Td className="text-right tabular-nums">{r.HR}</Td>
-                <Td className="text-right tabular-nums">{r.RBI}</Td>
-                <Td className="text-right tabular-nums">{r.SB}</Td>
-                <Td className="text-right tabular-nums">{r.AVG}</Td>
+                <Th w={70}>AB</Th>
+                <Th w={70}>H</Th>
+                <Th w={70}>R</Th>
+                <Th w={70}>HR</Th>
+                <Th w={70}>RBI</Th>
+                <Th w={70}>SB</Th>
+                <Th w={80}>AVG</Th>
               </>
             ) : (
               <>
-                <Td className="text-right tabular-nums">{r.IP}</Td>
-                <Td className="text-right tabular-nums">{r.W}</Td>
-                <Td className="text-right tabular-nums">{r.SV}</Td>
-                <Td className="text-right tabular-nums">{r.K}</Td>
-                <Td className="text-right tabular-nums">{r.ERA}</Td>
-                <Td className="text-right tabular-nums">{r.WHIP}</Td>
+                <Th w={80}>IP</Th>
+                <Th w={70}>W</Th>
+                <Th w={70}>SV</Th>
+                <Th w={70}>K</Th>
+                <Th w={80}>ERA</Th>
+                <Th w={80}>WHIP</Th>
               </>
             )}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          <tr className="border-t border-white/10 text-white/90">
+            {group === "hitting" ? (
+              <>
+                <Td>
+                  <StatCell top={fmtInt((player as any).AB)} bottom={fmtInt((last7 as any).AB)} />
+                </Td>
+                <Td>
+                  <StatCell top={fmtInt((player as any).H)} bottom={fmtInt((last7 as any).H)} />
+                </Td>
+                <Td>
+                  <StatCell top={fmtInt((player as any).R)} bottom={fmtInt((last7 as any).R)} />
+                </Td>
+                <Td>
+                  <StatCell top={fmtInt((player as any).HR)} bottom={fmtInt((last7 as any).HR)} />
+                </Td>
+                <Td>
+                  <StatCell top={fmtInt((player as any).RBI)} bottom={fmtInt((last7 as any).RBI)} />
+                </Td>
+                <Td>
+                  <StatCell top={fmtInt((player as any).SB)} bottom={fmtInt((last7 as any).SB)} />
+                </Td>
+                <Td>
+                  <StatCell top={fmt3((player as any).AVG)} bottom={fmt3((last7 as any).AVG)} mono />
+                </Td>
+              </>
+            ) : (
+              <>
+                <Td>
+                  <StatCell top={String((player as any).IP ?? "—")} bottom={String((last7 as any).IP ?? "—")} mono />
+                </Td>
+                <Td>
+                  <StatCell top={fmtInt((player as any).W)} bottom={fmtInt((last7 as any).W)} />
+                </Td>
+                <Td>
+                  <StatCell top={fmtInt((player as any).SV)} bottom={fmtInt((last7 as any).SV)} />
+                </Td>
+                <Td>
+                  <StatCell top={fmtInt((player as any).K)} bottom={fmtInt((last7 as any).K)} />
+                </Td>
+                <Td>
+                  <StatCell top={fmt2((player as any).ERA)} bottom={fmt2((last7 as any).ERA)} mono />
+                </Td>
+                <Td>
+                  <StatCell top={fmt2((player as any).WHIP)} bottom={fmt2((last7 as any).WHIP)} mono />
+                </Td>
+              </>
+            )}
+          </tr>
+        </tbody>
+      </table>
+
+      <div className="mt-2 text-[11px] text-white/50">
+        Top = YTD (season). Bottom = {String((last7 as any).label ?? "period")} (red).
+      </div>
+    </div>
+  );
+}
+
+function StatCell({ top, bottom, mono }: { top: string; bottom: string; mono?: boolean }) {
+  return (
+    <div className={clsx("flex flex-col items-center justify-center leading-tight", mono && "tabular-nums")}>
+      <div className="text-white/90">{top}</div>
+      <div className="text-red-300">{bottom}</div>
+    </div>
   );
 }
 
@@ -329,76 +404,60 @@ function CareerTable({
 }) {
   if (!rows?.length) return <div className="text-sm text-white/60">No career stats.</div>;
 
-  // Rows already come oldest -> newest + totals at bottom (from api.ts).
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-[760px] w-full border-separate border-spacing-0 text-xs">
+      <table className="min-w-[720px] w-full border-separate border-spacing-0 text-xs">
         <thead>
-          <tr className="text-[11px] text-white/60">
-            <ThCompact w={70}>YR</ThCompact>
-            <ThCompact w={60}>TM</ThCompact>
+          <tr className="text-white/60">
+            <Th w={70}>YR</Th>
+            <Th w={70}>TM</Th>
             {group === "hitting" ? (
               <>
-                <ThCompact w={60} className="text-right">R</ThCompact>
-                <ThCompact w={60} className="text-right">HR</ThCompact>
-                <ThCompact w={60} className="text-right">RBI</ThCompact>
-                <ThCompact w={60} className="text-right">SB</ThCompact>
-                <ThCompact w={70} className="text-right">AVG</ThCompact>
+                <Th w={70}>R</Th>
+                <Th w={70}>HR</Th>
+                <Th w={70}>RBI</Th>
+                <Th w={70}>SB</Th>
+                <Th w={80}>AVG</Th>
               </>
             ) : (
               <>
-                <ThCompact w={60} className="text-right">W</ThCompact>
-                <ThCompact w={60} className="text-right">SV</ThCompact>
-                <ThCompact w={60} className="text-right">K</ThCompact>
-                <ThCompact w={70} className="text-right">ERA</ThCompact>
-                <ThCompact w={70} className="text-right">WHIP</ThCompact>
+                <Th w={70}>W</Th>
+                <Th w={70}>SV</Th>
+                <Th w={70}>K</Th>
+                <Th w={80}>ERA</Th>
+                <Th w={80}>WHIP</Th>
               </>
             )}
           </tr>
         </thead>
         <tbody>
           {rows.map((r: any, idx) => {
-            // Your API normalizes to { year, tm, ... } in client/api.ts
-            const year = String(r.year ?? r.YR ?? "");
-            const tm = String(r.tm ?? r.TM ?? "");
-
-            const isTotals = year === "TOT";
-            const tmShort = tmAbbr(tm);
+            const isTotals = r.year === "TOT";
+            const tm = normalizeTeamAbbr(r.tm);
 
             return (
               <tr
-                key={`${year}-${idx}`}
-                className={clsx(
-                  "border-t border-white/10",
-                  isTotals ? "bg-white/5 text-white" : "text-white/90"
-                )}
+                key={`${r.year}-${idx}`}
+                className={clsx("border-t border-white/10", isTotals ? "bg-white/5 text-white" : "text-white/90")}
               >
-                <TdCompact className={clsx("text-white/80", isTotals && "font-semibold")}>
-                  {year}
-                </TdCompact>
-
-                <TdCompact
-                  className={clsx("text-white/80 whitespace-nowrap", isTotals && "font-semibold")}
-                  title={tm && tm !== "TOT" && tm !== "—" ? tm : undefined}
-                >
-                  {tmShort}
-                </TdCompact>
+                <Td className={clsx(isTotals && "font-semibold")}>{r.year}</Td>
+                <Td className={clsx(isTotals && "font-semibold")}>{tm || (isTotals ? "" : "—")}</Td>
 
                 {group === "hitting" ? (
                   <>
-                    <TdCompact className="text-right tabular-nums">{r.R}</TdCompact>
-                    <TdCompact className="text-right tabular-nums">{r.HR}</TdCompact>
-                    <TdCompact className="text-right tabular-nums">{r.RBI}</TdCompact>
-                    <TdCompact className="text-right tabular-nums">{r.SB}</TdCompact>
-                    <TdCompact className="text-right tabular-nums">{r.AVG}</TdCompact>
+                    <Td className="tabular-nums">{fmtInt(r.R)}</Td>
+                    <Td className="tabular-nums">{fmtInt(r.HR)}</Td>
+                    <Td className="tabular-nums">{fmtInt(r.RBI)}</Td>
+                    <Td className="tabular-nums">{fmtInt(r.SB)}</Td>
+                    <Td className="tabular-nums">{fmt3(r.AVG)}</Td>
                   </>
                 ) : (
                   <>
-                    <TdCompact className="text-right tabular-nums">{r.W}</TdCompact>
-                    <TdCompact className="text-right tabular-nums">{r.SV}</TdCompact>
-                    <TdCompact className="text-right tabular-nums">{r.K}</TdCompact>
-                    <TdCompact className="text-right tabular-nums">{r.ERA}</TdCompact>
-                    <TdCompact className="text-right tabular-nums">{r.WHIP}</TdCompact>
+                    <Td className="tabular-nums">{fmtInt(r.W)}</Td>
+                    <Td className="tabular-nums">{fmtInt(r.SV)}</Td>
+                    <Td className="tabular-nums">{fmtInt(r.K)}</Td>
+                    <Td className="tabular-nums">{fmt2(r.ERA)}</Td>
+                    <Td className="tabular-nums">{fmt2(r.WHIP)}</Td>
                   </>
                 )}
               </tr>
@@ -415,7 +474,7 @@ function ProfilePanel({ profile }: { profile: PlayerProfile | null }) {
 
   const items: Array<[string, any]> = [
     ["Name", profile.fullName],
-    ["Team", profile.currentTeam ?? "—"],
+    ["Team", normalizeTeamAbbr(profile.currentTeam) || profile.currentTeam || "—"],
     ["Pos", profile.primaryPosition ?? "—"],
     ["B/T", `${profile.bats ?? "—"} / ${profile.throws ?? "—"}`],
     ["Ht/Wt", `${profile.height ?? "—"} / ${profile.weight ?? "—"}`],
@@ -435,11 +494,16 @@ function ProfilePanel({ profile }: { profile: PlayerProfile | null }) {
   );
 }
 
+/**
+ * Compact, centered table cells.
+ * - Header + body are centered
+ * - Tight padding
+ */
 function Th({ children, w }: { children: React.ReactNode; w?: number }) {
   return (
     <th
       style={w ? { width: w } : undefined}
-      className="border-b border-white/10 bg-transparent px-3 py-2 text-left font-medium"
+      className="border-b border-white/10 bg-transparent px-2 py-1 text-center font-medium"
     >
       {children}
     </th>
@@ -447,52 +511,5 @@ function Th({ children, w }: { children: React.ReactNode; w?: number }) {
 }
 
 function Td({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <td className={clsx("border-b border-white/10 px-3 py-2", className)}>{children}</td>;
-}
-
-/**
- * Compact table primitives (Career table uses these)
- * - smaller padding
- * - smaller font
- * - better density in modal
- */
-function ThCompact({
-  children,
-  w,
-  className,
-}: {
-  children: React.ReactNode;
-  w?: number;
-  className?: string;
-}) {
-  return (
-    <th
-      style={w ? { width: w } : undefined}
-      className={clsx(
-        "border-b border-white/10 bg-transparent px-2 py-1 text-left font-medium",
-        className
-      )}
-    >
-      {children}
-    </th>
-  );
-}
-
-function TdCompact({
-  children,
-  className,
-  title,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  title?: string;
-}) {
-  return (
-    <td
-      title={title}
-      className={clsx("border-b border-white/10 px-2 py-1", className)}
-    >
-      {children}
-    </td>
-  );
+  return <td className={clsx("border-b border-white/10 px-2 py-1 text-center", className)}>{children}</td>;
 }
