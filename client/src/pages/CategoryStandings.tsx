@@ -109,7 +109,7 @@ export default function CategoryStandings() {
                   <Td className="font-medium text-left">{row.teamName}</Td>
                   {CATS.map((cat) => (
                     <Td key={cat.id} className="tabular-nums">
-                      {fmt(cat, row.stats?.[cat.id] ?? 0)}
+                      {fmt(cat.id, row.stats?.[cat.id] ?? 0)}
                       <div className="text-[11px] text-white/45">{(row.points?.[cat.id] ?? 0).toFixed(1)}</div>
                     </Td>
                   ))}
