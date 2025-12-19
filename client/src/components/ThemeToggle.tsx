@@ -1,26 +1,56 @@
 // client/src/components/ThemeToggle.tsx
-import { useTheme } from "./ThemeContext";
+import React, { useEffect, useMemo, useState } from "react";
+
+type ThemeMode = "dark" | "light";
+
+function readInitialTheme(): ThemeMode {
+  // 1) localStorage
+  try {
+    const v = localStorage.getItem("fbst_theme");
+    if (v === "dark" || v === "light") return v;
+  } catch {
+    // ignore
+  }
+
+  // 2) current DOM
+  if (typeof document !== "undefined") {
+    if (document.documentElement.classList.contains("dark")) return "dark";
+  }
+
+  // 3) system preference
+  if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    return prefersDark ? "dark" : "light";
+  }
+
+  return "dark";
+}
 
 export default function ThemeToggle() {
-  const { theme, toggleTheme } = useTheme();
+  const initial = useMemo(() => readInitialTheme(), []);
+  const [mode, setMode] = useState<ThemeMode>(initial);
 
-  const isDark = theme === "dark";
+  useEffect(() => {
+    const root = document.documentElement;
+    if (mode === "dark") root.classList.add("dark");
+    else root.classList.remove("dark");
+
+    try {
+      localStorage.setItem("fbst_theme", mode);
+    } catch {
+      // ignore
+    }
+  }, [mode]);
 
   return (
     <button
       type="button"
-      onClick={toggleTheme}
-      className="w-full inline-flex items-center justify-between rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-200 shadow-sm hover:border-slate-500 hover:bg-slate-800 transition-colors"
+      className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80 hover:bg-white/10"
+      onClick={() => setMode((m) => (m === "dark" ? "light" : "dark"))}
+      aria-label="Toggle theme"
+      title="Toggle theme"
     >
-      <span>{isDark ? "Dark mode" : "Light mode"}</span>
-      <span
-        className={[
-          "ml-2 inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px]",
-          isDark ? "bg-slate-700" : "bg-amber-400 text-slate-900",
-        ].join(" ")}
-      >
-        {isDark ? "🌙" : "☀️"}
-      </span>
+      {mode === "dark" ? "Dark" : "Light"}
     </button>
   );
 }

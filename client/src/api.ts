@@ -236,8 +236,17 @@ export type PlayerSeasonStat = {
   isPitcher?: any;
 };
 
+export type PlayerSeasonStats = PlayerSeasonStat[]; // back-compat for older components
+export type AuctionValueRow = PlayerSeasonStat; // back-compat for AuctionValues page
+
 export type SeasonStandingRow = Record<string, any>;
 export type PeriodStatRow = Record<string, any>;
+
+// Season page expects an object { periodIds, rows }.
+export type SeasonStandingsApiResponse = {
+  periodIds: number[];
+  rows: SeasonStandingRow[];
+};
 
 export type PlayerProfile = {
   mlbId: string;
@@ -351,8 +360,15 @@ export async function getPlayerSeasonStats(): Promise<PlayerSeasonStat[]> {
   return _seasonStatsCache;
 }
 
-export async function getSeasonStandings(): Promise<SeasonStandingRow[]> {
-  return fetchJson(`${API_BASE}/season-standings`);
+// Back-compat: older code expects fetchPlayerStats()
+export async function fetchPlayerStats(): Promise<PlayerSeasonStat[]> {
+  return getPlayerSeasonStats();
+}
+
+export async function getSeasonStandings(): Promise<SeasonStandingsApiResponse> {
+  const rows = await fetchJson<SeasonStandingRow[]>(`${API_BASE}/season-standings`);
+  // periodIds not wired server-side yet; keep empty for now.
+  return { periodIds: [], rows: rows ?? [] };
 }
 
 export async function getPlayerPeriodStats(): Promise<PeriodStatRow[]> {
@@ -374,9 +390,9 @@ export async function getTeamRoster(teamCode: string): Promise<PlayerSeasonStat[
 
 /** ---------- Period standings (client fallback) ---------- */
 
-type CategoryId = "R" | "HR" | "RBI" | "SB" | "AVG" | "W" | "S" | "K" | "ERA" | "WHIP";
+export type CategoryId = "R" | "HR" | "RBI" | "SB" | "AVG" | "W" | "S" | "K" | "ERA" | "WHIP";
 
-type PeriodTeamRow = {
+export type PeriodTeamRow = {
   teamId: number;
   teamName: string;
   stats: Record<CategoryId, number>;
@@ -384,11 +400,14 @@ type PeriodTeamRow = {
   totalPoints: number;
 };
 
-type PeriodStandingsResponse = {
+export type PeriodStandingsResponse = {
   periodId: number;
   periodName?: string;
   rows: PeriodTeamRow[];
 };
+
+// Back-compat: CategoryStandings page uses this naming.
+export type CategoryStandingsResponse = PeriodStandingsResponse;
 
 function isFinitePos(n: number) {
   return Number.isFinite(n) && n > 0;
@@ -490,7 +509,9 @@ export async function getPeriodStandings(periodId: number): Promise<PeriodStandi
   >();
 
   function teamCodeOf(r: any): string {
-    const code = String(r?.ogba_team_code ?? r?.team ?? r?.teamCode ?? r?.team_code ?? "").trim().toUpperCase();
+    const code = String(r?.ogba_team_code ?? r?.team ?? r?.teamCode ?? r?.team_code ?? "")
+      .trim()
+      .toUpperCase();
     return code || "FA";
   }
 
@@ -649,6 +670,11 @@ export async function getPeriodStandings(periodId: number): Promise<PeriodStandi
   outRows.sort((a, b) => b.totalPoints - a.totalPoints);
 
   return { periodId: pid, rows: outRows };
+}
+
+// Back-compat naming: CategoryStandings page imports getCategoryStandings()
+export async function getCategoryStandings(periodId: number): Promise<CategoryStandingsResponse> {
+  return getPeriodStandings(periodId);
 }
 
 /** ---------- MLB Stats API: profile / career / recent ---------- */
