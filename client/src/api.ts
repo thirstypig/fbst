@@ -1,25 +1,39 @@
 // client/src/api.ts
 // Canonical client API layer for FBST.
 //
-// Backend endpoints (local):
+// Backend endpoints (server):
 // - GET /api/health
 // - GET /api/auction-values
 // - GET /api/player-season-stats
 // - GET /api/player-period-stats
 // - GET /api/season-standings
-// - (optional) GET /api/period-standings?periodId=1   (if you add it server-side later)
+// - (optional) GET /api/period-standings?periodId=1   (if present server-side)
 //
 // MLB Stats API (public):
 // - Profile + career/year-by-year + recent date-range stats
 
 export type HOrP = "hitting" | "pitching";
 
-const API_BASE: string =
+/** ---------- API base (robust for Render / local) ---------- */
+
+// You may set either of these in Render:
+// - VITE_API_BASE = https://fbst-api.onrender.com
+// - OR VITE_API_BASE = https://fbst-api.onrender.com/api
+//
+// This code normalizes to always end with /api.
+const RAW_BASE: string =
   (import.meta as any).env?.VITE_API_BASE ??
   (import.meta as any).env?.VITE_API_BASE_URL ??
-  "http://localhost:4000/api";
+  "http://localhost:4000";
+
+export const API_BASE: string = (() => {
+  const b = String(RAW_BASE).replace(/\/+$/, ""); // trim trailing slash(es)
+  return b.endsWith("/api") ? b : `${b}/api`;
+})();
 
 const MLB_API_BASE = "https://statsapi.mlb.com/api/v1";
+
+/** ---------- fetch helper ---------- */
 
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url, { headers: { Accept: "application/json" } });
@@ -36,7 +50,7 @@ async function fetchJson<T>(url: string): Promise<T> {
 
   if (!res.ok) {
     const msg =
-      (maybeJson && (maybeJson.error || maybeJson.message)) ||
+      (maybeJson && ((maybeJson as any).error || (maybeJson as any).message)) ||
       (text ? `HTTP ${res.status} for ${url} — ${text.slice(0, 180)}` : `HTTP ${res.status} for ${url}`);
     throw new Error(msg);
   }
@@ -87,7 +101,7 @@ function normalizeTwoWayRow(row: any): PlayerSeasonStat {
   const mlb_id = String(row?.mlb_id ?? row?.mlbId ?? "").trim();
   const role = roleFromRow(row); // H or P
 
-  // Force consistent pitcher identity (prevents "Ohtani pitcher row shows DH")
+  // Force consistent pitcher identity (prevents two-way rows conflicting)
   const is_pitcher = role === "P";
   const positions = is_pitcher ? "P" : String(row?.positions ?? row?.pos ?? "").trim();
 
@@ -109,7 +123,7 @@ function normalizeTwoWayRow(row: any): PlayerSeasonStat {
     mlb_team: String(row?.mlb_team ?? row?.mlbTeam ?? "").trim(),
     mlbTeam: String(row?.mlbTeam ?? row?.mlb_team ?? "").trim(),
 
-    // hitter stats (season totals CSV style)
+    // hitter stats
     AB: row?.AB,
     H: row?.H,
     R: row?.R,
@@ -118,7 +132,7 @@ function normalizeTwoWayRow(row: any): PlayerSeasonStat {
     SB: row?.SB,
     AVG: row?.AVG,
 
-    // pitcher stats (season totals CSV style)
+    // pitcher stats
     W: row?.W,
     SV: row?.SV,
     K: row?.K,
@@ -128,14 +142,16 @@ function normalizeTwoWayRow(row: any): PlayerSeasonStat {
     BB_H: row?.BB_H,
     WHIP: row?.WHIP,
 
-    // auction value fields (auction CSV style)
+    // auction fields
     dollar_value: row?.dollar_value ?? row?.value,
     value: row?.value,
     z_total: row?.z_total ?? row?.relValue,
 
-    // any other passthrough
+    // passthrough/misc
     GS: row?.GS,
     SO: row?.SO,
+
+    // older aliases (safe to keep)
     pos: row?.pos,
     name: row?.name,
     team: row?.team,
@@ -145,12 +161,8 @@ function normalizeTwoWayRow(row: any): PlayerSeasonStat {
   return out;
 }
 
-function dedupeByRowId(
-  rows: PlayerSeasonStat[],
-  mode: "season" | "auction" = "season"
-): PlayerSeasonStat[] {
-  // Prevent React "duplicate key" warnings and duplicate rows in tables.
-  // Keep the "best" duplicate instead of arbitrarily keeping the first one.
+function dedupeByRowId(rows: PlayerSeasonStat[], mode: "season" | "auction" = "season"): PlayerSeasonStat[] {
+  // Prevent duplicate keys/rows. Keep the “best” duplicate instead of the first.
   const m = new Map<string, PlayerSeasonStat>();
 
   function score(r: PlayerSeasonStat): number {
@@ -168,9 +180,7 @@ function dedupeByRowId(
   }
 
   for (const r of rows) {
-    const k =
-      String(r.row_id ?? "").trim() ||
-      `${r.mlb_id}-${r.group ?? (r.is_pitcher ? "P" : "H")}`;
+    const k = String(r.row_id ?? "").trim() || `${r.mlb_id}-${r.group ?? (r.is_pitcher ? "P" : "H")}`;
 
     const prev = m.get(k);
     if (!prev) {
@@ -196,7 +206,7 @@ export type PlayerSeasonStat = {
   group?: "H" | "P";
   is_pitcher?: boolean;
 
-  // display / convenience (some older code uses these)
+  // display / convenience (some code uses these)
   positions?: string;
   mlb_team?: string;
   mlbTeam?: string;
@@ -236,13 +246,11 @@ export type PlayerSeasonStat = {
   isPitcher?: any;
 };
 
-export type PlayerSeasonStats = PlayerSeasonStat[]; // back-compat for older components
-export type AuctionValueRow = PlayerSeasonStat; // back-compat for AuctionValues page
+export type AuctionValueRow = PlayerSeasonStat; // Back-compat + convenience
 
 export type SeasonStandingRow = Record<string, any>;
 export type PeriodStatRow = Record<string, any>;
 
-// Season page expects an object { periodIds, rows }.
 export type SeasonStandingsApiResponse = {
   periodIds: number[];
   rows: SeasonStandingRow[];
@@ -320,8 +328,11 @@ export type RecentPitchingRow = {
   WHIP: string; // 2 decimals
 };
 
-/** ---------- Stable React key helper ---------- */
+/** ---------- Back-compat exports (older components) ---------- */
 
+export type PlayerSeasonStats = PlayerSeasonStat[]; // older name expected by some code
+
+/** Stable React key helper */
 // Preferred usage: playerKey(player)
 export function playerKey(p: PlayerSeasonStat): string;
 // Back-compat usage: playerKey({ mlb_id, is_pitcher })
@@ -340,15 +351,25 @@ export function playerKey(p: any): string {
 
 let _seasonStatsCache: Promise<PlayerSeasonStat[]> | null = null;
 let _periodStatsCache: Promise<PeriodStatRow[]> | null = null;
+let _auctionCache: Promise<PlayerSeasonStat[]> | null = null;
+let _seasonStandingsCache: Promise<SeasonStandingsApiResponse> | null = null;
 
 export async function getHealth(): Promise<any> {
   return fetchJson(`${API_BASE}/health`);
 }
 
-export async function getAuctionValues(): Promise<PlayerSeasonStat[]> {
-  const raw = await fetchJson<any[]>(`${API_BASE}/auction-values`);
-  return dedupeByRowId((raw ?? []).map(normalizeTwoWayRow), "auction");
+export async function getAuctionValues(): Promise<AuctionValueRow[]> {
+  if (!_auctionCache) {
+    _auctionCache = (async () => {
+      const raw = await fetchJson<any[]>(`${API_BASE}/auction-values`);
+      return dedupeByRowId((raw ?? []).map(normalizeTwoWayRow), "auction");
+    })();
+  }
+  return _auctionCache;
 }
+
+// Back-compat alias used by some earlier UI code
+export const fetchAuctionValues = getAuctionValues;
 
 export async function getPlayerSeasonStats(): Promise<PlayerSeasonStat[]> {
   if (!_seasonStatsCache) {
@@ -360,22 +381,45 @@ export async function getPlayerSeasonStats(): Promise<PlayerSeasonStat[]> {
   return _seasonStatsCache;
 }
 
-// Back-compat: older code expects fetchPlayerStats()
-export async function fetchPlayerStats(): Promise<PlayerSeasonStat[]> {
-  return getPlayerSeasonStats();
-}
-
-export async function getSeasonStandings(): Promise<SeasonStandingsApiResponse> {
-  const rows = await fetchJson<SeasonStandingRow[]>(`${API_BASE}/season-standings`);
-  // periodIds not wired server-side yet; keep empty for now.
-  return { periodIds: [], rows: rows ?? [] };
-}
+// Back-compat alias used by some earlier UI code
+export const fetchPlayerStats = getPlayerSeasonStats;
 
 export async function getPlayerPeriodStats(): Promise<PeriodStatRow[]> {
   if (!_periodStatsCache) {
     _periodStatsCache = fetchJson(`${API_BASE}/player-period-stats`);
   }
   return _periodStatsCache;
+}
+
+/**
+ * Season standings:
+ * Server may return either:
+ *  A) { periodIds, rows }
+ *  B) rows[] (older shape)
+ *
+ * This normalizes to SeasonStandingsApiResponse.
+ */
+export async function getSeasonStandings(): Promise<SeasonStandingsApiResponse> {
+  if (!_seasonStandingsCache) {
+    _seasonStandingsCache = (async () => {
+      const raw = await fetchJson<any>(`${API_BASE}/season-standings`);
+
+      // Shape A: already normalized
+      if (raw && Array.isArray(raw.rows)) {
+        const periodIds = Array.isArray(raw.periodIds) ? raw.periodIds.map((x: any) => Number(x)).filter(Number.isFinite) : [];
+        return { periodIds, rows: raw.rows as SeasonStandingRow[] };
+      }
+
+      // Shape B: raw is rows[]
+      if (Array.isArray(raw)) {
+        return { periodIds: [], rows: raw as SeasonStandingRow[] };
+      }
+
+      // fallback
+      return { periodIds: [], rows: [] };
+    })();
+  }
+  return _seasonStandingsCache;
 }
 
 /**
@@ -405,9 +449,6 @@ export type PeriodStandingsResponse = {
   periodName?: string;
   rows: PeriodTeamRow[];
 };
-
-// Back-compat: CategoryStandings page uses this naming.
-export type CategoryStandingsResponse = PeriodStandingsResponse;
 
 function isFinitePos(n: number) {
   return Number.isFinite(n) && n > 0;
@@ -632,18 +673,7 @@ export async function getPeriodStandings(periodId: number): Promise<PeriodStandi
 
   const pointsByTeam: Record<string, Record<CategoryId, number>> = {};
   for (const team of teams) {
-    pointsByTeam[team] = {
-      R: 0,
-      HR: 0,
-      RBI: 0,
-      SB: 0,
-      AVG: 0,
-      W: 0,
-      S: 0,
-      K: 0,
-      ERA: 0,
-      WHIP: 0,
-    };
+    pointsByTeam[team] = { R: 0, HR: 0, RBI: 0, SB: 0, AVG: 0, W: 0, S: 0, K: 0, ERA: 0, WHIP: 0 };
   }
 
   for (const c of cats) {
@@ -657,25 +687,79 @@ export async function getPeriodStandings(periodId: number): Promise<PeriodStandi
     const p = pointsByTeam[team];
     const totalPoints = Object.values(p).reduce((a, v) => a + (Number.isFinite(v) ? v : 0), 0);
 
-    return {
-      teamId: idx + 1,
-      teamName: team,
-      stats: s,
-      points: p,
-      totalPoints,
-    };
+    return { teamId: idx + 1, teamName: team, stats: s, points: p, totalPoints };
   });
 
-  // sort high -> low
   outRows.sort((a, b) => b.totalPoints - a.totalPoints);
-
   return { periodId: pid, rows: outRows };
 }
 
-// Back-compat naming: CategoryStandings page imports getCategoryStandings()
-export async function getCategoryStandings(periodId: number): Promise<CategoryStandingsResponse> {
-  return getPeriodStandings(periodId);
+/** ---------- Category standings (optional helper export) ---------- */
+
+export type CategoryStandingsRow = {
+  team: string;
+  stats: Record<CategoryId, number>;
+  points: Record<CategoryId, number>;
+  totalPoints: number;
+};
+
+export type CategoryStandingsResponse = {
+  periodId?: number;
+  categories: Array<{ id: CategoryId; label: string }>;
+  rows: CategoryStandingsRow[];
+};
+
+/**
+ * Generic category standings:
+ * - If periodId provided -> computed from player-period-stats
+ * - Else -> tries season standings endpoint shape (if compatible), else returns empty scaffolding
+ */
+export async function getCategoryStandings(periodId?: number): Promise<CategoryStandingsResponse> {
+  const categories: Array<{ id: CategoryId; label: string }> = [
+    { id: "R", label: "R" },
+    { id: "HR", label: "HR" },
+    { id: "RBI", label: "RBI" },
+    { id: "SB", label: "SB" },
+    { id: "AVG", label: "AVG" },
+    { id: "W", label: "W" },
+    { id: "S", label: "S" },
+    { id: "K", label: "K" },
+    { id: "ERA", label: "ERA" },
+    { id: "WHIP", label: "WHIP" },
+  ];
+
+  if (periodId != null) {
+    const p = await getPeriodStandings(periodId);
+    return {
+      periodId,
+      categories,
+      rows: p.rows.map((r) => ({
+        team: r.teamName,
+        stats: r.stats,
+        points: r.points,
+        totalPoints: r.totalPoints,
+      })),
+    };
+  }
+
+  // Attempt to map season standings if it already contains category stats.
+  // If not, we return an empty but typed response (keeps UI compiling).
+  try {
+    const s = await getSeasonStandings();
+    const rows = (s.rows ?? []).map((r: any) => ({
+      team: String(r.team ?? r.teamName ?? r.name ?? r.code ?? "—"),
+      stats: (r.stats ?? {}) as Record<CategoryId, number>,
+      points: (r.points ?? {}) as Record<CategoryId, number>,
+      totalPoints: Number(r.totalPoints ?? 0),
+    }));
+    return { categories, rows };
+  } catch {
+    return { categories, rows: [] };
+  }
 }
+
+// Back-compat: some files imported from ../lib/api expecting this symbol name
+export const getCategoryStandingsLegacy = getCategoryStandings;
 
 /** ---------- MLB Stats API: profile / career / recent ---------- */
 
@@ -945,7 +1029,7 @@ export async function getPlayerRecentStats(
       }
     }
 
-    // YTD
+    // YTD row
     const ytd = await fetchYtdStat(id, group);
     if (group === "hitting") {
       const AB = toNum(ytd.atBats);
