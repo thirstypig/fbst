@@ -200,7 +200,7 @@ export default function Team() {
               <table className="w-full text-sm">
                 <thead className="text-white/70">
                   <tr className="border-b border-white/10">
-                    <th className="px-3 py-3 text-left">MLB</th>
+                    {/* MLB column removed */}
                     <th className="px-3 py-3 text-left">TM</th>
                     <th className="px-3 py-3 text-left">PLAYER</th>
                     <th className="px-3 py-3 text-left">POS</th>
@@ -219,7 +219,7 @@ export default function Team() {
                       className="cursor-pointer border-b border-white/5 hover:bg-white/5"
                       onClick={() => setSelected(p)}
                     >
-                      <td className="px-3 py-3 text-white/70">{p.mlb_id}</td>
+                      {/* MLB cell removed */}
                       <td className="px-3 py-3 text-white/70">{getMlbTeamAbbr(p)}</td>
                       <td className="px-3 py-3">{p.player_name}</td>
                       <td className="px-3 py-3 text-white/70">{normalizePosition(p.positions)}</td>
@@ -244,7 +244,7 @@ export default function Team() {
               <table className="w-full text-sm">
                 <thead className="text-white/70">
                   <tr className="border-b border-white/10">
-                    <th className="px-3 py-3 text-left">MLB</th>
+                    {/* MLB column removed */}
                     <th className="px-3 py-3 text-left">TM</th>
                     <th className="px-3 py-3 text-left">PLAYER</th>
                     <th className="px-3 py-3 text-left">POS</th>
@@ -263,7 +263,7 @@ export default function Team() {
                       className="cursor-pointer border-b border-white/5 hover:bg-white/5"
                       onClick={() => setSelected(p)}
                     >
-                      <td className="px-3 py-3 text-white/70">{p.mlb_id}</td>
+                      {/* MLB cell removed */}
                       <td className="px-3 py-3 text-white/70">{getMlbTeamAbbr(p)}</td>
                       <td className="px-3 py-3">{p.player_name}</td>
                       <td className="px-3 py-3 text-white/70">{normalizePosition(p.positions)}</td>
