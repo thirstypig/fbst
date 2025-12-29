@@ -7,7 +7,6 @@ import AppShell from "./components/AppShell";
 import Home from "./pages/Home";
 import Period from "./pages/Period";
 import Season from "./pages/Season";
-import Teams from "./pages/Teams";
 import Team from "./pages/Team";
 import Players from "./pages/Players";
 
@@ -18,8 +17,10 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/period" element={<Period />} />
         <Route path="/season" element={<Season />} />
-        <Route path="/teams" element={<Teams />} />
+
+        {/* keep roster detail page */}
         <Route path="/teams/:teamCode" element={<Team />} />
+
         <Route path="/players" element={<Players />} />
 
         {/* fallback */}

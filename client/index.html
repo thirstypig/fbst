@@ -1,19 +1,26 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <!--
+      FBST client (Vite + React)
+
+      Notes:
+      1) The Google Identity Services script is required for the Google Sign-In button.
+         Your React code will call `google.accounts.id.initialize(...)` and receive a JWT `credential`.
+      2) The Client ID is NOT hardcoded here. Put it in `client/.env.local` as:
+           VITE_GOOGLE_CLIENT_ID="your-client-id"
+         Then read it in React via `import.meta.env.VITE_GOOGLE_CLIENT_ID`.
+    -->
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FBST</title>
+
+    <!-- Google Identity Services (GIS) -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-
-
-
-
-
-

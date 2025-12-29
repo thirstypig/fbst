@@ -34,15 +34,41 @@ export const API_BASE: string = (() => {
 
 const MLB_API_BASE = "https://statsapi.mlb.com/api/v1";
 
-/** ---------- fetch helpers ---------- */
+/** ---------- fetch helper ---------- */
 
-// Use for YOUR backend only (cookie sessions, etc.)
-async function fetchJsonApi<T>(url: string): Promise<T> {
+async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url, {
     headers: { Accept: "application/json" },
-    credentials: "include", // keep for your API
+    credentials: "include", // IMPORTANT for cookie-based auth
   });
 
+  // Try JSON first, then fall back to text (useful when server returns HTML error pages)
+  const text = await res.text();
+  const maybeJson = (() => {
+    try {
+      return text ? JSON.parse(text) : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  if (!res.ok) {
+    const msg =
+      (maybeJson && ((maybeJson as any).error || (maybeJson as any).message)) ||
+      (text
+        ? `HTTP ${res.status} for ${url} — ${text.slice(0, 180)}`
+        : `HTTP ${res.status} for ${url}`);
+    throw new Error(msg);
+  }
+
+  return (maybeJson ?? ({} as any)) as T;
+}
+  const res = await fetch(url, {
+    headers: { Accept: "application/json" },
+    credentials: "include", // REQUIRED for HttpOnly session cookie
+  });
+
+  // Try JSON first, then fall back to text (useful when server returns HTML error pages)
   const text = await res.text();
   const maybeJson = (() => {
     try {
@@ -62,13 +88,8 @@ async function fetchJsonApi<T>(url: string): Promise<T> {
   return (maybeJson ?? ({} as any)) as T;
 }
 
-// Use for PUBLIC APIs like statsapi.mlb.com (no cookies; avoids CORS failure)
-async function fetchJsonPublic<T>(url: string): Promise<T> {
-  const res = await fetch(url, {
-    headers: { Accept: "application/json" },
-    credentials: "omit", // critical: do NOT send cookies to MLB API
-  });
 
+  // Try JSON first, then fall back to text (useful when server returns HTML error pages)
   const text = await res.text();
   const maybeJson = (() => {
     try {
@@ -416,13 +437,13 @@ let _seasonStandingsCache: Promise<SeasonStandingsApiResponse> | null = null;
 const _periodCategoryCache = new Map<string, Promise<PeriodCategoryStandingsResponse>>();
 
 export async function getHealth(): Promise<any> {
-  return fetchJsonApi(`${API_BASE}/health`);
+  return fetchJson(`${API_BASE}/health`);
 }
 
 export async function getAuctionValues(): Promise<AuctionValueRow[]> {
   if (!_auctionCache) {
     _auctionCache = (async () => {
-      const raw = await fetchJsonApi<any[]>(`${API_BASE}/auction-values`);
+      const raw = await fetchJson<any[]>(`${API_BASE}/auction-values`);
       return dedupeByRowId((raw ?? []).map(normalizeTwoWayRow), "auction");
     })();
   }
@@ -435,7 +456,7 @@ export const fetchAuctionValues = getAuctionValues;
 export async function getPlayerSeasonStats(): Promise<PlayerSeasonStat[]> {
   if (!_seasonStatsCache) {
     _seasonStatsCache = (async () => {
-      const raw = await fetchJsonApi<any[]>(`${API_BASE}/player-season-stats`);
+      const raw = await fetchJson<any[]>(`${API_BASE}/player-season-stats`);
       return dedupeByRowId((raw ?? []).map(normalizeTwoWayRow), "season");
     })();
   }
@@ -447,7 +468,7 @@ export const fetchPlayerStats = getPlayerSeasonStats;
 
 export async function getPlayerPeriodStats(): Promise<PeriodStatRow[]> {
   if (!_periodStatsCache) {
-    _periodStatsCache = fetchJsonApi(`${API_BASE}/player-period-stats`);
+    _periodStatsCache = fetchJson(`${API_BASE}/player-period-stats`);
   }
   return _periodStatsCache;
 }
@@ -468,7 +489,7 @@ export async function getPeriodCategoryStandings(
   const hit = _periodCategoryCache.get(key);
   if (hit) return hit;
 
-  const p = fetchJsonApi<PeriodCategoryStandingsResponse>(
+  const p = fetchJson<PeriodCategoryStandingsResponse>(
     `${API_BASE}/period-category-standings?periodId=${encodeURIComponent(key)}`
   );
 
@@ -487,13 +508,11 @@ export async function getPeriodCategoryStandings(
 export async function getSeasonStandings(): Promise<SeasonStandingsApiResponse> {
   if (!_seasonStandingsCache) {
     _seasonStandingsCache = (async () => {
-      const raw = await fetchJsonApi<any>(`${API_BASE}/season-standings`);
+      const raw = await fetchJson<any>(`${API_BASE}/season-standings`);
 
       // Shape A: already normalized
       if (raw && Array.isArray(raw.rows)) {
-        const periodIds = Array.isArray(raw.periodIds)
-          ? raw.periodIds.map((x: any) => Number(x)).filter(Number.isFinite)
-          : [];
+        const periodIds = Array.isArray(raw.periodIds) ? raw.periodIds.map((x: any) => Number(x)).filter(Number.isFinite) : [];
         return { periodIds, rows: raw.rows as SeasonStandingRow[] };
       }
 
@@ -598,7 +617,7 @@ export async function getPeriodStandings(periodId: number): Promise<PeriodStandi
   // If you later add a server endpoint, this will use it automatically.
   try {
     const url = `${API_BASE}/period-standings?periodId=${pid}`;
-    const serverResp = await fetchJsonApi<any>(url);
+    const serverResp = await fetchJson<any>(url);
     if (serverResp?.rows?.length) return serverResp as PeriodStandingsResponse;
   } catch {
     // fall through to client-computed standings
@@ -866,7 +885,7 @@ export async function getPlayerProfile(mlbId: string): Promise<PlayerProfile> {
   if (!id) throw new Error("Missing mlbId");
 
   return cached(`profile:${id}`, async () => {
-    const data = await fetchJsonPublic<any>(`${MLB_API_BASE}/people/${id}`);
+    const data = await fetchJson<any>(`${MLB_API_BASE}/people/${id}`);
     const p = data?.people?.[0];
     if (!p) throw new Error(`No profile for mlbId=${id}`);
 
@@ -907,7 +926,7 @@ export async function getPlayerCareerStats(
 
   return cached(`career:${id}:${group}`, async () => {
     const url = `${MLB_API_BASE}/people/${id}/stats?stats=yearByYear&group=${group}&gameType=R`;
-    const data = await fetchJsonPublic<any>(url);
+    const data = await fetchJson<any>(url);
     const splits: any[] = data?.stats?.[0]?.splits ?? [];
 
     if (!splits.length) return { rows: [] };
@@ -1050,14 +1069,14 @@ export async function getPlayerCareerStats(
 
 async function fetchDateRangeStat(mlbId: string, group: HOrP, start: string, end: string): Promise<any> {
   const url = `${MLB_API_BASE}/people/${mlbId}/stats?stats=byDateRange&group=${group}&gameType=R&startDate=${start}&endDate=${end}`;
-  const data = await fetchJsonPublic<any>(url);
+  const data = await fetchJson<any>(url);
   const split = data?.stats?.[0]?.splits?.[0];
   return split?.stat ?? {};
 }
 
 async function fetchYtdStat(mlbId: string, group: HOrP): Promise<any> {
   const url = `${MLB_API_BASE}/people/${mlbId}/stats?stats=season&group=${group}&gameType=R`;
-  const data = await fetchJsonPublic<any>(url);
+  const data = await fetchJson<any>(url);
   const split = data?.stats?.[0]?.splits?.[0];
   return split?.stat ?? {};
 }

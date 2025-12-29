@@ -1,8 +1,14 @@
 // server/src/index.ts
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import fs from "fs";
 import path from "path";
+
+import { authRouter } from "./routes/auth";
+import { adminRouter } from "./routes/admin";
+import { leaguesRouter } from "./routes/leagues";
+import { publicRouter } from "./routes/public";
 
 type AnyRow = Record<string, any>;
 
@@ -72,7 +78,7 @@ function normCode(v: any): string {
 }
 
 function resolveDataFile(filename: string): string {
-  // Tries common locations relative to server/ because npm run dev is run inside server/
+  // Tries common locations relative to server/ because npm run start/dev is run inside server/
   const candidates = [
     path.join(process.cwd(), filename),
     path.join(process.cwd(), "src", "data", filename),
@@ -96,6 +102,38 @@ function parseIp(ip: any): number {
 
 function isFinitePos(n: number) {
   return Number.isFinite(n) && n > 0;
+}
+
+/**
+ * Accepts:
+ * - 1
+ * - "1"
+ * - "P1" / "p1"
+ * - "Period 1" / "period 1"
+ * Returns numeric period id or null.
+ */
+function parsePeriodIdParam(v: any): number | null {
+  if (v === null || v === undefined) return null;
+
+  // Express can give string | string[]
+  const raw = Array.isArray(v) ? v[0] : v;
+  const s0 = String(raw ?? "").trim();
+  if (!s0) return null;
+
+  let s = s0;
+
+  // remove leading "period"
+  s = s.replace(/^\s*period\s*[:#-]?\s*/i, "");
+
+  // remove leading "p" if like "P1"
+  s = s.replace(/^\s*p\s*/i, "");
+
+  // keep digits only (safe against "P01", "1)", etc.)
+  const digits = s.replace(/[^0-9]/g, "");
+  if (!digits) return null;
+
+  const n = Number(digits);
+  return Number.isFinite(n) ? n : null;
 }
 
 // ----------------------------
@@ -180,7 +218,6 @@ function writeTeamCache(cache: Record<string, string>) {
 }
 
 async function fetchMlbTeamsMap(): Promise<Record<number, string>> {
-  // One call to get all MLB teams + abbreviations
   const url = `${MLB_BASE}/teams?sportId=1`;
   const data = await mlbGetJson(url);
   const teams: any[] = data?.teams ?? [];
@@ -200,7 +237,6 @@ async function warmMlbTeamCache(mlbIds: string[]): Promise<Record<string, string
   const missing = uniq.filter((id) => !cache[id]);
 
   if (missing.length === 0) {
-    // ensure file exists if previously not written
     if (!fs.existsSync(TEAM_CACHE_FILE)) writeTeamCache(cache);
     return cache;
   }
@@ -208,8 +244,6 @@ async function warmMlbTeamCache(mlbIds: string[]): Promise<Record<string, string
   console.log(`Warming MLB team cache: ${missing.length} missing of ${uniq.length} player ids...`);
 
   const teamsById = await fetchMlbTeamsMap();
-
-  // Batch people lookup (chunks). hydrate=currentTeam ensures currentTeam is present.
   const batches = chunk(missing, 50);
 
   for (let i = 0; i < batches.length; i++) {
@@ -227,9 +261,10 @@ async function warmMlbTeamCache(mlbIds: string[]): Promise<Record<string, string
       if (abbr) cache[id] = abbr;
     }
 
-    // persist after each batch (crash-safe)
     writeTeamCache(cache);
-    console.log(`  cache progress: batch ${i + 1}/${batches.length} saved (${Object.keys(cache).length} total entries)`);
+    console.log(
+      `  cache progress: batch ${i + 1}/${batches.length} saved (${Object.keys(cache).length} total entries)`
+    );
   }
 
   return cache;
@@ -244,7 +279,7 @@ type CategoryStandingRow = {
   teamCode: string;
   teamName: string;
   value: number;
-  rank: number;   // 1..N after sorting (ties share rank range)
+  rank: number; // 1..N after sorting (ties share rank range)
   points: number; // roto points (N..1, ties averaged)
 };
 
@@ -257,7 +292,8 @@ type CategoryStandingTable = {
 };
 
 type PeriodCategoryStandingsResponse = {
-  periodId: number | string;
+  periodId: string; // canonical "P1"
+  periodNum: number; // canonical 1
   teamCount: number;
   categories: CategoryStandingTable[];
 };
@@ -267,27 +303,40 @@ function detectPitcherRow(r: AnyRow): boolean {
   if (g === "P") return true;
   if (g === "H") return false;
 
-  // explicit flags
   if (typeof r?.is_pitcher === "boolean") return r.is_pitcher;
   if (typeof r?.isPitcher === "boolean") return r.isPitcher;
+
   const flag = norm(r?.is_pitcher ?? r?.isPitcher);
   if (flag) return toBool(flag);
 
-  // heuristic: if it has IP and IP > 0 it's pitching
   const ip = parseIp(r?.IP ?? r?.inningsPitched);
   if (ip > 0) return true;
 
-  // positions "P"
   const pos = norm(r?.positions ?? r?.pos);
   if (pos === "P") return true;
 
   return false;
 }
 
+/**
+ * IMPORTANT FIX:
+ * Period fields in CSV rows may be "1" OR "P1" OR "Period 1".
+ * Use parsePeriodIdParam so we can match reliably.
+ */
 function periodIdFromRow(r: AnyRow): number | null {
-  const x = r?.period_id ?? r?.periodId ?? r?.period ?? r?.pid;
-  const n = Number(x);
-  return Number.isFinite(n) ? n : null;
+  const x =
+    r?.period_id ??
+    r?.periodId ??
+    r?.period ??
+    r?.pid ??
+    r?.period_code ??
+    r?.periodCode ??
+    r?.period_name ??
+    r?.periodName ??
+    r?.period_label ??
+    r?.periodLabel;
+
+  return parsePeriodIdParam(x);
 }
 
 function teamCodeFromRow(r: AnyRow): string {
@@ -297,7 +346,6 @@ function teamCodeFromRow(r: AnyRow): string {
 function buildTeamNameMap(seasonStandings: any, seasonStats: SeasonStatRow[]): Record<string, string> {
   const map: Record<string, string> = {};
 
-  // Try season standings first (often has canonical names)
   if (Array.isArray(seasonStandings)) {
     for (const row of seasonStandings) {
       const code = teamCodeFromRow(row);
@@ -306,7 +354,6 @@ function buildTeamNameMap(seasonStandings: any, seasonStats: SeasonStatRow[]): R
     }
   }
 
-  // Fallback: ensure any team codes from season stats exist
   for (const r of seasonStats) {
     const code = normCode(r?.ogba_team_code ?? "");
     if (!code) continue;
@@ -334,12 +381,12 @@ function rankPoints(
   const pointsByTeam: Record<string, number> = {};
   const rankByTeam: Record<string, number> = {};
 
-  const pointForRank = (rank: number) => totalTeams - rank + 1; // rank 1 => N points
+  const pointForRank = (rank: number) => totalTeams - rank + 1;
 
   let i = 0;
   while (i < sorted.length) {
     let j = i;
-    // tie group by rounded value to avoid float noise
+
     const v0 = roundKey(sorted[i].value, 6);
     while (j + 1 < sorted.length && roundKey(sorted[j + 1].value, 6) === v0) j++;
 
@@ -366,10 +413,40 @@ function rankPoints(
 // ----------------------------
 async function main() {
   const app = express();
-  app.use(cors());
+
+  // Helps when deploying behind a proxy (Render, etc.). Safe locally too.
+  app.set("trust proxy", 1);
+
+  // CORS + cookies for session auth
+  const origin = process.env.CLIENT_URL || "http://localhost:5173";
+  app.use(
+    cors({
+      origin,
+      credentials: true,
+    })
+  );
+
+  // IMPORTANT: cookieParser must be before routers that read/write cookies
+  app.use(cookieParser());
   app.use(express.json());
 
-  // Prefer with_meta if present, else fallback
+  /**
+   * ROUTING NOTE (this matters for your 404):
+   * You mount authRouter at "/api" here:
+   *    app.use("/api", authRouter)
+   *
+   * That means your auth router paths MUST look like:
+   *    router.get("/auth/google", ...)
+   *    router.get("/auth/google/callback", ...)
+   *    router.get("/auth/me", ...)
+   *
+   * DO NOT put "/api" inside the router itself (or you will accidentally create /api/api/...).
+   */
+  app.use("/api", authRouter);
+  app.use("/api", publicRouter);
+  app.use("/api", leaguesRouter);
+  app.use("/api", adminRouter);
+
   const seasonFilePreferred = "ogba_player_season_totals_2025_with_meta.csv";
   const seasonFileFallback = "ogba_player_season_totals_2025.csv";
   const seasonPath = fs.existsSync(resolveDataFile(seasonFilePreferred))
@@ -385,14 +462,12 @@ async function main() {
   const periodStats = parseCsv(fs.readFileSync(periodPath, "utf-8"));
   const seasonStandings = JSON.parse(fs.readFileSync(standingsPath, "utf-8"));
 
-  // Build mlb_id list and warm cache once at startup
   const mlbIds = seasonStatsRaw.map((r) => String(r?.mlb_id ?? r?.mlbId ?? "").trim()).filter(Boolean);
   const teamCache = await warmMlbTeamCache(mlbIds);
 
   const seasonStats: SeasonStatRow[] = seasonStatsRaw.map((r: AnyRow) => {
     const mlb_id = String(r.mlb_id ?? r.mlbId ?? "").trim();
 
-    // fill from cache (if CSV already has it, keep it; else set)
     const cachedTeam = teamCache[mlb_id] || "";
     const existingTeam = String(r.mlb_team ?? r.mlbTeam ?? "").trim();
     const tm = existingTeam || cachedTeam;
@@ -459,28 +534,30 @@ async function main() {
   app.get("/api/season-standings", (_req, res) => res.json(seasonStandings));
 
   /**
-   * NEW: Period Category Standings tables
+   * Period Category Standings tables
    * GET /api/period-category-standings?periodId=1
+   * GET /api/period-category-standings?periodId=P1
+   * GET /api/period-category-standings?periodId=Period%201
    */
   app.get("/api/period-category-standings", (req, res) => {
     try {
-      const rawPid = req.query.periodId;
-      const pidNum = Number(rawPid);
-      if (!Number.isFinite(pidNum)) {
-        return res.status(400).json({ error: "Missing or invalid periodId. Example: /api/period-category-standings?periodId=1" });
+      const pidNum = parsePeriodIdParam(req.query.periodId);
+
+      if (pidNum === null) {
+        return res.status(400).json({
+          error:
+            "Missing or invalid periodId. Examples: /api/period-category-standings?periodId=1 OR periodId=P1 OR periodId=Period%201",
+        });
       }
 
-      // Filter rows for this period
       const rows = (periodStats ?? []).filter((r: AnyRow) => {
         const rid = periodIdFromRow(r);
         return rid === pidNum;
       });
 
-      // Aggregate by team
       const byTeam = new Map<
         string,
         {
-          // hitting counting
           R: number;
           HR: number;
           RBI: number;
@@ -488,16 +565,14 @@ async function main() {
           AB: number;
           H: number;
 
-          // pitching counting
           W: number;
           SV: number;
           K: number;
 
-          // pitching ratio components
           IP: number;
           ER: number;
-          PH: number;  // hits allowed
-          PBB: number; // walks allowed
+          PH: number;
+          PBB: number;
         }
       >();
 
@@ -527,20 +602,17 @@ async function main() {
         const isP = detectPitcherRow(r);
 
         if (!isP) {
-          // Hitting counting cats
           t.R += toNum(r.R);
           t.HR += toNum(r.HR);
           t.RBI += toNum(r.RBI);
           t.SB += toNum(r.SB);
 
-          // AVG components
           const AB = toNum(r.AB ?? r.atBats);
           const H = toNum(r.H ?? r.hits);
           if (AB > 0) {
             t.AB += AB;
             t.H += H;
           } else {
-            // fallback: if AVG + AB exists, derive H
             const avg = toNum(r.AVG ?? r.avg);
             const ab2 = toNum(r.AB);
             if (ab2 > 0 && avg > 0) {
@@ -549,12 +621,10 @@ async function main() {
             }
           }
         } else {
-          // Pitching counting
           t.W += toNum(r.W);
           t.SV += toNum(r.SV ?? r.S ?? r.saves);
           t.K += toNum(r.K ?? r.SO ?? r.strikeOuts);
 
-          // Pitching ratios
           const ip = parseIp(r.IP ?? r.inningsPitched);
           if (ip > 0) {
             t.IP += ip;
@@ -575,7 +645,6 @@ async function main() {
               const whip = toNum(r.WHIP);
               if (whip > 0) {
                 const hb = whip * ip;
-                // split evenly as a rough fallback
                 t.PH += hb / 2;
                 t.PBB += hb / 2;
               }
@@ -630,7 +699,6 @@ async function main() {
 
         const { pointsByTeam, rankByTeam } = rankPoints(arr, cat.higherIsBetter, totalTeams);
 
-        // Build rows and then sort by value (same as ranking)
         const rowsOut: CategoryStandingRow[] = arr
           .map((x) => {
             const name = teamNameMap[x.teamCode] ?? x.teamCode;
@@ -657,7 +725,8 @@ async function main() {
       });
 
       const resp: PeriodCategoryStandingsResponse = {
-        periodId: pidNum,
+        periodId: `P${pidNum}`,
+        periodNum: pidNum,
         teamCount: totalTeams,
         categories: tables,
       };
@@ -669,8 +738,17 @@ async function main() {
     }
   });
 
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`🔥 FBST server listening on http://localhost:${PORT}`);
+  });
+
+  server.on("error", (err: any) => {
+    if (err?.code === "EADDRINUSE") {
+      console.error(`Port ${PORT} is already in use. Run: lsof -nP -iTCP:${PORT} -sTCP:LISTEN`);
+      process.exit(1);
+    }
+    console.error("Server listen error:", err);
+    process.exit(1);
   });
 }
 

@@ -1,19 +1,31 @@
 {
   "name": "fbst-server",
   "version": "1.0.0",
+  "private": true,
+  "type": "module",
   "scripts": {
     "start": "npx tsx src/index.ts",
+    "dev": "npx tsx src/index.ts",
     "seed": "npx tsx src/seed.ts",
     "db:push": "npx prisma db push --schema ../prisma/schema.prisma --accept-data-loss"
   },
   "dependencies": {
-    "@prisma/client": "^5.22.0",
-    "@types/papaparse": "^5.5.1",
+    "@prisma/client": "^6.19.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
     "csv-parse": "^6.1.0",
     "csv-parser": "^3.2.0",
+    "express": "^4.19.2",
+    "google-auth-library": "^10.5.0",
+    "jsonwebtoken": "^9.0.3",
     "papaparse": "^5.5.3"
   },
   "devDependencies": {
-    "prisma": "^5.22.0"
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.2",
+    "prisma": "^6.19.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
   }
 }

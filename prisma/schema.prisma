@@ -26,9 +26,31 @@ enum DraftOrder {
   LINEAR
 }
 
+// NEW: League roles for access control
+enum LeagueRole {
+  COMMISSIONER
+  OWNER
+  VIEWER
+}
+
 // ======================
 //  Models
 // ======================
+
+model User {
+  id        Int     @id @default(autoincrement())
+  email     String  @unique
+  name      String?
+  avatarUrl String?
+  googleSub String  @unique
+  isAdmin   Boolean @default(false)
+
+  memberships LeagueMembership[]
+  ownedTeams  Team[] @relation("TeamOwner")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
 
 model League {
   id         Int      @id @default(autoincrement())
@@ -38,10 +60,32 @@ model League {
   draftOrder DraftOrder?
   createdAt  DateTime @default(now())
 
+  // NEW: public viewer (no login) support
+  isPublic   Boolean @default(false)
+  publicSlug String? @unique
+
   // Relations
-  teams Team[]
+  teams       Team[]
+  memberships LeagueMembership[]
 
   @@unique([name, season])
+}
+
+model LeagueMembership {
+  id       Int       @id @default(autoincrement())
+  leagueId Int
+  userId   Int
+  role     LeagueRole
+
+  league League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([leagueId, userId])
+  @@index([userId])
+  @@index([leagueId])
 }
 
 model Team {
@@ -52,6 +96,11 @@ model Team {
   budget    Int      @default(400)
   createdAt DateTime @default(now())
 
+  // NEW: stable team code + optional owner user link
+  code        String?
+  ownerUserId Int?
+  ownerUser   User?   @relation("TeamOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+
   // Relations
   league        League            @relation(fields: [leagueId], references: [id])
   rosters       Roster[]
@@ -61,6 +110,9 @@ model Team {
 
   // Ensure team names are unique *within* a league
   @@unique([leagueId, name])
+
+  // NEW: allow unique codes inside a league (null ok for existing rows)
+  @@unique([leagueId, code])
 }
 
 model Player {

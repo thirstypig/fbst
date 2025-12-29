@@ -1,288 +1,362 @@
 // client/src/pages/Team.tsx
-import React, { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+//
+// Team detail:
+// - Toggle tabs (Hitters / Pitchers) using hash: #hitters / #pitchers
+// - Hitters table includes games played by position: DH, C, 1B, 2B, 3B, SS, OF
+// - Clicking a player opens PlayerDetailModal.
+// - Uses client/src/api.ts (canonical).
+// - Uses lib/ogbaTeams for display name.
 
-import { getTeamRoster, playerKey, type PlayerSeasonStat } from "../api";
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useParams } from "react-router-dom";
+
+import { getPlayerSeasonStats, type PlayerSeasonStat } from "../api";
 import PlayerDetailModal from "../components/PlayerDetailModal";
 
 import { getOgbaTeamName } from "../lib/ogbaTeams";
-import {
-  isPitcher as isPitcherHelper,
-  normalizePosition,
-  formatAvg,
-  getMlbTeamAbbr,
-  getGrandSlams,
-  getShutouts,
-} from "../lib/playerDisplay";
+import { isPitcher, normalizePosition, formatAvg, getMlbTeamAbbr } from "../lib/playerDisplay";
 
 function normCode(v: any): string {
   return String(v ?? "").trim().toUpperCase();
 }
 
-function fmt2(v: any): string {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return "";
-  return n.toFixed(2);
-}
-
-function num(v: any): number {
-  const n = Number(v);
+function asNum(v: any): number {
+  const n = Number(String(v ?? "").trim());
   return Number.isFinite(n) ? n : 0;
 }
 
-function rowIsPitcher(p: PlayerSeasonStat): boolean {
-  const v = (p as any).is_pitcher;
-  if (typeof v === "boolean") return v;
-  return isPitcherHelper(p);
+function rowKey(p: any): string {
+  return String(p?.row_id ?? p?.id ?? `${p?.mlb_id ?? p?.mlbId ?? ""}-${isPitcher(p) ? "P" : "H"}`);
 }
 
-function splitTwoWay(rows: PlayerSeasonStat[]): PlayerSeasonStat[] {
-  const out: PlayerSeasonStat[] = [];
+function normalizePosList(raw: any): string {
+  const s = String(raw ?? "").trim();
+  if (!s) return "";
 
-  for (const p of rows) {
-    const hasBat =
-      num((p as any).AB) > 0 ||
-      num((p as any).H) > 0 ||
-      num((p as any).HR) > 0 ||
-      num((p as any).RBI) > 0 ||
-      num((p as any).SB) > 0;
+  const parts = s.split(/[/,| ]+/).map((x) => x.trim()).filter(Boolean);
+  const out: string[] = [];
+  const seen = new Set<string>();
 
-    const hasPitch =
-      num((p as any).W) > 0 ||
-      num((p as any).SV) > 0 ||
-      num((p as any).K) > 0 ||
-      num((p as any).ER) > 0 ||
-      num((p as any).IP) > 0 ||
-      num((p as any).ERA) > 0 ||
-      num((p as any).WHIP) > 0;
-
-    if (!(hasBat && hasPitch)) {
-      out.push(p);
-      continue;
-    }
-
-    const hitter: PlayerSeasonStat = {
-      ...p,
-      is_pitcher: false,
-      IP: 0,
-      ER: 0,
-      K: 0,
-      W: 0,
-      SV: 0,
-      ERA: 0,
-      WHIP: 0,
-      SO: 0,
-    };
-
-    const pitcher: PlayerSeasonStat = {
-      ...p,
-      is_pitcher: true,
-      positions: "P",
-      AB: 0,
-      H: 0,
-      R: 0,
-      HR: 0,
-      RBI: 0,
-      SB: 0,
-      AVG: 0,
-      GS: 0,
-    };
-
-    out.push(hitter, pitcher);
+  for (const part of parts) {
+    const n = normalizePosition(part);
+    if (!n) continue;
+    if (seen.has(n)) continue;
+    seen.add(n);
+    out.push(n);
   }
 
-  return out;
+  return out.join("/");
 }
 
-function dedupeByKey(rows: PlayerSeasonStat[]): PlayerSeasonStat[] {
-  const m = new Map<string, PlayerSeasonStat>();
-  for (const r of rows) {
-    const k = playerKey({ mlb_id: r.mlb_id, is_pitcher: rowIsPitcher(r) });
-    if (!m.has(k)) m.set(k, r);
+function posEligible(p: any): string {
+  const raw = p?.positions ?? p?.pos ?? p?.position ?? p?.positionEligible ?? p?.position_eligible ?? "";
+  return normalizePosList(raw);
+}
+
+/**
+ * Games played by position
+ *
+ * We don't have a single canonical data schema yet, so this checks common shapes:
+ * - flat fields: G_C, G_1B, G_2B, G_3B, G_SS, G_OF, G_DH
+ * - alternates: GP_C, games_C, C_G, etc.
+ * - nested: posGames: { C: 12, "1B": 7, ... }
+ */
+function gamesAtPos(p: any, pos: "DH" | "C" | "1B" | "2B" | "3B" | "SS" | "OF"): number {
+  const directKeys = [
+    `G_${pos}`,
+    `g_${pos}`,
+    `GP_${pos}`,
+    `gp_${pos}`,
+    `G${pos}`, // e.g., GSS (some exports do this)
+    `GP${pos}`,
+    `games_${pos}`,
+    `Games_${pos}`,
+    `${pos}_G`,
+    `${pos}_games`,
+  ];
+
+  for (const k of directKeys) {
+    if (p?.[k] != null && String(p[k]).trim() !== "") return asNum(p[k]);
   }
-  return Array.from(m.values());
+
+  // nested: posGames / gamesByPos / games_by_pos
+  const nested =
+    p?.posGames ??
+    p?.gamesByPos ??
+    p?.games_by_pos ??
+    p?.positionGames ??
+    p?.position_games ??
+    null;
+
+  if (nested && typeof nested === "object") {
+    if (nested[pos] != null) return asNum(nested[pos]);
+    // some schemas use lower keys
+    const low = String(pos).toLowerCase();
+    if (nested[low] != null) return asNum(nested[low]);
+  }
+
+  // OF sometimes comes as LF/CF/RF
+  if (pos === "OF") {
+    const lf = asNum(p?.G_LF ?? p?.GP_LF ?? p?.games_LF ?? p?.LF_G ?? 0);
+    const cf = asNum(p?.G_CF ?? p?.GP_CF ?? p?.games_CF ?? p?.CF_G ?? 0);
+    const rf = asNum(p?.G_RF ?? p?.GP_RF ?? p?.games_RF ?? p?.RF_G ?? 0);
+    const sum = lf + cf + rf;
+    if (sum > 0) return sum;
+  }
+
+  return 0;
 }
 
 export default function Team() {
   const { teamCode } = useParams();
   const code = normCode(teamCode);
 
+  const loc = useLocation();
+  const activeTab: "hitters" | "pitchers" = loc.hash === "#pitchers" ? "pitchers" : "hitters";
+
   const [players, setPlayers] = useState<PlayerSeasonStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<"H" | "P">("H");
   const [selected, setSelected] = useState<PlayerSeasonStat | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    let ok = true;
 
-    async function run() {
-      setLoading(true);
-      setError(null);
+    async function load() {
       try {
-        const roster = await getTeamRoster(code);
-        const normalized = dedupeByKey(splitTwoWay(roster));
-        if (!cancelled) setPlayers(normalized);
+        setLoading(true);
+        setError(null);
+
+        const rows = await getPlayerSeasonStats();
+        if (!ok) return;
+
+        const filtered = rows.filter((p: any) => normCode(p?.ogba_team_code ?? p?.team ?? p?.ogbaTeamCode) === code);
+        setPlayers(filtered);
       } catch (e: any) {
-        if (!cancelled) setError(e?.message || "Failed to load team roster");
+        setError(e?.message ?? "Failed to load team roster");
       } finally {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       }
     }
 
-    if (code) run();
+    load();
     return () => {
-      cancelled = true;
+      ok = false;
     };
   }, [code]);
 
-  const hitters = useMemo(
-    () =>
-      players
-        .filter((p) => !rowIsPitcher(p))
-        .sort((a, b) => (a.player_name ?? "").localeCompare(b.player_name ?? "")),
-    [players]
-  );
+  const teamName = useMemo(() => getOgbaTeamName(code) || code, [code]);
 
-  const pitchers = useMemo(
-    () =>
-      players
-        .filter((p) => rowIsPitcher(p))
-        .sort((a, b) => (a.player_name ?? "").localeCompare(b.player_name ?? "")),
-    [players]
-  );
+  const hitters = useMemo(() => players.filter((p) => !isPitcher(p)), [players]);
+  const pitchers = useMemo(() => players.filter((p) => isPitcher(p)), [players]);
 
-  const teamName = code ? getOgbaTeamName(code) : "Team";
+  if (loading) {
+    return (
+      <div style={{ padding: 24 }}>
+        <h1>{teamName}</h1>
+        <div>Loading roster…</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: 24 }}>
+        <h1>{teamName}</h1>
+        <div style={{ color: "crimson" }}>{error}</div>
+        <div style={{ marginTop: 12 }}>
+          <Link to="/season">Back to Season</Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen text-white">
-      <div className="mx-auto max-w-6xl px-6 py-10">
-        <div className="mb-6 flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-4xl font-semibold tracking-tight">{teamName}</h1>
-            <div className="mt-1 text-sm text-white/60">
-              Hitters: {hitters.length} · Pitchers: {pitchers.length}
-            </div>
+    <div style={{ padding: 24 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
+        <div>
+          <h1 style={{ margin: 0 }}>{teamName}</h1>
+          <div style={{ opacity: 0.8, marginTop: 6 }}>
+            Hitters: {hitters.length} · Pitchers: {pitchers.length}
           </div>
-
-          <Link to="/teams" className="text-white/70 hover:text-white">
-            ← Back to Teams
-          </Link>
         </div>
 
-        <div className="mb-6 inline-flex rounded-full bg-white/10 p-1">
-          <button
-            className={`rounded-full px-4 py-2 text-sm ${
-              activeTab === "H" ? "bg-sky-500/80 text-white" : "text-white/70 hover:text-white"
-            }`}
-            onClick={() => setActiveTab("H")}
+        <div>
+          <Link to="/season">← Back to Season</Link>
+        </div>
+      </div>
+
+      {/* Tabs (restores the old behavior you referenced) */}
+      <div style={{ marginTop: 18, display: "flex", justifyContent: "center" }}>
+        <div
+          style={{
+            display: "inline-flex",
+            borderRadius: 999,
+            padding: 4,
+            background: "rgba(255,255,255,0.06)",
+            border: "1px solid rgba(255,255,255,0.10)",
+            gap: 4,
+          }}
+        >
+          <Link
+            to="#hitters"
+            style={{
+              padding: "8px 14px",
+              borderRadius: 999,
+              textDecoration: "none",
+              color: activeTab === "hitters" ? "white" : "rgba(255,255,255,0.75)",
+              background: activeTab === "hitters" ? "rgba(59,130,246,0.40)" : "transparent",
+              border: activeTab === "hitters" ? "1px solid rgba(59,130,246,0.55)" : "1px solid transparent",
+            }}
           >
             Hitters
-          </button>
-          <button
-            className={`rounded-full px-4 py-2 text-sm ${
-              activeTab === "P" ? "bg-sky-500/80 text-white" : "text-white/70 hover:text-white"
-            }`}
-            onClick={() => setActiveTab("P")}
+          </Link>
+
+          <Link
+            to="#pitchers"
+            style={{
+              padding: "8px 14px",
+              borderRadius: 999,
+              textDecoration: "none",
+              color: activeTab === "pitchers" ? "white" : "rgba(255,255,255,0.75)",
+              background: activeTab === "pitchers" ? "rgba(59,130,246,0.40)" : "transparent",
+              border: activeTab === "pitchers" ? "1px solid rgba(59,130,246,0.55)" : "1px solid transparent",
+            }}
           >
             Pitchers
-          </button>
+          </Link>
         </div>
-
-        {loading && <div className="text-white/70">Loading…</div>}
-        {error && <div className="text-red-300">{error}</div>}
-
-        {!loading && !error && activeTab === "H" && (
-          <div className="rounded-2xl bg-white/5 p-6 shadow-lg ring-1 ring-white/10">
-            <div className="mb-4 text-center text-2xl font-semibold text-white/80">Hitters</div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-white/70">
-                  <tr className="border-b border-white/10">
-                    {/* MLB column removed */}
-                    <th className="px-3 py-3 text-left">TM</th>
-                    <th className="px-3 py-3 text-left">PLAYER</th>
-                    <th className="px-3 py-3 text-left">POS</th>
-                    <th className="px-3 py-3 text-right">R</th>
-                    <th className="px-3 py-3 text-right">HR</th>
-                    <th className="px-3 py-3 text-right">RBI</th>
-                    <th className="px-3 py-3 text-right">SB</th>
-                    <th className="px-3 py-3 text-right">GS</th>
-                    <th className="px-3 py-3 text-right">AVG</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {hitters.map((p) => (
-                    <tr
-                      key={playerKey({ mlb_id: p.mlb_id, is_pitcher: rowIsPitcher(p) })}
-                      className="cursor-pointer border-b border-white/5 hover:bg-white/5"
-                      onClick={() => setSelected(p)}
-                    >
-                      {/* MLB cell removed */}
-                      <td className="px-3 py-3 text-white/70">{getMlbTeamAbbr(p)}</td>
-                      <td className="px-3 py-3">{p.player_name}</td>
-                      <td className="px-3 py-3 text-white/70">{normalizePosition(p.positions)}</td>
-                      <td className="px-3 py-3 text-right">{(p as any).R ?? ""}</td>
-                      <td className="px-3 py-3 text-right">{(p as any).HR ?? ""}</td>
-                      <td className="px-3 py-3 text-right">{(p as any).RBI ?? ""}</td>
-                      <td className="px-3 py-3 text-right">{(p as any).SB ?? ""}</td>
-                      <td className="px-3 py-3 text-right">{getGrandSlams(p)}</td>
-                      <td className="px-3 py-3 text-right">{formatAvg((p as any).AVG)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {!loading && !error && activeTab === "P" && (
-          <div className="rounded-2xl bg-white/5 p-6 shadow-lg ring-1 ring-white/10">
-            <div className="mb-4 text-center text-2xl font-semibold text-white/80">Pitchers</div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-white/70">
-                  <tr className="border-b border-white/10">
-                    {/* MLB column removed */}
-                    <th className="px-3 py-3 text-left">TM</th>
-                    <th className="px-3 py-3 text-left">PLAYER</th>
-                    <th className="px-3 py-3 text-left">POS</th>
-                    <th className="px-3 py-3 text-right">W</th>
-                    <th className="px-3 py-3 text-right">SV</th>
-                    <th className="px-3 py-3 text-right">K</th>
-                    <th className="px-3 py-3 text-right">SO</th>
-                    <th className="px-3 py-3 text-right">ERA</th>
-                    <th className="px-3 py-3 text-right">WHIP</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pitchers.map((p) => (
-                    <tr
-                      key={playerKey({ mlb_id: p.mlb_id, is_pitcher: rowIsPitcher(p) })}
-                      className="cursor-pointer border-b border-white/5 hover:bg-white/5"
-                      onClick={() => setSelected(p)}
-                    >
-                      {/* MLB cell removed */}
-                      <td className="px-3 py-3 text-white/70">{getMlbTeamAbbr(p)}</td>
-                      <td className="px-3 py-3">{p.player_name}</td>
-                      <td className="px-3 py-3 text-white/70">{normalizePosition(p.positions)}</td>
-                      <td className="px-3 py-3 text-right">{(p as any).W ?? ""}</td>
-                      <td className="px-3 py-3 text-right">{(p as any).SV ?? ""}</td>
-                      <td className="px-3 py-3 text-right">{(p as any).K ?? ""}</td>
-                      <td className="px-3 py-3 text-right">{getShutouts(p)}</td>
-                      <td className="px-3 py-3 text-right">{fmt2((p as any).ERA)}</td>
-                      <td className="px-3 py-3 text-right">{fmt2((p as any).WHIP)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        <PlayerDetailModal open={!!selected} player={selected} onClose={() => setSelected(null)} />
       </div>
+
+      {activeTab === "hitters" ? (
+        <section id="hitters" style={{ marginTop: 22 }}>
+          <h2 style={{ marginBottom: 10 }}>Hitters</h2>
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th align="left">TM</th>
+                  <th align="left">PLAYER</th>
+                  <th align="left">ELIG</th>
+
+                  {/* Games played by position */}
+                  <th align="right">DH</th>
+                  <th align="right">C</th>
+                  <th align="right">1B</th>
+                  <th align="right">2B</th>
+                  <th align="right">3B</th>
+                  <th align="right">SS</th>
+                  <th align="right">OF</th>
+
+                  {/* Core hitter stats */}
+                  <th align="right">R</th>
+                  <th align="right">HR</th>
+                  <th align="right">RBI</th>
+                  <th align="right">SB</th>
+                  <th align="right">AVG</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {hitters.map((p: any) => {
+                  const key = rowKey(p);
+                  const tm = getMlbTeamAbbr(p);
+                  const elig = posEligible(p);
+
+                  const gDH = gamesAtPos(p, "DH");
+                  const gC = gamesAtPos(p, "C");
+                  const g1B = gamesAtPos(p, "1B");
+                  const g2B = gamesAtPos(p, "2B");
+                  const g3B = gamesAtPos(p, "3B");
+                  const gSS = gamesAtPos(p, "SS");
+                  const gOF = gamesAtPos(p, "OF");
+
+                  return (
+                    <tr
+                      key={key}
+                      style={{ cursor: "pointer" }}
+                      onClick={() => setSelected(p)}
+                      title="Click for player details"
+                    >
+                      <td style={{ padding: "10px 8px", opacity: 0.85 }}>{tm || ""}</td>
+                      <td style={{ padding: "10px 8px" }}>{p?.player_name ?? p?.name ?? p?.playerName ?? ""}</td>
+                      <td style={{ padding: "10px 8px", opacity: 0.8, whiteSpace: "nowrap" }}>{elig}</td>
+
+                      <td style={{ padding: "10px 8px" }} align="right">{gDH || ""}</td>
+                      <td style={{ padding: "10px 8px" }} align="right">{gC || ""}</td>
+                      <td style={{ padding: "10px 8px" }} align="right">{g1B || ""}</td>
+                      <td style={{ padding: "10px 8px" }} align="right">{g2B || ""}</td>
+                      <td style={{ padding: "10px 8px" }} align="right">{g3B || ""}</td>
+                      <td style={{ padding: "10px 8px" }} align="right">{gSS || ""}</td>
+                      <td style={{ padding: "10px 8px" }} align="right">{gOF || ""}</td>
+
+                      <td style={{ padding: "10px 8px" }} align="right">{asNum(p?.R)}</td>
+                      <td style={{ padding: "10px 8px" }} align="right">{asNum(p?.HR)}</td>
+                      <td style={{ padding: "10px 8px" }} align="right">{asNum(p?.RBI)}</td>
+                      <td style={{ padding: "10px 8px" }} align="right">{asNum(p?.SB)}</td>
+                      <td style={{ padding: "10px 8px" }} align="right">{formatAvg(p?.AVG)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : (
+        <section id="pitchers" style={{ marginTop: 22 }}>
+          <h2 style={{ marginBottom: 10 }}>Pitchers</h2>
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th align="left">TM</th>
+                  <th align="left">PLAYER</th>
+                  <th align="left">ELIG</th>
+                  <th align="right">W</th>
+                  <th align="right">SV</th>
+                  <th align="right">K</th>
+                  <th align="right">IP</th>
+                  <th align="right">ERA</th>
+                  <th align="right">WHIP</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {pitchers.map((p: any) => {
+                  const key = rowKey(p);
+                  const tm = getMlbTeamAbbr(p);
+                  const elig = posEligible(p) || "P";
+
+                  return (
+                    <tr
+                      key={key}
+                      style={{ cursor: "pointer" }}
+                      onClick={() => setSelected(p)}
+                      title="Click for player details"
+                    >
+                      <td style={{ padding: "10px 8px", opacity: 0.85 }}>{tm || ""}</td>
+                      <td style={{ padding: "10px 8px" }}>{p?.player_name ?? p?.name ?? p?.playerName ?? ""}</td>
+                      <td style={{ padding: "10px 8px", opacity: 0.8, whiteSpace: "nowrap" }}>{elig}</td>
+
+                      <td style={{ padding: "10px 8px" }} align="right">{asNum(p?.W)}</td>
+                      <td style={{ padding: "10px 8px" }} align="right">{asNum(p?.SV)}</td>
+                      <td style={{ padding: "10px 8px" }} align="right">{asNum(p?.K)}</td>
+                      <td style={{ padding: "10px 8px" }} align="right">{String(p?.IP ?? "").trim()}</td>
+                      <td style={{ padding: "10px 8px" }} align="right">{String(p?.ERA ?? "").trim()}</td>
+                      <td style={{ padding: "10px 8px" }} align="right">{String(p?.WHIP ?? "").trim()}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {selected ? <PlayerDetailModal player={selected} onClose={() => setSelected(null)} /> : null}
     </div>
   );
 }
