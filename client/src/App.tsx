@@ -9,6 +9,7 @@ import Period from "./pages/Period";
 import Season from "./pages/Season";
 import Team from "./pages/Team";
 import Players from "./pages/Players";
+import Login from "./pages/Login";
 
 export default function App() {
   return (
@@ -18,12 +19,12 @@ export default function App() {
         <Route path="/period" element={<Period />} />
         <Route path="/season" element={<Season />} />
 
-        {/* keep roster detail page */}
         <Route path="/teams/:teamCode" element={<Team />} />
 
         <Route path="/players" element={<Players />} />
 
-        {/* fallback */}
+        <Route path="/login" element={<Login />} />
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppShell>

@@ -12,7 +12,6 @@ type User = {
 
 type MeResponse = {
   user: User | null;
-  // We will wire real memberships later; keep the shape stable now.
   memberships: Array<{
     leagueId: string;
     role: "COMMISSIONER" | "OWNER" | "VIEWER";
@@ -30,7 +29,10 @@ type AuthCtx = {
   me: MeResponse;
   loading: boolean;
   refresh: () => Promise<void>;
-  loginWithGoogleCredential: (credential: string) => Promise<void>;
+
+  // kept for compatibility; now it just redirects
+  loginWithGoogleCredential: (_credential: string) => Promise<void>;
+
   logout: () => Promise<void>;
   isAdmin: boolean;
   isCommissioner: (leagueId: string) => boolean;
@@ -41,10 +43,8 @@ const Ctx = createContext<AuthCtx | null>(null);
 
 async function fetchMe(): Promise<MeResponse> {
   const res = await fetch(`${API_BASE}/auth/me`, { credentials: "include" });
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error || "Failed to load /auth/me");
-
-  // server returns { user }, not memberships (yet)
   return { user: data?.user ?? null, memberships: [] };
 }
 
@@ -57,25 +57,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setMe(data);
   }
 
-  async function loginWithGoogleCredential(credential: string) {
-    const res = await fetch(`${API_BASE}/auth/google`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ credential }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data?.error || "Sign-in failed");
-
-    // server returns { ok, user }
-    setMe({ user: data?.user ?? null, memberships: [] });
+  // Redirect-based OAuth (server handles the whole flow + cookie)
+  async function loginWithGoogleCredential(_credential: string) {
+    window.location.href = `${API_BASE}/auth/google`;
   }
 
   async function logout() {
-    const res = await fetch(`${API_BASE}/auth/logout`, { method: "POST", credentials: "include" });
-    // even if it fails, nuke local state
-    setMe({ user: null, memberships: [] });
-    if (!res.ok) return;
+    try {
+      await fetch(`${API_BASE}/auth/logout`, { method: "POST", credentials: "include" });
+    } finally {
+      setMe({ user: null, memberships: [] });
+    }
   }
 
   useEffect(() => {

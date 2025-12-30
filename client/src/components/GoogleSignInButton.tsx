@@ -1,75 +1,18 @@
 // client/src/components/GoogleSignInButton.tsx
-import React, { useEffect, useRef } from "react";
-import { useAuth } from "../auth/AuthProvider";
+import React from "react";
 
-declare global {
-  interface Window {
-    google?: any;
-  }
-}
-
-function loadGoogleScript(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (window.google?.accounts?.id) return resolve();
-
-    const existing = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
-    if (existing) {
-      existing.addEventListener("load", () => resolve());
-      return;
-    }
-
-    const s = document.createElement("script");
-    s.src = "https://accounts.google.com/gsi/client";
-    s.async = true;
-    s.defer = true;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error("Failed to load Google Sign-In script"));
-    document.head.appendChild(s);
-  });
-}
+const API_BASE =
+  (import.meta as any).env?.VITE_API_BASE || "http://localhost:4000/api";
 
 export default function GoogleSignInButton() {
-  const ref = useRef<HTMLDivElement | null>(null);
-  const { loginWithGoogleCredential } = useAuth();
+  const href = `${API_BASE}/auth/google`;
 
-  useEffect(() => {
-    let mounted = true;
-
-    (async () => {
-      const clientId = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID;
-      if (!clientId) {
-        console.error("Missing VITE_GOOGLE_CLIENT_ID");
-        return;
-      }
-
-      await loadGoogleScript();
-      if (!mounted) return;
-
-      window.google.accounts.id.initialize({
-        client_id: clientId,
-        callback: async (resp: any) => {
-          try {
-            await loginWithGoogleCredential(String(resp?.credential ?? ""));
-          } catch (e: any) {
-            console.error(e?.message || "Sign-in failed");
-          }
-        },
-      });
-
-      if (ref.current) {
-        window.google.accounts.id.renderButton(ref.current, {
-          theme: "outline",
-          size: "large",
-          shape: "pill",
-          text: "signin_with",
-        });
-      }
-    })();
-
-    return () => {
-      mounted = false;
-    };
-  }, [loginWithGoogleCredential]);
-
-  return <div ref={ref} />;
+  return (
+    <a
+      href={href}
+      className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-white/90 hover:bg-white/10"
+    >
+      Sign in with Google
+    </a>
+  );
 }

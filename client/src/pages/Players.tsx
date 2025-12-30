@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { getPlayerSeasonStats, type PlayerSeasonStat } from "../api";
 import PlayerDetailModal from "../components/PlayerDetailModal";
 import { formatAvg } from "../lib/playerDisplay";
+import { TableCard, Table, THead, Tr, Th, Td } from "../components/ui/TableCard";
 
 function norm(v: any) {
   return String(v ?? "").trim();
@@ -18,7 +19,7 @@ function rowIsPitcher(p: PlayerSeasonStat) {
 }
 
 function rowKey(p: PlayerSeasonStat): string {
-  return (p as any).row_id ?? `${p.mlb_id}-${rowIsPitcher(p) ? "P" : "H"}`;
+  return (p as any).row_id ?? `${(p as any).mlb_id ?? (p as any).mlbId ?? ""}-${rowIsPitcher(p) ? "P" : "H"}`;
 }
 
 function ogbaTeam(p: PlayerSeasonStat) {
@@ -83,10 +84,8 @@ export default function Players() {
   const filtered = useMemo(() => {
     const wantPitchers = group === "pitchers";
     let out = (rows ?? []).filter((p) => (wantPitchers ? rowIsPitcher(p) : !rowIsPitcher(p)));
-
     if (scope === "fa") out = out.filter(isFreeAgent);
 
-    // Stable ordering: player name asc
     out.sort((a, b) => playerName(a).localeCompare(playerName(b)));
     return out;
   }, [rows, group, scope]);
@@ -140,157 +139,259 @@ export default function Players() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-6xl overflow-x-auto rounded-2xl border border-white/10 bg-white/5">
-        {group === "hitters" ? (
-          <table className="min-w-[1400px] w-full border-separate border-spacing-0">
-            <thead>
-              <tr className="text-xs text-white/60">
-                <Th>PLAYER</Th>
-                <Th w={80}>TEAM</Th>
-                <Th w={70}>TM</Th>
+      <div className="mx-auto max-w-6xl">
+        <TableCard>
+          {group === "hitters" ? (
+            <Table className="min-w-[1400px] w-full">
+              <THead>
+                <Tr className="text-xs text-white/60">
+                  <Th align="left">PLAYER</Th>
+                  <Th w={80} align="center">
+                    TEAM
+                  </Th>
+                  <Th w={70} align="center">
+                    TM
+                  </Th>
 
-                {/* placeholders for future position-games columns */}
-                <Th w={60}>DH</Th>
-                <Th w={60}>C</Th>
-                <Th w={60}>1B</Th>
-                <Th w={60}>2B</Th>
-                <Th w={60}>3B</Th>
-                <Th w={60}>SS</Th>
-                <Th w={60}>OF</Th>
+                  <Th w={60} align="center">
+                    DH
+                  </Th>
+                  <Th w={60} align="center">
+                    C
+                  </Th>
+                  <Th w={60} align="center">
+                    1B
+                  </Th>
+                  <Th w={60} align="center">
+                    2B
+                  </Th>
+                  <Th w={60} align="center">
+                    3B
+                  </Th>
+                  <Th w={60} align="center">
+                    SS
+                  </Th>
+                  <Th w={60} align="center">
+                    OF
+                  </Th>
 
-                <Th w={90}>POS</Th>
+                  <Th w={90} align="center">
+                    POS
+                  </Th>
 
-                <Th w={70}>AB</Th>
-                <Th w={70}>H</Th>
-                <Th w={70}>R</Th>
-                <Th w={70}>HR</Th>
-                <Th w={70}>RBI</Th>
-                <Th w={70}>SB</Th>
-                <Th w={90}>AVG</Th>
-                <Th w={70}>GS</Th>
-              </tr>
-            </thead>
+                  <Th w={70} align="center">
+                    AB
+                  </Th>
+                  <Th w={70} align="center">
+                    H
+                  </Th>
+                  <Th w={70} align="center">
+                    R
+                  </Th>
+                  <Th w={70} align="center">
+                    HR
+                  </Th>
+                  <Th w={70} align="center">
+                    RBI
+                  </Th>
+                  <Th w={70} align="center">
+                    SB
+                  </Th>
+                  <Th w={90} align="center">
+                    AVG
+                  </Th>
+                  <Th w={70} align="center">
+                    GS
+                  </Th>
+                </Tr>
+              </THead>
 
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td className="px-4 py-6 text-sm text-white/60" colSpan={20}>
-                    Loading…
-                  </td>
-                </tr>
-              ) : error ? (
-                <tr>
-                  <td className="px-4 py-6 text-sm text-red-300" colSpan={20}>
-                    {error}
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((p) => {
-                  const avg = formatAvg((p as any).AVG ?? 0);
-                  const gs = (p as any).GS ?? "";
-                  return (
-                    <tr
-                      key={rowKey(p)}
-                      className="cursor-pointer text-sm text-white/90 hover:bg-white/5"
-                      onClick={() => setSelected(p)}
-                    >
-                      <Td className="font-medium">{playerName(p)}</Td>
-                      <Td className="text-white/80">{ogbaTeam(p) || "FA"}</Td>
-                      <Td className="text-white/80">{mlbTeam(p) || "—"}</Td>
-
-                      <Td className="text-white/40">—</Td>
-                      <Td className="text-white/40">—</Td>
-                      <Td className="text-white/40">—</Td>
-                      <Td className="text-white/40">—</Td>
-                      <Td className="text-white/40">—</Td>
-                      <Td className="text-white/40">—</Td>
-                      <Td className="text-white/40">—</Td>
-
-                      <Td className="text-white/80">{posStr(p)}</Td>
-
-                      <Td className="tabular-nums">{(p as any).AB ?? 0}</Td>
-                      <Td className="tabular-nums">{(p as any).H ?? 0}</Td>
-                      <Td className="tabular-nums">{(p as any).R ?? 0}</Td>
-                      <Td className="tabular-nums">{(p as any).HR ?? 0}</Td>
-                      <Td className="tabular-nums">{(p as any).RBI ?? 0}</Td>
-                      <Td className="tabular-nums">{(p as any).SB ?? 0}</Td>
-                      <Td className="tabular-nums">{avg}</Td>
-                      <Td className="tabular-nums">{gs === "" ? "—" : String(gs)}</Td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        ) : (
-          <table className="min-w-[1100px] w-full border-separate border-spacing-0">
-            <thead>
-              <tr className="text-xs text-white/60">
-                <Th>PLAYER</Th>
-                <Th w={80}>TEAM</Th>
-                <Th w={70}>TM</Th>
-                <Th w={90}>POS</Th>
-                <Th w={70}>W</Th>
-                <Th w={70}>SV</Th>
-                <Th w={70}>K</Th>
-                <Th w={90}>ERA</Th>
-                <Th w={90}>WHIP</Th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td className="px-4 py-6 text-sm text-white/60" colSpan={9}>
-                    Loading…
-                  </td>
-                </tr>
-              ) : error ? (
-                <tr>
-                  <td className="px-4 py-6 text-sm text-red-300" colSpan={9}>
-                    {error}
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((p) => (
-                  <tr
-                    key={rowKey(p)}
-                    className="cursor-pointer text-sm text-white/90 hover:bg-white/5"
-                    onClick={() => setSelected(p)}
-                  >
-                    <Td className="font-medium">{playerName(p)}</Td>
-                    <Td className="text-white/80">{ogbaTeam(p) || "FA"}</Td>
-                    <Td className="text-white/80">{mlbTeam(p) || "—"}</Td>
-                    <Td className="text-white/80">{posStr(p) || "P"}</Td>
-                    <Td className="tabular-nums">{(p as any).W ?? 0}</Td>
-                    <Td className="tabular-nums">{(p as any).SV ?? 0}</Td>
-                    <Td className="tabular-nums">{(p as any).K ?? 0}</Td>
-                    <Td className="tabular-nums">{fmt2((p as any).ERA)}</Td>
-                    <Td className="tabular-nums">{fmt2((p as any).WHIP)}</Td>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={20} className="px-4 py-6 text-center text-sm text-white/60">
+                      Loading…
+                    </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        )}
+                ) : error ? (
+                  <tr>
+                    <td colSpan={20} className="px-4 py-6 text-center text-sm text-red-300">
+                      {error}
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((p, idx) => {
+                    const avg = formatAvg((p as any).AVG ?? 0);
+                    const gs = (p as any).GS ?? "";
+                    return (
+                      <Tr
+                        key={rowKey(p)}
+                        className={[
+                          "border-t border-white/10 cursor-pointer hover:bg-white/5",
+                          idx % 2 === 0 ? "bg-slate-950" : "bg-slate-950/60",
+                        ].join(" ")}
+                        onClick={() => setSelected(p)}
+                        title="Click for player details"
+                      >
+                        <Td align="left" className="font-medium">
+                          {playerName(p)}
+                        </Td>
+                        <Td align="center" className="text-white/80">
+                          {ogbaTeam(p) || "FA"}
+                        </Td>
+                        <Td align="center" className="text-white/80">
+                          {mlbTeam(p) || "—"}
+                        </Td>
+
+                        <Td align="center" className="text-white/40">
+                          —
+                        </Td>
+                        <Td align="center" className="text-white/40">
+                          —
+                        </Td>
+                        <Td align="center" className="text-white/40">
+                          —
+                        </Td>
+                        <Td align="center" className="text-white/40">
+                          —
+                        </Td>
+                        <Td align="center" className="text-white/40">
+                          —
+                        </Td>
+                        <Td align="center" className="text-white/40">
+                          —
+                        </Td>
+                        <Td align="center" className="text-white/40">
+                          —
+                        </Td>
+
+                        <Td align="center" className="text-white/80">
+                          {posStr(p)}
+                        </Td>
+
+                        <Td align="center" className="tabular-nums">
+                          {(p as any).AB ?? 0}
+                        </Td>
+                        <Td align="center" className="tabular-nums">
+                          {(p as any).H ?? 0}
+                        </Td>
+                        <Td align="center" className="tabular-nums">
+                          {(p as any).R ?? 0}
+                        </Td>
+                        <Td align="center" className="tabular-nums">
+                          {(p as any).HR ?? 0}
+                        </Td>
+                        <Td align="center" className="tabular-nums">
+                          {(p as any).RBI ?? 0}
+                        </Td>
+                        <Td align="center" className="tabular-nums">
+                          {(p as any).SB ?? 0}
+                        </Td>
+                        <Td align="center" className="tabular-nums">
+                          {avg}
+                        </Td>
+                        <Td align="center" className="tabular-nums">
+                          {gs === "" ? "—" : String(gs)}
+                        </Td>
+                      </Tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </Table>
+          ) : (
+            <Table className="min-w-[1100px] w-full">
+              <THead>
+                <Tr className="text-xs text-white/60">
+                  <Th align="left">PLAYER</Th>
+                  <Th w={80} align="center">
+                    TEAM
+                  </Th>
+                  <Th w={70} align="center">
+                    TM
+                  </Th>
+                  <Th w={90} align="center">
+                    POS
+                  </Th>
+                  <Th w={70} align="center">
+                    W
+                  </Th>
+                  <Th w={70} align="center">
+                    SV
+                  </Th>
+                  <Th w={70} align="center">
+                    K
+                  </Th>
+                  <Th w={90} align="center">
+                    ERA
+                  </Th>
+                  <Th w={90} align="center">
+                    WHIP
+                  </Th>
+                </Tr>
+              </THead>
+
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-6 text-center text-sm text-white/60">
+                      Loading…
+                    </td>
+                  </tr>
+                ) : error ? (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-6 text-center text-sm text-red-300">
+                      {error}
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((p, idx) => (
+                    <Tr
+                      key={rowKey(p)}
+                      className={[
+                        "border-t border-white/10 cursor-pointer hover:bg-white/5",
+                        idx % 2 === 0 ? "bg-slate-950" : "bg-slate-950/60",
+                      ].join(" ")}
+                      onClick={() => setSelected(p)}
+                      title="Click for player details"
+                    >
+                      <Td align="left" className="font-medium">
+                        {playerName(p)}
+                      </Td>
+                      <Td align="center" className="text-white/80">
+                        {ogbaTeam(p) || "FA"}
+                      </Td>
+                      <Td align="center" className="text-white/80">
+                        {mlbTeam(p) || "—"}
+                      </Td>
+                      <Td align="center" className="text-white/80">
+                        {posStr(p) || "P"}
+                      </Td>
+                      <Td align="center" className="tabular-nums">
+                        {(p as any).W ?? 0}
+                      </Td>
+                      <Td align="center" className="tabular-nums">
+                        {(p as any).SV ?? 0}
+                      </Td>
+                      <Td align="center" className="tabular-nums">
+                        {(p as any).K ?? 0}
+                      </Td>
+                      <Td align="center" className="tabular-nums">
+                        {fmt2((p as any).ERA)}
+                      </Td>
+                      <Td align="center" className="tabular-nums">
+                        {fmt2((p as any).WHIP)}
+                      </Td>
+                    </Tr>
+                  ))
+                )}
+              </tbody>
+            </Table>
+          )}
+        </TableCard>
       </div>
 
       <PlayerDetailModal open={!!selected} onClose={() => setSelected(null)} player={selected} />
     </div>
   );
-}
-
-function Th({ children, w }: { children: React.ReactNode; w?: number }) {
-  return (
-    <th
-      style={w ? { width: w } : undefined}
-      className="border-b border-white/10 px-3 py-3 text-left font-medium"
-    >
-      {children}
-    </th>
-  );
-}
-
-function Td({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <td className={`border-b border-white/10 px-3 py-3 ${className ?? ""}`}>{children}</td>;
 }

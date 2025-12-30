@@ -1,4 +1,6 @@
 // server/src/index.ts
+import "dotenv/config";
+
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -9,6 +11,7 @@ import { authRouter } from "./routes/auth";
 import { adminRouter } from "./routes/admin";
 import { leaguesRouter } from "./routes/leagues";
 import { publicRouter } from "./routes/public";
+import { attachUser } from "./middleware/auth";
 
 type AnyRow = Record<string, any>;
 
@@ -318,11 +321,6 @@ function detectPitcherRow(r: AnyRow): boolean {
   return false;
 }
 
-/**
- * IMPORTANT FIX:
- * Period fields in CSV rows may be "1" OR "P1" OR "Period 1".
- * Use parsePeriodIdParam so we can match reliably.
- */
 function periodIdFromRow(r: AnyRow): number | null {
   const x =
     r?.period_id ??
@@ -414,10 +412,8 @@ function rankPoints(
 async function main() {
   const app = express();
 
-  // Helps when deploying behind a proxy (Render, etc.). Safe locally too.
   app.set("trust proxy", 1);
 
-  // CORS + cookies for session auth
   const origin = process.env.CLIENT_URL || "http://localhost:5173";
   app.use(
     cors({
@@ -426,22 +422,11 @@ async function main() {
     })
   );
 
-  // IMPORTANT: cookieParser must be before routers that read/write cookies
   app.use(cookieParser());
   app.use(express.json());
 
-  /**
-   * ROUTING NOTE (this matters for your 404):
-   * You mount authRouter at "/api" here:
-   *    app.use("/api", authRouter)
-   *
-   * That means your auth router paths MUST look like:
-   *    router.get("/auth/google", ...)
-   *    router.get("/auth/google/callback", ...)
-   *    router.get("/auth/me", ...)
-   *
-   * DO NOT put "/api" inside the router itself (or you will accidentally create /api/api/...).
-   */
+  app.use(attachUser);
+
   app.use("/api", authRouter);
   app.use("/api", publicRouter);
   app.use("/api", leaguesRouter);
@@ -533,12 +518,6 @@ async function main() {
   app.get("/api/player-period-stats", (_req, res) => res.json(periodStats));
   app.get("/api/season-standings", (_req, res) => res.json(seasonStandings));
 
-  /**
-   * Period Category Standings tables
-   * GET /api/period-category-standings?periodId=1
-   * GET /api/period-category-standings?periodId=P1
-   * GET /api/period-category-standings?periodId=Period%201
-   */
   app.get("/api/period-category-standings", (req, res) => {
     try {
       const pidNum = parsePeriodIdParam(req.query.periodId);
