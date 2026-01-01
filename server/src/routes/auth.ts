@@ -37,9 +37,81 @@ function oauthClient(): OAuth2Client {
   });
 }
 
+/**
+ * Deterministic: your schema is `model User`, so delegate must be `prisma.user`.
+ * If it isn’t, you want to fail loudly (this indicates schema/client mismatch).
+ */
+function userDelegate() {
+  const p: any = prisma as any;
+  if (p?.user) return p.user;
+
+  const keys = Object.keys(p).filter((k) => typeof (p as any)[k]?.findUnique === "function");
+  throw new Error(
+    `Prisma Client has no user delegate. Check prisma/schema.prisma model name (e.g., "model User"). ` +
+      `Client delegates found: ${keys.join(", ")}`
+  );
+}
+
+/**
+ * Sanitize what we return to the client.
+ * (No googleSub, no internal fields, no raw session info.)
+ */
+function toClientUser(u: any) {
+  if (!u) return null;
+  return {
+    id: u.id,
+    email: u.email,
+    name: u.name,
+    avatarUrl: u.avatarUrl,
+    isAdmin: !!u.isAdmin,
+    memberships: Array.isArray(u.memberships)
+      ? u.memberships.map((m: any) => ({
+          leagueId: m.leagueId,
+          role: m.role,
+          league: m.league
+            ? {
+                id: m.league.id,
+                name: m.league.name,
+                season: m.league.season,
+                isPublic: m.league.isPublic,
+                publicSlug: m.league.publicSlug,
+              }
+            : undefined,
+        }))
+      : [],
+  };
+}
+
 // IMPORTANT: these must be /auth/* because server mounts this router at "/api"
-router.get("/auth/me", (req, res) => {
-  res.json({ user: (req as any).user ?? null });
+router.get("/auth/me", async (req, res) => {
+  try {
+    // Your auth middleware sets (req as any).user when cookie is valid.
+    const sessionUser = (req as any).user ?? null;
+    const userId = sessionUser?.id ?? null;
+
+    if (!userId) return res.json({ user: null });
+
+    // Always fetch fresh from DB so roles/memberships are accurate.
+    const full = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        memberships: {
+          select: {
+            leagueId: true,
+            role: true,
+            league: {
+              select: { id: true, name: true, season: true, isPublic: true, publicSlug: true },
+            },
+          },
+        },
+      },
+    });
+
+    return res.json({ user: toClientUser(full) });
+  } catch (err: any) {
+    console.error("GET /auth/me error:", err);
+    return res.status(500).json({ error: err?.message || "Auth me error" });
+  }
 });
 
 router.get("/auth/google", (_req, res) => {
@@ -59,6 +131,7 @@ router.get("/auth/google/callback", async (req, res) => {
 
     const client = oauthClient();
     const { tokens } = await client.getToken(code);
+
     const idToken = tokens.id_token;
     if (!idToken) return res.status(400).send("Missing id_token from Google");
 
@@ -79,28 +152,35 @@ router.get("/auth/google/callback", async (req, res) => {
 
     const isAdmin = adminEmailSet().has(email);
 
-    // Upsert safely given unique(email) + unique(googleSub)
-    let user = await prisma.user.findUnique({ where: { googleSub } });
+    const User = userDelegate();
+
+    // 1) Prefer lookup by googleSub (unique)
+    let user = await User.findUnique({ where: { googleSub } });
 
     if (!user) {
-      const byEmail = await prisma.user.findUnique({ where: { email } });
+      // 2) If not found, try email (unique). If found, link googleSub.
+      const byEmail = await User.findUnique({ where: { email } });
+
       if (byEmail) {
-        user = await prisma.user.update({
+        user = await User.update({
           where: { id: byEmail.id },
           data: { googleSub, name, avatarUrl, isAdmin },
         });
       } else {
-        user = await prisma.user.create({
+        // 3) Otherwise create new
+        user = await User.create({
           data: { email, googleSub, name, avatarUrl, isAdmin },
         });
       }
     } else {
-      user = await prisma.user.update({
+      // 4) Existing user by googleSub: refresh fields
+      user = await User.update({
         where: { id: user.id },
         data: { email, name, avatarUrl, isAdmin },
       });
     }
 
+    // MUST happen after successful DB write
     setSessionCookie(res, user.id);
 
     // Return to UI
@@ -116,7 +196,5 @@ router.post("/auth/logout", (_req, res) => {
   res.json({ ok: true });
 });
 
-// FIX: provide the NAMED export that server/src/index.ts imports
 export const authRouter = router;
-// optional default export if you ever want it
 export default authRouter;

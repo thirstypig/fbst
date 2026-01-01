@@ -62,6 +62,120 @@ async function fetchJsonApi<T>(url: string): Promise<T> {
   return (maybeJson ?? ({} as any)) as T;
 }
 
+/** ---------- NEW: Auth + Leagues + Admin ---------- */
+
+export type LeagueRole = "COMMISSIONER" | "OWNER" | "VIEWER";
+
+export type LeagueSummary = {
+  id: number;
+  name: string;
+  season: number;
+  draftMode: "AUCTION" | "DRAFT";
+  draftOrder: "SNAKE" | "LINEAR" | null;
+  isPublic: boolean;
+  publicSlug: string | null;
+};
+
+export type LeagueMembership = {
+  leagueId: number;
+  role: LeagueRole;
+  league?: LeagueSummary;
+};
+
+export type AuthUser = {
+  id: number;
+  email: string;
+  name: string | null;
+  avatarUrl: string | null;
+  isAdmin: boolean;
+  memberships: LeagueMembership[];
+};
+
+export type AuthMeResponse = { user: AuthUser | null };
+
+export async function getMe(): Promise<AuthMeResponse> {
+  return fetchJsonApi<AuthMeResponse>(`${API_BASE}/auth/me`);
+}
+
+// Redirect-based login (Google OAuth) - this is not an XHR call
+export function getGoogleLoginUrl(): string {
+  return `${API_BASE}/auth/google`;
+}
+
+export async function logout(): Promise<{ ok: boolean }> {
+  const res = await fetch(`${API_BASE}/auth/logout`, {
+    method: "POST",
+    headers: { Accept: "application/json" },
+    credentials: "include",
+  });
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {}
+  if (!res.ok) {
+    const msg = (json && (json.error || json.message)) || `HTTP ${res.status} for ${API_BASE}/auth/logout`;
+    throw new Error(msg);
+  }
+  return (json ?? { ok: true }) as { ok: boolean };
+}
+
+export type LeagueAccess =
+  | { type: "PUBLIC_VIEWER" }
+  | { type: "MEMBER"; role: LeagueRole }
+  | { type: "NONE" };
+
+export type LeagueListItem = LeagueSummary & {
+  access: LeagueAccess;
+};
+
+export type LeaguesListResponse = { leagues: LeagueListItem[] };
+
+export async function getLeagues(): Promise<LeaguesListResponse> {
+  return fetchJsonApi<LeaguesListResponse>(`${API_BASE}/leagues`);
+}
+
+export type AdminCreateLeagueInput = {
+  name: string;
+  season: number;
+  draftMode: "AUCTION" | "DRAFT";
+  draftOrder?: "SNAKE" | "LINEAR" | null;
+  isPublic?: boolean;
+  publicSlug?: string | null;
+};
+
+export type AdminCreateLeagueResponse = {
+  league: LeagueSummary;
+};
+
+export async function adminCreateLeague(input: AdminCreateLeagueInput): Promise<AdminCreateLeagueResponse> {
+  const res = await fetch(`${API_BASE}/admin/league`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    credentials: "include",
+    body: JSON.stringify(input),
+  });
+
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {}
+
+  if (!res.ok) {
+    const msg =
+      (json && (json.error || json.message)) ||
+      (text ? `HTTP ${res.status} for ${API_BASE}/admin/league — ${text.slice(0, 180)}` : `HTTP ${res.status}`);
+    throw new Error(msg);
+  }
+
+  return (json ?? {}) as AdminCreateLeagueResponse;
+}
+
+
+
+
+
 // Use for PUBLIC APIs like statsapi.mlb.com (no cookies; avoids CORS failure)
 async function fetchJsonPublic<T>(url: string): Promise<T> {
   const res = await fetch(url, {

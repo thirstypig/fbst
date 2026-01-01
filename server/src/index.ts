@@ -12,6 +12,8 @@ import { adminRouter } from "./routes/admin";
 import { leaguesRouter } from "./routes/leagues";
 import { publicRouter } from "./routes/public";
 import { attachUser } from "./middleware/auth";
+import {commissionerRouter} from "./routes/commissioner";
+
 
 type AnyRow = Record<string, any>;
 
@@ -431,6 +433,8 @@ async function main() {
   app.use("/api", publicRouter);
   app.use("/api", leaguesRouter);
   app.use("/api", adminRouter);
+  app.use("/api", commissionerRouter);
+
 
   const seasonFilePreferred = "ogba_player_season_totals_2025_with_meta.csv";
   const seasonFileFallback = "ogba_player_season_totals_2025.csv";

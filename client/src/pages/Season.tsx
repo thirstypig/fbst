@@ -31,6 +31,17 @@ type NormalizedSeasonRow = {
   totalPoints: number;
 };
 
+type AuthMeResponse = {
+  user: null | {
+    id?: string;
+    email?: string;
+    name?: string;
+    role?: string;
+    picture?: string;
+    [k: string]: any;
+  };
+};
+
 function toNum(v: any): number {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
@@ -107,6 +118,11 @@ async function computePeriodTotalsByTeamCode(periodIds: number[]) {
   return byCode;
 }
 
+const API_BASE = (import.meta as any).env?.VITE_API_URL || "http://localhost:4000";
+const AUTH_GOOGLE_URL = `${API_BASE}/api/auth/google`;
+const AUTH_ME_URL = `${API_BASE}/api/auth/me`;
+const AUTH_LOGOUT_URL = `${API_BASE}/api/auth/logout`;
+
 const SeasonPage: React.FC = () => {
   const navigate = useNavigate();
 
@@ -115,6 +131,34 @@ const SeasonPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [authLoading, setAuthLoading] = useState(true);
+  const [user, setUser] = useState<AuthMeResponse["user"]>(null);
+
+  // Auth: get current user (if session cookie exists)
+  useEffect(() => {
+    let ok = true;
+
+    (async () => {
+      try {
+        setAuthLoading(true);
+        const resp = await fetch(AUTH_ME_URL, { credentials: "include" });
+        const data = (await resp.json()) as AuthMeResponse;
+        if (!ok) return;
+        setUser(data?.user ?? null);
+      } catch {
+        if (!ok) return;
+        setUser(null);
+      } finally {
+        if (ok) setAuthLoading(false);
+      }
+    })();
+
+    return () => {
+      ok = false;
+    };
+  }, []);
+
+  // Season standings
   useEffect(() => {
     let cancelled = false;
 
@@ -174,8 +218,28 @@ const SeasonPage: React.FC = () => {
   }, []);
 
   const sortedRows = useMemo(() => [...rows].sort((a, b) => b.totalPoints - a.totalPoints), [rows]);
-
   const colSpan = 3 + periodIds.length + 1;
+
+  const onLogin = () => {
+    window.location.assign(AUTH_GOOGLE_URL);
+  };
+
+  const onLogout = async () => {
+    // If you haven't implemented /api/auth/logout yet, this may 404; we fail gracefully.
+    try {
+      const resp = await fetch(AUTH_LOGOUT_URL, { method: "POST", credentials: "include" });
+      if (!resp.ok) throw new Error(`logout status ${resp.status}`);
+    } catch {
+      // fallback: try GET
+      try {
+        await fetch(AUTH_LOGOUT_URL, { method: "GET", credentials: "include" });
+      } catch {
+        // ignore
+      }
+    } finally {
+      window.location.reload();
+    }
+  };
 
   return (
     <div className="flex-1 min-h-screen bg-slate-950 text-slate-50">
@@ -185,6 +249,46 @@ const SeasonPage: React.FC = () => {
           <p className="text-sm text-slate-400">
             Roto points by period for the full season (higher total is better). Use the roster link to view team rosters.
           </p>
+
+          {/* Auth panel */}
+          <div className="mt-6 flex justify-center">
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left w-full max-w-xl">
+              {authLoading ? (
+                <div className="text-sm text-slate-300">Checking login…</div>
+              ) : user ? (
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm text-slate-200">
+                      Signed in{user.name ? ` as ${user.name}` : ""}{user.email ? ` (${user.email})` : ""}.
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      Role: <span className="text-slate-300">{user.role ?? "owner"}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onLogout}
+                    className="rounded-full bg-white/10 px-4 py-2 text-sm text-white hover:bg-white/15"
+                  >
+                    Sign out
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm text-slate-300">
+                    You are not signed in. Sign in to enable commissioner/admin features.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onLogin}
+                    className="rounded-full bg-sky-600/80 px-4 py-2 text-sm text-white hover:bg-sky-600"
+                  >
+                    Sign in with Google
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </header>
 
         {error && (

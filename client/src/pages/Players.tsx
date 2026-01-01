@@ -49,6 +49,17 @@ function fmt2(v: any): string {
   return n.toFixed(2);
 }
 
+function numFromAny(p: any, ...keys: string[]) {
+  for (const k of keys) {
+    const v = p?.[k];
+    if (v != null && String(v).trim() !== "") {
+      const n = Number(String(v).trim());
+      if (Number.isFinite(n)) return n;
+    }
+  }
+  return 0;
+}
+
 export default function Players() {
   const [rows, setRows] = useState<PlayerSeasonStat[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,9 +105,7 @@ export default function Players() {
     <div className="px-10 py-8">
       <div className="mb-6 text-center">
         <div className="text-4xl font-semibold text-white">Players</div>
-        <div className="mt-2 text-sm text-white/60">
-          Player pool and season totals from ogba_player_season_totals_*.csv.
-        </div>
+        <div className="mt-2 text-sm text-white/60">Player pool and season totals from ogba_player_season_totals_*.csv.</div>
       </div>
 
       <div className="mb-6 flex items-center justify-center gap-3">
@@ -300,7 +309,7 @@ export default function Players() {
               </tbody>
             </Table>
           ) : (
-            <Table className="min-w-[1100px] w-full">
+            <Table className="min-w-[1180px] w-full">
               <THead>
                 <Tr className="text-xs text-white/60">
                   <Th align="left">PLAYER</Th>
@@ -328,62 +337,71 @@ export default function Players() {
                   <Th w={90} align="center">
                     WHIP
                   </Th>
+                  <Th w={70} align="center">
+                    SO
+                  </Th>
                 </Tr>
               </THead>
 
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-6 text-center text-sm text-white/60">
+                    <td colSpan={10} className="px-4 py-6 text-center text-sm text-white/60">
                       Loading…
                     </td>
                   </tr>
                 ) : error ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-6 text-center text-sm text-red-300">
+                    <td colSpan={10} className="px-4 py-6 text-center text-sm text-red-300">
                       {error}
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((p, idx) => (
-                    <Tr
-                      key={rowKey(p)}
-                      className={[
-                        "border-t border-white/10 cursor-pointer hover:bg-white/5",
-                        idx % 2 === 0 ? "bg-slate-950" : "bg-slate-950/60",
-                      ].join(" ")}
-                      onClick={() => setSelected(p)}
-                      title="Click for player details"
-                    >
-                      <Td align="left" className="font-medium">
-                        {playerName(p)}
-                      </Td>
-                      <Td align="center" className="text-white/80">
-                        {ogbaTeam(p) || "FA"}
-                      </Td>
-                      <Td align="center" className="text-white/80">
-                        {mlbTeam(p) || "—"}
-                      </Td>
-                      <Td align="center" className="text-white/80">
-                        {posStr(p) || "P"}
-                      </Td>
-                      <Td align="center" className="tabular-nums">
-                        {(p as any).W ?? 0}
-                      </Td>
-                      <Td align="center" className="tabular-nums">
-                        {(p as any).SV ?? 0}
-                      </Td>
-                      <Td align="center" className="tabular-nums">
-                        {(p as any).K ?? 0}
-                      </Td>
-                      <Td align="center" className="tabular-nums">
-                        {fmt2((p as any).ERA)}
-                      </Td>
-                      <Td align="center" className="tabular-nums">
-                        {fmt2((p as any).WHIP)}
-                      </Td>
-                    </Tr>
-                  ))
+                  filtered.map((p, idx) => {
+                    const so = numFromAny(p as any, "SHO", "sho", "SO", "so");
+                    return (
+                      <Tr
+                        key={rowKey(p)}
+                        className={[
+                          "border-t border-white/10 cursor-pointer hover:bg-white/5",
+                          idx % 2 === 0 ? "bg-slate-950" : "bg-slate-950/60",
+                        ].join(" ")}
+                        onClick={() => setSelected(p)}
+                        title="Click for player details"
+                      >
+                        <Td align="left" className="font-medium">
+                          {playerName(p)}
+                        </Td>
+                        <Td align="center" className="text-white/80">
+                          {ogbaTeam(p) || "FA"}
+                        </Td>
+                        <Td align="center" className="text-white/80">
+                          {mlbTeam(p) || "—"}
+                        </Td>
+                        <Td align="center" className="text-white/80">
+                          {posStr(p) || "P"}
+                        </Td>
+                        <Td align="center" className="tabular-nums">
+                          {(p as any).W ?? 0}
+                        </Td>
+                        <Td align="center" className="tabular-nums">
+                          {(p as any).SV ?? 0}
+                        </Td>
+                        <Td align="center" className="tabular-nums">
+                          {(p as any).K ?? 0}
+                        </Td>
+                        <Td align="center" className="tabular-nums">
+                          {fmt2((p as any).ERA)}
+                        </Td>
+                        <Td align="center" className="tabular-nums">
+                          {fmt2((p as any).WHIP)}
+                        </Td>
+                        <Td align="center" className="tabular-nums">
+                          {so}
+                        </Td>
+                      </Tr>
+                    );
+                  })
                 )}
               </tbody>
             </Table>

@@ -1,112 +1,176 @@
 // server/src/routes/admin.ts
 import { Router } from "express";
 import { prisma } from "../db/prisma";
-import { requireAdmin, parseIntParam } from "../middleware/auth";
 
-export const adminRouter = Router();
-
-type LeagueRole = "COMMISSIONER" | "OWNER" | "VIEWER";
+const router = Router();
 
 /**
- * POST /api/admin/leagues
- * Admin creates a league and becomes COMMISSIONER automatically.
- * body: { name: string, season: number, draftMode: "AUCTION"|"DRAFT", draftOrder?: "SNAKE"|"LINEAR" }
+ * Assumes your existing auth middleware sets (req as any).user when cookie is valid.
  */
-adminRouter.post("/admin/leagues", requireAdmin, async (req, res) => {
+function requireAuth(req: any, res: any, next: any) {
+  if (!req.user?.id) return res.status(401).json({ error: "Not authenticated" });
+  next();
+}
+
+function requireAdmin(req: any, res: any, next: any) {
+  if (!req.user?.isAdmin) return res.status(403).json({ error: "Admin only" });
+  next();
+}
+
+function normStr(v: any) {
+  return String(v ?? "").trim();
+}
+
+function slugify(input: string) {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/['"]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function mustOneOf(v: string, allowed: string[], name: string) {
+  if (!allowed.includes(v)) throw new Error(`Invalid ${name}. Allowed: ${allowed.join(", ")}`);
+  return v;
+}
+
+/**
+ * POST /api/admin/league
+ * Body:
+ * {
+ *   name: string,
+ *   season: number,
+ *   draftMode: "AUCTION" | "DRAFT",
+ *   draftOrder?: "SNAKE" | "LINEAR",
+ *   isPublic?: boolean,
+ *   publicSlug?: string
+ * }
+ */
+router.post("/admin/league", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const name = String(req.body?.name ?? "").trim();
+    const name = normStr(req.body?.name);
     const season = Number(req.body?.season);
-    const draftMode = String(req.body?.draftMode ?? "AUCTION").trim().toUpperCase();
-    const draftOrder = req.body?.draftOrder ? String(req.body.draftOrder).trim().toUpperCase() : null;
+
+    const draftMode = mustOneOf(normStr(req.body?.draftMode || "AUCTION"), ["AUCTION", "DRAFT"], "draftMode") as
+      | "AUCTION"
+      | "DRAFT";
+
+    const draftOrderRaw = normStr(req.body?.draftOrder || "");
+    const draftOrder =
+      draftMode === "DRAFT"
+        ? (mustOneOf(draftOrderRaw || "SNAKE", ["SNAKE", "LINEAR"], "draftOrder") as "SNAKE" | "LINEAR")
+        : null;
+
+    const isPublic = Boolean(req.body?.isPublic ?? false);
+
+    const publicSlugInput = normStr(req.body?.publicSlug || "");
+    const baseSlug = slugify(publicSlugInput || `${name}-${season}`);
+    const publicSlug = isPublic ? baseSlug : null;
 
     if (!name) return res.status(400).json({ error: "Missing name" });
-    if (!Number.isFinite(season)) return res.status(400).json({ error: "Invalid season" });
-    if (!["AUCTION", "DRAFT"].includes(draftMode)) return res.status(400).json({ error: "Invalid draftMode" });
-    if (draftOrder && !["SNAKE", "LINEAR"].includes(draftOrder)) return res.status(400).json({ error: "Invalid draftOrder" });
+    if (!Number.isFinite(season) || season < 1900 || season > 2100) {
+      return res.status(400).json({ error: "Invalid season" });
+    }
 
     const league = await prisma.league.create({
       data: {
         name,
         season,
-        draftMode: draftMode as any,
-        draftOrder: draftOrder as any,
-        memberships: {
-          create: {
-            userId: req.user!.id,
-            role: "COMMISSIONER" satisfies LeagueRole,
-          },
-        },
+        draftMode,
+        draftOrder: draftOrder ?? undefined,
+        isPublic,
+        publicSlug: publicSlug ?? undefined,
       },
-      select: { id: true, name: true, season: true },
     });
 
-    return res.json({ ok: true, league });
-  } catch (e: any) {
-    console.error("POST /admin/leagues error:", e);
-    return res.status(500).json({ error: String(e?.message ?? e ?? "Unknown error") });
+    // (Optional but recommended) auto-add creator as COMMISSIONER for this league
+    await prisma.leagueMembership.upsert({
+      where: {
+        leagueId_userId: { leagueId: league.id, userId: req.user.id },
+      },
+      create: {
+        leagueId: league.id,
+        userId: req.user.id,
+        role: "COMMISSIONER",
+      },
+      update: {
+        role: "COMMISSIONER",
+      },
+    });
+
+    return res.json({ league });
+  } catch (err: any) {
+    // Handle unique constraint collisions cleanly
+    const msg = String(err?.message || "Create league failed");
+    return res.status(400).json({ error: msg });
   }
 });
 
 /**
- * POST /api/admin/leagues/:leagueId/teams
- * Admin creates a team in a league.
- * body: { name: string, code?: string, owner?: string, budget?: number }
+ * POST /api/admin/league/:leagueId/members
+ * Body:
+ * { userId?: number, email?: string, role: "COMMISSIONER" | "OWNER" | "VIEWER" }
+ *
+ * IMPORTANT constraint:
+ * You can only add users who have logged in at least once,
+ * because User.googleSub is required (can’t pre-create accounts without Google Sub).
  */
-adminRouter.post("/admin/leagues/:leagueId/teams", requireAdmin, async (req, res) => {
+router.post("/admin/league/:leagueId/members", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const leagueId = parseIntParam(req.params.leagueId);
-    if (!leagueId) return res.status(400).json({ error: "Invalid leagueId" });
+    const leagueId = Number(req.params.leagueId);
+    if (!Number.isFinite(leagueId)) return res.status(400).json({ error: "Invalid leagueId" });
 
-    const name = String(req.body?.name ?? "").trim();
-    const code = req.body?.code != null ? String(req.body.code).trim().toUpperCase() : null;
-    const owner = req.body?.owner != null ? String(req.body.owner).trim() : null;
-    const budget = req.body?.budget != null ? Number(req.body.budget) : 400;
+    const role = mustOneOf(normStr(req.body?.role), ["COMMISSIONER", "OWNER", "VIEWER"], "role") as
+      | "COMMISSIONER"
+      | "OWNER"
+      | "VIEWER";
 
-    if (!name) return res.status(400).json({ error: "Missing team name" });
-    if (!Number.isFinite(budget)) return res.status(400).json({ error: "Invalid budget" });
+    const userIdRaw = req.body?.userId;
+    const emailRaw = normStr(req.body?.email || "").toLowerCase();
 
-    const team = await prisma.team.create({
-      data: { leagueId, name, code, owner, budget },
-      select: { id: true, leagueId: true, name: true, code: true, owner: true, budget: true },
-    });
+    let userId: number | null = null;
 
-    return res.json({ ok: true, team });
-  } catch (e: any) {
-    console.error("POST /admin/leagues/:leagueId/teams error:", e);
-    return res.status(500).json({ error: String(e?.message ?? e ?? "Unknown error") });
-  }
-});
+    if (userIdRaw != null && String(userIdRaw).trim() !== "") {
+      const n = Number(userIdRaw);
+      if (!Number.isFinite(n)) return res.status(400).json({ error: "Invalid userId" });
+      userId = n;
+    } else if (emailRaw) {
+      const u = await prisma.user.findUnique({ where: { email: emailRaw } });
+      if (!u) {
+        return res.status(404).json({
+          error:
+            "User not found by email. That user must log in once first (User.googleSub is required), then you can add them.",
+        });
+      }
+      userId = u.id;
+    } else {
+      return res.status(400).json({ error: "Provide userId or email" });
+    }
 
-/**
- * POST /api/admin/leagues/:leagueId/memberships
- * Admin sets membership for any user (by email).
- * body: { email: string, role: "COMMISSIONER"|"OWNER"|"VIEWER" }
- */
-adminRouter.post("/admin/leagues/:leagueId/memberships", requireAdmin, async (req, res) => {
-  try {
-    const leagueId = parseIntParam(req.params.leagueId);
-    if (!leagueId) return res.status(400).json({ error: "Invalid leagueId" });
-
-    const email = String(req.body?.email ?? "").trim().toLowerCase();
-    const role = String(req.body?.role ?? "").trim().toUpperCase() as LeagueRole;
-
-    if (!email) return res.status(400).json({ error: "Missing email" });
-    if (!["COMMISSIONER", "OWNER", "VIEWER"].includes(role)) return res.status(400).json({ error: "Invalid role" });
-
-    const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
-    if (!user) return res.status(404).json({ error: "User not found (must sign in once first)" });
+    // Ensure league exists
+    const league = await prisma.league.findUnique({ where: { id: leagueId } });
+    if (!league) return res.status(404).json({ error: "League not found" });
 
     const membership = await prisma.leagueMembership.upsert({
-      where: { leagueId_userId: { leagueId, userId: user.id } },
-      update: { role: role as any },
-      create: { leagueId, userId: user.id, role: role as any },
-      select: { leagueId: true, userId: true, role: true },
+      where: {
+        leagueId_userId: { leagueId, userId },
+      },
+      create: {
+        leagueId,
+        userId,
+        role,
+      },
+      update: {
+        role,
+      },
     });
 
-    return res.json({ ok: true, membership });
-  } catch (e: any) {
-    console.error("POST /admin/leagues/:leagueId/memberships error:", e);
-    return res.status(500).json({ error: String(e?.message ?? e ?? "Unknown error") });
+    return res.json({ membership });
+  } catch (err: any) {
+    return res.status(400).json({ error: String(err?.message || "Add member failed") });
   }
 });
+
+export const adminRouter = router;
 export default adminRouter;

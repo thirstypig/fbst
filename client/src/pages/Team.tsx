@@ -19,6 +19,13 @@ function asNum(v: any): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+function numFromAny(p: any, ...keys: string[]): number {
+  for (const k of keys) {
+    if (p?.[k] != null && String(p[k]).trim() !== "") return asNum(p[k]);
+  }
+  return 0;
+}
+
 function rowKey(p: any): string {
   return String(p?.row_id ?? p?.id ?? `${p?.mlb_id ?? p?.mlbId ?? ""}-${isPitcher(p) ? "P" : "H"}`);
 }
@@ -210,19 +217,20 @@ export default function Team() {
                     <Th align="center">RBI</Th>
                     <Th align="center">SB</Th>
                     <Th align="center">AVG</Th>
+                    <Th align="center">GS</Th>
                   </Tr>
                 </THead>
 
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={15} className="px-4 py-8 text-center text-sm text-slate-400">
+                      <td colSpan={16} className="px-4 py-8 text-center text-sm text-slate-400">
                         Loading roster…
                       </td>
                     </tr>
                   ) : hitters.length === 0 ? (
                     <tr>
-                      <td colSpan={15} className="px-4 py-8 text-center text-sm text-slate-400">
+                      <td colSpan={16} className="px-4 py-8 text-center text-sm text-slate-400">
                         No hitters found for this roster.
                       </td>
                     </tr>
@@ -239,6 +247,9 @@ export default function Team() {
                       const g3B = gamesAtPos(p, "3B");
                       const gSS = gamesAtPos(p, "SS");
                       const gOF = gamesAtPos(p, "OF");
+
+                      // Grand Slams (supports multiple common key names)
+                      const gs = numFromAny(p, "GS", "gs", "GSL", "gsl", "grandSlams", "grand_slams");
 
                       return (
                         <Tr
@@ -295,6 +306,9 @@ export default function Team() {
                           <Td align="center" className="tabular-nums">
                             {formatAvg(p?.AVG)}
                           </Td>
+                          <Td align="center" className="tabular-nums">
+                            {gs}
+                          </Td>
                         </Tr>
                       );
                     })
@@ -318,19 +332,20 @@ export default function Team() {
                     <Th align="center">IP</Th>
                     <Th align="center">ERA</Th>
                     <Th align="center">WHIP</Th>
+                    <Th align="center">SO</Th>
                   </Tr>
                 </THead>
 
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={9} className="px-4 py-8 text-center text-sm text-slate-400">
+                      <td colSpan={10} className="px-4 py-8 text-center text-sm text-slate-400">
                         Loading roster…
                       </td>
                     </tr>
                   ) : pitchers.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-4 py-8 text-center text-sm text-slate-400">
+                      <td colSpan={10} className="px-4 py-8 text-center text-sm text-slate-400">
                         No pitchers found for this roster.
                       </td>
                     </tr>
@@ -339,6 +354,9 @@ export default function Team() {
                       const key = rowKey(p);
                       const tm = getMlbTeamAbbr(p);
                       const elig = posEligible(p) || "P";
+
+                      // Shutouts (commonly "SHO"; sometimes "SO" in custom datasets)
+                      const so = numFromAny(p, "SHO", "sho", "SO", "so", "shutouts", "shut_outs");
 
                       return (
                         <Tr
@@ -375,6 +393,9 @@ export default function Team() {
                           </Td>
                           <Td align="center" className="tabular-nums">
                             {String(p?.WHIP ?? "").trim() || "—"}
+                          </Td>
+                          <Td align="center" className="tabular-nums">
+                            {so}
                           </Td>
                         </Tr>
                       );

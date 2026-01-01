@@ -10,6 +10,7 @@ datasource db {
 
 generator client {
   provider = "prisma-client-js"
+  output   = "../server/node_modules/.prisma/client"
 }
 
 // ======================
@@ -46,19 +47,19 @@ model User {
   isAdmin   Boolean @default(false)
 
   memberships LeagueMembership[]
-  ownedTeams  Team[] @relation("TeamOwner")
+  ownedTeams   Team[] @relation("TeamOwner")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model League {
-  id         Int      @id @default(autoincrement())
+  id         Int        @id @default(autoincrement())
   name       String
   season     Int
   draftMode  DraftMode
   draftOrder DraftOrder?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime   @default(now())
 
   // NEW: public viewer (no login) support
   isPublic   Boolean @default(false)
