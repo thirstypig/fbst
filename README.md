@@ -1,131 +1,76 @@
 # FBST · OGBA Fantasy Baseball Stat Tool
 
-Simple league tool for OGBA: teams, period/season standings, players (2025 stats), and auction values.
+Simple league tool for OGBA: teams, period/season standings, players (2025 stats), auction values, and (new) transaction imports.
 
-This repo is split into:
+Repo structure:
 
-- `server/` – Node/Express + Prisma + PostgreSQL  
+- `server/` – Node/Express + Prisma + PostgreSQL
 - `client/` – React + Vite front-end
+- `prisma/` – Prisma schema + migrations
+- `docs/` – documentation
+- External sibling repo/folder:
+  - `../fbst-stats-worker/` – Python scripts that produce CSV/JSON inputs
 
 ---
 
-## 1. URLs and `/api` Convention (IMPORTANT)
+## 1) URLs and `/api` convention (important)
 
-We **always**:
+We always:
 
 - Expose server routes behind `/api`
 - Point the client at the **base origin**, and append `/api/...` in code
 
-### Server routes
-
-Current core endpoints:
+### Server routes (current core endpoints)
 
 - `GET /api/health`
 - `GET /api/teams`
 - `GET /api/players`
 - `GET /api/auction-values`
-- `GET /api/season-standings` – season-long 7×7 roto standings per team
-- `GET /api/teams/:id/summary` – per-team period breakdown + season total
-
-(Period standings endpoints can be added later; see TODOs at the bottom.)
+- `GET /api/season-standings`
+- `GET /api/teams/:id/summary`
 
 ### Client config
 
+`client/src/lib/api.ts`:
+
 ```ts
-// client/src/lib/api.ts
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000";
-Local dev default:
-
-API_BASE = http://localhost:4000
-
-Render (prod) client env:
-
-env
-Copy code
-VITE_API_BASE_URL=https://fbst-api.onrender.com
-Every fetch in the client should look like:
-
-ts
-Copy code
-fetch(`${API_BASE}/api/teams`);
-fetch(`${API_BASE}/api/players`);
-fetch(`${API_BASE}/api/auction-values`);
-fetch(`${API_BASE}/api/season-standings`);
-fetch(`${API_BASE}/api/teams/${teamId}/summary`);
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000";
 Rules:
 
 Never put /api inside VITE_API_BASE_URL
 
 Always append /api/... in code
 
-This matches:
+Examples:
 
 Local: http://localhost:4000/api/...
 
-Render: https://fbst-api.onrender.com/api/...
+Prod: https://<your-api-host>/api/...
 
-When adding new endpoints or client code, check this section first so we don’t re-introduce /api/api/... bugs.
-
-2. Local Development
+2) Local development
 2.1 Server
-Prereqs
+Prereqs:
 
 Node 22.x
 
-A Postgres instance you can reach from your machine
+A reachable Postgres database (Neon / Render / local Postgres)
 
-Server .env
-
-From repo root, create server/.env with at least:
-
-env
-Copy code
-DATABASE_URL=postgresql://user:pass@localhost:5432/fbst_db
-PORT=4000
-DATABASE_URL must match whatever DB you’re actually using (local or Render DB).
-
-Install, migrate, seed, run
+From repo root:
 
 bash
 Copy code
-# from repo root
 cd server
-
-# install dependencies
 npm install
-
-# apply schema to DB
-npx prisma db push --schema ../prisma/schema.prisma --accept-data-loss
-
-# seed OGBA league / periods / sample roster
-npx tsx src/seed.ts
-
-# start API (runs tsx src/index.ts)
 npm start
-You should see:
-
-text
-Copy code
-🔥 FBST server listening on http://localhost:4000
-Quick sanity checks
-
-In another terminal:
+Prisma / DB setup (recommended workflow)
+From repo root:
 
 bash
 Copy code
-curl http://localhost:4000/api/health
-# -> {"ok":true}
-
-curl http://localhost:4000/api/teams
-# -> JSON list of OGBA teams
-
-curl http://localhost:4000/api/players | head
-# -> CSV-backed player rows as JSON
-
-curl http://localhost:4000/api/season-standings
-# -> array of teams with category totals + roto points
-If these fail, the client will also fail.
+npx prisma format
+npx prisma migrate dev --name init
+npx prisma generate
+If Prisma fails with P1000 Authentication failed, treat it as credentials/URL mismatch. See “Troubleshooting” below.
 
 2.2 Client
 From repo root:
@@ -134,317 +79,415 @@ bash
 Copy code
 cd client
 npm install
-Local env (either client/.env or .env.local):
+Local env (client/.env or client/.env.local):
 
 env
 Copy code
 VITE_API_BASE_URL=http://localhost:4000
-Run Vite dev server:
+Run:
 
 bash
 Copy code
 npm run dev
 # open http://localhost:5173/
-3. Client App Structure
-Layout / navigation
-client/src/components/AppShell.tsx
+3) Transactions import pipeline (OnRoto)
+3.1 Generate JSON/CSV using fbst-stats-worker
+In ../fbst-stats-worker:
 
-Left sidebar: app title + nav
-
-Main content: route content wrapped in padded container
-
-client/src/components/ThemeContext.tsx / ThemeToggle.tsx
-
-Dark/light mode stored in localStorage (fbst-theme)
-
-Applies .dark class to <html> for Tailwind dark styles
-
-Routes
-Configured in client/src/main.tsx (React Router):
-
-/period – Period standings (stub / future)
-
-/season – Season standings (implemented)
-
-/teams – Team list + per-team period summary table
-
-/players – 2025 player pool table, filterable
-
-/auction – Auction values table
-
-If you hit a white screen, first confirm:
-
-npm start is still running in server/
-
-VITE_API_BASE_URL is pointing at the right origin (no /api)
-
-4. Data Sources
-4.1 2025 Player Season Stats
-File: server/src/data/ogba_player_season_totals_2025.csv
-
-Endpoint: GET /api/players
-
-Client type: PlayerSeasonRow in client/src/lib/api.ts
-
-Client page: client/src/pages/Players.tsx
-
-Simplified shape:
-
-ts
+bash
 Copy code
-export interface PlayerSeasonRow {
-  mlb_id: string | null;
-  name: string | null;
-  team: string | null; // OGBA fantasy team name (when present)
-  pos: string | null;  // 1B, 2B, SS, OF, P, etc.
+cd ~/Documents/Projects/fbst-stats-worker
+source .venv/bin/activate
 
-  R: number | null;
-  HR: number | null;
-  RBI: number | null;
-  SB: number | null;
-  AVG: number | null;
+python parse_onroto_transactions_html.py \
+  --season 2025 \
+  --infile data/onroto_transactions_2025.html \
+  --outcsv ogba_transactions_2025.csv \
+  --outjson ogba_transactions_2025.json
+Expected output example:
 
-  W: number | null;
-  S: number | null;
-  K: number | null;
-  ERA: number | null;
-  WHIP: number | null;
+OK: parsed 466 transactions
 
-  isFreeAgent?: boolean;
-  isPitcher?: boolean;
-}
-Some numeric fields may be null depending on how the CSV was generated.
+ogba_transactions_2025.csv
 
-The Players page:
+ogba_transactions_2025.json
 
-Calls getPlayers() from lib/api
+3.2 Import JSON into DB (TransactionEvent)
+From the FBST repo, run the importer:
 
-Allows text search across name / team / pos / mlb_id
-
-Optional toggle: “show only rostered players”
-
-Uses a composite React key (mlb_id-index) to avoid duplicate key warnings
-
-4.2 Auction Values
-File: server/src/data/ogba_auction_values_2025.csv
-
-Endpoint: GET /api/auction-values
-
-Client type: AuctionValueRow in client/src/lib/api.ts
-
-Client page: client/src/pages/AuctionValues.tsx
-
-Shape:
-
-ts
+bash
 Copy code
-export interface AuctionValueRow {
-  player_name: string;
-  positions: string | null;  // e.g. "1B", "2B/SS"
-  dollar_value: number | null;
-  ogba_team?: string | null; // optional if we add it later
-}
-4.3 Teams
-Source: Prisma + seed (server/src/seed.ts)
+cd ~/Documents/Projects/fbst/server
 
-Table: Team (see prisma/schema.prisma)
+LEAGUE_NAME="OGBA" SEASON=2025 INFILE="../../fbst-stats-worker/ogba_transactions_2025.json" \
+  npx tsx src/scripts/import_onroto_transactions.ts
+Notes:
 
-Endpoint: GET /api/teams
+LEAGUE_NAME defaults to "OGBA" but also tries "OGBA 2025" as fallback.
 
-Client type: Team (inline in Teams.tsx or lib/api.ts)
+SEASON defaults to 2025.
 
-Fields:
+INFILE has common path fallbacks if not provided.
 
-ts
+4) Troubleshooting
+4.1 Prisma: P1000 Authentication failed
+Most common root causes:
+
+You copied an old Neon URL (password rotated).
+
+You copied a connection string from a different Neon branch/project.
+
+The username/password is wrong.
+
+Fix:
+
+Re-copy the connection string from Neon (for the exact DB you intend).
+
+Replace DATABASE_URL in .env.
+
+Re-run:
+
+bash
 Copy code
-type Team = {
-  id: number;
-  name: string;
-  owner: string | null;
-  budget: number;
-  leagueId: number;
-};
-4.4 Season Standings (7×7 roto points)
-Endpoint: GET /api/season-standings
+cd ~/Documents/Projects/fbst
+npx prisma migrate dev --name add_transactions_aliases
+4.2 zsh: command not found: python
+Use:
 
-Server calculates, per team:
+python3 (system), OR
 
-Raw category totals across all players (R, HR, RBI, SB, W, S, K)
+activate your venv first:
 
-Roto points per category (1–8 in an 8-team league, higher is better)
-
-Sum of category points as totalPoints
-
-Client page: client/src/pages/Season.tsx
-
-Table shows:
-
-Team / owner
-
-Raw totals per category
-
-Final Pts column (sum of category points)
-
-The hint in the UI: 7×7 roto-style points (higher is better).
-
-4.5 Team Period Summary
-Endpoint: GET /api/teams/:id/summary
-
-Returns:
-
-ts
+bash
 Copy code
-type PeriodSummary = {
-  periodId: number;
-  label: string;        // e.g. "Period 1"
-  periodPoints: number | null;
-  seasonPoints: number | null;
-};
-
-type TeamSummaryResponse = {
-  team: Team;
-  periodSummaries: PeriodSummary[];
-  seasonTotal: number;  // season-long roto points for that team
-};
-Client page: client/src/pages/Teams.tsx
-
-The Teams page:
-
-Top: pill buttons to select a team
-
-Bottom: table of all periods for the selected team, with per-period and running season points, plus a season total row.
-
-5. Client API Helpers
-Located in client/src/lib/api.ts.
-
-Pattern:
-
-ts
-Copy code
-export async function handleJson<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}`);
-  }
-  return (await res.json()) as T;
-}
-
-export async function getTeams(): Promise<Team[]> {
-  const res = await fetch(`${API_BASE}/api/teams`);
-  return handleJson<Team[]>(res);
-}
-All pages should call these helpers instead of inlining fetch(...) everywhere.
-If you add a new endpoint, add a typed helper here.
-
-6. Render Deployment
-6.1 Server (API)
-Service name: fbst-api
+cd ~/Documents/Projects/fbst-stats-worker
+source .venv/bin/activate
+python --version
+5) Render deployment (optional)
+5.1 Server (API)
+Typical configuration:
 
 Root directory: server/
 
-Build command (Render “Build Command”):
+Start command: npm start
 
-bash
-Copy code
-npm install
-Start command (Render “Start Command”):
+Env vars: DATABASE_URL, PORT
 
-bash
-Copy code
-npx prisma db push --schema ../prisma/schema.prisma --accept-data-loss && \
-npx tsx src/seed.ts && \
-npx tsx src/index.ts
-Environment variables (Render API service):
-
-env
-Copy code
-DATABASE_URL=postgresql://...     # from Render Postgres
-PORT=10000                        # or whatever Render assigns / expects
-Expected public routes:
-
-https://fbst-api.onrender.com/api/health
-
-https://fbst-api.onrender.com/api/teams
-
-https://fbst-api.onrender.com/api/players
-
-https://fbst-api.onrender.com/api/auction-values
-
-https://fbst-api.onrender.com/api/season-standings
-
-https://fbst-api.onrender.com/api/teams/:id/summary
-
-Sanity check:
-
-bash
-Copy code
-curl https://fbst-api.onrender.com/api/health
-6.2 Client (Static site)
-If/when you deploy the client (e.g. Render static site):
-
+5.2 Client (static)
 Root directory: client/
 
-Build command:
+Build: npm run build
 
-bash
-Copy code
-npm install
-npm run build
 Publish directory: client/dist
 
-Environment variable (client static site):
+Env var:
 
 env
 Copy code
-VITE_API_BASE_URL=https://fbst-api.onrender.com
-The client then calls e.g.:
+VITE_API_BASE_URL=https://<your-api-host>
+6) Known limitations / TODO
+Period standings page (/period) is still future work.
 
-GET https://fbst-api.onrender.com/api/teams
+Transactions are imported but not yet exposed via an API route/UI.
 
-GET https://fbst-api.onrender.com/api/players
+Player canonical ID strategy is mlbId (hidden from UI), with alias mapping via PlayerAlias.
 
-GET https://fbst-api.onrender.com/api/auction-values
-
-GET https://fbst-api.onrender.com/api/season-standings
-
-7. Known Limitations / TODO
-Period standings page:
-
-/period route is currently stubbed.
-
-Need an endpoint like GET /api/period-standings?periodId=1 or GET /api/period-standings returning all periods.
-
-Scoring should match OGBA rules (same 7 cats as season standings).
-
-Rosters
-
-Long-term, players should be attached to teams through a proper Roster table.
-
-Right now, some logic still relies on PlayerSeasonRow.team coming from the CSV.
-
-Rate stats
-
-Season standings only consider counting stats (R, HR, RBI, SB, W, S, K).
-
-AVG / ERA / WHIP are available from the CSV but not yet part of standings scoring.
-
-No auth / multi-league
-
-Single OGBA league, no user accounts.
-
-Multi-league + commissioner/owner roles would require proper auth + league/user models.
-
-If you add new features or change how data is wired (especially anything involving /api or VITE_API_BASE_URL), update this README so Future You doesn’t have to re-discover the same constraints.
-
-pgsql
+yaml
 Copy code
 
 ---
 
-**After this:**
+# 5) FULL FILE: `docs/data-schema.md`
 
-1. Paste this into `README.md` and save.
-2. `git status` → make sure server/client changes + README are tracked.
-3. Commit: `git commit -am "Season standings + teams summary + players table UI"`.
+```md
+# FBST Data Schemas
 
-Then the next *real* build step is to design the **Period** page + backend endpoint so you can see standings per OGBA period, not just full-season. When you’re ready to tackle that, I’ll give you the server route + `client/src/pages/Period.tsx` end-to-end.
-::contentReference[oaicite:0]{index=0}
+Source of truth for JSON produced by the stats worker and served by the FBST API.
+All fields are required unless noted otherwise.
+
+---
+
+## 1) `GET /api/season-standings`
+
+```ts
+type SeasonStandingsResponse = {
+  periodIds: number[]; // e.g. [1,2,3,4,5,6]
+  rows: SeasonStandingsRow[];
+};
+
+type SeasonStandingsRow = {
+  teamId: number;
+  teamName: string;
+  owner: string;
+
+  // season totals
+  R: number;
+  HR: number;
+  RBI: number;
+  SB: number;
+  AVG: number;
+  W: number;
+  S: number;
+  K: number;
+  ERA: number;
+  WHIP: number;
+
+  // roto points by category (1–N teams)
+  categoryPoints: {
+    R: number;
+    HR: number;
+    RBI: number;
+    SB: number;
+    AVG: number;
+    W: number;
+    S: number;
+    K: number;
+    ERA: number;
+    WHIP: number;
+  };
+
+  totalPoints: number;
+};
+2) GET /api/period-standings?periodId=<id> (planned)
+ts
+Copy code
+type PeriodStandingsResponse = {
+  periodId: number;
+  rows: PeriodStandingsRow[];
+};
+
+type PeriodStandingsRow = {
+  teamId: number;
+  teamName: string;
+  owner: string;
+
+  // period totals
+  R: number;
+  HR: number;
+  RBI: number;
+  SB: number;
+  AVG: number;
+  W: number;
+  S: number;
+  K: number;
+  ERA: number;
+  WHIP: number;
+
+  categoryPoints: {
+    R: number;
+    HR: number;
+    RBI: number;
+    SB: number;
+    AVG: number;
+    W: number;
+    S: number;
+    K: number;
+    ERA: number;
+    WHIP: number;
+  };
+
+  totalPoints: number;
+};
+3) GET /api/players (current shape depends on server implementation)
+The long-term target:
+
+ts
+Copy code
+type PlayersResponse = {
+  hitters: HitterRow[];
+  pitchers: PitcherRow[];
+};
+
+type BasePlayerRow = {
+  playerId: number;
+  mlbId: string; // canonical ID (not required to show in UI)
+  name: string;
+  mlbTeam: string; // e.g. "LAD"
+  team: string; // OGBA team name or "-" if FA
+  status: "Active" | "Reserve" | "Free agent" | string;
+  gamesByPos: { [pos: string]: number }; // { "C": 5, "1B": 12, ... }
+};
+
+type HitterRow = BasePlayerRow & {
+  isPitcher: false;
+  stats: {
+    G: number;
+    AB: number;
+    R: number;
+    H: number;
+    HR: number;
+    RBI: number;
+    SB: number;
+    AVG: number;
+    GS: number;
+  };
+};
+
+type PitcherRow = BasePlayerRow & {
+  isPitcher: true;
+  stats: {
+    G: number;
+    IP: number;
+    ER: number;
+    H: number;
+    BB: number;
+    SO: number;
+    W: number;
+    S: number;
+    ERA: number;
+    WHIP: number;
+  };
+};
+4) fbst-stats-worker output: ogba_transactions_YYYY.json
+Generated by: parse_onroto_transactions_html.py
+
+ts
+Copy code
+type OgbaTransactionRow = {
+  season: number;
+
+  eff_date: string;        // "YYYY-MM-DD" (best-effort)
+  eff_date_raw: string;    // "MM.DD"
+
+  league: string;          // often blank in OGBA export
+  team: string;            // OGBA team name, e.g. "Diamond Kings"
+  player: string;          // OnRoto alias, e.g. "NArenado"
+  mlb_tm: string;          // MLB team abbr, e.g. "StL"
+
+  transaction: string;     // e.g. "Release", "Add to Actives", "Change Position to MI"
+
+  submitted_at: string;    // "YYYY-MM-DDTHH:MM" (best-effort)
+  submitted_raw: string;   // "MM.DD @ HH:MM"
+
+  row_hash: string;        // idempotency key
+};
+5) DB mapping: TransactionEvent (Prisma)
+Importer: server/src/scripts/import_onroto_transactions.ts
+
+Key points:
+
+TransactionEvent.rowHash uses row_hash from JSON for idempotent upserts.
+
+TransactionEvent.ogbaTeamName stores raw team string even if teamId mapping fails.
+
+TransactionEvent.playerAliasRaw stores raw player alias until it is linked via PlayerAlias.
+
+yaml
+Copy code
+
+---
+
+# 6) FULL FILE: `docs/DEV_NOTES.md`
+
+```md
+# FBST – Dev Notes & Change Tracking
+
+Last updated: 2026-01-03
+
+This document describes how we track changes and run key workflows.
+
+---
+
+## 1) File structure and “source of truth”
+
+- App:
+  - `server/` – API server (Express + TS)
+  - `client/` – React/Vite front-end
+  - `prisma/` – Prisma schema + migrations
+  - `docs/` – documentation
+- External (sibling folder):
+  - `../fbst-stats-worker/` – Python scripts producing CSV/JSON inputs
+
+Legacy folders starting with `_old_` are archive-only and must not be edited.
+
+---
+
+## 2) How code changes are marked
+
+For any full-file replacement we do together:
+
+1) Add or append to a `FBST_CHANGELOG` block at the top of the file:
+
+```ts
+// FBST_CHANGELOG
+// - 2026-01-03 – Added transaction importer defaults for OGBA + infile resolver.
+For large sections, wrap with:
+
+ts
+Copy code
+// [FBST YYYY-MM-DD] Start: <section>
+// ...
+// [FBST YYYY-MM-DD] End: <section>
+3) Python conventions (stats worker)
+macOS often does not provide python by default outside a venv.
+
+Use:
+
+bash
+Copy code
+cd ~/Documents/Projects/fbst-stats-worker
+source .venv/bin/activate
+python --version
+4) Prisma conventions
+Run Prisma commands from repo root unless you intentionally scope otherwise:
+
+bash
+Copy code
+cd ~/Documents/Projects/fbst
+npx prisma format
+npx prisma migrate dev --name <migration_name>
+npx prisma generate
+If you get P1000 Authentication failed, treat it as a database credentials/URL problem (Neon/Render/local DB), not a Prisma schema problem.
+
+5) Transactions import workflow
+Generate JSON:
+
+bash
+Copy code
+cd ~/Documents/Projects/fbst-stats-worker
+source .venv/bin/activate
+
+python parse_onroto_transactions_html.py --season 2025 --infile data/onroto_transactions_2025.html \
+  --outcsv ogba_transactions_2025.csv --outjson ogba_transactions_2025.json
+Import into DB:
+
+bash
+Copy code
+cd ~/Documents/Projects/fbst/server
+LEAGUE_NAME="OGBA" SEASON=2025 INFILE="../../fbst-stats-worker/ogba_transactions_2025.json" \
+  npx tsx src/scripts/import_onroto_transactions.ts
+yaml
+Copy code
+
+---
+
+# 7) FULL FILE: `docs/display-rules.md`
+
+```md
+# FBST Display Rules (Teams & Players)
+
+Last updated: 2026-01-03
+
+## Team naming
+
+- **Fantasy (OGBA) teams**
+  - In tables: 3-letter team code (DDG, DLC, DMK, …) when available
+  - In headings/modals: full team name (Dodger Dawgs, Demolition Lumber Co., …)
+
+- **MLB teams**
+  - In tables: MLB abbreviation (LAD, SD, SF, …)
+  - In headings/modals: full MLB team name when needed
+
+Implementation:
+
+- Central helpers:
+  - `client/src/lib/playerDisplay.ts`
+    - `getOgbaTeamName(code)`
+    - `getMlbTeamAbbr(player)`
+    - `getMlbTeamName(player)`
+
+## Transactions (internal for now)
+
+- Transaction import uses `TransactionEvent` in the DB.
+- Do not show `Player.mlbId` in the UI; it’s an internal join key.
+- UI display should use player name + MLB team abbreviation + OGBA team name/code.

@@ -6,6 +6,7 @@
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -47,33 +48,32 @@ model User {
   isAdmin   Boolean @default(false)
 
   memberships LeagueMembership[]
-  ownedTeams   Team[] @relation("TeamOwner")
+  ownedTeams  Team[]             @relation("TeamOwner")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model League {
-  id         Int        @id @default(autoincrement())
+  id         Int         @id @default(autoincrement())
   name       String
   season     Int
   draftMode  DraftMode
   draftOrder DraftOrder?
-  createdAt  DateTime   @default(now())
+  createdAt  DateTime    @default(now())
 
-  // NEW: public viewer (no login) support
   isPublic   Boolean @default(false)
   publicSlug String? @unique
 
-  // Relations
-  teams       Team[]
-  memberships LeagueMembership[]
+  teams        Team[]
+  memberships  LeagueMembership[]
+  transactions TransactionEvent[]
 
   @@unique([name, season])
 }
 
 model LeagueMembership {
-  id       Int       @id @default(autoincrement())
+  id       Int        @id @default(autoincrement())
   leagueId Int
   userId   Int
   role     LeagueRole
@@ -97,35 +97,103 @@ model Team {
   budget    Int      @default(400)
   createdAt DateTime @default(now())
 
-  // NEW: stable team code + optional owner user link
   code        String?
   ownerUserId Int?
   ownerUser   User?   @relation("TeamOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
 
-  // Relations
   league        League            @relation(fields: [leagueId], references: [id])
   rosters       Roster[]
   stats         TeamStatsPeriod[]
   season        TeamStatsSeason?
   financeEvents FinanceLedger[]
 
-  // Ensure team names are unique *within* a league
-  @@unique([leagueId, name])
+  // ADD THIS:
+  transactions TransactionEvent[]
+  auctionBids  AuctionBid[]
 
-  // NEW: allow unique codes inside a league (null ok for existing rows)
+  @@unique([leagueId, name])
   @@unique([leagueId, code])
 }
 
 model Player {
-  id         Int      @id @default(autoincrement())
-  mlbId      Int?
+  id Int @id @default(autoincrement())
+
+  // Canonical internal integration key (do not expose to UI).
+  // Keep nullable for now to avoid breaking existing rows; Postgres UNIQUE allows many NULLs.
+  mlbId Int? @unique
+
   name       String
   posPrimary String
-  posList    String   // comma-separated for now
-  createdAt  DateTime @default(now())
+  posList    String // comma-separated for now
 
-  rosters Roster[]
-  lots    AuctionLot[]
+  createdAt DateTime @default(now())
+
+  rosters      Roster[]
+  lots         AuctionLot[]
+  aliases      PlayerAlias[]
+  transactions TransactionEvent[]
+
+  @@index([name])
+}
+
+model PlayerAlias {
+  id       Int @id @default(autoincrement())
+  playerId Int
+
+  // e.g. "onroto"
+  source String
+
+  // e.g. "NArenado", "HyeKim"
+  alias String
+
+  createdAt DateTime @default(now())
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([source, alias])
+  @@index([playerId])
+  @@index([alias])
+}
+
+model TransactionEvent {
+  id Int @id @default(autoincrement())
+
+  // Your parser’s idempotency key (md5 over raw fields)
+  rowHash String @unique
+
+  leagueId Int
+  season   Int
+
+  // Best-effort parsed timestamps
+  effDate     DateTime?
+  submittedAt DateTime?
+
+  // Raw strings from HTML (keep them for traceability/debugging)
+  effDateRaw     String?
+  submittedRaw   String?
+  ogbaTeamName   String?
+  playerAliasRaw String?
+  mlbTeamAbbr    String?
+  transactionRaw String?
+
+  // Normalized “types” (optional, but useful)
+  transactionType String?
+  toPosition      String?
+
+  // Joins (optional until mapped)
+  teamId   Int?
+  playerId Int?
+
+  createdAt DateTime @default(now())
+
+  league League  @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  team   Team?   @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  player Player? @relation(fields: [playerId], references: [id], onDelete: SetNull)
+
+  @@index([leagueId, season])
+  @@index([teamId])
+  @@index([playerId])
+  @@index([submittedAt])
 }
 
 model Period {
@@ -203,16 +271,20 @@ model Roster {
 }
 
 model AuctionLot {
-  id               Int      @id @default(autoincrement())
+  id               Int       @id @default(autoincrement())
   playerId         Int
   nominatingTeamId Int
-  status           String   // idle, nominating, bidding, closing, assigned
-  startTs          DateTime @default(now())
+  status           String
+  startTs          DateTime  @default(now())
   endTs            DateTime?
   finalPrice       Int?
   winnerTeamId     Int?
 
   player Player @relation(fields: [playerId], references: [id])
+
+  bids AuctionBid[]
+
+  @@index([playerId])
 }
 
 model AuctionBid {
@@ -221,6 +293,12 @@ model AuctionBid {
   teamId Int
   amount Int
   ts     DateTime @default(now())
+
+  lot  AuctionLot @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  team Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([lotId])
+  @@index([teamId])
 }
 
 model FinanceLedger {

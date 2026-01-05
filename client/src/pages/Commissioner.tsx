@@ -137,6 +137,10 @@ function normalizeOverview(resp: CommissionerOverviewResponse): {
   return { league, teams, memberships };
 }
 
+function teamExists(teams: CommissionerTeam[], teamId: number) {
+  return teams.some((t) => t.id === teamId);
+}
+
 export default function Commissioner() {
   const { leagueId } = useParams();
   const lid = Number(leagueId);
@@ -188,6 +192,27 @@ export default function Commissioner() {
 
   const canCommissioner = accessRole === "COMMISSIONER" || Boolean(me?.isAdmin);
 
+  function reconcileTeamSelections(nextTeams: CommissionerTeam[]) {
+    // If there are no teams, clear selections and roster display.
+    if (!nextTeams.length) {
+      setOwnerTeamId("");
+      setRosterTeamId("");
+      setRosterRows([]);
+      setRosterError(null);
+      return;
+    }
+
+    // Ensure ownerTeamId is valid (or default to first team).
+    if (ownerTeamId === "" || !Number.isFinite(Number(ownerTeamId)) || !teamExists(nextTeams, Number(ownerTeamId))) {
+      setOwnerTeamId(nextTeams[0].id);
+    }
+
+    // Ensure rosterTeamId is valid (or default to first team).
+    if (rosterTeamId === "" || !Number.isFinite(Number(rosterTeamId)) || !teamExists(nextTeams, Number(rosterTeamId))) {
+      setRosterTeamId(nextTeams[0].id);
+    }
+  }
+
   async function loadAll() {
     if (!Number.isFinite(lid)) {
       setError("Invalid leagueId.");
@@ -203,14 +228,12 @@ export default function Commissioner() {
       setMe(meResp.user ?? null);
       setLeagues(leaguesResp.leagues ?? []);
 
-      // commissioner overview (server will enforce access; we also gate in UI)
+      // commissioner overview (server enforces access)
       const resp = await fetchJson<CommissionerOverviewResponse>(`/commissioner/${lid}`);
       const norm = normalizeOverview(resp);
-      setOverview({ league: norm.league, teams: norm.teams, memberships: norm.memberships });
 
-      // default dropdowns
-      if (norm.teams.length && ownerTeamId === "") setOwnerTeamId(norm.teams[0].id);
-      if (norm.teams.length && rosterTeamId === "") setRosterTeamId(norm.teams[0].id);
+      setOverview({ league: norm.league, teams: norm.teams, memberships: norm.memberships });
+      reconcileTeamSelections(norm.teams);
     } catch (e: any) {
       setError(e?.message ?? "Failed to load commissioner data.");
     } finally {
@@ -234,6 +257,7 @@ export default function Commissioner() {
     const resp = await fetchJson<CommissionerOverviewResponse>(`/commissioner/${lid}`);
     const norm = normalizeOverview(resp);
     setOverview({ league: norm.league, teams: norm.teams, memberships: norm.memberships });
+    reconcileTeamSelections(norm.teams);
     return norm;
   }
 
@@ -289,7 +313,7 @@ export default function Commissioner() {
     setError(null);
     try {
       const teamId = Number(ownerTeamId);
-      if (!Number.isFinite(teamId)) throw new Error("Select a team.");
+      if (!Number.isFinite(teamId) || teamId <= 0) throw new Error("Select a team.");
       const email = String(ownerEmail || "").trim().toLowerCase();
       if (!email) throw new Error("Owner email is required.");
 
@@ -309,6 +333,9 @@ export default function Commissioner() {
   }
 
   async function loadRoster(teamId: number) {
+    // Hard guard: never call for 0 / invalid ids.
+    if (!Number.isFinite(teamId) || teamId <= 0) return;
+
     setRosterLoading(true);
     setRosterError(null);
     try {
@@ -323,11 +350,16 @@ export default function Commissioner() {
   }
 
   useEffect(() => {
+    // CRITICAL FIX:
+    // rosterTeamId is number | "", and Number("") === 0, which triggered /teams/0/roster previously.
+    if (rosterTeamId === "") return;
+
     const teamId = Number(rosterTeamId);
-    if (!Number.isFinite(teamId)) return;
+    if (!Number.isFinite(teamId) || teamId <= 0) return;
+
     loadRoster(teamId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rosterTeamId]);
+  }, [rosterTeamId, lid]);
 
   async function onAssignPlayer(e: React.FormEvent) {
     e.preventDefault();
@@ -336,8 +368,10 @@ export default function Commissioner() {
     setRosterError(null);
 
     try {
+      if (rosterTeamId === "") throw new Error("Select a team.");
+
       const teamId = Number(rosterTeamId);
-      if (!Number.isFinite(teamId)) throw new Error("Select a team.");
+      if (!Number.isFinite(teamId) || teamId <= 0) throw new Error("Select a team.");
 
       const name = String(pName || "").trim();
       const posPrimary = String(pPosPrimary || "").trim();
@@ -364,7 +398,6 @@ export default function Commissioner() {
 
       setPMlbId("");
       setPName("");
-      // keep pos fields for speed
       await loadRoster(teamId);
     } catch (err: any) {
       setError(err?.message ?? "Assign player failed.");
@@ -383,8 +416,10 @@ export default function Commissioner() {
         body: JSON.stringify({ rosterId }),
       });
 
-      const teamId = Number(rosterTeamId);
-      if (Number.isFinite(teamId)) await loadRoster(teamId);
+      if (rosterTeamId !== "") {
+        const teamId = Number(rosterTeamId);
+        if (Number.isFinite(teamId) && teamId > 0) await loadRoster(teamId);
+      }
     } catch (err: any) {
       setError(err?.message ?? "Release failed.");
     } finally {
@@ -682,19 +717,26 @@ export default function Commissioner() {
 
                   <button
                     onClick={() => {
+                      if (rosterTeamId === "") return;
                       const teamId = Number(rosterTeamId);
-                      if (Number.isFinite(teamId)) loadRoster(teamId);
+                      if (Number.isFinite(teamId) && teamId > 0) loadRoster(teamId);
                     }}
                     className={cls(
                       "rounded-xl border border-white/10 px-3 py-2 text-sm text-white/80 hover:bg-white/5",
-                      (busy || rosterLoading) && "opacity-60 cursor-not-allowed"
+                      (busy || rosterLoading || rosterTeamId === "") && "opacity-60 cursor-not-allowed"
                     )}
-                    disabled={busy || rosterLoading}
+                    disabled={busy || rosterLoading || rosterTeamId === ""}
                   >
                     Refresh roster
                   </button>
                 </div>
               </div>
+
+              {overview.teams.length === 0 ? (
+                <div className="rounded-xl border border-white/10 bg-slate-950/60 p-4 text-sm text-white/60">
+                  No teams yet. Create teams first, then you can assign rosters.
+                </div>
+              ) : null}
 
               {rosterError ? (
                 <div className="mb-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-sm text-red-300">
@@ -712,12 +754,14 @@ export default function Commissioner() {
                       placeholder="MLB ID (optional)"
                       value={pMlbId}
                       onChange={(e) => setPMlbId(e.target.value)}
+                      disabled={rosterTeamId === ""}
                     />
                     <input
                       className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
                       placeholder="Player name (required)"
                       value={pName}
                       onChange={(e) => setPName(e.target.value)}
+                      disabled={rosterTeamId === ""}
                     />
 
                     <input
@@ -725,12 +769,14 @@ export default function Commissioner() {
                       placeholder="posPrimary (e.g., OF)"
                       value={pPosPrimary}
                       onChange={(e) => setPPosPrimary(e.target.value)}
+                      disabled={rosterTeamId === ""}
                     />
                     <input
                       className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
                       placeholder="posList (e.g., OF/1B)"
                       value={pPosList}
                       onChange={(e) => setPPosList(e.target.value)}
+                      disabled={rosterTeamId === ""}
                     />
 
                     <div>
@@ -740,6 +786,7 @@ export default function Commissioner() {
                         type="number"
                         value={pPrice}
                         onChange={(e) => setPPrice(Number(e.target.value))}
+                        disabled={rosterTeamId === ""}
                       />
                     </div>
 
@@ -749,6 +796,7 @@ export default function Commissioner() {
                         className="mt-1 w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
                         value={pSource}
                         onChange={(e) => setPSource(e.target.value)}
+                        disabled={rosterTeamId === ""}
                       />
                     </div>
 
@@ -757,9 +805,9 @@ export default function Commissioner() {
                         type="submit"
                         className={cls(
                           "rounded-xl bg-white/10 px-4 py-2 text-sm text-white hover:bg-white/15",
-                          (busy || rosterLoading) && "opacity-60 cursor-not-allowed"
+                          (busy || rosterLoading || rosterTeamId === "") && "opacity-60 cursor-not-allowed"
                         )}
-                        disabled={busy || rosterLoading}
+                        disabled={busy || rosterLoading || rosterTeamId === ""}
                       >
                         Assign
                       </button>
@@ -782,7 +830,11 @@ export default function Commissioner() {
 
                   {rosterRows.length === 0 ? (
                     <div className="py-8 text-center text-sm text-white/60">
-                      {rosterLoading ? "Loading…" : "No players assigned yet."}
+                      {rosterTeamId === ""
+                        ? "Select a team to view roster."
+                        : rosterLoading
+                        ? "Loading…"
+                        : "No players assigned yet."}
                     </div>
                   ) : (
                     <div className="space-y-2">

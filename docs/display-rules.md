@@ -1,24 +1,27 @@
-<!-- client/docs/display-rules.md -->
-
 # FBST Display Rules (Teams & Players)
 
-Last updated: 2025-12-11
+Last updated: 2026-01-03
 
 ## Team naming
 
 - **Fantasy (OGBA) teams**
-  - In all TABLES: use 3-letter team code (DDG, DLC, DMK, …).
-  - In headings, modals, and narrative copy: use full team name
-    (Dodger Dawgs, Demolition Lumber Co., Diamond Kings, …).
+  - In tables: 3-letter team code (DDG, DLC, DMK, …) when available
+  - In headings/modals: full team name (Dodger Dawgs, Demolition Lumber Co., …)
 
 - **MLB teams**
-  - In all TABLES: use 3-letter MLB abbreviation (LAD, SD, SF, …).
-  - In headings, modals, and narrative copy: use full MLB team name
-    (Los Angeles Dodgers, San Diego Padres, San Francisco Giants, …).
+  - In tables: MLB abbreviation (LAD, SD, SF, …)
+  - In headings/modals: full MLB team name when needed
 
 Implementation:
 
-- Helpers are centralised in `client/src/lib/playerDisplay.ts`:
-  - `getOgbaTeamName(code)` – fantasy team full name
-  - `getMlbTeamAbbr(player)` – 3-letter MLB code for tables
-  - `getMlbTeamName(player)` – full MLB team name for modals/headings
+- Central helpers:
+  - `client/src/lib/playerDisplay.ts`
+    - `getOgbaTeamName(code)`
+    - `getMlbTeamAbbr(player)`
+    - `getMlbTeamName(player)`
+
+## Transactions (internal for now)
+
+- Transaction import uses `TransactionEvent` in the DB.
+- Do not show `Player.mlbId` in the UI; it’s an internal join key.
+- UI display should use player name + MLB team abbreviation + OGBA team name/code.

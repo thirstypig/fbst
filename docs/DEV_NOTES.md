@@ -1,58 +1,78 @@
 # FBST – Dev Notes & Change Tracking
 
-_Last updated: 2025-12-11_
+Last updated: 2026-01-03
 
-This document describes how we track changes when working on FBST together.
+This document describes how we track changes and run key workflows.
 
-## 1. File structure and “source of truth”
+---
 
-- The **current app** lives under:
-  - `server/` – API + CSV/JSON loaders
-  - `client/` – React front-end (`src/` is the source of truth)
-- The old Vite root React app and legacy client have been archived:
-  - `_old_root_src/`, `_old_root_*.ts`, `_old_client_legacy/`
-- When editing code, we only touch:
-  - `server/src/**`
-  - `client/src/**`
-  - `docs/**` for documentation
+## 1) File structure and “source of truth”
 
-## 2. How code changes are marked
+- App:
+  - `server/` – API server (Express + TS)
+  - `client/` – React/Vite front-end
+  - `prisma/` – Prisma schema + migrations
+  - `docs/` – documentation
+- External (sibling folder):
+  - `../fbst-stats-worker/` – Python scripts producing CSV/JSON inputs
 
-For any full-file replacement that ChatGPT provides:
+Legacy folders starting with `_old_` are archive-only and must not be edited.
 
-1. The file gets a `FBST_CHANGELOG` block at the top:
+---
 
-   ```ts
-   // FBST_CHANGELOG
-   // - 2025-12-11 – Added Teams view (hitters/pitchers split, MLB column).
+## 2) How code changes are marked
 
-2. If we touch the file again later, we append another dated bullet.
+For any full-file replacement we do together:
 
-3. For large sections (e.g., a new table or modal), we may wrap them with:
+1) Add or append to a `FBST_CHANGELOG` block at the top of the file:
 
-// [FBST 2025-12-11] Start: Players table
+```ts
+// FBST_CHANGELOG
+// - 2026-01-03 – Added transaction importer defaults for OGBA + infile resolver.
+For large sections, wrap with:
+
+ts
+Copy code
+// [FBST YYYY-MM-DD] Start: <section>
 // ...
-// [FBST 2025-12-11] End: Players table
+// [FBST YYYY-MM-DD] End: <section>
+3) Python conventions (stats worker)
+macOS often does not provide python by default outside a venv.
 
+Use:
 
-This allows a non-developer to scroll a file and see what changed and when.
+bash
+Copy code
+cd ~/Documents/Projects/fbst-stats-worker
+source .venv/bin/activate
+python --version
+4) Prisma conventions
+Run Prisma commands from repo root unless you intentionally scope otherwise:
 
-## 3. Expectations when copying code
+bash
+Copy code
+cd ~/Documents/Projects/fbst
+npx prisma format
+npx prisma migrate dev --name <migration_name>
+npx prisma generate
+If you get P1000 Authentication failed, treat it as a database credentials/URL problem (Neon/Render/local DB), not a Prisma schema problem.
 
-For TypeScript/React files, we prefer full-file replacements so there is no ambiguity about partial edits.
+5) Transactions import workflow
+Generate JSON:
 
-For documentation (docs/*.md), we may add new sections or new files without overwriting existing work.
+bash
+Copy code
+cd ~/Documents/Projects/fbst-stats-worker
+source .venv/bin/activate
 
-When in doubt, files that have a FBST_CHANGELOG header are the ones we consider current.
+python parse_onroto_transactions_html.py --season 2025 --infile data/onroto_transactions_2025.html \
+  --outcsv ogba_transactions_2025.csv --outjson ogba_transactions_2025.json
+Import into DB:
 
-## 4. Where team names and MLB teams come from
-
-OGBA team full names are controlled in:
-
-client/src/lib/playerDisplay.ts → OGBA_TEAM_NAME_MAP
-
-MLB team codes will eventually come from the CSV / stats worker and appear as mlb_team in the data returned by the server. The UI already has columns prepared; once the data exists, they will populate automatically.
-
-
-If you prefer, we can later merge pieces of this into `PROJECT_STRUCTURE.md`, but this gives you a stand-alone doc you can open and read like a “how are we working” manual.
-
+bash
+Copy code
+cd ~/Documents/Projects/fbst/server
+LEAGUE_NAME="OGBA" SEASON=2025 INFILE="../../fbst-stats-worker/ogba_transactions_2025.json" \
+  npx tsx src/scripts/import_onroto_transactions.ts
+yaml
+Copy code
