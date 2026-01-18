@@ -1,0 +1,510 @@
+import { useEffect, useState } from "react";
+import {
+  getTrades,
+  proposeTrade,
+  respondToTrade,
+  cancelTrade,
+  voteOnTrade,
+  processTrade,
+  TradeProposal,
+  getLeagues,
+  getLeague,
+} from "../api";
+import { useAuth } from "../auth/AuthProvider";
+import { TradeAssetSelector } from "../components/TradeAssetSelector";
+
+export function TradesPage() {
+  const { me } = useAuth();
+  const user = me?.user;
+  const [myTrades, setMyTrades] = useState<TradeProposal[]>([]);
+  const [leagueTrades, setLeagueTrades] = useState<TradeProposal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"my" | "league" | "create">("my");
+
+  useEffect(() => {
+    if(user) loadAllTrades();
+  }, [user]);
+
+  async function loadAllTrades() {
+    setLoading(true);
+    try {
+      // Load my trades
+      const myRes = await getTrades();
+      setMyTrades(myRes.trades || []);
+      
+      // Load league-wide trades
+      const leagueRes = await getTrades("all");
+      setLeagueTrades(leagueRes.trades || []);
+      
+      setError(null);
+    } catch (e: any) {
+      setError(e.message);
+      setMyTrades([]);
+      setLeagueTrades([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const myActive = myTrades.filter((t) => ["PENDING", "ACCEPTED"].includes(t.status));
+  const myHistory = myTrades.filter((t) => !["PENDING", "ACCEPTED"].includes(t.status));
+
+  if (!user && !loading) return <div className="p-4">Please log in to trade.</div>;
+  if (loading && !myTrades.length) return <div className="p-4">Loading trades...</div>;
+  if (error) return <div className="p-4 text-red-500">Error: {error}</div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+          Trade Center
+        </h1>
+        <button
+          onClick={() => setActiveTab("create")}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-semibold transition-colors"
+        >
+          New Trade
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex space-x-4 border-b border-gray-700">
+        <button
+          onClick={() => setActiveTab("my")}
+          className={`pb-2 px-2 text-sm font-medium transition-colors ${
+            activeTab === "my"
+              ? "border-b-2 border-blue-500 text-blue-400"
+              : "text-gray-400 hover:text-gray-200"
+          }`}
+        >
+          My Trades
+        </button>
+        <button
+          onClick={() => setActiveTab("league")}
+          className={`pb-2 px-2 text-sm font-medium transition-colors ${
+            activeTab === "league"
+              ? "border-b-2 border-blue-500 text-blue-400"
+              : "text-gray-400 hover:text-gray-200"
+          }`}
+        >
+          League Activity
+        </button>
+        {activeTab === "create" && (
+          <button
+            className="pb-2 px-2 text-sm font-medium border-b-2 border-green-500 text-green-400"
+          >
+            Create Trade
+          </button>
+        )}
+      </div>
+
+      {/* My Trades Tab */}
+      {activeTab === "my" && (
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-lg font-semibold mb-3">Active</h2>
+            {myActive.length === 0 && (
+              <div className="p-8 text-center text-gray-500 bg-gray-900 rounded-lg border border-gray-800">
+                No active trade proposals.
+              </div>
+            )}
+            <div className="grid gap-4">
+              {myActive.map((t) => (
+                <TradeCard key={t.id} trade={t} onRefresh={loadAllTrades} currentUserId={Number(user?.id)} isAdmin={user?.isAdmin} />
+              ))}
+            </div>
+          </div>
+          
+          <div>
+            <h2 className="text-lg font-semibold mb-3">History</h2>
+            {myHistory.length === 0 && (
+              <div className="p-8 text-center text-gray-500 bg-gray-900 rounded-lg border border-gray-800">
+                No trade history.
+              </div>
+            )}
+            <div className="grid gap-4">
+              {myHistory.map((t) => (
+                <TradeCard key={t.id} trade={t} onRefresh={loadAllTrades} currentUserId={Number(user?.id)} isAdmin={user?.isAdmin} />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* League Activity Tab */}
+      {activeTab === "league" && (
+        <div className="grid gap-4">
+          {leagueTrades.length === 0 && (
+            <div className="p-8 text-center text-gray-500 bg-gray-900 rounded-lg border border-gray-800">
+              No league trade activity.
+            </div>
+          )}
+          {leagueTrades.map((t) => (
+            <LeagueTradeCard 
+              key={t.id} 
+              trade={t} 
+              onRefresh={loadAllTrades} 
+              currentUserId={Number(user?.id)} 
+              isAdmin={user?.isAdmin}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Create Trade Tab */}
+      {activeTab === "create" && (
+        <CreateTradeForm onCancel={() => setActiveTab("my")} onSuccess={() => { loadAllTrades(); setActiveTab("my"); }} />
+      )}
+    </div>
+  );
+}
+
+function TradeCard({
+  trade,
+  onRefresh,
+  currentUserId,
+  isAdmin,
+}: {
+  trade: TradeProposal;
+  onRefresh: () => void;
+  currentUserId?: number;
+  isAdmin?: boolean;
+}) {
+  const isPending = trade.status === "PENDING";
+  const isProposer = trade.proposingTeam.ownerUserId === currentUserId;
+  
+  return (
+    <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+      <div className="flex justify-between items-start mb-4">
+        <div>
+          <div className="text-lg font-bold">
+            {trade.proposingTeam.name} <span className="text-gray-400 text-sm">offers to</span> {trade.acceptingTeam.name}
+          </div>
+          <div className="text-xs text-gray-400">
+            {new Date(trade.createdAt).toLocaleDateString()}
+          </div>
+        </div>
+        <div className="px-2 py-1 bg-gray-700 rounded text-xs font-mono uppercase">
+          {trade.status}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="bg-gray-900/50 p-3 rounded">
+          <div className="text-xs text-gray-500 uppercase font-bold mb-2">{trade.proposingTeam.name} Gives</div>
+          <ul className="space-y-1 text-sm">
+            {trade.items
+              .filter((i) => i.senderTeamId === trade.proposingTeamId) 
+              .map((i) => (
+                 <li key={i.id} className="flex items-center space-x-2">
+                   {i.assetType === "PLAYER" && i.player && (
+                     <span>{i.player.posPrimary} {i.player.name}</span>
+                   )}
+                   {i.assetType === "BUDGET" && (
+                     <span>${i.amount} Budget</span>
+                   )}
+                 </li>
+              ))}
+          </ul>
+        </div>
+        <div className="bg-gray-900/50 p-3 rounded">
+          <div className="text-xs text-gray-500 uppercase font-bold mb-2">{trade.acceptingTeam.name} Gives</div>
+          <ul className="space-y-1 text-sm">
+            {trade.items
+               .filter((i) => i.senderTeamId === trade.acceptingTeamId)
+               .map((i) => (
+                 <li key={i.id} className="flex items-center space-x-2">
+                   {i.assetType === "PLAYER" && i.player && (
+                     <span>{i.player.posPrimary} {i.player.name}</span>
+                   )}
+                   {i.assetType === "BUDGET" && (
+                     <span>${i.amount} Budget</span>
+                   )}
+                 </li>
+               ))}
+          </ul>
+        </div>
+      </div>
+
+      {isPending && (
+         <div className="flex justify-end space-x-2">
+           {isProposer ? (
+             <button
+               onClick={async () => {
+                  if (!confirm("Cancel trade?")) return;
+                  await cancelTrade(trade.id);
+                  onRefresh();
+               }}
+               className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-sm transition-colors"
+             >
+               Cancel
+             </button>
+           ) : (
+             <>
+               <button
+                 onClick={async () => {
+                    if (!confirm("Reject trade?")) return;
+                    await respondToTrade(trade.id, "REJECT");
+                    onRefresh();
+                 }}
+                 className="px-3 py-1 bg-red-900/50 hover:bg-red-900 text-red-200 rounded text-sm transition-colors"
+               >
+                 Reject
+               </button>
+               <button
+                 onClick={async () => {
+                    if (!confirm("Accept trade?")) return;
+                    await respondToTrade(trade.id, "ACCEPT");
+                    onRefresh();
+                 }}
+                 className="px-3 py-1 bg-green-900/50 hover:bg-green-900 text-green-200 rounded text-sm transition-colors"
+               >
+                 Accept
+               </button>
+             </>
+           )}
+         </div>
+      )}
+    </div>
+  );
+}
+
+function LeagueTradeCard({
+  trade,
+  onRefresh,
+  currentUserId,
+  isAdmin,
+}: {
+  trade: any; // has votes
+  onRefresh: () => void;
+  currentUserId?: number;
+  isAdmin?: boolean;
+}) {
+  const isInvolved = trade.proposingTeam.ownerUserId === currentUserId || trade.acceptingTeam.ownerUserId === currentUserId;
+  const canVote = !isInvolved && trade.status === "ACCEPTED";
+  
+  const myVote = trade.votes?.find((v: any) => v.team?.id && v.team.id === currentUserId);
+  const vetoCount = trade.votes?.filter((v: any) => v.vote === "VETO").length || 0;
+  const approveCount = trade.votes?.filter((v: any) => v.vote === "APPROVE").length || 0;
+
+  return (
+    <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+      <div className="flex justify-between items-start mb-4">
+        <div>
+          <div className="text-lg font-bold">
+            {trade.proposingTeam.name} <span className="text-gray-400 text-sm">↔</span> {trade.acceptingTeam.name}
+          </div>
+          <div className="text-xs text-gray-400">
+            {new Date(trade.createdAt).toLocaleDateString()}
+          </div>
+        </div>
+        <div className="px-2 py-1 bg-gray-700 rounded text-xs font-mono uppercase">
+          {trade.status}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="bg-gray-900/50 p-3 rounded">
+          <div className="text-xs text-gray-500 uppercase font-bold mb-2">{trade.proposingTeam.name} Gives</div>
+          <ul className="space-y-1 text-sm">
+            {trade.items
+              .filter((i: any) => i.senderTeamId === trade.proposingTeamId) 
+              .map((i: any) => (
+                 <li key={i.id}>
+                   {i.assetType === "PLAYER" && i.player && `${i.player.posPrimary} ${i.player.name}`}
+                   {i.assetType === "BUDGET" && `$${i.amount} Budget`}
+                 </li>
+              ))}
+          </ul>
+        </div>
+        <div className="bg-gray-900/50 p-3 rounded">
+          <div className="text-xs text-gray-500 uppercase font-bold mb-2">{trade.acceptingTeam.name} Gives</div>
+          <ul className="space-y-1 text-sm">
+            {trade.items
+               .filter((i: any) => i.senderTeamId === trade.acceptingTeamId)
+               .map((i: any) => (
+                 <li key={i.id}>
+                   {i.assetType === "PLAYER" && i.player && `${i.player.posPrimary} ${i.player.name}`}
+                   {i.assetType === "BUDGET" && `$${i.amount} Budget`}
+                 </li>
+               ))}
+          </ul>
+        </div>
+      </div>
+
+      {/* Vote counts */}
+      {trade.status === "ACCEPTED" && (
+        <div className="flex items-center space-x-4 mb-3 text-sm">
+          <span className="text-green-400">✓ {approveCount} Approve</span>
+          <span className="text-red-400">✗ {vetoCount} Veto</span>
+        </div>
+      )}
+
+      {/* Voting Controls */}
+      {canVote && (
+        <div className="flex justify-end space-x-2 mb-2">
+          {myVote ? (
+            <div className="text-sm text-gray-400">You voted: {myVote.vote}</div>
+          ) : (
+            <>
+              <button
+                onClick={async () => {
+                  await voteOnTrade(trade.id, "APPROVE");
+                  onRefresh();
+                }}
+                className="px-3 py-1 bg-green-900/50 hover:bg-green-900 text-green-200 rounded text-sm"
+              >
+                Approve
+              </button>
+              <button
+                onClick={async () => {
+                  await voteOnTrade(trade.id, "VETO");
+                  onRefresh();
+                }}
+                className="px-3 py-1 bg-red-900/50 hover:bg-red-900 text-red-200 rounded text-sm"
+              >
+                Veto
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Commissioner Controls */}
+      {isAdmin && trade.status === "ACCEPTED" && (
+        <div className="flex justify-end space-x-2 border-t border-gray-700 pt-3 mt-3">
+          <button
+            onClick={async () => {
+              if (!confirm("Veto this trade?")) return;
+              await processTrade(trade.id, "VETO");
+              onRefresh();
+            }}
+            className="px-3 py-1 bg-red-700 hover:bg-red-600 text-white rounded text-sm font-semibold"
+          >
+            Commissioner Veto
+          </button>
+          <button
+            onClick={async () => {
+              if (!confirm("Process this trade? Players and budget will be moved.")) return;
+              await processTrade(trade.id, "PROCESS");
+              onRefresh();
+            }}
+            className="px-3 py-1 bg-blue-700 hover:bg-blue-600 text-white rounded text-sm font-semibold"
+          >
+            Process Trade
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CreateTradeForm({ onCancel, onSuccess }: { onCancel: () => void; onSuccess: () => void }) {
+  const { me } = useAuth();
+  const user = me?.user;
+  const [leagues, setLeagues] = useState<any[]>([]);
+  const [selectedPartnerId, setSelectedPartnerId] = useState<number | null>(null);
+  const [myTeam, setMyTeam] = useState<any>(null);
+  const [partners, setPartners] = useState<any[]>([]);
+  
+  const [myAssets, setMyAssets] = useState<any[]>([]);
+  const [partnerAssets, setPartnerAssets] = useState<any[]>([]);
+
+  useEffect(() => {
+    getLeagues().then(async (res) => {
+      if (res.leagues.length > 0) {
+        setLeagues(res.leagues);
+        
+        for (const ls of res.leagues) {
+          try {
+             const detail = await getLeague(ls.id);
+             const l = detail.league;
+             const my = l.teams.find((t) => t.owner === user?.email || (user?.id && t.ownerUserId === Number(user.id)));
+             
+             if (my) {
+               setMyTeam(my);
+               setPartners(l.teams.filter(t => t.id !== my.id));
+               break; 
+             }
+          } catch (e) {
+            console.error("Failed to load league details", e);
+          }
+        }
+      }
+    });
+  }, [user]);
+
+  const handlePropose = async () => {
+    if (!myTeam || !selectedPartnerId) return;
+    if (myAssets.length === 0 && partnerAssets.length === 0) {
+      alert("Please select at least one item to trade.");
+      return;
+    }
+    
+    const items = [
+      ...myAssets.map(a => ({ senderTeamId: myTeam.id, assetType: a.assetType, playerId: a.playerId, amount: a.amount })),
+      ...partnerAssets.map(a => ({ senderTeamId: selectedPartnerId, assetType: a.assetType, playerId: a.playerId, amount: a.amount })),
+    ];
+    
+    try {
+       await proposeTrade({
+         proposingTeamId: myTeam.id,
+         acceptingTeamId: selectedPartnerId,
+         items,
+       });
+       alert("Trade proposed successfully!");
+       onSuccess();
+    } catch(e: any) {
+      alert("Error: " + e.message);
+    }
+  };
+
+  if (!myTeam) return <div className="p-4">Loading your team info...</div>;
+
+  return (
+    <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+      <h2 className="text-xl font-bold mb-4">Propose Trade</h2>
+      
+      <div className="mb-4">
+        <label className="block text-sm text-gray-400 mb-1">Trading Partner</label>
+        <select 
+          className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white"
+          value={selectedPartnerId ?? ""}
+          onChange={e => setSelectedPartnerId(Number(e.target.value))}
+        >
+          <option value="">Select a team...</option>
+          {partners.map((t: any) => (
+            <option key={t.id} value={t.id}>{t.name} ({t.code})</option>
+          ))}
+        </select>
+      </div>
+
+      {selectedPartnerId && (
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <TradeAssetSelector 
+            teamId={myTeam.id} 
+            label="You Give" 
+            onAssetsChange={setMyAssets} 
+          />
+          <TradeAssetSelector 
+            teamId={selectedPartnerId} 
+            label="You Get (From Partner)" 
+            onAssetsChange={setPartnerAssets} 
+          />
+        </div>
+      )}
+
+      <div className="flex justify-end space-x-2 pt-4 border-t border-gray-700">
+        <button onClick={onCancel} className="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
+        <button 
+           onClick={handlePropose}
+           disabled={!selectedPartnerId || (myAssets.length === 0 && partnerAssets.length === 0)}
+           className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Propose Trade
+        </button>
+      </div>
+    </div>
+  );
+}

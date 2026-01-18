@@ -11,8 +11,12 @@ import { authRouter } from "./routes/auth";
 import { adminRouter } from "./routes/admin";
 import { leaguesRouter } from "./routes/leagues";
 import { publicRouter } from "./routes/public";
+import { transactionsRouter } from "./routes/transactions";
 import { attachUser } from "./middleware/auth";
 import {commissionerRouter} from "./routes/commissioner";
+import standingsRouter from "./routes/standings";
+import { tradesRouter } from "./routes/trades";
+import { archiveRouter } from "./routes/archive";
 
 
 type AnyRow = Record<string, any>;
@@ -434,6 +438,10 @@ async function main() {
   app.use("/api", leaguesRouter);
   app.use("/api", adminRouter);
   app.use("/api", commissionerRouter);
+  app.use("/api", transactionsRouter);
+  app.use("/api", standingsRouter);
+  app.use("/api", tradesRouter);
+  app.use("/api", archiveRouter);
 
 
   const seasonFilePreferred = "ogba_player_season_totals_2025_with_meta.csv";
@@ -505,221 +513,6 @@ async function main() {
   console.log(`Loaded ${periodStats.length} period stat rows from ${path.basename(periodPath)}`);
   console.log(`Team cache file: ${TEAM_CACHE_FILE}`);
 
-  app.get("/api/health", (_req, res) => {
-    res.json({
-      ok: true,
-      auctionValues: auctionValues.length,
-      seasonStats: seasonStats.length,
-      seasonStandings: Array.isArray(seasonStandings) ? seasonStandings.length : 0,
-      periodStats: periodStats.length,
-      teamCacheEntries: Object.keys(readTeamCache()).length,
-      seasonFile: path.basename(seasonPath),
-    });
-  });
-
-  app.get("/api/auction-values", (_req, res) => res.json(auctionValues));
-  app.get("/api/player-season-stats", (_req, res) => res.json(seasonStats));
-  app.get("/api/player-period-stats", (_req, res) => res.json(periodStats));
-  app.get("/api/season-standings", (_req, res) => res.json(seasonStandings));
-
-  app.get("/api/period-category-standings", (req, res) => {
-    try {
-      const pidNum = parsePeriodIdParam(req.query.periodId);
-
-      if (pidNum === null) {
-        return res.status(400).json({
-          error:
-            "Missing or invalid periodId. Examples: /api/period-category-standings?periodId=1 OR periodId=P1 OR periodId=Period%201",
-        });
-      }
-
-      const rows = (periodStats ?? []).filter((r: AnyRow) => {
-        const rid = periodIdFromRow(r);
-        return rid === pidNum;
-      });
-
-      const byTeam = new Map<
-        string,
-        {
-          R: number;
-          HR: number;
-          RBI: number;
-          SB: number;
-          AB: number;
-          H: number;
-
-          W: number;
-          SV: number;
-          K: number;
-
-          IP: number;
-          ER: number;
-          PH: number;
-          PBB: number;
-        }
-      >();
-
-      for (const r of rows as AnyRow[]) {
-        const teamCode = teamCodeFromRow(r);
-        if (!teamCode || teamCode === "FA") continue;
-
-        if (!byTeam.has(teamCode)) {
-          byTeam.set(teamCode, {
-            R: 0,
-            HR: 0,
-            RBI: 0,
-            SB: 0,
-            AB: 0,
-            H: 0,
-            W: 0,
-            SV: 0,
-            K: 0,
-            IP: 0,
-            ER: 0,
-            PH: 0,
-            PBB: 0,
-          });
-        }
-
-        const t = byTeam.get(teamCode)!;
-        const isP = detectPitcherRow(r);
-
-        if (!isP) {
-          t.R += toNum(r.R);
-          t.HR += toNum(r.HR);
-          t.RBI += toNum(r.RBI);
-          t.SB += toNum(r.SB);
-
-          const AB = toNum(r.AB ?? r.atBats);
-          const H = toNum(r.H ?? r.hits);
-          if (AB > 0) {
-            t.AB += AB;
-            t.H += H;
-          } else {
-            const avg = toNum(r.AVG ?? r.avg);
-            const ab2 = toNum(r.AB);
-            if (ab2 > 0 && avg > 0) {
-              t.AB += ab2;
-              t.H += avg * ab2;
-            }
-          }
-        } else {
-          t.W += toNum(r.W);
-          t.SV += toNum(r.SV ?? r.S ?? r.saves);
-          t.K += toNum(r.K ?? r.SO ?? r.strikeOuts);
-
-          const ip = parseIp(r.IP ?? r.inningsPitched);
-          if (ip > 0) {
-            t.IP += ip;
-
-            const ER = toNum(r.ER ?? r.earnedRuns);
-            if (ER > 0 || r.ER === 0) t.ER += ER;
-            else {
-              const era = toNum(r.ERA);
-              if (era > 0) t.ER += (era * ip) / 9;
-            }
-
-            const PH = toNum(r.PH ?? r.HA ?? r.hitsAllowed ?? r.H ?? r.hits);
-            const PBB = toNum(r.BB ?? r.baseOnBalls);
-            if (PH > 0 || PBB > 0 || r.BB === 0 || r.H === 0) {
-              t.PH += PH;
-              t.PBB += PBB;
-            } else {
-              const whip = toNum(r.WHIP);
-              if (whip > 0) {
-                const hb = whip * ip;
-                t.PH += hb / 2;
-                t.PBB += hb / 2;
-              }
-            }
-          }
-        }
-      }
-
-      const teams = Array.from(byTeam.keys()).sort();
-      const totalTeams = teams.length;
-
-      const statsByTeam: Record<string, Record<CategoryKey, number>> = {};
-      for (const team of teams) {
-        const t = byTeam.get(team)!;
-
-        const AVG = t.AB > 0 ? t.H / t.AB : 0;
-        const ERA = isFinitePos(t.IP) ? (t.ER * 9) / t.IP : 0;
-        const WHIP = isFinitePos(t.IP) ? (t.PH + t.PBB) / t.IP : 0;
-
-        statsByTeam[team] = {
-          R: t.R,
-          HR: t.HR,
-          RBI: t.RBI,
-          SB: t.SB,
-          AVG,
-          W: t.W,
-          SV: t.SV,
-          K: t.K,
-          ERA,
-          WHIP,
-        };
-      }
-
-      const categories: Array<{ key: CategoryKey; label: string; group: "H" | "P"; higherIsBetter: boolean }> = [
-        { key: "R", label: "Runs", group: "H", higherIsBetter: true },
-        { key: "HR", label: "Home Runs", group: "H", higherIsBetter: true },
-        { key: "RBI", label: "RBI", group: "H", higherIsBetter: true },
-        { key: "SB", label: "Stolen Bases", group: "H", higherIsBetter: true },
-        { key: "AVG", label: "AVG", group: "H", higherIsBetter: true },
-        { key: "W", label: "Wins", group: "P", higherIsBetter: true },
-        { key: "SV", label: "Saves", group: "P", higherIsBetter: true },
-        { key: "K", label: "Strikeouts", group: "P", higherIsBetter: true },
-        { key: "ERA", label: "ERA", group: "P", higherIsBetter: false },
-        { key: "WHIP", label: "WHIP", group: "P", higherIsBetter: false },
-      ];
-
-      const tables: CategoryStandingTable[] = categories.map((cat) => {
-        const arr = teams.map((teamCode) => ({
-          teamCode,
-          value: statsByTeam[teamCode]?.[cat.key] ?? 0,
-        }));
-
-        const { pointsByTeam, rankByTeam } = rankPoints(arr, cat.higherIsBetter, totalTeams);
-
-        const rowsOut: CategoryStandingRow[] = arr
-          .map((x) => {
-            const name = teamNameMap[x.teamCode] ?? x.teamCode;
-            return {
-              teamCode: x.teamCode,
-              teamName: name,
-              value: x.value,
-              rank: rankByTeam[x.teamCode] ?? 0,
-              points: pointsByTeam[x.teamCode] ?? 0,
-            };
-          })
-          .sort((a, b) => {
-            if (a.value === b.value) return 0;
-            return cat.higherIsBetter ? b.value - a.value : a.value - b.value;
-          });
-
-        return {
-          key: cat.key,
-          label: cat.label,
-          group: cat.group,
-          higherIsBetter: cat.higherIsBetter,
-          rows: rowsOut,
-        };
-      });
-
-      const resp: PeriodCategoryStandingsResponse = {
-        periodId: `P${pidNum}`,
-        periodNum: pidNum,
-        teamCount: totalTeams,
-        categories: tables,
-      };
-
-      return res.json(resp);
-    } catch (e: any) {
-      console.error("period-category-standings error:", e);
-      return res.status(500).json({ error: String(e?.message ?? e ?? "Unknown error") });
-    }
-  });
 
   const server = app.listen(PORT, () => {
     console.log(`🔥 FBST server listening on http://localhost:${PORT}`);

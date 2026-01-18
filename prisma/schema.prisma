@@ -6,7 +6,7 @@
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  // directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -65,9 +65,14 @@ model League {
   isPublic   Boolean @default(false)
   publicSlug String? @unique
 
-  teams        Team[]
-  memberships  LeagueMembership[]
-  transactions TransactionEvent[]
+  // Trade Settings
+  tradeReviewPolicy String @default("COMMISSIONER") // COMMISSIONER, LEAGUE_VOTE
+  vetoThreshold     Int    @default(4)
+
+  teams             Team[]
+  memberships       LeagueMembership[]
+  transactions      TransactionEvent[]
+  historicalSeasons HistoricalSeason[]
 
   @@unique([name, season])
 }
@@ -111,6 +116,12 @@ model Team {
   transactions TransactionEvent[]
   auctionBids  AuctionBid[]
 
+  // Trade Relations
+  proposedTrades TradeProposal[] @relation("ProposingTeam")
+  receivedTrades TradeProposal[] @relation("AcceptingTeam")
+  tradeItemsSent TradeItem[]
+  tradeVotes     TradeVote[]
+
   @@unique([leagueId, name])
   @@unique([leagueId, code])
 }
@@ -132,6 +143,7 @@ model Player {
   lots         AuctionLot[]
   aliases      PlayerAlias[]
   transactions TransactionEvent[]
+  tradeItems   TradeItem[]
 
   @@index([name])
 }
@@ -310,4 +322,158 @@ model FinanceLedger {
   ts     DateTime @default(now())
 
   team Team @relation(fields: [teamId], references: [id])
+}
+
+// ======================
+//  Trade System
+// ======================
+
+model TradeProposal {
+  id              Int       @id @default(autoincrement())
+  proposingTeamId Int
+  acceptingTeamId Int
+  status          String    @default("PENDING") // PENDING, ACCEPTED, REJECTED, CANCELLED, VETOED, PROCESSED
+  createdAt       DateTime  @default(now())
+  expiresAt       DateTime?
+
+  // Relations
+  proposingTeam Team        @relation("ProposingTeam", fields: [proposingTeamId], references: [id])
+  acceptingTeam Team        @relation("AcceptingTeam", fields: [acceptingTeamId], references: [id])
+  items         TradeItem[]
+  votes         TradeVote[]
+
+  @@index([proposingTeamId])
+  @@index([acceptingTeamId])
+  @@index([status])
+}
+
+model TradeItem {
+  id           Int    @id @default(autoincrement())
+  tradeId      Int
+  senderTeamId Int
+  playerId     Int?
+  assetType    String @default("PLAYER") // PLAYER, BUDGET, PICKUP_SPOT
+  amount       Int    @default(1) // For budget/spots
+
+  // Relations
+  trade      TradeProposal @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  senderTeam Team          @relation(fields: [senderTeamId], references: [id])
+  player     Player?       @relation(fields: [playerId], references: [id])
+
+  @@index([tradeId])
+  @@index([senderTeamId])
+  @@index([playerId])
+}
+
+model TradeVote {
+  id      Int     @id @default(autoincrement())
+  tradeId Int
+  teamId  Int
+  vote    String // APPROVE, VETO
+  reason  String?
+
+  trade TradeProposal @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  team  Team          @relation(fields: [teamId], references: [id])
+
+  @@unique([tradeId, teamId])
+  @@index([tradeId])
+  @@index([teamId])
+}
+
+// ======================
+//  Historical Archive Models
+// ======================
+
+model HistoricalSeason {
+  id       Int     @id @default(autoincrement())
+  year     Int // e.g., 2024, 2023
+  leagueId Int?
+  league   League? @relation(fields: [leagueId], references: [id])
+
+  periods   HistoricalPeriod[]
+  standings HistoricalStanding[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([year, leagueId])
+  @@index([year])
+}
+
+model HistoricalPeriod {
+  id           Int              @id @default(autoincrement())
+  seasonId     Int
+  season       HistoricalSeason @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  periodNumber Int // 1-6
+  startDate    DateTime?
+  endDate      DateTime?
+
+  stats HistoricalPlayerStat[]
+
+  @@unique([seasonId, periodNumber])
+  @@index([seasonId])
+}
+
+model HistoricalPlayerStat {
+  id       Int              @id @default(autoincrement())
+  periodId Int
+  period   HistoricalPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  playerName String
+  fullName   String? // Full display name - commissioner can override
+
+  mlbId     String?
+  teamCode  String // OGBA team code
+  isPitcher Boolean
+
+  // MLB player info
+  position String? // Primary position from MLB API (e.g., SS, CF, P)
+  mlbTeam  String? // Current MLB team name
+
+  // Hitting stats
+  AB  Int?
+  H   Int?
+  R   Int?
+  HR  Int?
+  RBI Int?
+  SB  Int?
+  AVG Float?
+
+  // Pitching stats
+  W    Int?
+  SV   Int?
+  K    Int?
+  IP   Float?
+  ER   Int?
+  ERA  Float?
+  WHIP Float?
+
+  @@index([periodId, teamCode])
+  @@index([periodId])
+}
+
+model HistoricalStanding {
+  id       Int              @id @default(autoincrement())
+  seasonId Int
+  season   HistoricalSeason @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  teamCode String
+  teamName String
+
+  // Category scores for the SEASON
+  R_score    Int?
+  HR_score   Int?
+  RBI_score  Int?
+  SB_score   Int?
+  AVG_score  Int?
+  W_score    Int?
+  SV_score   Int?
+  K_score    Int?
+  ERA_score  Int?
+  WHIP_score Int?
+
+  totalScore Int
+  finalRank  Int
+
+  @@unique([seasonId, teamCode])
+  @@index([seasonId])
 }

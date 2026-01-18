@@ -23,8 +23,8 @@ export type HOrP = "hitting" | "pitching";
 //
 // This code normalizes to always end with /api.
 const RAW_BASE: string =
-  (import.meta as any).env?.VITE_API_BASE ??
-  (import.meta as any).env?.VITE_API_BASE_URL ??
+  import.meta.env.VITE_API_BASE ??
+  import.meta.env.VITE_API_BASE_URL ??
   "http://localhost:4000";
 
 export const API_BASE: string = (() => {
@@ -36,10 +36,17 @@ const MLB_API_BASE = "https://statsapi.mlb.com/api/v1";
 
 /** ---------- fetch helpers ---------- */
 
+interface JsonError {
+  error?: string;
+  message?: string;
+}
+
 // Use for YOUR backend only (cookie sessions, etc.)
-async function fetchJsonApi<T>(url: string): Promise<T> {
+// Use for YOUR backend only (cookie sessions, etc.)
+async function fetchJsonApi<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
-    headers: { Accept: "application/json" },
+    ...init,
+    headers: { Accept: "application/json", ...init?.headers },
     credentials: "include", // keep for your API
   });
 
@@ -53,13 +60,14 @@ async function fetchJsonApi<T>(url: string): Promise<T> {
   })();
 
   if (!res.ok) {
+    const errorBody = maybeJson as JsonError | null;
     const msg =
-      (maybeJson && ((maybeJson as any).error || (maybeJson as any).message)) ||
+      (errorBody && (errorBody.error || errorBody.message)) ||
       (text ? `HTTP ${res.status} for ${url} — ${text.slice(0, 180)}` : `HTTP ${res.status} for ${url}`);
     throw new Error(msg);
   }
 
-  return (maybeJson ?? ({} as any)) as T;
+  return (maybeJson ?? ({} as T)) as T;
 }
 
 /** ---------- NEW: Auth + Leagues + Admin ---------- */
@@ -109,10 +117,13 @@ export async function logout(): Promise<{ ok: boolean }> {
     credentials: "include",
   });
   const text = await res.text();
-  let json: any = null;
-  try {
-    json = text ? JSON.parse(text) : null;
-  } catch {}
+  const json = (() => {
+    try {
+      return text ? (JSON.parse(text) as JsonError & { ok?: boolean }) : null;
+    } catch {
+      return null;
+    }
+  })();
   if (!res.ok) {
     const msg = (json && (json.error || json.message)) || `HTTP ${res.status} for ${API_BASE}/auth/logout`;
     throw new Error(msg);
@@ -133,6 +144,35 @@ export type LeaguesListResponse = { leagues: LeagueListItem[] };
 
 export async function getLeagues(): Promise<LeaguesListResponse> {
   return fetchJsonApi<LeaguesListResponse>(`${API_BASE}/leagues`);
+}
+
+export type TeamDetailResponse = {
+  team: { id: number; name: string; owner: string; budget: number };
+  currentRoster: Array<{
+    id: number;
+    playerId: number;
+    name: string;
+    posPrimary: string;
+    price: number;
+  }>;
+};
+
+export async function getTeamDetails(teamId: number): Promise<TeamDetailResponse> {
+  return fetchJsonApi<TeamDetailResponse>(`${API_BASE}/teams/${teamId}/summary`);
+}
+
+export type LeagueDetail = LeagueSummary & {
+  teams: Array<{
+    id: number;
+    name: string;
+    code: string;
+    ownerUserId?: number | null;
+    owner?: string | null;
+  }>;
+};
+
+export async function getLeague(id: number | string): Promise<{ league: LeagueDetail }> {
+  return fetchJsonApi<{ league: LeagueDetail }>(`${API_BASE}/leagues/${id}`);
 }
 
 export type AdminCreateLeagueInput = {
@@ -157,10 +197,13 @@ export async function adminCreateLeague(input: AdminCreateLeagueInput): Promise<
   });
 
   const text = await res.text();
-  let json: any = null;
-  try {
-    json = text ? JSON.parse(text) : null;
-  } catch {}
+  const json = (() => {
+    try {
+      return text ? (JSON.parse(text) as JsonError) : null;
+    } catch {
+      return null;
+    }
+  })();
 
   if (!res.ok) {
     const msg =
@@ -193,16 +236,17 @@ async function fetchJsonPublic<T>(url: string): Promise<T> {
   })();
 
   if (!res.ok) {
+    const errorBody = maybeJson as JsonError | null;
     const msg =
-      (maybeJson && ((maybeJson as any).error || (maybeJson as any).message)) ||
+      (errorBody && (errorBody.error || errorBody.message)) ||
       (text ? `HTTP ${res.status} for ${url} — ${text.slice(0, 180)}` : `HTTP ${res.status} for ${url}`);
     throw new Error(msg);
   }
 
-  return (maybeJson ?? ({} as any)) as T;
+  return (maybeJson ?? ({} as T)) as T;
 }
 
-function toNum(v: any): number {
+function toNum(v: unknown): number {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 }
@@ -233,14 +277,15 @@ function addDays(d: Date, delta: number): Date {
   return x;
 }
 
-function roleFromRow(row: any): "H" | "P" {
+function roleFromRow(row: Record<string, unknown>): "H" | "P" {
   // Prefer explicit group when present; else derive from is_pitcher
   const g = String(row?.group ?? "").trim().toUpperCase();
   if (g === "P") return "P";
   if (g === "H") return "H";
-  return Boolean(row?.is_pitcher ?? row?.isPitcher) ? "P" : "H";
+  return (row?.is_pitcher ?? row?.isPitcher) ? "P" : "H";
 }
 
+// row is Record<string, any> because it comes from untrusted JSON
 function normalizeTwoWayRow(row: any): PlayerSeasonStat {
   const mlb_id = String(row?.mlb_id ?? row?.mlbId ?? "").trim();
   const role = roleFromRow(row); // H or P
@@ -310,16 +355,17 @@ function dedupeByRowId(rows: PlayerSeasonStat[], mode: "season" | "auction" = "s
   const m = new Map<string, PlayerSeasonStat>();
 
   function score(r: PlayerSeasonStat): number {
-    if (mode === "auction") return toNum((r as any).dollar_value ?? (r as any).value);
+    const raw = r as unknown as Record<string, unknown>;
+    if (mode === "auction") return toNum(raw.dollar_value ?? raw.value);
     // season: prefer the row that looks more “real”
     return (
-      toNum((r as any).AB) +
-      toNum((r as any).H) +
-      toNum((r as any).IP) +
-      toNum((r as any).K) +
-      toNum((r as any).R) +
-      toNum((r as any).HR) +
-      toNum((r as any).RBI)
+      toNum(raw.AB) +
+      toNum(raw.H) +
+      toNum(raw.IP) +
+      toNum(raw.K) +
+      toNum(raw.R) +
+      toNum(raw.HR) +
+      toNum(raw.RBI)
     );
   }
 
@@ -380,20 +426,20 @@ export type PlayerSeasonStat = {
   z_total?: number | string;
 
   // misc passthroughs used in UI helpers
-  GS?: any;
-  SO?: any;
+  GS?: number | string;
+  SO?: number | string;
 
   // older aliases (safe to keep)
-  pos?: any;
-  name?: any;
-  team?: any;
-  isPitcher?: any;
+  pos?: string;
+  name?: string;
+  team?: string;
+  isPitcher?: boolean;
 };
 
 export type AuctionValueRow = PlayerSeasonStat; // Back-compat + convenience
 
-export type SeasonStandingRow = Record<string, any>;
-export type PeriodStatRow = Record<string, any>;
+export type SeasonStandingRow = Record<string, unknown>;
+export type PeriodStatRow = Record<string, unknown>;
 
 export type SeasonStandingsApiResponse = {
   periodIds: number[];
@@ -500,17 +546,49 @@ export type PeriodCategoryStandingsResponse = {
   categories: PeriodCategoryStandingTable[];
 };
 
+/** ---------- NEW: Transaction History ---------- */
+
+export type TransactionEvent = {
+  id: number;
+  rowHash: string;
+  leagueId: number;
+  season: number;
+  effDate: string | null;
+  submittedAt: string | null;
+  effDateRaw: string | null;
+  submittedRaw: string | null;
+  ogbaTeamName: string | null;
+  playerAliasRaw: string | null;
+  mlbTeamAbbr: string | null;
+  transactionRaw: string | null;
+  transactionType: string | null;
+  toPosition: string | null;
+  teamId: number | null;
+  playerId: number | null;
+  createdAt: string;
+  team?: { name: string };
+  player?: { name: string };
+};
+
+export type TransactionsResponse = {
+  transactions: TransactionEvent[];
+  total: number;
+  skip: number;
+  take: number;
+};
+
 /** ---------- Back-compat exports (older components) ---------- */
 
 export type PlayerSeasonStats = PlayerSeasonStat[]; // older name expected by some code
 
 /** Stable React key helper */
-// Preferred usage: playerKey(player)
+// Recommended usage: playerKey(player)
 export function playerKey(p: PlayerSeasonStat): string;
 // Back-compat usage: playerKey({ mlb_id, is_pitcher })
 export function playerKey(p: { mlb_id: string; is_pitcher: boolean }): string;
 export function playerKey(p: any): string {
   if (!p) return "—";
+  // row_id is the canonical key for React lists
   if (typeof p.row_id === "string" && p.row_id.trim()) return p.row_id.trim();
 
   const mlb = String(p.mlb_id ?? "").trim();
@@ -588,6 +666,108 @@ export async function getPeriodCategoryStandings(
 
   _periodCategoryCache.set(key, p);
   return p;
+}
+
+// --- Trade Types ---
+
+export type TradeStatus = "PENDING" | "ACCEPTED" | "REJECTED" | "CANCELLED" | "VETOED" | "PROCESSED";
+export type TradeAssetType = "PLAYER" | "BUDGET" | "PICKUP_SPOT";
+
+export interface TradeItem {
+  id: number;
+  senderTeamId: number;
+  playerId?: number;
+  amount: number;
+  assetType: TradeAssetType;
+  player?: {
+    id: number;
+    name: string;
+    posPrimary: string;
+  };
+}
+
+export interface TradeProposal {
+  id: number;
+  proposingTeamId: number;
+  acceptingTeamId: number;
+  status: TradeStatus;
+  createdAt: string;
+  proposingTeam: { id: number; name: string; code: string; ownerUserId?: number | null };
+  acceptingTeam: { id: number; name: string; code: string; ownerUserId?: number | null };
+  items: TradeItem[];
+}
+
+export interface TradesResponse {
+  trades: TradeProposal[];
+}
+
+// --- Trade API ---
+
+export async function getTrades(view?: "all"): Promise<TradesResponse> {
+  const url = view ? `${API_BASE}/trades?view=${view}` : `${API_BASE}/trades`;
+  return fetchJsonApi<TradesResponse>(url);
+}
+
+export async function proposeTrade(payload: {
+  proposingTeamId: number;
+  acceptingTeamId: number;
+  items: {
+    senderTeamId: number;
+    assetType: TradeAssetType;
+    playerId?: number;
+    amount?: number;
+  }[];
+}): Promise<{ trade: TradeProposal }> {
+  return fetchJsonApi(`${API_BASE}/trades/propose`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function respondToTrade(
+  tradeId: number,
+  action: "ACCEPT" | "REJECT"
+): Promise<{ trade: TradeProposal }> {
+  return fetchJsonApi(`${API_BASE}/trades/${tradeId}/response`, {
+    method: "POST",
+    body: JSON.stringify({ action }),
+  });
+}
+
+export async function cancelTrade(tradeId: number): Promise<{ trade: TradeProposal }> {
+  return fetchJsonApi(`${API_BASE}/trades/${tradeId}/cancel`, {
+    method: "POST",
+  });
+}
+
+export async function voteOnTrade(tradeId: number, vote: "APPROVE" | "VETO", reason?: string): Promise<{ vote: any }> {
+  return fetchJsonApi(`${API_BASE}/trades/${tradeId}/vote`, {
+    method: "POST",
+    body: JSON.stringify({ vote, reason }),
+  });
+}
+
+export async function processTrade(tradeId: number, action: "PROCESS" | "VETO"): Promise<{ message: string }> {
+  return fetchJsonApi(`${API_BASE}/trades/${tradeId}/process`, {
+    method: "POST",
+    body: JSON.stringify({ action }),
+  });
+}
+
+export async function getTransactions(params: {
+  leagueId?: number;
+  teamId?: number;
+  skip?: number;
+  take?: number;
+} = {}): Promise<TransactionsResponse> {
+  const query = new URLSearchParams();
+  if (params.leagueId) query.set("leagueId", String(params.leagueId));
+  if (params.teamId) query.set("teamId", String(params.teamId));
+  if (params.skip !== undefined) query.set("skip", String(params.skip));
+  if (params.take !== undefined) query.set("take", String(params.take));
+
+  const url = `${API_BASE}/transactions?${query.toString()}`;
+  return fetchJsonApi<TransactionsResponse>(url);
 }
 
 /**
@@ -694,7 +874,7 @@ function rankPoints(
   return ptsByTeam;
 }
 
-function parseIp(ip: any): number {
+function parseIp(ip: unknown): number {
   const s = String(ip ?? "").trim();
   if (!s) return 0;
   const parts = s.split(".");
@@ -1262,5 +1442,93 @@ export async function getPlayerRecentStats(
     }
 
     return { rows };
+  });
+}
+
+// ====================
+// Historical Archive API
+// ====================
+
+export async function getArchiveSeasons() {
+  return fetchJsonApi<{ seasons: any[] }>(`${API_BASE}/archive/seasons`);
+}
+
+export async function getArchiveStandings(year: number) {
+  return fetchJsonApi<{ year: number; seasonId: number; standings: any[] }>(
+    `${API_BASE}/archive/${year}/standings`
+  );
+}
+
+export async function getArchivePeriods(year: number) {
+  return fetchJsonApi<{ year: number; seasonId: number; periods: any[] }>(
+    `${API_BASE}/archive/${year}/periods`
+  );
+}
+
+export async function getArchivePeriodStats(year: number, periodNum: number) {
+  return fetchJsonApi<{ year: number; periodNumber: number; periodId: number; stats: any[] }>(
+    `${API_BASE}/archive/${year}/period/${periodNum}/stats`
+  );
+}
+
+export async function getArchiveTeamStats(year: number, periodNum: number, teamCode: string) {
+  return fetchJsonApi<{ year: number; periodNumber: number; teamCode: string; stats: any[] }>(
+    `${API_BASE}/archive/${year}/period/${periodNum}/team/${teamCode}`
+  );
+}
+
+// Commissioner archive editing
+export async function updateArchivePlayerStat(
+  statId: number,
+  updates: { fullName?: string; mlbId?: string }
+): Promise<any> {
+  return fetchJsonApi(`${API_BASE}/archive/stat/${statId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  });
+}
+
+// Get auction draft results
+export async function getArchiveDraftResults(year: number) {
+  return fetchJsonApi<{
+    year: number;
+    players: Array<{
+      playerName: string;
+      fullName: string;
+      teamCode: string;
+      position: string;
+      mlbTeam: string | null;
+      draftDollars: number;
+      isPitcher: boolean;
+    }>;
+    trades: Array<{
+      fromTeamName: string;
+      fromTeamCode: string;
+      toTeamName: string;
+      toTeamCode: string;
+      amount: number;
+      note: string;
+    }>;
+  }>(`${API_BASE}/archive/${year}/draft-results`);
+}
+
+export async function searchArchivePlayers(query: string): Promise<any> {
+  return fetchJsonApi(`${API_BASE}/archive/search-players?query=${encodeURIComponent(query)}`);
+}
+
+export async function searchMLBPlayers(query: string): Promise<any> {
+  return fetchJsonApi(`${API_BASE}/archive/search-mlb?query=${encodeURIComponent(query)}`);
+}
+
+export async function updateArchiveTeamName(
+  year: number,
+  teamCode: string,
+  newName: string
+): Promise<any> {
+  return fetchJsonApi(`${API_BASE}/archive/${year}/teams/${teamCode}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ newName }),
   });
 }

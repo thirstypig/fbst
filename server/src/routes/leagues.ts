@@ -58,5 +58,42 @@ router.get("/leagues", requireAuth, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/leagues/:id
+ * Returns full details including teams.
+ */
+router.get("/leagues/:id", requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id as number;
+    const leagueId = Number(req.params.id);
+
+    // Check visibility/membership
+    const league = await prisma.league.findUnique({
+      where: { id: leagueId },
+      include: {
+        teams: {
+          select: { id: true, name: true, code: true, ownerUserId: true, owner: true },
+        },
+      },
+    });
+
+    if (!league) return res.status(404).json({ error: "League not found" });
+
+    // Public or Member?
+    const membership = await prisma.leagueMembership.findUnique({
+      where: { leagueId_userId: { leagueId, userId } },
+    });
+
+    if (!league.isPublic && !membership && !req.user.isAdmin) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    return res.json({ league: { ...league, access: membership ? { type: "MEMBER", role: membership.role } : { type: "PUBLIC_VIEWER" } } });
+  } catch (err: any) {
+    console.error("GET /leagues/:id error:", err);
+    return res.status(500).json({ error: err?.message });
+  }
+});
+
 export const leaguesRouter = router;
 export default leaguesRouter;

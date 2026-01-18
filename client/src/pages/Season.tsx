@@ -5,6 +5,7 @@ import { getSeasonStandings, getPeriodCategoryStandings } from "../lib/api";
 import { classNames } from "../lib/classNames";
 import { OGBA_TEAM_NAMES } from "../lib/ogbaTeams";
 import { TableCard, Table, THead, Tr, Th, Td } from "../components/ui/TableCard";
+import { useTheme } from "../contexts/ThemeContext";
 
 type SeasonStandingsApiRow = {
   teamId: number;
@@ -125,6 +126,7 @@ const AUTH_LOGOUT_URL = `${API_BASE}/api/auth/logout`;
 
 const SeasonPage: React.FC = () => {
   const navigate = useNavigate();
+  const { theme } = useTheme();
 
   const [periodIds, setPeriodIds] = useState<number[]>([]);
   const [rows, setRows] = useState<NormalizedSeasonRow[]>([]);
@@ -242,7 +244,7 @@ const SeasonPage: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 min-h-screen bg-slate-950 text-slate-50">
+    <div className={`flex-1 min-h-screen ${theme === 'dark' ? 'bg-slate-950 text-slate-50' : 'bg-gray-50 text-gray-900'}`}>
       <main className="max-w-6xl mx-auto px-6 py-10">
         <header className="mb-8 text-center">
           <h1 className="text-3xl font-semibold tracking-tight mb-1">Season Standings</h1>

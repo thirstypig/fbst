@@ -1,0 +1,148 @@
+router.get('/archive/:year/draft-results', async (req, res) => {
+  try {
+    const year = parseInt(req.params.year);
+    if (!Number.isFinite(year)) {
+      return res.status(400).json({ error: 'Invalid year' });
+    }
+
+    // Read draft results CSV
+    const draftPath = path.join(__dirname, `../data/archive/${year}/draft_${year}_period_plus.csv`);
+    const tradesPath = path.join(__dirname, `../data/archive/${year}/draft_${year}_trades.csv`);
+
+    if (!fs.existsSync(draftPath)) {
+      return res.status(404).json({ error: `No draft results found for ${year}` });
+    }
+
+    // Get Period 1 stats to enrich draft data with full names and MLB teams
+    const period1 = await prisma.historicalPeriod.findFirst({
+      where: { season: { year }, periodNumber: 1 },
+      include: {
+        stats: {
+          select: {
+            playerName: true,
+            fullName: true,
+            mlbId: true,
+            mlbTeam: true,
+            teamCode: true,
+            position: true,
+          },
+        },
+      },
+    });
+
+    // Create lookup map by abbreviated name + team
+    const playerLookup = new Map<string, { fullName: string; mlbTeam: string | null; position: string | null }>();
+    if (period1?.stats) {
+      for (const stat of period1.stats) {
+        const key = `${stat.playerName.toLowerCase()}_${stat.teamCode}`;
+        playerLookup.set(key, {
+          fullName: stat.fullName || stat.playerName,
+          mlbTeam: stat.mlbTeam,
+          position: stat.position,
+        });
+      }
+    }
+
+    // Parse trades CSV if exists
+    const trades: Array<{
+      fromTeamName: string;
+      fromTeamCode: string;
+      toTeamName: string;
+      toTeamCode: string;
+      amount: number;
+      note: string;
+    }> = [];
+
+    if (fs.existsSync(tradesPath)) {
+      const tradesContent = fs.readFileSync(tradesPath, 'utf-8');
+      const tradesLines = tradesContent.trim().split('\n');
+
+      for (let i = 1; i < tradesLines.length; i++) {
+        const line = tradesLines[i].trim();
+        if (!line) continue;
+
+        const values = line.split(',');
+        if (values.length >= 6) {
+          trades.push({
+            fromTeamName: values[0],
+            fromTeamCode: values[1],
+            toTeamName: values[2],
+            toTeamCode: values[3],
+            amount: parseFloat(values[4]) || 0,
+            note: values[5] || '',
+          });
+        }
+      }
+    }
+
+    // Parse draft CSV
+    const draftContent = fs.readFileSync(draftPath, 'utf-8');
+    const draftLines = draftContent.trim().split('\n');
+    if (draftLines.length === 0) return res.json({ year, players: [], trades });
+
+    const headers = draftLines[0].toLowerCase().split(',').map(h => h.trim());
+    const idxName = headers.indexOf('player_name');
+    const idxTeam = headers.indexOf('team_code');
+    const idxPitcher = headers.indexOf('is_pitcher');
+    const idxPos = headers.indexOf('position');
+    const idxDollars = headers.indexOf('draft_dollars');
+
+    const players: Array<{
+      playerName: string;
+      fullName: string;
+      teamCode: string;
+      position: string;
+      mlbTeam: string | null;
+      draftDollars: number;
+      isPitcher: boolean;
+    }> = [];
+
+    for (let i = 1; i < draftLines.length; i++) {
+      const line = draftLines[i].trim();
+      if (!line) continue;
+
+      // Parse CSV (handle quoted fields)
+      const values: string[] = [];
+      let current = '';
+      let inQuotes = false;
+      for (const char of line) {
+        if (char === '"') inQuotes = !inQuotes;
+        else if (char === ',' && !inQuotes) {
+          values.push(current.trim());
+          current = '';
+        } else current += char;
+      }
+      values.push(current.trim());
+
+      const playerName = values[idxName] || '';
+      const teamCode = values[idxTeam] || '';
+      if (!playerName || !teamCode) continue;
+
+      const isPitcher = values[idxPitcher]?.toLowerCase() === 'true';
+      const csvPosition = values[idxPos] || (isPitcher ? 'P' : 'UT');
+      const draftDollars = parseInt(values[idxDollars]) || 0;
+
+      // Look up enriched data from Period 1
+      const key = `${playerName.toLowerCase()}_${teamCode}`;
+      const enriched = playerLookup.get(key);
+      
+      players.push({
+        playerName,
+        fullName: enriched?.fullName || playerName,
+        teamCode,
+        position: csvPosition,
+        mlbTeam: enriched?.mlbTeam || null,
+        draftDollars,
+        isPitcher,
+      });
+    }
+
+    return res.json({ year, players, trades });
+  } catch (error: any) {
+    console.error('GET /archive/:year/draft-results error:', error);
+    return res.status(500).json({ error: error?.message || 'Failed to fetch draft results' });
+  }
+});
+
+export const archiveRouter = router;
+export default archiveRouter;

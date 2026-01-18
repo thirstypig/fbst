@@ -112,11 +112,42 @@ async function main() {
     teamIdByName.set(norm(t.name).toLowerCase(), t.id);
   }
 
+  // Build a normalized Player.name -> id map (for linking "NArenado" -> "N. Arenado")
+  // Strategy: remove dots/spaces, lowercase. e.g. "J. Naylor" -> "jnaylor" == "jnaylor"
+  const allPlayers = await prisma.player.findMany();
+  const playerIdByNorm = new Map<string, number>();
+
+  function normalizeName(n: string): string {
+    return n.replace(/[\.\s]/g, "").toLowerCase();
+  }
+
+  for (const p of allPlayers) {
+    // 1. Full name: "Mookie Betts" -> "mookiebetts"
+    const full = normalizeName(p.name);
+    if (full) playerIdByNorm.set(full, p.id);
+
+    // 2. Initial + Last: "Mookie Betts" -> "mbetts"
+    // Useful for OnRoto aliases like "MBetts" or "FFreeman"
+    const parts = p.name.split(" ");
+    if (parts.length >= 2) {
+      const first = parts[0];
+      const last = parts.slice(1).join(""); // "De La Cruz" -> "DeLaCruz"
+      const initialLast = (first[0] + last).replace(/[\.\s]/g, "").toLowerCase();
+      
+      // Only set if not already set (full name takes precedence if collision, 
+      // though unlikely to collide with *another* player's initial+last in this small set)
+      if (!playerIdByNorm.has(initialLast)) {
+        playerIdByNorm.set(initialLast, p.id);
+      }
+    }
+  }
+  
   const raw = fs.readFileSync(infile, "utf-8");
   const rows: OgbaTxnRow[] = JSON.parse(raw);
 
   let upserts = 0;
   let missingTeam = 0;
+  let missingPlayer = 0;
 
   for (const r of rows) {
     const ogbaTeamName = norm(r.team) || null;
@@ -131,6 +162,18 @@ async function main() {
 
     const teamId = ogbaTeamName ? teamIdByName.get(ogbaTeamName.toLowerCase()) ?? null : null;
     if (ogbaTeamName && !teamId) missingTeam++;
+
+    // Try to find player: 1) simple norm match 2) future: aliases table
+    let playerId: number | null = null;
+    if (playerAliasRaw) {
+      const key = normalizeName(playerAliasRaw);
+      playerId = playerIdByNorm.get(key) ?? null;
+      if (!playerId && playerAliasRaw !== "Empty") {
+         // "Empty" spots often show up in valid rosters but maybe not transactions? 
+         // For transactions, missing matches usually mean unmapped rookies or minor naming diffs.
+         missingPlayer++;
+      }
+    }
 
     await prisma.transactionEvent.upsert({
       where: { rowHash: r.row_hash },
@@ -154,7 +197,7 @@ async function main() {
         toPosition: toPosition ?? null,
 
         teamId,
-        playerId: null,
+        playerId,
       },
       update: {
         // idempotent refresh
@@ -173,6 +216,7 @@ async function main() {
         toPosition: toPosition ?? null,
 
         teamId,
+        playerId,
       },
     });
 

@@ -15,6 +15,8 @@ import {
   type PeriodCategoryKey,
 } from "../lib/api";
 import { classNames } from "../lib/classNames";
+import { useTheme } from "../contexts/ThemeContext";
+import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from "../components/ui/ThemedTable";
 import { OGBA_TEAM_NAMES } from "../lib/ogbaTeams";
 
 // If you have canonical labels/dates elsewhere, replace this list.
@@ -153,6 +155,7 @@ export default function Period() {
   const [resp, setResp] = useState<PeriodCategoryStandingsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { theme } = useTheme();
 
   useEffect(() => {
     let cancelled = false;
@@ -201,7 +204,7 @@ export default function Period() {
   const periodLabel = PERIOD_OPTIONS.find((p) => p.id === periodId)?.label ?? `P${periodId}`;
 
   return (
-    <div className="flex-1 min-h-screen bg-slate-950 text-slate-50">
+    <div className={`flex-1 min-h-screen ${theme === 'dark' ? 'bg-slate-950 text-slate-50' : 'bg-gray-50 text-gray-900'}`}>
       <main className="max-w-6xl mx-auto px-6 py-10">
         {/* Header row */}
         <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -279,8 +282,8 @@ export default function Period() {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="min-w-[1100px] w-full text-sm">
-                <thead className="bg-slate-900/70 border-b border-slate-800">
+            <ThemedTable className="min-w-[1100px]">
+              <ThemedThead>
                   <tr>
                     <th className="px-4 py-3 text-left w-12 text-xs font-medium uppercase tracking-wide text-slate-400">#</th>
                     <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-400">Team</th>
@@ -303,7 +306,7 @@ export default function Period() {
                       +/-
                     </th>
                   </tr>
-                </thead>
+                </ThemedThead>
 
                 <tbody>
                   {loading && (
@@ -352,7 +355,7 @@ export default function Period() {
                       </tr>
                     ))}
                 </tbody>
-              </table>
+              </ThemedTable>
             </div>
           </div>
         </div>
