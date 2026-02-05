@@ -115,13 +115,24 @@ router.get("/auth/me", async (req, res) => {
 });
 
 router.get("/auth/google", (_req, res) => {
-  const client = oauthClient();
-  const url = client.generateAuthUrl({
-    access_type: "offline",
-    prompt: "consent",
-    scope: ["openid", "email", "profile"],
-  });
-  return res.redirect(url);
+  try {
+    // 1. Check Config
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      console.error("Missing Google Auth Env Vars");
+      return res.status(500).send("Server Authentication Configuration is missing. Please contact administrator.");
+    }
+
+    const client = oauthClient();
+    const url = client.generateAuthUrl({
+      access_type: "offline",
+      prompt: "consent",
+      scope: ["openid", "email", "profile"],
+    });
+    return res.redirect(url);
+  } catch (err: any) {
+    console.error("Error generating Google Auth URL:", err);
+    return res.status(500).send("Internal Server Error during Auth Handshake: " + (err.message || String(err)));
+  }
 });
 
 router.get("/auth/google/callback", async (req, res) => {

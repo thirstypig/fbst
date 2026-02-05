@@ -115,6 +115,18 @@ async function main() {
 
   const server = app.listen(PORT, "0.0.0.0", () => {
     logger.info({ port: PORT }, '🔥 FBST server listening on 0.0.0.0');
+    
+    // Auth Config Check
+    const hasClientId = !!process.env.GOOGLE_CLIENT_ID;
+    const hasClientSecret = !!process.env.GOOGLE_CLIENT_SECRET;
+    logger.info(
+      { hasClientId, hasClientSecret, redirectUri: process.env.GOOGLE_REDIRECT_URI || "default" },
+      "Auth Configuration Check"
+    );
+
+    if (!hasClientId || !hasClientSecret) {
+      logger.warn({}, "⚠️  GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET is missing. Login will fail.");
+    }
   });
 
   server.on("error", (err: any) => {
