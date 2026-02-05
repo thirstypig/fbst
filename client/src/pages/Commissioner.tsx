@@ -3,6 +3,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { API_BASE, getLeagues, getMe, type LeagueListItem } from "../api";
+import CommissionerRosterTool from "../components/CommissionerRosterTool";
+import CommissionerControls from "../components/CommissionerControls";
+import CommissionerKeeperManager from "../components/CommissionerKeeperManager";
+import PageHeader from "../components/ui/PageHeader";
 
 type CommissionerUser = {
   id: number;
@@ -47,23 +51,6 @@ type CommissionerOverviewResponse = {
   memberships?: any[];
 };
 
-type RosterRow = {
-  id: number;
-  teamId: number;
-  playerId: number;
-  acquiredAt?: string;
-  releasedAt?: string | null;
-  source?: string | null;
-  price?: number | null;
-  player?: {
-    id: number;
-    mlbId?: number | null;
-    name: string;
-    posPrimary: string;
-    posList: string;
-  };
-};
-
 function cls(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
 }
@@ -98,9 +85,6 @@ function normalizeOverview(resp: CommissionerOverviewResponse): {
   teams: CommissionerTeam[];
   memberships: CommissionerMembership[];
 } {
-  // Support either shape:
-  // A) { league, teams, memberships }
-  // B) { league: { ..., teams: [...], memberships: [...] } }
   const leagueRaw = resp?.league ?? {};
   const teamsRaw = (resp as any)?.teams ?? leagueRaw?.teams ?? [];
   const membershipsRaw = (resp as any)?.memberships ?? leagueRaw?.memberships ?? [];
@@ -169,21 +153,26 @@ export default function Commissioner() {
 
   // Assign owner form
   const [ownerTeamId, setOwnerTeamId] = useState<number | "">("");
-  const [ownerEmail, setOwnerEmail] = useState("");
+  const [ownerUserId, setOwnerUserId] = useState<number | "">("");
   const [ownerName, setOwnerName] = useState("");
 
-  // Roster management
-  const [rosterTeamId, setRosterTeamId] = useState<number | "">("");
-  const [rosterLoading, setRosterLoading] = useState(false);
-  const [rosterError, setRosterError] = useState<string | null>(null);
-  const [rosterRows, setRosterRows] = useState<RosterRow[]>([]);
+  // Available users for dropdown
+  const [availableUsers, setAvailableUsers] = useState<Array<{ id: number; email: string; name: string | null }>>([]);
 
-  const [pMlbId, setPMlbId] = useState<string>("");
-  const [pName, setPName] = useState("");
-  const [pPosPrimary, setPPosPrimary] = useState("OF");
-  const [pPosList, setPPosList] = useState("OF");
-  const [pPrice, setPPrice] = useState<number>(1);
-  const [pSource, setPSource] = useState("manual");
+  // Prior teams for team creation
+  const [priorTeams, setPriorTeams] = useState<Array<{ id: number; name: string; code: string | null }>>([]);
+  const [selectedPriorTeamId, setSelectedPriorTeamId] = useState<number | "">("");
+
+  // Tabs
+  const [activeTab, setActiveTab] = useState<'overview' | 'rosters' | 'keepers' | 'controls'>('overview');
+  
+  // Hash listener
+  useEffect(() => {
+     const hash = window.location.hash.replace('#', '');
+     if (['overview', 'rosters', 'keepers', 'controls'].includes(hash)) {
+         setActiveTab(hash as any);
+     }
+  }, []);
 
   const leagueFromList = useMemo(() => (leagues ?? []).find((x) => x.id === lid) ?? null, [leagues, lid]);
 
@@ -196,20 +185,12 @@ export default function Commissioner() {
     // If there are no teams, clear selections and roster display.
     if (!nextTeams.length) {
       setOwnerTeamId("");
-      setRosterTeamId("");
-      setRosterRows([]);
-      setRosterError(null);
       return;
     }
 
     // Ensure ownerTeamId is valid (or default to first team).
     if (ownerTeamId === "" || !Number.isFinite(Number(ownerTeamId)) || !teamExists(nextTeams, Number(ownerTeamId))) {
       setOwnerTeamId(nextTeams[0].id);
-    }
-
-    // Ensure rosterTeamId is valid (or default to first team).
-    if (rosterTeamId === "" || !Number.isFinite(Number(rosterTeamId)) || !teamExists(nextTeams, Number(rosterTeamId))) {
-      setRosterTeamId(nextTeams[0].id);
     }
   }
 
@@ -234,6 +215,14 @@ export default function Commissioner() {
 
       setOverview({ league: norm.league, teams: norm.teams, memberships: norm.memberships });
       reconcileTeamSelections(norm.teams);
+
+      // Fetch available users for dropdown
+      const usersResp = await fetchJson<{ users: Array<{ id: number; email: string; name: string | null }> }>(`/commissioner/${lid}/available-users`);
+      setAvailableUsers(usersResp.users ?? []);
+
+      // Fetch prior teams for team creation
+      const priorResp = await fetchJson<{ priorTeams: Array<{ id: number; name: string; code: string | null }> }>(`/commissioner/${lid}/prior-teams`);
+      setPriorTeams(priorResp.priorTeams ?? []);
     } catch (e: any) {
       setError(e?.message ?? "Failed to load commissioner data.");
     } finally {
@@ -270,6 +259,7 @@ export default function Commissioner() {
         name: String(teamName || "").trim(),
         code: String(teamCode || "").trim() || undefined,
         budget: Number(teamBudget),
+        priorTeamId: selectedPriorTeamId || undefined,
       };
       if (!payload.name) throw new Error("Team name is required.");
 
@@ -277,6 +267,7 @@ export default function Commissioner() {
 
       setTeamName("");
       setTeamCode("");
+      setSelectedPriorTeamId("");
       await refreshOverviewOnly();
     } catch (err: any) {
       setError(err?.message ?? "Create team failed.");
@@ -314,15 +305,15 @@ export default function Commissioner() {
     try {
       const teamId = Number(ownerTeamId);
       if (!Number.isFinite(teamId) || teamId <= 0) throw new Error("Select a team.");
-      const email = String(ownerEmail || "").trim().toLowerCase();
-      if (!email) throw new Error("Owner email is required.");
+      const userId = Number(ownerUserId);
+      if (!Number.isFinite(userId) || userId <= 0) throw new Error("Select an owner.");
 
       await fetchJson(`/commissioner/${lid}/teams/${teamId}/owner`, {
         method: "POST",
-        body: JSON.stringify({ email, ownerName: String(ownerName || "").trim() || undefined }),
+        body: JSON.stringify({ userId, ownerName: String(ownerName || "").trim() || undefined }),
       });
 
-      setOwnerEmail("");
+      setOwnerUserId("");
       setOwnerName("");
       await refreshOverviewOnly();
     } catch (err: any) {
@@ -332,96 +323,14 @@ export default function Commissioner() {
     }
   }
 
-  async function loadRoster(teamId: number) {
-    // Hard guard: never call for 0 / invalid ids.
-    if (!Number.isFinite(teamId) || teamId <= 0) return;
-
-    setRosterLoading(true);
-    setRosterError(null);
-    try {
-      const resp = await fetchJson<{ roster: RosterRow[] }>(`/commissioner/${lid}/teams/${teamId}/roster`);
-      setRosterRows(resp.roster ?? []);
-    } catch (e: any) {
-      setRosterError(e?.message ?? "Failed to load roster.");
-      setRosterRows([]);
-    } finally {
-      setRosterLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    // CRITICAL FIX:
-    // rosterTeamId is number | "", and Number("") === 0, which triggered /teams/0/roster previously.
-    if (rosterTeamId === "") return;
-
-    const teamId = Number(rosterTeamId);
-    if (!Number.isFinite(teamId) || teamId <= 0) return;
-
-    loadRoster(teamId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rosterTeamId, lid]);
-
-  async function onAssignPlayer(e: React.FormEvent) {
-    e.preventDefault();
+  async function onRemoveOwner(teamId: number, userId: number) {
     setBusy(true);
     setError(null);
-    setRosterError(null);
-
     try {
-      if (rosterTeamId === "") throw new Error("Select a team.");
-
-      const teamId = Number(rosterTeamId);
-      if (!Number.isFinite(teamId) || teamId <= 0) throw new Error("Select a team.");
-
-      const name = String(pName || "").trim();
-      const posPrimary = String(pPosPrimary || "").trim();
-      const posList = String(pPosList || "").trim() || posPrimary;
-
-      if (!name) throw new Error("Player name is required.");
-      if (!posPrimary) throw new Error("posPrimary is required.");
-
-      const mlbIdStr = String(pMlbId || "").trim();
-      const mlbId = mlbIdStr ? Number(mlbIdStr) : undefined;
-
-      await fetchJson(`/commissioner/${lid}/roster/assign`, {
-        method: "POST",
-        body: JSON.stringify({
-          teamId,
-          mlbId: mlbIdStr ? mlbId : undefined,
-          name,
-          posPrimary,
-          posList,
-          price: Number(pPrice),
-          source: String(pSource || "manual").trim(),
-        }),
-      });
-
-      setPMlbId("");
-      setPName("");
-      await loadRoster(teamId);
+      await fetchJson(`/commissioner/${lid}/teams/${teamId}/owner/${userId}`, { method: "DELETE" });
+      await refreshOverviewOnly();
     } catch (err: any) {
-      setError(err?.message ?? "Assign player failed.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function onReleaseRosterRow(rosterId: number) {
-    setBusy(true);
-    setError(null);
-    setRosterError(null);
-    try {
-      await fetchJson(`/commissioner/${lid}/roster/release`, {
-        method: "POST",
-        body: JSON.stringify({ rosterId }),
-      });
-
-      if (rosterTeamId !== "") {
-        const teamId = Number(rosterTeamId);
-        if (Number.isFinite(teamId) && teamId > 0) await loadRoster(teamId);
-      }
-    } catch (err: any) {
-      setError(err?.message ?? "Release failed.");
+      setError(err?.message ?? "Remove owner failed.");
     } finally {
       setBusy(false);
     }
@@ -431,14 +340,14 @@ export default function Commissioner() {
 
   return (
     <div className="px-10 py-8">
-      <div className="mb-6 text-center">
-        <div className="text-4xl font-semibold text-white">Commissioner</div>
-        <div className="mt-2 text-sm text-white/60">League setup and manual season tools (MVP).</div>
-      </div>
+      <PageHeader 
+        title="Commissioner" 
+        subtitle="League setup and manual season tools." 
+      />
 
       <div className="mx-auto max-w-6xl space-y-5">
         <div className="flex items-center justify-between">
-          <Link to="/leagues" className="text-sm text-white/70 hover:text-white">
+          <Link to="/leagues" className="text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
             ← Back to Leagues
           </Link>
           <div className="flex items-center gap-2">
@@ -504,376 +413,286 @@ export default function Commissioner() {
               </div>
             </div>
 
-            {/* Grid */}
-            <div className="grid gap-5 lg:grid-cols-2">
-              {/* Members */}
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="text-lg font-semibold text-white">Members</div>
-                  <div className="text-xs text-white/50">{overview.memberships.length} total</div>
-                </div>
-
-                <div className="space-y-2">
-                  {overview.memberships.map((m) => (
-                    <div
-                      key={m.id}
-                      className="flex items-center justify-between rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2"
-                    >
-                      <div className="min-w-0">
-                        <div className="truncate text-sm text-white">
-                          {m.user?.name || m.user?.email || `User ${m.userId}`}
-                        </div>
-                        <div className="truncate text-xs text-white/50">{m.user?.email}</div>
-                      </div>
-                      <div className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-xs text-white/80">
-                        {m.role}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-4 rounded-xl border border-white/10 bg-slate-950/60 p-4">
-                  <div className="mb-2 text-sm font-semibold text-white">Add member (by email)</div>
-                  <form onSubmit={onInvite} className="grid gap-2 md:grid-cols-3">
-                    <input
-                      className="md:col-span-2 w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
-                      placeholder="owner@email.com"
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                    />
-                    <select
-                      className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
-                      value={inviteRole}
-                      onChange={(e) => setInviteRole(e.target.value as any)}
-                      title={!me.isAdmin ? "Commissioner role requires Admin." : "Select role"}
-                    >
-                      <option value="OWNER">OWNER</option>
-                      <option value="VIEWER">VIEWER</option>
-                      <option value="COMMISSIONER" disabled={!me.isAdmin}>
-                        COMMISSIONER (admin only)
-                      </option>
-                    </select>
-
-                    <div className="md:col-span-3 flex justify-end">
-                      <button
-                        type="submit"
+            {/* Navigation Tabs */}
+            <div className="flex gap-2 border-b border-white/10 pb-4 mb-6 overflow-x-auto">
+                {['overview', 'rosters', 'keepers', 'controls'].map((tab) => (
+                    <button
+                        key={tab}
+                        onClick={() => {
+                             // Simple hash routing or state? State is fine.
+                             window.history.replaceState(null, '', `#${tab}`);
+                             setActiveTab(tab as any);
+                        }}
                         className={cls(
-                          "rounded-xl bg-white/10 px-4 py-2 text-sm text-white hover:bg-white/15",
-                          busy && "opacity-60 cursor-not-allowed"
+                            "px-4 py-2 text-sm font-semibold rounded-lg capitalize transition-colors",
+                            activeTab === tab 
+                                ? "bg-white text-slate-900" 
+                                : "text-white/60 hover:text-white hover:bg-white/5"
                         )}
-                        disabled={busy}
-                      >
-                        Add
-                      </button>
-                    </div>
-                  </form>
-
-                  <div className="mt-2 text-xs text-white/50">
-                    Note: users must log in once before they can be added by email.
-                  </div>
-                </div>
-              </div>
-
-              {/* Teams */}
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="text-lg font-semibold text-white">Teams</div>
-                  <div className="text-xs text-white/50">{overview.teams.length} total</div>
-                </div>
-
-                <div className="space-y-2">
-                  {overview.teams.map((t) => (
-                    <div
-                      key={t.id}
-                      className="flex items-center justify-between rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2"
                     >
-                      <div className="min-w-0">
-                        <div className="truncate text-sm text-white">
-                          {t.name}{" "}
-                          <span className="text-white/50">
-                            {t.code ? `(${t.code})` : ""}
-                            {t.budget != null ? ` · $${t.budget}` : ""}
-                          </span>
-                        </div>
-                        <div className="truncate text-xs text-white/50">
-                          Owner: {t.ownerUser?.email || t.owner || "—"}
-                        </div>
-                      </div>
-                      <div className="text-xs text-white/40">id: {t.id}</div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-4 rounded-xl border border-white/10 bg-slate-950/60 p-4">
-                  <div className="mb-2 text-sm font-semibold text-white">Create team</div>
-                  <form onSubmit={onCreateTeam} className="grid gap-2 md:grid-cols-3">
-                    <input
-                      className="md:col-span-2 w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
-                      placeholder="Team name"
-                      value={teamName}
-                      onChange={(e) => setTeamName(e.target.value)}
-                    />
-                    <input
-                      className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
-                      placeholder="Code (OGBA)"
-                      value={teamCode}
-                      onChange={(e) => setTeamCode(e.target.value)}
-                    />
-
-                    <div className="md:col-span-2">
-                      <label className="block text-xs text-white/60">Budget</label>
-                      <input
-                        className="mt-1 w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
-                        type="number"
-                        value={teamBudget}
-                        onChange={(e) => setTeamBudget(Number(e.target.value))}
-                      />
-                    </div>
-
-                    <div className="md:col-span-1 flex items-end justify-end">
-                      <button
-                        type="submit"
-                        className={cls(
-                          "w-full rounded-xl bg-white/10 px-4 py-2 text-sm text-white hover:bg-white/15",
-                          busy && "opacity-60 cursor-not-allowed"
-                        )}
-                        disabled={busy}
-                      >
-                        Create
-                      </button>
-                    </div>
-                  </form>
-                </div>
-
-                <div className="mt-4 rounded-xl border border-white/10 bg-slate-950/60 p-4">
-                  <div className="mb-2 text-sm font-semibold text-white">Assign team owner (by email)</div>
-
-                  <form onSubmit={onAssignOwner} className="grid gap-2 md:grid-cols-3">
-                    <select
-                      className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
-                      value={ownerTeamId}
-                      onChange={(e) => setOwnerTeamId(e.target.value ? Number(e.target.value) : "")}
-                    >
-                      <option value="">Select team…</option>
-                      {overview.teams.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name} {t.code ? `(${t.code})` : ""}
-                        </option>
-                      ))}
-                    </select>
-
-                    <input
-                      className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
-                      placeholder="owner@email.com"
-                      value={ownerEmail}
-                      onChange={(e) => setOwnerEmail(e.target.value)}
-                    />
-
-                    <input
-                      className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
-                      placeholder="Owner display name (optional)"
-                      value={ownerName}
-                      onChange={(e) => setOwnerName(e.target.value)}
-                    />
-
-                    <div className="md:col-span-3 flex justify-end">
-                      <button
-                        type="submit"
-                        className={cls(
-                          "rounded-xl bg-white/10 px-4 py-2 text-sm text-white hover:bg-white/15",
-                          busy && "opacity-60 cursor-not-allowed"
-                        )}
-                        disabled={busy}
-                      >
-                        Assign owner
-                      </button>
-                    </div>
-                  </form>
-
-                  <div className="mt-2 text-xs text-white/50">
-                    This also auto-adds the user as a league member (OWNER) if they weren’t already.
-                  </div>
-                </div>
-              </div>
+                        {tab}
+                    </button>
+                ))}
             </div>
 
-            {/* Manual roster setup */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-              <div className="mb-3 flex items-center justify-between">
-                <div className="text-lg font-semibold text-white">Manual roster setup (MVP)</div>
-                <div className="flex items-center gap-2">
-                  <select
-                    className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
-                    value={rosterTeamId}
-                    onChange={(e) => setRosterTeamId(e.target.value ? Number(e.target.value) : "")}
-                  >
-                    <option value="">Select team…</option>
-                    {overview.teams.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name} {t.code ? `(${t.code})` : ""}
-                      </option>
-                    ))}
-                  </select>
-
-                  <button
-                    onClick={() => {
-                      if (rosterTeamId === "") return;
-                      const teamId = Number(rosterTeamId);
-                      if (Number.isFinite(teamId) && teamId > 0) loadRoster(teamId);
-                    }}
-                    className={cls(
-                      "rounded-xl border border-white/10 px-3 py-2 text-sm text-white/80 hover:bg-white/5",
-                      (busy || rosterLoading || rosterTeamId === "") && "opacity-60 cursor-not-allowed"
-                    )}
-                    disabled={busy || rosterLoading || rosterTeamId === ""}
-                  >
-                    Refresh roster
-                  </button>
-                </div>
-              </div>
-
-              {overview.teams.length === 0 ? (
-                <div className="rounded-xl border border-white/10 bg-slate-950/60 p-4 text-sm text-white/60">
-                  No teams yet. Create teams first, then you can assign rosters.
-                </div>
-              ) : null}
-
-              {rosterError ? (
-                <div className="mb-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-sm text-red-300">
-                  {rosterError}
-                </div>
-              ) : null}
-
-              <div className="grid gap-5 lg:grid-cols-2">
-                {/* Assign player form */}
-                <div className="rounded-xl border border-white/10 bg-slate-950/60 p-4">
-                  <div className="mb-2 text-sm font-semibold text-white">Assign player to selected team</div>
-                  <form onSubmit={onAssignPlayer} className="grid gap-2 md:grid-cols-2">
-                    <input
-                      className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
-                      placeholder="MLB ID (optional)"
-                      value={pMlbId}
-                      onChange={(e) => setPMlbId(e.target.value)}
-                      disabled={rosterTeamId === ""}
-                    />
-                    <input
-                      className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
-                      placeholder="Player name (required)"
-                      value={pName}
-                      onChange={(e) => setPName(e.target.value)}
-                      disabled={rosterTeamId === ""}
-                    />
-
-                    <input
-                      className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
-                      placeholder="posPrimary (e.g., OF)"
-                      value={pPosPrimary}
-                      onChange={(e) => setPPosPrimary(e.target.value)}
-                      disabled={rosterTeamId === ""}
-                    />
-                    <input
-                      className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
-                      placeholder="posList (e.g., OF/1B)"
-                      value={pPosList}
-                      onChange={(e) => setPPosList(e.target.value)}
-                      disabled={rosterTeamId === ""}
-                    />
-
-                    <div>
-                      <label className="block text-xs text-white/60">Price</label>
-                      <input
-                        className="mt-1 w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
-                        type="number"
-                        value={pPrice}
-                        onChange={(e) => setPPrice(Number(e.target.value))}
-                        disabled={rosterTeamId === ""}
-                      />
+            {/* Tab: Overview */}
+            {activeTab === 'overview' && (
+                <div className="grid gap-5 lg:grid-cols-2">
+                  {/* Members */}
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                    <div className="mb-3 flex items-center justify-between">
+                      <div className="text-lg font-semibold text-white">Members</div>
+                      <div className="text-xs text-white/50">{overview.memberships.length} total</div>
                     </div>
 
-                    <div>
-                      <label className="block text-xs text-white/60">Source</label>
-                      <input
-                        className="mt-1 w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
-                        value={pSource}
-                        onChange={(e) => setPSource(e.target.value)}
-                        disabled={rosterTeamId === ""}
-                      />
-                    </div>
-
-                    <div className="md:col-span-2 flex justify-end">
-                      <button
-                        type="submit"
-                        className={cls(
-                          "rounded-xl bg-white/10 px-4 py-2 text-sm text-white hover:bg-white/15",
-                          (busy || rosterLoading || rosterTeamId === "") && "opacity-60 cursor-not-allowed"
-                        )}
-                        disabled={busy || rosterLoading || rosterTeamId === ""}
-                      >
-                        Assign
-                      </button>
-                    </div>
-                  </form>
-
-                  <div className="mt-2 text-xs text-white/50">
-                    Assign will release any active roster row for that player, then create a new one for this team.
-                  </div>
-                </div>
-
-                {/* Roster list */}
-                <div className="rounded-xl border border-white/10 bg-slate-950/60 p-4">
-                  <div className="mb-2 flex items-center justify-between">
-                    <div className="text-sm font-semibold text-white">Active roster</div>
-                    <div className="text-xs text-white/50">
-                      {rosterLoading ? "Loading…" : `${rosterRows.length} players`}
-                    </div>
-                  </div>
-
-                  {rosterRows.length === 0 ? (
-                    <div className="py-8 text-center text-sm text-white/60">
-                      {rosterTeamId === ""
-                        ? "Select a team to view roster."
-                        : rosterLoading
-                        ? "Loading…"
-                        : "No players assigned yet."}
-                    </div>
-                  ) : (
                     <div className="space-y-2">
-                      {rosterRows.map((r) => (
+                      {overview.memberships.map((m) => (
                         <div
-                          key={r.id}
+                          key={m.id}
                           className="flex items-center justify-between rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2"
                         >
                           <div className="min-w-0">
                             <div className="truncate text-sm text-white">
-                              {r.player?.name ?? `Player ${r.playerId}`}
-                              <span className="ml-2 text-white/50">
-                                {r.player?.posPrimary ? `· ${r.player.posPrimary}` : ""}
-                                {r.player?.posList ? ` (${r.player.posList})` : ""}
-                              </span>
+                              {m.user?.name || m.user?.email || `User ${m.userId}`}
                             </div>
-                            <div className="truncate text-xs text-white/50">
-                              mlbId: {r.player?.mlbId ?? "—"} · price: {r.price ?? "—"} · source: {r.source ?? "—"}
-                            </div>
+                            <div className="truncate text-xs text-white/50">{m.user?.email}</div>
                           </div>
-
-                          <button
-                            onClick={() => onReleaseRosterRow(r.id)}
-                            className={cls(
-                              "shrink-0 rounded-xl border border-white/10 px-3 py-1.5 text-xs text-white/80 hover:bg-white/5",
-                              busy && "opacity-60 cursor-not-allowed"
-                            )}
-                            disabled={busy}
-                            title="Release this player (sets releasedAt)"
-                          >
-                            Release
-                          </button>
+                          <div className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-xs text-white/80">
+                            {m.role}
+                          </div>
                         </div>
                       ))}
                     </div>
-                  )}
+
+                    <div className="mt-4 rounded-xl border border-white/10 bg-slate-950/60 p-4">
+                      <div className="mb-2 text-sm font-semibold text-white">Add member (by email)</div>
+                      <form onSubmit={onInvite} className="grid gap-2 md:grid-cols-3">
+                        <input
+                          className="md:col-span-2 w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
+                          placeholder="owner@email.com"
+                          value={inviteEmail}
+                          onChange={(e) => setInviteEmail(e.target.value)}
+                        />
+                        <select
+                          className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
+                          value={inviteRole}
+                          onChange={(e) => setInviteRole(e.target.value as any)}
+                          title={!me.isAdmin ? "Commissioner role requires Admin." : "Select role"}
+                        >
+                          <option value="OWNER">OWNER</option>
+                          <option value="VIEWER">VIEWER</option>
+                          <option value="COMMISSIONER" disabled={!me.isAdmin}>
+                            COMMISSIONER (admin only)
+                          </option>
+                        </select>
+
+                        <div className="md:col-span-3 flex justify-end">
+                          <button
+                            type="submit"
+                            className={cls(
+                              "rounded-xl bg-white/10 px-4 py-2 text-sm text-white hover:bg-white/15",
+                              busy && "opacity-60 cursor-not-allowed"
+                            )}
+                            disabled={busy}
+                          >
+                            Add
+                          </button>
+                        </div>
+                      </form>
+
+                      <div className="mt-2 text-xs text-white/50">
+                        Note: users must log in once before they can be added by email.
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Teams */}
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                    <div className="mb-3 flex items-center justify-between">
+                      <div className="text-lg font-semibold text-white">Teams</div>
+                      <div className="text-xs text-white/50">{overview.teams.length} total</div>
+                    </div>
+
+                    <div className="space-y-2">
+                      {overview.teams.map((t) => (
+                        <div
+                          key={t.id}
+                          className="flex items-center justify-between rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2"
+                        >
+                          <div className="min-w-0">
+                            <div className="truncate text-sm text-white">
+                              {t.name}{" "}
+                              <span className="text-white/50">
+                                {t.code ? `(${t.code})` : ""}
+                                {t.budget != null ? ` · $${t.budget}` : ""}
+                              </span>
+                            </div>
+                            <div className="truncate text-xs text-white/50">
+                              Owner: {t.ownerUser?.email || t.owner || "—"}
+                            </div>
+                          </div>
+                          <div className="text-xs text-white/40">id: {t.id}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-4 rounded-xl border border-white/10 bg-slate-950/60 p-4">
+                      <div className="mb-2 text-sm font-semibold text-white">Create team</div>
+                      <form onSubmit={onCreateTeam} className="grid gap-2 md:grid-cols-3">
+                        {priorTeams.length > 0 && (
+                          <div className="md:col-span-3 mb-2">
+                            <label className="block text-xs text-white/60 mb-1">Link to prior year team (optional)</label>
+                            <select
+                              className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
+                              value={selectedPriorTeamId}
+                              onChange={(e) => {
+                                const id = e.target.value ? Number(e.target.value) : "";
+                                setSelectedPriorTeamId(id);
+                                if (id) {
+                                  const pt = priorTeams.find((t) => t.id === id);
+                                  if (pt) {
+                                    setTeamName(pt.name);
+                                    setTeamCode(pt.code || "");
+                                  }
+                                }
+                              }}
+                            >
+                              <option value="">Create new team…</option>
+                              {priorTeams.map((pt) => (
+                                <option key={pt.id} value={pt.id}>
+                                  {pt.name} {pt.code ? `(${pt.code})` : ""} — from last year
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                        <input
+                          className="md:col-span-2 w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
+                          placeholder="Team name"
+                          value={teamName}
+                          onChange={(e) => setTeamName(e.target.value)}
+                        />
+                        <input
+                          className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
+                          placeholder="Code (OGBA)"
+                          value={teamCode}
+                          onChange={(e) => setTeamCode(e.target.value)}
+                        />
+
+                        <div className="md:col-span-2">
+                          <label className="block text-xs text-white/60">Budget</label>
+                          <input
+                            className="mt-1 w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
+                            type="number"
+                            value={teamBudget}
+                            onChange={(e) => setTeamBudget(Number(e.target.value))}
+                          />
+                        </div>
+
+                        <div className="md:col-span-1 flex items-end justify-end">
+                          <button
+                            type="submit"
+                            className={cls(
+                              "w-full rounded-xl bg-white/10 px-4 py-2 text-sm text-white hover:bg-white/15",
+                              busy && "opacity-60 cursor-not-allowed"
+                            )}
+                            disabled={busy}
+                          >
+                            Create
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+
+                    <div className="mt-4 rounded-xl border border-white/10 bg-slate-950/60 p-4">
+                      <div className="mb-2 text-sm font-semibold text-white">Assign team owner</div>
+
+                      <form onSubmit={onAssignOwner} className="grid gap-2 md:grid-cols-3">
+                        <select
+                          className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
+                          value={ownerTeamId}
+                          onChange={(e) => setOwnerTeamId(e.target.value ? Number(e.target.value) : "")}
+                        >
+                          <option value="">Select team…</option>
+                          {overview.teams.map((t) => (
+                            <option key={t.id} value={t.id}>
+                              {t.name} {t.code ? `(${t.code})` : ""}
+                            </option>
+                          ))}
+                        </select>
+
+                        <select
+                          className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
+                          value={ownerUserId}
+                          onChange={(e) => setOwnerUserId(e.target.value ? Number(e.target.value) : "")}
+                        >
+                          <option value="">Select owner…</option>
+                          {availableUsers.map((u) => (
+                            <option key={u.id} value={u.id}>
+                              {u.name || u.email} ({u.email})
+                            </option>
+                          ))}
+                        </select>
+
+                        <input
+                          className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
+                          placeholder="Owner display name (optional)"
+                          value={ownerName}
+                          onChange={(e) => setOwnerName(e.target.value)}
+                        />
+
+                        <div className="md:col-span-3 flex justify-end">
+                          <button
+                            type="submit"
+                            className={cls(
+                              "rounded-xl bg-white/10 px-4 py-2 text-sm text-white hover:bg-white/15",
+                              busy && "opacity-60 cursor-not-allowed"
+                            )}
+                            disabled={busy}
+                          >
+                            Add owner (max 2)
+                          </button>
+                        </div>
+                      </form>
+
+                      <div className="mt-2 text-xs text-white/50">
+                        Teams can have up to 2 owners. Select registered users from the dropdown.
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+            )}
+
+            {/* Tab: Rosters */}
+            {activeTab === 'rosters' && (
+                <div className="space-y-6">
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                       <h2 className="text-xl font-bold mb-4 text-white">Manual Roster Management</h2>
+                       <CommissionerRosterTool
+                          leagueId={lid}
+                          teams={overview.teams}
+                          onUpdate={() => { /* no-op or refresh */ }}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* Tab: Keepers */}
+            {activeTab === 'keepers' && (
+                <div className="space-y-6">
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                         <h2 className="text-xl font-bold mb-4 text-white">Keeper Management</h2>
+                         <CommissionerKeeperManager leagueId={lid} />
+                    </div>
+                </div>
+            )}
+
+             {/* Tab: Controls */}
+             {activeTab === 'controls' && (
+                <div className="space-y-6">
+                     <CommissionerControls leagueId={lid} />
+                </div>
+             )}
           </>
         )}
       </div>

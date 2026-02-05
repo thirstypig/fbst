@@ -10,21 +10,31 @@ export const OGBA_TEAM_NAMES: Record<string, string> = {
   DKD: "Diamond Kings",
   DLC: "Demolition Lumber Co.",
   LDL: "Los Doyers",
-  RSR: "Raging Sluggers",
+  RSR: "RGing Sluggers",
   SDS: "Skunk Dogs",
   TST: "The Show",
   
   // Legacy codes (backward compatible)
   DDG: "Dodger Dawgs",
-  DMK: "Demolition Lumber Co.", // Corrected from legacy mismatch
+  DMK: "Diamond Kings", // Corrected from legacy mismatch
   DKG: "Diamond Kings",
   DEV: "Devil Dawgs",
   DVD: "Devil Dawgs",
   LDY: "Los Doyers",
-  RGS: "Raging Sluggers",
+  RGS: "RGing Sluggers",
   SKD: "Skunk Dogs",
   SHO: "The Show",
   TSH: "The Show",
+  FTP: "Foul Tip",
+  BGU: "Big Unit",
+  BSX: "The Black Sox",
+  MNB: "Moneyball",
+  // 2009 alternate team names
+  BOH: "B.O.H.I.C.A.",
+  FLU: "The Fluffers",
+  // 2004 historical team names
+  BCS: "NY Sock Exchange / Balcos",
+  BRO: "Brothers Inc.",
 };
 
 export function getOgbaTeamName(teamCode: string): string {

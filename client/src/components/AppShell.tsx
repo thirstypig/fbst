@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
-import { API_BASE, getLeagues, getMe, type LeagueListItem } from "../api";
+import { API_BASE, getLeagues, getMe, type LeagueListItem, type AuthUser } from "../api";
 import GoogleSignInButton from "./GoogleSignInButton";
 import { useTheme } from "../contexts/ThemeContext";
 
@@ -66,6 +66,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const getNavIcon = (label: string) => {
     const icons: Record<string, JSX.Element> = {
       'Home': <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />,
+      'Guide': <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />,
       'Period': <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />,
       'Season': <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />,
       'Players': <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />,
@@ -76,7 +77,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       'Archive': <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />,
       'Commissioner': <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />,
       'Admin': <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />,
+      'Auction': <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M1槌4 4l2-2 4 4-2 2-4-4zM6 8l2-2 4 4-2 2-4-4z M4 16l2-2 8 8-2 2-8-8z" /> // Approximate Gavel
     };
+    // Better Gavel path
+    icons['Auction'] = <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11l-4-4m0 0l-2 2m2-2l-2-2m2 2l2 2m-2-2l-4 4-2-2 4-4 4 4-2 2-4-4-2 2 4 4 2 2 4-4 2 2-4 4-2-2 4-4z M6 8l-2 2 4 4 2-2-4-4z" />; 
+    // Wait, let's use a simpler known gavel path or money
+    icons['Auction'] = <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />; // Money Icon fallback
+
     return icons[label] || <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />;
   };
 
@@ -86,6 +93,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       title: "Main",
       items: [
         { to: "/", label: "Home", show: true },
+        { to: "/guide", label: "Guide", show: true },
       ],
     },
     {
@@ -101,6 +109,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         { to: "/players", label: "Players", show: true },
         { to: "/trades", label: "Trades", show: true },
         { to: "/transactions", label: "Transactions", show: true },
+        { to: "/auction", label: "Auction", show: true },
       ],
     },
     {
@@ -159,6 +168,34 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     );
   };
 
+  // Sidebar Resizing Logic
+  const [sidebarWidth, setSidebarWidth] = useState(200); // reduced from w-64 (256px) to ~200px
+  const [isResizing, setIsResizing] = useState(false);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+      const newWidth = Math.max(160, Math.min(400, e.clientX)); // Min 160px, Max 400px
+      setSidebarWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.body.style.cursor = 'default';
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
   return (
     <div className={`min-h-screen ${theme === 'dark' ? 'bg-slate-950 text-slate-50' : 'bg-gray-50 text-gray-900'}`}>
       <div className="flex">
@@ -171,19 +208,30 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         )}
 
         {/* Sidebar */}
-        <aside className={`
-          fixed lg:sticky top-0 h-screen z-50
-          shrink-0 border-r transition-all duration-300
-          ${theme === 'dark' ? 'bg-slate-950 border-white/10' : 'bg-white border-gray-200'}
-          ${!sidebarVisible ? 'w-0 overflow-hidden border-none' : sidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0 lg:w-16'}
-        `}>
+        <aside 
+            className={`
+              fixed lg:sticky top-0 h-screen z-50
+              shrink-0 border-r transition-all duration-75 relative group
+              ${theme === 'dark' ? 'bg-slate-950 border-white/10' : 'bg-white border-gray-200'}
+              ${!sidebarVisible ? 'w-0 overflow-hidden border-none' : ''}
+              ${!sidebarOpen && sidebarVisible ? 'lg:w-16 -translate-x-full lg:translate-x-0' : ''}
+            `}
+            style={sidebarOpen && sidebarVisible ? { width: sidebarWidth } : {}}
+        >
+            {/* Drag Handle */}
+            {sidebarOpen && sidebarVisible && (
+                <div
+                    className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500/50 z-50 transition-colors"
+                    onMouseDown={() => setIsResizing(true)}
+                />
+            )}
           <div className="px-5 py-6 h-full flex flex-col min-w-[64px]">
             {/* Header with toggle and theme */}
             <div className="mb-6 flex items-center justify-between">
               {sidebarOpen && (
                 <div>
                   <div className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>FBST</div>
-                  <div className={`text-xs ${theme === 'dark' ? 'text-white/50' : 'text-gray-500'}`}>Fantasy Baseball</div>
+                  <div className={`text-xs ${theme === 'dark' ? 'text-white/50' : 'text-gray-500'}`}>Fantasy Baseball Stats</div>
                 </div>
               )}
               <div className={`flex items-center gap-1 ${!sidebarOpen && 'flex-col mx-auto'}`}>
@@ -271,6 +319,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     <>
                       {/* User name */}
                       <div className="leading-tight min-w-0 flex-1">
+                        <div className={`text-[10px] mb-0.5 font-medium ${theme === 'dark' ? 'text-white/40' : 'text-gray-400'}`}>
+                          {new Date().toISOString().split('T')[0]}
+                        </div>
                         <div className={`text-sm truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                           {me.name ?? me.email}
                         </div>

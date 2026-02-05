@@ -1,0 +1,190 @@
+import React, { useEffect, useState, useMemo } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { getMyRoster, saveKeepers } from "../api/leagues";
+import PageHeader from "../components/ui/PageHeader";
+
+// Helper to format currency
+const fmtMoney = (n: number) => {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(n);
+};
+
+export default function KeeperSelection() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const leagueId = Number(id);
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  const [team, setTeam] = useState<any>(null);
+  const [roster, setRoster] = useState<any[]>([]);
+  
+  // Local state for selections (Set of Roster IDs)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+  // Load Data
+  useEffect(() => {
+    if (!leagueId) return;
+    setLoading(true);
+    getMyRoster(leagueId)
+      .then(data => {
+        setTeam(data.team);
+        setRoster(data.roster || []);
+        
+        // Initialize selections based on server state
+        const initialKeepers = new Set<number>();
+        (data.roster || []).forEach((r: any) => {
+             if (r.isKeeper) initialKeepers.add(r.id);
+        });
+        setSelectedIds(initialKeepers);
+      })
+      .catch(err => {
+        console.error(err);
+        setError("Failed to load roster. " + (err.message || ""));
+      })
+      .finally(() => setLoading(false));
+  }, [leagueId]);
+
+  // Derived Stats
+  const budget = team?.budget || 260; // Default fantasy budget if missing
+  const totalCost = useMemo(() => {
+      let sum = 0;
+      roster.forEach(r => {
+          if (selectedIds.has(r.id)) sum += (r.price || 0);
+      });
+      return sum;
+  }, [roster, selectedIds]);
+
+  const remaining = budget - totalCost;
+  const count = selectedIds.size;
+
+  // Handlers
+  const toggleKeeper = (rosterId: number) => {
+      const next = new Set(selectedIds);
+      if (next.has(rosterId)) {
+          next.delete(rosterId);
+      } else {
+          next.add(rosterId);
+      }
+      setSelectedIds(next);
+  };
+
+  const handleSave = async () => {
+      if (!confirm(`Confirm ${count} keepers for ${fmtMoney(totalCost)}?`)) return;
+      
+      try {
+          setLoading(true);
+          await saveKeepers(leagueId, Array.from(selectedIds));
+          alert("Keepers saved successfully!");
+          // Optional: navigate back or reload?
+      } catch (e: any) {
+          alert("Error saving: " + e.message);
+      } finally {
+          setLoading(false);
+      }
+  };
+
+  if (loading && !team) return <div className="p-10 text-center text-white/50">Loading...</div>;
+  if (error) return <div className="p-10 text-center text-red-400">{error}</div>;
+
+  return (
+    <div className="flex flex-col h-full bg-[var(--fbst-surface-primary)] overflow-hidden">
+      <PageHeader 
+        title="Keeper Selection" 
+        subtitle={`Select players to keep for ${team?.name || "Team"}`}
+        backTo={`/commissioner/${leagueId}`} // Or just back to league home if checking as owner
+      />
+
+      <div className="flex-1 overflow-y-auto p-4 sm:p-8">
+        <div className="mx-auto max-w-4xl space-y-6">
+            
+            {/* Summary Card */}
+            <div className="grid grid-cols-3 gap-4 rounded-2xl border border-white/10 bg-white/5 p-6 text-center shadow-xl backdrop-blur-sm">
+                <div>
+                   <div className="text-xs uppercase tracking-wider text-white/50">Total Budget</div>
+                   <div className="mt-1 text-2xl font-bold text-white">{fmtMoney(budget)}</div>
+                </div>
+                <div>
+                   <div className="text-xs uppercase tracking-wider text-white/50">Keeper Cost</div>
+                   <div className={`mt-1 text-2xl font-bold ${totalCost > budget ? "text-red-400" : "text-sky-300"}`}>
+                       {fmtMoney(totalCost)}
+                   </div>
+                   <div className="text-xs text-white/40">{count} Players</div>
+                </div>
+                <div>
+                   <div className="text-xs uppercase tracking-wider text-white/50">Available</div>
+                   <div className={`mt-1 text-2xl font-bold ${remaining < 0 ? "text-red-500" : "text-green-400"}`}>
+                       {fmtMoney(remaining)}
+                   </div>
+                </div>
+            </div>
+
+            {/* Roster Table */}
+            <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+              <table className="w-full text-left text-sm text-white/80">
+                  <thead className="bg-white/5 text-xs font-semibold uppercase tracking-wider text-white/50">
+                      <tr>
+                          <th className="px-6 py-4">Pos</th>
+                          <th className="px-6 py-4">Player</th>
+                          <th className="px-6 py-4">MLB</th>
+                          <th className="px-6 py-4 text-right">Cost</th>
+                          <th className="px-6 py-4 text-center">Keep?</th>
+                      </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                      {roster.map(r => {
+                          const isSelected = selectedIds.has(r.id);
+                          return (
+                              <tr 
+                                key={r.id} 
+                                className={`transition-colors hover:bg-white/[0.02] ${isSelected ? "bg-sky-900/10" : ""}`}
+                                onClick={() => toggleKeeper(r.id)}
+                              >
+                                  <td className="px-6 py-4 font-mono text-white/40">{r.player?.posPrimary || r.assignedPosition}</td>
+                                  <td className="px-6 py-4 font-medium text-white">{r.player?.name || "Unknown"}</td>
+                                  <td className="px-6 py-4 text-white/40">{r.player?.mlbTeam || (r.player as any)?.mlb_team}</td>
+                                  <td className="px-6 py-4 text-right font-mono text-white/90">{fmtMoney(r.price)}</td>
+                                  <td className="px-6 py-4 text-center">
+                                      <input 
+                                        type="checkbox" 
+                                        checked={isSelected} 
+                                        onChange={() => {}} // handled by row click
+                                        className="h-5 w-5 rounded border-white/20 bg-white/5 text-sky-500 focus:ring-sky-500/50"
+                                      />
+                                  </td>
+                              </tr>
+                          );
+                      })}
+                      {roster.length === 0 && (
+                          <tr><td colSpan={5} className="p-8 text-center text-white/40">No players on roster.</td></tr>
+                      )}
+                  </tbody>
+              </table>
+            </div>
+
+            {/* Sticky Action Footer (Mobile friendly) */}
+            <div className="sticky bottom-4 mx-auto max-w-md rounded-2xl border border-white/10 bg-slate-900/90 p-4 shadow-2xl backdrop-blur-md">
+                 <div className="flex items-center justify-between gap-4">
+                     <div className="text-sm">
+                         <div className="text-white/50">Keeping</div>
+                         <div className="font-bold text-white">{count} for {fmtMoney(totalCost)}</div>
+                     </div>
+                     <button
+                        onClick={handleSave}
+                        disabled={remaining < 0 || loading}
+                        className={`rounded-xl px-6 py-3 font-semibold text-white shadow-lg transition-all 
+                            ${remaining < 0 
+                                ? "cursor-not-allowed bg-red-500/20 text-red-200" 
+                                : "bg-sky-500 hover:bg-sky-400 active:scale-95"
+                            }`}
+                     >
+                         Save Keepers
+                     </button>
+                 </div>
+            </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}

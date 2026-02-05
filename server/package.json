@@ -10,6 +10,7 @@
     "db:push": "npx prisma db push --schema ../prisma/schema.prisma --accept-data-loss"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^6.19.1",
     "@types/xlsx": "^0.0.35",
     "cookie-parser": "^1.4.7",

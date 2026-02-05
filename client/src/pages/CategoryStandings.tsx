@@ -1,6 +1,7 @@
 // client/src/pages/CategoryStandings.tsx
 import React, { useEffect, useMemo, useState } from "react";
-import { getPeriodStandings } from "../api";
+import { getPeriodStandings, fmtRate } from "../api";
+import PageHeader from "../components/ui/PageHeader";
 
 // Categories used in PeriodStandingsResponse points/stats
 type CategoryId = "R" | "HR" | "RBI" | "SB" | "AVG" | "W" | "S" | "K" | "ERA" | "WHIP";
@@ -29,7 +30,7 @@ const CATS: Array<{ id: CategoryId; label: string; higherIsBetter: boolean }> = 
 
 function fmtStat(cat: CategoryId, v: number) {
   if (!Number.isFinite(v)) return "—";
-  if (cat === "AVG") return v.toFixed(3).replace(/^0\./, ".");
+  if (cat === "AVG") return fmtRate(v);
   if (cat === "ERA" || cat === "WHIP") return v.toFixed(2);
   return String(Math.round(v));
 }
@@ -85,22 +86,25 @@ export default function CategoryStandings() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-6 py-8">
-      <div className="mb-5 flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-white">Category Standings</h1>
-          <div className="mt-1 text-sm text-white/60">Period points by category (roto style).</div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="text-sm text-white/70">Period</div>
-          <input
-            className="w-20 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
-            value={String(periodId)}
-            onChange={(e) => setPeriodId(Number(e.target.value) || 1)}
-            inputMode="numeric"
-          />
-        </div>
+      <div className="mb-5">
+        <PageHeader 
+          title="Category Standings" 
+          subtitle="Period points by category (roto style)." 
+          rightElement={
+             <div className="flex items-center gap-2 bg-white/5 p-2 rounded-lg">
+                <div className="text-sm text-white/70">Period</div>
+                <input
+                  className="w-20 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
+                  value={String(periodId)}
+                  onChange={(e) => setPeriodId(Number(e.target.value) || 1)}
+                  inputMode="numeric"
+                />
+             </div>
+          }
+        />
       </div>
+
+
 
       {err ? (
         <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">

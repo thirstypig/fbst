@@ -1,9 +1,9 @@
-// client/src/pages/Team.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 
-import { getPlayerSeasonStats, type PlayerSeasonStat } from "../api";
+import { getPlayerSeasonStats, type PlayerSeasonStat, getTeamDetails, getTeams } from "../api";
 import PlayerDetailModal from "../components/PlayerDetailModal";
+import TeamRosterManager from "../components/TeamRosterManager";
 
 import { getOgbaTeamName } from "../lib/ogbaTeams";
 import { isPitcher, normalizePosition, formatAvg, getMlbTeamAbbr } from "../lib/playerDisplay";
@@ -110,8 +110,12 @@ export default function Team() {
 
   const [players, setPlayers] = useState<PlayerSeasonStat[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Roster Manager State
+  const [isManaging, setIsManaging] = useState(false);
+  const [dbTeamId, setDbTeamId] = useState<number | null>(null);
+  const [currentRoster, setCurrentRoster] = useState<any[]>([]);
 
+  const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<PlayerSeasonStat | null>(null);
 
   useEffect(() => {
@@ -122,14 +126,42 @@ export default function Team() {
         setLoading(true);
         setError(null);
 
+        // 1. Load Scraper Stats
         const rows = await getPlayerSeasonStats();
         if (!ok) return;
 
         const filtered = (rows ?? []).filter(
           (p: any) => normCode(p?.ogba_team_code ?? p?.team ?? p?.ogbaTeamCode) === code
         );
-
         setPlayers(filtered);
+
+        // 2. Load DB Team ID & Roster
+        // We need to find the team ID from the code
+        const allTeams = await getTeams();
+        const team = allTeams.find((t: any) => normCode(t.name) === code || normCode(t.secondary_code) === code || t.name.toLowerCase().includes(code.toLowerCase())); 
+        // Note: teamCode param might be 'KAN' but name is 'Kansai'. 
+        // existing logic uses `getOgbaTeamName(code)` which maps 'KAN' -> 'Kansai ...'
+        // Let's rely on standard code match if possible.
+        // The `getOgbaTeamName` utility suggests 'KAN' is the standard key.
+        // Let's assume the DB `Team` model might not have 'KAN' code populated?
+        // Let's try to match loosely or use `getOgbaTeamName` to find the full name then match?
+        
+        let foundId = 0;
+        if (team) {
+             foundId = team.id;
+        } else {
+            // Fallback: Try to match by name
+            const fullName = getOgbaTeamName(code);
+            const teamByName = allTeams.find((t: any) => t.name === fullName);
+            if (teamByName) foundId = teamByName.id;
+        }
+
+        if (foundId) {
+            setDbTeamId(foundId);
+            const details = await getTeamDetails(foundId);
+            setCurrentRoster(details.currentRoster || []);
+        }
+
       } catch (e: any) {
         if (!ok) return;
         setError(e?.message ?? "Failed to load team roster");
@@ -153,15 +185,26 @@ export default function Team() {
   return (
     <div className="flex-1 min-h-screen bg-slate-950 text-slate-50">
       <main className="max-w-6xl mx-auto px-6 py-10">
-        <header className="mb-6 text-center">
+        <header className="mb-6 text-center relative">
           <h1 className="text-3xl font-semibold tracking-tight">{teamName}</h1>
           <div className="mt-2 text-sm text-slate-400">
             Hitters: {hitters.length} · Pitchers: {pitchers.length}
           </div>
-          <div className="mt-3">
-            <Link className="text-sm text-sky-300 hover:text-sky-200" to="/season">
-              ← Back to Season
-            </Link>
+          
+          <div className="mt-3 flex justify-center gap-4">
+             <Link className="text-sm text-sky-300 hover:text-sky-200" to="/season">
+               ← Back to Season
+             </Link>
+             
+             {/* Manage Button - Only show if DB data loaded */}
+             {dbTeamId && (
+                 <button 
+                    onClick={() => setIsManaging(true)}
+                    className="text-sm bg-sky-600 hover:bg-sky-500 text-white px-3 py-1 rounded transition-colors flex items-center gap-1"
+                 >
+                    <span>⚡ Manage Lineup</span>
+                 </button>
+             )}
           </div>
         </header>
 
@@ -408,6 +451,30 @@ export default function Team() {
         )}
 
         {selected ? <PlayerDetailModal player={selected} onClose={() => setSelected(null)} /> : null}
+
+        {/* Roster Manager Modal */}
+        {isManaging && (
+             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                 <div className="w-full max-w-7xl h-[90vh] bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl overflow-hidden flex flex-col">
+                     <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900">
+                         <h2 className="text-xl font-bold text-white">Manage Lineup</h2>
+                         <button 
+                            onClick={() => { setIsManaging(false); window.location.reload(); }}
+                            className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors"
+                         >
+                            ✕
+                         </button>
+                     </div>
+                     <div className="flex-1 overflow-hidden p-6 bg-slate-950/50">
+                         <TeamRosterManager 
+                            teamId={dbTeamId || 0}
+                            roster={currentRoster} 
+                            onUpdate={() => {}} 
+                         />
+                     </div>
+                 </div>
+             </div>
+        )}
       </main>
     </div>
   );

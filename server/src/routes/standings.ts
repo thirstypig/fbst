@@ -3,92 +3,12 @@ import prisma from "../prisma";
 
 const router = Router();
 
-// Which categories, and whether lower is better
-const CATEGORY_CONFIG = [
-  { key: "R", label: "Runs", lowerIsBetter: false },
-  { key: "HR", label: "Home Runs", lowerIsBetter: false },
-  { key: "RBI", label: "RBI", lowerIsBetter: false },
-  { key: "SB", label: "Stolen Bases", lowerIsBetter: false },
-  { key: "AVG", label: "Average", lowerIsBetter: false },
-  { key: "W", label: "Wins", lowerIsBetter: false },
-  { key: "S", label: "Saves", lowerIsBetter: false },
-  { key: "ERA", label: "ERA", lowerIsBetter: true },
-  { key: "WHIP", label: "WHIP", lowerIsBetter: true },
-  { key: "K", label: "Strikeouts", lowerIsBetter: false },
-] as const;
-
-type CategoryKey = (typeof CATEGORY_CONFIG)[number]["key"];
-
-function computeCategoryRows(
-  stats: any[],
-  key: CategoryKey,
-  lowerIsBetter: boolean
-) {
-  const rows = stats.map((s) => ({
-    teamId: s.team.id,
-    teamName: s.team.name,
-    value: s[key],
-  }));
-
-  rows.sort((a, b) => {
-    if (lowerIsBetter) {
-      return a.value - b.value;
-    } else {
-      return b.value - a.value;
-    }
-  });
-
-  const n = rows.length;
-  return rows.map((row, idx) => ({
-    ...row,
-    rank: idx + 1,
-    points: n - idx,
-  }));
-}
-
-function computeStandingsFromStats(stats: any[]) {
-  if (stats.length === 0) {
-    return [];
-  }
-
-  const teamMap = new Map<
-    number,
-    {
-      teamId: number;
-      teamName: string;
-      points: number;
-    }
-  >();
-
-  for (const row of stats) {
-    teamMap.set(row.team.id, {
-      teamId: row.team.id,
-      teamName: row.team.name,
-      points: 0,
-    });
-  }
-
-  // For each category, rank and add points
-  for (const cfg of CATEGORY_CONFIG) {
-    const rows = computeCategoryRows(stats, cfg.key as CategoryKey, cfg.lowerIsBetter);
-    for (const r of rows) {
-      const team = teamMap.get(r.teamId);
-      if (!team) continue;
-      team.points += r.points;
-    }
-  }
-
-  const standings = Array.from(teamMap.values());
-  standings.sort((a, b) => b.points - a.points);
-
-  return standings.map((s, idx) => ({
-    teamId: s.teamId,
-    teamName: s.teamName,
-    points: s.points,
-    rank: idx + 1,
-    delta: 0, // later we can compute movement vs previous snapshot
-  }));
-}
+import {
+  CATEGORY_CONFIG,
+  CategoryKey,
+  computeCategoryRows,
+  computeStandingsFromStats,
+} from "../services/standingsService.js";
 
 // --- Period standings: /api/standings/period/current ---
 

@@ -1,5 +1,7 @@
-// client/src/components/StatsTables.tsx
 import React from "react";
+import { Link } from "react-router-dom";
+import { getPrimaryPosition } from "../lib/baseballUtils";
+import { fmtRate } from "../api/base";
 
 /**
  * SHARED TYPES
@@ -161,7 +163,7 @@ const formatStatForCategory = (categoryId: string, value: number): string => {
   if (!Number.isFinite(value)) return "-";
   const id = categoryId.toUpperCase();
 
-  if (id === "AVG") return value.toFixed(3);
+  if (id === "AVG") return fmtRate(value);
   if (id === "ERA") return value.toFixed(2);
 
   return Math.round(value).toString();
@@ -189,21 +191,21 @@ export const PeriodSummaryTable: React.FC<PeriodSummaryTableProps> = ({
               <th className="px-2 py-1 text-left border-b border-slate-700">
                 Team
               </th>
-              <th className="px-2 py-1 text-right border-b border-slate-700">
+              <th className="px-2 py-1 text-center border-b border-slate-700">
                 GP
               </th>
               {categories.map((cat) => (
                 <th
                   key={cat}
-                  className="px-2 py-1 text-right border-b border-slate-700"
+                  className="px-2 py-1 text-center border-b border-slate-700"
                 >
                   {cat}
                 </th>
               ))}
-              <th className="px-2 py-1 text-right border-b border-slate-700">
+              <th className="px-2 py-1 text-center border-b border-slate-700">
                 Total Pts
               </th>
-              <th className="px-2 py-1 text-right border-b border-slate-700">
+              <th className="px-2 py-1 text-center border-b border-slate-700">
                 +/−
               </th>
             </tr>
@@ -217,23 +219,25 @@ export const PeriodSummaryTable: React.FC<PeriodSummaryTableProps> = ({
               return (
                 <tr key={row.teamId}>
                   <td className="px-2 py-1 border-t border-slate-800">
-                    {row.teamName}
+                    <Link to={`/teams/${row.teamId}`} className="hover:underline hover:text-blue-500 transition-colors">
+                      {row.teamName}
+                    </Link>
                   </td>
-                  <td className="px-2 py-1 text-right border-t border-slate-800">
+                  <td className="px-2 py-1 text-center border-t border-slate-800">
                     {row.gamesPlayed}
                   </td>
                   {categories.map((cat) => (
                     <td
                       key={cat}
-                      className="px-2 py-1 text-right border-t border-slate-800"
+                      className="px-2 py-1 text-center border-t border-slate-800"
                     >
                       {formatNumber(catMap.get(cat) ?? 0, 1)}
                     </td>
                   ))}
-                  <td className="px-2 py-1 text-right border-t border-slate-800 font-semibold">
+                  <td className="px-2 py-1 text-center border-t border-slate-800 font-semibold">
                     {formatNumber(row.totalPoints, 1)}
                   </td>
-                  <td className="px-2 py-1 text-right border-t border-slate-800">
+                  <td className="px-2 py-1 text-center border-t border-slate-800">
                     {formatSigned(row.totalPointsDelta, 1)}
                   </td>
                 </tr>
@@ -270,13 +274,13 @@ export const CategoryPeriodTable: React.FC<CategoryPeriodTableProps> = ({
               <th className="px-2 py-1 text-left border-b border-slate-700">
                 Team
               </th>
-              <th className="px-2 py-1 text-right border-b border-slate-700">
+              <th className="px-2 py-1 text-center border-b border-slate-700">
                 Stat
               </th>
-              <th className="px-2 py-1 text-right border-b border-slate-700">
+              <th className="px-2 py-1 text-center border-b border-slate-700">
                 Points
               </th>
-              <th className="px-2 py-1 text-right border-b border-slate-700">
+              <th className="px-2 py-1 text-center border-b border-slate-700">
                 +/−
               </th>
             </tr>
@@ -285,15 +289,17 @@ export const CategoryPeriodTable: React.FC<CategoryPeriodTableProps> = ({
             {sortedRows.map((row) => (
               <tr key={row.teamId}>
                 <td className="px-2 py-1 border-t border-slate-800">
-                  {row.teamName}
+                  <Link to={`/teams/${row.teamId}`} className="hover:underline hover:text-blue-500 transition-colors">
+                    {row.teamName}
+                  </Link>
                 </td>
-                <td className="px-2 py-1 text-right border-t border-slate-800">
+                <td className="px-2 py-1 text-center border-t border-slate-800">
                   {formatStatForCategory(categoryId, row.periodStat)}
                 </td>
-                <td className="px-2 py-1 text-right border-t border-slate-800 font-semibold">
+                <td className="px-2 py-1 text-center border-t border-slate-800 font-semibold">
                   {formatNumber(row.points, 1)}
                 </td>
-                <td className="px-2 py-1 text-right border-t border-slate-800">
+                <td className="px-2 py-1 text-center border-t border-slate-800">
                   {formatSigned(row.pointsDelta, 1)}
                 </td>
               </tr>
@@ -331,13 +337,13 @@ export const SeasonTable: React.FC<SeasonTableProps> = ({
               {periods.map((p) => (
                 <th
                   key={p.periodId}
-                  className="px-2 py-1 text-right border-b border-slate-700"
+                  className="px-2 py-1 text-center border-b border-slate-700"
                   title={p.meetingDate}
                 >
                   {p.label}
                 </th>
               ))}
-              <th className="px-2 py-1 text-right border-b border-slate-700">
+              <th className="px-2 py-1 text-center border-b border-slate-700">
                 Season Total
               </th>
             </tr>
@@ -346,17 +352,19 @@ export const SeasonTable: React.FC<SeasonTableProps> = ({
             {sortedRows.map((row) => (
               <tr key={row.teamId}>
                 <td className="px-2 py-1 border-t border-slate-800">
-                  {row.teamName}
+                  <Link to={`/teams/${row.teamId}`} className="hover:underline hover:text-blue-500 transition-colors">
+                    {row.teamName}
+                  </Link>
                 </td>
                 {periods.map((p) => (
                   <td
                     key={p.periodId}
-                    className="px-2 py-1 text-right border-t border-slate-800"
+                    className="px-2 py-1 text-center border-t border-slate-800"
                   >
                     {formatNumber(row.periodPoints[p.periodId] ?? 0, 1)}
                   </td>
                 ))}
-                <td className="px-2 py-1 text-right border-t border-slate-800 font-semibold">
+                <td className="px-2 py-1 text-center border-t border-slate-800 font-semibold">
                   {formatNumber(row.seasonTotalPoints, 1)}
                 </td>
               </tr>
@@ -392,7 +400,7 @@ export const TeamSeasonSummaryTable: React.FC<TeamSeasonSummaryProps> = ({
               <th className="px-2 py-1 text-left border-b border-slate-700">
                 Period
               </th>
-              <th className="px-2 py-1 text-right border-b border-slate-700">
+              <th className="px-2 py-1 text-center border-b border-slate-700">
                 Points
               </th>
             </tr>
@@ -403,7 +411,7 @@ export const TeamSeasonSummaryTable: React.FC<TeamSeasonSummaryProps> = ({
                 <td className="px-2 py-1 border-t border-slate-800">
                   {p.label}
                 </td>
-                <td className="px-2 py-1 text-right border-t border-slate-800">
+                <td className="px-2 py-1 text-center border-t border-slate-800">
                   {formatNumber(periodMap.get(p.periodId) ?? 0, 1)}
                 </td>
               </tr>
@@ -412,7 +420,7 @@ export const TeamSeasonSummaryTable: React.FC<TeamSeasonSummaryProps> = ({
               <td className="px-2 py-1 border-t border-slate-800 font-semibold">
                 Season Total
               </td>
-              <td className="px-2 py-1 text-right border-t border-slate-800 font-semibold">
+              <td className="px-2 py-1 text-center border-t border-slate-800 font-semibold">
                 {formatNumber(summary.seasonTotalPoints, 1)}
               </td>
             </tr>
@@ -503,47 +511,47 @@ export const TeamPeriodHittersTable: React.FC<TeamPeriodHittersProps> = ({
                 Pos
               </th>
 
-              <th className="px-1 py-1 text-right border-b border-slate-700">
+              <th className="px-1 py-1 text-center border-b border-slate-700">
                 G
               </th>
-              <th className="px-1 py-1 text-right border-b border-slate-700">
+              <th className="px-1 py-1 text-center border-b border-slate-700">
                 DH
               </th>
-              <th className="px-1 py-1 text-right border-b border-slate-700">
+              <th className="px-1 py-1 text-center border-b border-slate-700">
                 C
               </th>
-              <th className="px-1 py-1 text-right border-b border-slate-700">
+              <th className="px-1 py-1 text-center border-b border-slate-700">
                 1B
               </th>
-              <th className="px-1 py-1 text-right border-b border-slate-700">
+              <th className="px-1 py-1 text-center border-b border-slate-700">
                 2B
               </th>
-              <th className="px-1 py-1 text-right border-b border-slate-700">
+              <th className="px-1 py-1 text-center border-b border-slate-700">
                 3B
               </th>
-              <th className="px-1 py-1 text-right border-b border-slate-700">
+              <th className="px-1 py-1 text-center border-b border-slate-700">
                 SS
               </th>
-              <th className="px-1 py-1 text-right border-b border-slate-700">
+              <th className="px-1 py-1 text-center border-b border-slate-700">
                 OF
               </th>
 
-              <th className="px-1 py-1 text-right border-b border-slate-700">
+              <th className="px-1 py-1 text-center border-b border-slate-700">
                 R
               </th>
-              <th className="px-1 py-1 text-right border-b border-slate-700">
+              <th className="px-1 py-1 text-center border-b border-slate-700">
                 HR
               </th>
-              <th className="px-1 py-1 text-right border-b border-slate-700">
+              <th className="px-1 py-1 text-center border-b border-slate-700">
                 RBI
               </th>
-              <th className="px-1 py-1 text-right border-b border-slate-700">
+              <th className="px-1 py-1 text-center border-b border-slate-700">
                 SB
               </th>
-              <th className="px-1 py-1 text-right border-b border-slate-700">
+              <th className="px-1 py-1 text-center border-b border-slate-700">
                 AVG
               </th>
-              <th className="px-1 py-1 text-right border-b border-slate-700">
+              <th className="px-1 py-1 text-center border-b border-slate-700">
                 GS
               </th>
             </tr>
@@ -562,50 +570,50 @@ export const TeamPeriodHittersTable: React.FC<TeamPeriodHittersProps> = ({
                     {h.mlbTeam}
                   </td>
                   <td className="px-1 py-1 border-t border-slate-800">
-                    {h.positions.join(", ")}
+                    {getPrimaryPosition(h.positions.join(", "))}
                   </td>
 
-                  <td className="px-1 py-1 text-right border-t border-slate-800">
+                  <td className="px-1 py-1 text-center border-t border-slate-800">
                     {gTotal}
                   </td>
-                  <td className="px-1 py-1 text-right border-t border-slate-800">
+                  <td className="px-1 py-1 text-center border-t border-slate-800">
                     {h.gDH}
                   </td>
-                  <td className="px-1 py-1 text-right border-t border-slate-800">
+                  <td className="px-1 py-1 text-center border-t border-slate-800">
                     {h.gC}
                   </td>
-                  <td className="px-1 py-1 text-right border-t border-slate-800">
+                  <td className="px-1 py-1 text-center border-t border-slate-800">
                     {h.g1B}
                   </td>
-                  <td className="px-1 py-1 text-right border-t border-slate-800">
+                  <td className="px-1 py-1 text-center border-t border-slate-800">
                     {h.g2B}
                   </td>
-                  <td className="px-1 py-1 text-right border-t border-slate-800">
+                  <td className="px-1 py-1 text-center border-t border-slate-800">
                     {h.g3B}
                   </td>
-                  <td className="px-1 py-1 text-right border-t border-slate-800">
+                  <td className="px-1 py-1 text-center border-t border-slate-800">
                     {h.gSS}
                   </td>
-                  <td className="px-1 py-1 text-right border-t border-slate-800">
+                  <td className="px-1 py-1 text-center border-t border-slate-800">
                     {h.gOF}
                   </td>
 
-                  <td className="px-1 py-1 text-right border-t border-slate-800">
+                  <td className="px-1 py-1 text-center border-t border-slate-800">
                     {h.runs}
                   </td>
-                  <td className="px-1 py-1 text-right border-t border-slate-800">
+                  <td className="px-1 py-1 text-center border-t border-slate-800">
                     {h.hr}
                   </td>
-                  <td className="px-1 py-1 text-right border-t border-slate-800">
+                  <td className="px-1 py-1 text-center border-t border-slate-800">
                     {h.rbi}
                   </td>
-                  <td className="px-1 py-1 text-right border-t border-slate-800">
+                  <td className="px-1 py-1 text-center border-t border-slate-800">
                     {h.sb}
                   </td>
-                  <td className="px-1 py-1 text-right border-t border-slate-800">
-                    {formatNumber(h.avg, 3)}
+                  <td className="px-1 py-1 text-center border-t border-slate-800">
+                    {fmtRate(h.avg)}
                   </td>
-                  <td className="px-1 py-1 text-right border-t border-slate-800">
+                  <td className="px-1 py-1 text-center border-t border-slate-800">
                     {h.gs}
                   </td>
                 </tr>
@@ -621,47 +629,47 @@ export const TeamPeriodHittersTable: React.FC<TeamPeriodHittersProps> = ({
                 Totals
               </td>
 
-              <td className="px-1 py-1 text-right border-t border-slate-800 font-semibold">
+              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
                 {teamGames}
               </td>
-              <td className="px-1 py-1 text-right border-t border-slate-800 font-semibold">
+              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
                 {totals.gDH}
               </td>
-              <td className="px-1 py-1 text-right border-t border-slate-800 font-semibold">
+              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
                 {totals.gC}
               </td>
-              <td className="px-1 py-1 text-right border-t border-slate-800 font-semibold">
+              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
                 {totals.g1B}
               </td>
-              <td className="px-1 py-1 text-right border-t border-slate-800 font-semibold">
+              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
                 {totals.g2B}
               </td>
-              <td className="px-1 py-1 text-right border-t border-slate-800 font-semibold">
+              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
                 {totals.g3B}
               </td>
-              <td className="px-1 py-1 text-right border-t border-slate-800 font-semibold">
+              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
                 {totals.gSS}
               </td>
-              <td className="px-1 py-1 text-right border-t border-slate-800 font-semibold">
+              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
                 {totals.gOF}
               </td>
 
-              <td className="px-1 py-1 text-right border-t border-slate-800 font-semibold">
+              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
                 {totals.runs}
               </td>
-              <td className="px-1 py-1 text-right border-t border-slate-800 font-semibold">
+              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
                 {totals.hr}
               </td>
-              <td className="px-1 py-1 text-right border-t border-slate-800 font-semibold">
+              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
                 {totals.rbi}
               </td>
-              <td className="px-1 py-1 text-right border-t border-slate-800 font-semibold">
+              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
                 {totals.sb}
               </td>
-              <td className="px-1 py-1 text-right border-t border-slate-800 font-semibold">
-                {formatNumber(teamAvg, 3)}
+              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
+                {fmtRate(teamAvg)}
               </td>
-              <td className="px-1 py-1 text-right border-t border-slate-800 font-semibold">
+              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
                 {totals.gs}
               </td>
             </tr>
@@ -739,25 +747,25 @@ export const TeamPeriodPitchersTable: React.FC<TeamPeriodPitchersProps> = ({
                 Role
               </th>
 
-              <th className="px-1 py-1 text-right border-b border-slate-700">
+              <th className="px-1 py-1 text-center border-b border-slate-700">
                 G
               </th>
-              <th className="px-1 py-1 text-right border-b border-slate-700">
+              <th className="px-1 py-1 text-center border-b border-slate-700">
                 W
               </th>
-              <th className="px-1 py-1 text-right border-b border-slate-700">
+              <th className="px-1 py-1 text-center border-b border-slate-700">
                 S
               </th>
-              <th className="px-1 py-1 text-right border-b border-slate-700">
+              <th className="px-1 py-1 text-center border-b border-slate-700">
                 K
               </th>
-              <th className="px-1 py-1 text-right border-b border-slate-700">
+              <th className="px-1 py-1 text-center border-b border-slate-700">
                 ERA
               </th>
-              <th className="px-1 py-1 text-right border-b border-slate-700">
+              <th className="px-1 py-1 text-center border-b border-slate-700">
                 WHIP
               </th>
-              <th className="px-1 py-1 text-right border-b border-slate-700">
+              <th className="px-1 py-1 text-center border-b border-slate-700">
                 SO
               </th>
             </tr>
@@ -775,25 +783,25 @@ export const TeamPeriodPitchersTable: React.FC<TeamPeriodPitchersProps> = ({
                   {p.role}
                 </td>
 
-                <td className="px-1 py-1 text-right border-t border-slate-800">
+                <td className="px-1 py-1 text-center border-t border-slate-800">
                   {p.g}
                 </td>
-                <td className="px-1 py-1 text-right border-t border-slate-800">
+                <td className="px-1 py-1 text-center border-t border-slate-800">
                   {p.w}
                 </td>
-                <td className="px-1 py-1 text-right border-t border-slate-800">
+                <td className="px-1 py-1 text-center border-t border-slate-800">
                   {p.sv}
                 </td>
-                <td className="px-1 py-1 text-right border-t border-slate-800">
+                <td className="px-1 py-1 text-center border-t border-slate-800">
                   {p.k}
                 </td>
-                <td className="px-1 py-1 text-right border-t border-slate-800">
+                <td className="px-1 py-1 text-center border-t border-slate-800">
                   {formatNumber(p.era, 2)}
                 </td>
-                <td className="px-1 py-1 text-right border-t border-slate-800">
+                <td className="px-1 py-1 text-center border-t border-slate-800">
                   {formatNumber(p.whip, 2)}
                 </td>
-                <td className="px-1 py-1 text-right border-t border-slate-800">
+                <td className="px-1 py-1 text-center border-t border-slate-800">
                   {p.soShutouts}
                 </td>
               </tr>
@@ -808,25 +816,25 @@ export const TeamPeriodPitchersTable: React.FC<TeamPeriodPitchersProps> = ({
                 Totals
               </td>
 
-              <td className="px-1 py-1 text-right border-t border-slate-800 font-semibold">
+              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
                 {totals.g}
               </td>
-              <td className="px-1 py-1 text-right border-t border-slate-800 font-semibold">
+              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
                 {totals.w}
               </td>
-              <td className="px-1 py-1 text-right border-t border-slate-800 font-semibold">
+              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
                 {totals.sv}
               </td>
-              <td className="px-1 py-1 text-right border-t border-slate-800 font-semibold">
+              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
                 {totals.k}
               </td>
-              <td className="px-1 py-1 text-right border-t border-slate-800 font-semibold">
+              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
                 {formatNumber(totalERA, 2)}
               </td>
-              <td className="px-1 py-1 text-right border-t border-slate-800 font-semibold">
+              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
                 {formatNumber(totalWHIP, 2)}
               </td>
-              <td className="px-1 py-1 text-right border-t border-slate-800 font-semibold">
+              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
                 {totals.soShutouts}
               </td>
             </tr>

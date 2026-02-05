@@ -11,6 +11,7 @@ import { Link } from "react-router-dom";
 import { getPlayerSeasonStats, type PlayerSeasonStat } from "../api";
 import { getOgbaTeamName } from "../lib/ogbaTeams";
 import { isPitcher } from "../lib/playerDisplay";
+import PageHeader from "../components/ui/PageHeader";
 
 function normCode(v: any): string {
   return String(v ?? "").trim().toUpperCase();
@@ -85,12 +86,10 @@ export default function Teams() {
 
   return (
     <div className="px-10 py-8 text-slate-100">
-      <header className="mb-6">
-        <h1 className="text-3xl font-semibold">Teams</h1>
-        <p className="mt-2 text-sm text-slate-400">
-          Team roster counts derived from your season player pool.
-        </p>
-      </header>
+      <PageHeader 
+        title="Teams" 
+        subtitle="Team roster counts derived from your season player pool." 
+      />
 
       {error && (
         <div className="mb-4 rounded-md border border-red-400 bg-red-900/40 px-4 py-2 text-sm text-red-100">

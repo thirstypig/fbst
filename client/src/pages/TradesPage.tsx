@@ -12,6 +12,9 @@ import {
 } from "../api";
 import { useAuth } from "../auth/AuthProvider";
 import { TradeAssetSelector } from "../components/TradeAssetSelector";
+import TeamRosterView from "../components/TeamRosterView";
+import { Eye } from "lucide-react";
+import PageHeader from "../components/ui/PageHeader";
 
 export function TradesPage() {
   const { me } = useAuth();
@@ -21,6 +24,7 @@ export function TradesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"my" | "league" | "create">("my");
+  const [contextTrade, setContextTrade] = useState<TradeProposal | null>(null);
 
   useEffect(() => {
     if(user) loadAllTrades();
@@ -56,16 +60,19 @@ export function TradesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-          Trade Center
-        </h1>
-        <button
-          onClick={() => setActiveTab("create")}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-semibold transition-colors"
-        >
-          New Trade
-        </button>
+      <div className="mb-6">
+        <PageHeader 
+            title="Trade Center" 
+            subtitle="View current proposals, history, and league trading activity." 
+            rightElement={
+                <button
+                    onClick={() => setActiveTab("create")}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-semibold transition-colors"
+                >
+                    New Trade
+                </button>
+            }
+        />
       </div>
 
       {/* Tabs */}
@@ -111,7 +118,7 @@ export function TradesPage() {
             )}
             <div className="grid gap-4">
               {myActive.map((t) => (
-                <TradeCard key={t.id} trade={t} onRefresh={loadAllTrades} currentUserId={Number(user?.id)} isAdmin={user?.isAdmin} />
+                <TradeCard key={t.id} trade={t} onRefresh={loadAllTrades} currentUserId={Number(user?.id)} isAdmin={user?.isAdmin} onViewContext={() => setContextTrade(t)} />
               ))}
             </div>
           </div>
@@ -125,7 +132,7 @@ export function TradesPage() {
             )}
             <div className="grid gap-4">
               {myHistory.map((t) => (
-                <TradeCard key={t.id} trade={t} onRefresh={loadAllTrades} currentUserId={Number(user?.id)} isAdmin={user?.isAdmin} />
+                <TradeCard key={t.id} trade={t} onRefresh={loadAllTrades} currentUserId={Number(user?.id)} isAdmin={user?.isAdmin} onViewContext={() => setContextTrade(t)} />
               ))}
             </div>
           </div>
@@ -147,6 +154,7 @@ export function TradesPage() {
               onRefresh={loadAllTrades} 
               currentUserId={Number(user?.id)} 
               isAdmin={user?.isAdmin}
+              onViewContext={() => setContextTrade(t)}
             />
           ))}
         </div>
@@ -155,6 +163,22 @@ export function TradesPage() {
       {/* Create Trade Tab */}
       {activeTab === "create" && (
         <CreateTradeForm onCancel={() => setActiveTab("my")} onSuccess={() => { loadAllTrades(); setActiveTab("my"); }} />
+      )}
+
+      {/* Context Modal */}
+      {contextTrade && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50" onClick={() => setContextTrade(null)}>
+              <div className="bg-gray-900 rounded-xl border border-gray-700 w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                  <div className="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-800">
+                      <h3 className="font-bold text-lg">Trade Context</h3>
+                      <button onClick={() => setContextTrade(null)} className="text-gray-400 hover:text-white">✕</button>
+                  </div>
+                  <div className="p-4 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-950">
+                      <TeamRosterView teamId={contextTrade.proposingTeamId} teamName={contextTrade.proposingTeam.name} />
+                      <TeamRosterView teamId={contextTrade.acceptingTeamId} teamName={contextTrade.acceptingTeam.name} />
+                  </div>
+              </div>
+          </div>
       )}
     </div>
   );
@@ -165,11 +189,13 @@ function TradeCard({
   onRefresh,
   currentUserId,
   isAdmin,
+  onViewContext,
 }: {
   trade: TradeProposal;
   onRefresh: () => void;
   currentUserId?: number;
   isAdmin?: boolean;
+  onViewContext?: () => void;
 }) {
   const isPending = trade.status === "PENDING";
   const isProposer = trade.proposingTeam.ownerUserId === currentUserId;
@@ -185,8 +211,15 @@ function TradeCard({
             {new Date(trade.createdAt).toLocaleDateString()}
           </div>
         </div>
-        <div className="px-2 py-1 bg-gray-700 rounded text-xs font-mono uppercase">
-          {trade.status}
+        <div className="flex items-center gap-2">
+            {onViewContext && (
+                <button onClick={onViewContext} className="p-1 hover:bg-gray-700 rounded text-gray-400 hover:text-white" title="View Context">
+                    <Eye size={16} />
+                </button>
+            )}
+            <div className="px-2 py-1 bg-gray-700 rounded text-xs font-mono uppercase">
+              {trade.status}
+            </div>
         </div>
       </div>
 
@@ -275,11 +308,13 @@ function LeagueTradeCard({
   onRefresh,
   currentUserId,
   isAdmin,
+  onViewContext,
 }: {
   trade: any; // has votes
   onRefresh: () => void;
   currentUserId?: number;
   isAdmin?: boolean;
+  onViewContext?: () => void;
 }) {
   const isInvolved = trade.proposingTeam.ownerUserId === currentUserId || trade.acceptingTeam.ownerUserId === currentUserId;
   const canVote = !isInvolved && trade.status === "ACCEPTED";
@@ -299,8 +334,15 @@ function LeagueTradeCard({
             {new Date(trade.createdAt).toLocaleDateString()}
           </div>
         </div>
-        <div className="px-2 py-1 bg-gray-700 rounded text-xs font-mono uppercase">
-          {trade.status}
+        <div className="flex items-center gap-2">
+            {onViewContext && (
+                <button onClick={onViewContext} className="p-1 hover:bg-gray-700 rounded text-gray-400 hover:text-white" title="View Context">
+                    <Eye size={16} />
+                </button>
+            )}
+            <div className="px-2 py-1 bg-gray-700 rounded text-xs font-mono uppercase">
+              {trade.status}
+            </div>
         </div>
       </div>
 

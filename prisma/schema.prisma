@@ -35,6 +35,28 @@ enum LeagueRole {
   VIEWER
 }
 
+enum TradeStatus {
+  PROPOSED
+  ACCEPTED
+  REJECTED
+  VETOED
+  PROCESSED
+  CANCELLED
+}
+
+enum AssetType {
+  PLAYER
+  BUDGET
+  PICK
+}
+
+enum ClaimStatus {
+  PENDING
+  SUCCESS
+  FAILED_OUTBID
+  FAILED_INVALID
+}
+
 // ======================
 //  Models
 // ======================
@@ -47,8 +69,9 @@ model User {
   googleSub String  @unique
   isAdmin   Boolean @default(false)
 
-  memberships LeagueMembership[]
-  ownedTeams  Team[]             @relation("TeamOwner")
+  memberships    LeagueMembership[]
+  ownedTeams     Team[]             @relation("TeamOwner")
+  teamOwnerships TeamOwnership[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -73,8 +96,30 @@ model League {
   memberships       LeagueMembership[]
   transactions      TransactionEvent[]
   historicalSeasons HistoricalSeason[]
+  rules             LeagueRule[]
+  trades            Trade[]
 
   @@unique([name, season])
+}
+
+// Dynamic Rules Management
+model LeagueRule {
+  id       Int    @id @default(autoincrement())
+  leagueId Int
+  league   League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  category String // "overview", "roster", "scoring", "draft", "trades", "bonuses", "payouts"
+  key      String // "team_count", "budget", "keeper_count", etc.
+  value    String // JSON string for complex values
+  label    String // Display label for UI
+
+  isLocked Boolean @default(false) // Locked after season start
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([leagueId, category, key])
+  @@index([leagueId])
 }
 
 model LeagueMembership {
@@ -94,6 +139,22 @@ model LeagueMembership {
   @@index([leagueId])
 }
 
+// Multi-owner support (up to 2 owners per team)
+model TeamOwnership {
+  id     Int @id @default(autoincrement())
+  teamId Int
+  userId Int
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
+}
+
 model Team {
   id        Int      @id @default(autoincrement())
   leagueId  Int
@@ -106,6 +167,14 @@ model Team {
   ownerUserId Int?
   ownerUser   User?   @relation("TeamOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
 
+  // Multi-owner support
+  ownerships TeamOwnership[]
+
+  // Link to prior year team for historical tracking
+  priorTeamId Int?
+  priorTeam   Team?  @relation("TeamHistory", fields: [priorTeamId], references: [id], onDelete: SetNull)
+  nextTeams   Team[] @relation("TeamHistory")
+
   league        League            @relation(fields: [leagueId], references: [id])
   rosters       Roster[]
   stats         TeamStatsPeriod[]
@@ -117,10 +186,12 @@ model Team {
   auctionBids  AuctionBid[]
 
   // Trade Relations
-  proposedTrades TradeProposal[] @relation("ProposingTeam")
-  receivedTrades TradeProposal[] @relation("AcceptingTeam")
-  tradeItemsSent TradeItem[]
-  tradeVotes     TradeVote[]
+  proposedTrades     Trade[]     @relation("TradeProposer")
+  tradeItemsSent     TradeItem[] @relation("TradeSender")
+  tradeItemsReceived TradeItem[] @relation("TradeRecipient")
+
+  // Waiver Relations
+  waiverClaims WaiverClaim[]
 
   @@unique([leagueId, name])
   @@unique([leagueId, code])
@@ -136,14 +207,17 @@ model Player {
   name       String
   posPrimary String
   posList    String // comma-separated for now
+  mlbTeam    String? // e.g. "LAD", "NYY"
 
   createdAt DateTime @default(now())
 
-  rosters      Roster[]
-  lots         AuctionLot[]
-  aliases      PlayerAlias[]
-  transactions TransactionEvent[]
-  tradeItems   TradeItem[]
+  rosters          Roster[]
+  lots             AuctionLot[]
+  aliases          PlayerAlias[]
+  transactions     TransactionEvent[]
+  tradeItems       TradeItem[]
+  waiverClaimsAdd  WaiverClaim[]      @relation("ClaimAdd")
+  waiverClaimsDrop WaiverClaim[]      @relation("ClaimDrop")
 
   @@index([name])
 }
@@ -270,13 +344,15 @@ model TeamStatsSeason {
 }
 
 model Roster {
-  id         Int       @id @default(autoincrement())
-  teamId     Int
-  playerId   Int
-  acquiredAt DateTime  @default(now())
-  releasedAt DateTime?
-  source     String
-  price      Int       @default(1)
+  id               Int       @id @default(autoincrement())
+  teamId           Int
+  playerId         Int
+  acquiredAt       DateTime  @default(now())
+  releasedAt       DateTime?
+  source           String
+  price            Int       @default(1)
+  assignedPosition String?
+  isKeeper         Boolean   @default(false)
 
   team   Team   @relation(fields: [teamId], references: [id])
   player Player @relation(fields: [playerId], references: [id])
@@ -325,59 +401,67 @@ model FinanceLedger {
 }
 
 // ======================
-//  Trade System
+//  Trade & Waiver System
 // ======================
 
-model TradeProposal {
-  id              Int       @id @default(autoincrement())
-  proposingTeamId Int
-  acceptingTeamId Int
-  status          String    @default("PENDING") // PENDING, ACCEPTED, REJECTED, CANCELLED, VETOED, PROCESSED
-  createdAt       DateTime  @default(now())
-  expiresAt       DateTime?
+model Trade {
+  id          Int         @id @default(autoincrement())
+  leagueId    Int
+  proposerId  Int
+  status      TradeStatus @default(PROPOSED)
+  createdAt   DateTime    @default(now())
+  expiresAt   DateTime?
+  processedAt DateTime?
 
-  // Relations
-  proposingTeam Team        @relation("ProposingTeam", fields: [proposingTeamId], references: [id])
-  acceptingTeam Team        @relation("AcceptingTeam", fields: [acceptingTeamId], references: [id])
-  items         TradeItem[]
-  votes         TradeVote[]
+  items TradeItem[]
 
-  @@index([proposingTeamId])
-  @@index([acceptingTeamId])
+  league   League @relation(fields: [leagueId], references: [id])
+  proposer Team   @relation("TradeProposer", fields: [proposerId], references: [id])
+
+  @@index([leagueId])
+  @@index([proposerId])
   @@index([status])
 }
 
 model TradeItem {
-  id           Int    @id @default(autoincrement())
-  tradeId      Int
-  senderTeamId Int
-  playerId     Int?
-  assetType    String @default("PLAYER") // PLAYER, BUDGET, PICKUP_SPOT
-  amount       Int    @default(1) // For budget/spots
+  id          Int       @id @default(autoincrement())
+  tradeId     Int
+  senderId    Int
+  recipientId Int
+  assetType   AssetType @default(PLAYER)
 
-  // Relations
-  trade      TradeProposal @relation(fields: [tradeId], references: [id], onDelete: Cascade)
-  senderTeam Team          @relation(fields: [senderTeamId], references: [id])
-  player     Player?       @relation(fields: [playerId], references: [id])
+  // Asset References
+  playerId  Int? // If PLAYER
+  amount    Int? // If BUDGET or PICK (round)
+  pickRound Int? // If PICK
+
+  trade     Trade   @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  sender    Team    @relation("TradeSender", fields: [senderId], references: [id])
+  recipient Team    @relation("TradeRecipient", fields: [recipientId], references: [id])
+  player    Player? @relation(fields: [playerId], references: [id])
 
   @@index([tradeId])
-  @@index([senderTeamId])
-  @@index([playerId])
+  @@index([senderId])
+  @@index([recipientId])
 }
 
-model TradeVote {
-  id      Int     @id @default(autoincrement())
-  tradeId Int
-  teamId  Int
-  vote    String // APPROVE, VETO
-  reason  String?
+model WaiverClaim {
+  id           Int         @id @default(autoincrement())
+  teamId       Int
+  playerId     Int // Player to ADD
+  dropPlayerId Int? // Player to DROP (optional)
+  bidAmount    Int // FAAB $
+  priority     Int // User-defined order
+  status       ClaimStatus @default(PENDING)
+  processedAt  DateTime?
+  createdAt    DateTime    @default(now())
 
-  trade TradeProposal @relation(fields: [tradeId], references: [id], onDelete: Cascade)
-  team  Team          @relation(fields: [teamId], references: [id])
+  team       Team    @relation(fields: [teamId], references: [id])
+  player     Player  @relation("ClaimAdd", fields: [playerId], references: [id])
+  dropPlayer Player? @relation("ClaimDrop", fields: [dropPlayerId], references: [id])
 
-  @@unique([tradeId, teamId])
-  @@index([tradeId])
   @@index([teamId])
+  @@index([status])
 }
 
 // ======================
@@ -437,6 +521,7 @@ model HistoricalPlayerStat {
   RBI Int?
   SB  Int?
   AVG Float?
+  GS  Int? // Grand Slams
 
   // Pitching stats
   W    Int?
@@ -446,6 +531,10 @@ model HistoricalPlayerStat {
   ER   Int?
   ERA  Float?
   WHIP Float?
+  SO   Int? // Shut Outs
+
+  draftDollars Int?
+  isKeeper     Boolean @default(false)
 
   @@index([periodId, teamCode])
   @@index([periodId])
@@ -476,4 +565,15 @@ model HistoricalStanding {
 
   @@unique([seasonId, teamCode])
   @@index([seasonId])
+}
+
+model RosterEntry {
+  id              Int      @id @default(autoincrement())
+  year            Int      @default(2025)
+  teamCode        String
+  playerName      String
+  position        String
+  mlbTeam         String?
+  acquisitionCost Int      @default(0)
+  createdAt       DateTime @default(now())
 }

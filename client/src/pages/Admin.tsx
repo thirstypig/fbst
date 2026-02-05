@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 
 import { getMe } from "../api";
 
+import PageHeader from "../components/ui/PageHeader";
+
 export default function Admin() {
   const [loading, setLoading] = useState(true);
   const [me, setMe] = useState<any>(null);
@@ -32,13 +34,13 @@ export default function Admin() {
   }, []);
 
   return (
-    <div className="px-10 py-8">
-      <div className="mb-6 text-center">
-        <div className="text-4xl font-semibold text-white">Admin</div>
-        <div className="mt-2 text-sm text-white/60">Platform-level administration (not league commissioner tools).</div>
-      </div>
-
-      <div className="mx-auto max-w-4xl">
+    <div className="flex flex-col h-full bg-[var(--fbst-surface-primary)]">
+       <PageHeader 
+          title="Admin" 
+          subtitle="Platform-level administration (not league commissioner tools)."
+       />
+       
+       <div className="px-10 py-8 mx-auto max-w-4xl w-full">
         {loading ? (
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center text-sm text-white/60">
             Loading…

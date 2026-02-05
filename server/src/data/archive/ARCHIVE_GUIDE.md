@@ -6,11 +6,131 @@ This guide documents the process for importing, managing, and recovering histori
 
 ## Table of Contents
 
-1. [CSV Format Requirements](#csv-format-requirements)
-2. [Import Process](#import-process)
-3. [MLB ID Reference System](#mlb-id-reference-system)
-4. [Recovery Process](#recovery-process)
-5. [Troubleshooting](#troubleshooting)
+1. [Data Persistence](#data-persistence)
+2. [Excel Upload Process](#excel-upload-process)
+3. [Auto-Matching Player Names](#auto-matching-player-names)
+4. [CSV Format Requirements](#csv-format-requirements)
+5. [Import Process](#import-process)
+6. [MLB ID Reference System](#mlb-id-reference-system)
+7. [Recovery Process](#recovery-process)
+8. [Troubleshooting](#troubleshooting)
+
+---
+
+## Data Persistence
+
+### Where is data stored?
+
+All archive data is stored in the **PostgreSQL database** via Prisma. This means:
+
+- ✅ **Data survives server restarts** - The database is persistent
+- ✅ **Data survives code changes** - Only database migrations affect data
+- ✅ **Data is backed up** - As long as your database is backed up
+
+### What data is stored?
+
+| Table | Description |
+|-------|-------------|
+| `HistoricalSeason` | Season metadata (year, isImported, etc.) |
+| `HistoricalPeriod` | Period definitions (start/end dates, tab names) |
+| `HistoricalPlayerStat` | Player stats per period (with MLB ID, position, etc.) |
+| `HistoricalStanding` | Team standings and scores |
+
+### How to protect your data
+
+1. **Export MLB ID references after corrections**:
+   ```bash
+   npx tsx src/scripts/export_mlb_id_reference.ts
+   ```
+
+2. **Generated CSV files persist on disk**:
+   - Location: `server/src/data/archive/{year}/`
+   - Files: `draft_YYYY_auction.csv`, `period_N.csv`, `period_dates_YYYY.csv`
+
+3. **If you need to re-import**: The Excel upload process will regenerate CSVs and update the database. Manual MLB ID corrections can be recovered using the reference files.
+
+---
+
+## Excel Upload Process
+
+### How it works
+
+1. **Upload via Admin Panel**: Go to Archive → Admin tab → Upload Excel file
+2. **Server parses Excel**: The `ArchiveImportService` detects sheet layouts
+3. **CSVs are generated**: Period CSVs, draft CSV, and standings CSV are created
+4. **Database is updated**: Data is imported into the database
+
+### Sheet Detection
+
+The importer looks for these sheets:
+- **Draft**: "Draft", "auction", "draft order"
+- **Standings**: "standings", "league standings", "final"
+- **Period Tabs**: Date-formatted tabs like "May 5", "June 21", etc.
+
+### Period Date Rules
+
+> [!IMPORTANT]
+> **Period 1** always starts on **MLB Opening Day** for that year:
+> - 2009: April 5, 2016: April 3, 2022: April 7, etc.
+
+**Date logic**:
+1. Period 1 = Draft tab → Starts Opening Day, ends day before first date tab
+2. Period 2+ = Date tabs → Starts on tab date, ends day before next tab
+3. Last period ends October 31
+
+### Team Detection
+
+Teams are detected from header rows in the Excel file. The system recognizes:
+- Standard names: "Diamond Kings", "Devil Dawgs", etc.
+- Legacy codes: DKG, DDG, DEV, DMK, SKD, RGS, LDY, SHO
+- 2009 alternate names: "B.O.H.I.C.A.", "The Fluffers"
+
+If a team isn't recognized, it gets a temporary code like `UNK-14`.
+
+### Position Detection
+
+Positions are detected from:
+1. **Leftmost position column** (C, 1B, 2B, SS, 3B, MI, OF, DH, P, SP, RP, R)
+2. **Adjacent cells** to player names
+3. **Section headers** ("Hitters", "Pitchers")
+
+---
+
+## Auto-Matching Player Names
+
+### How matching works
+
+When importing, the system attempts to match abbreviated names (e.g., "A. Riley") to known players using:
+
+1. **Exact name match**: `player_name` matches exactly
+2. **Full name fallback**: If MLB ID exists, uses `full_name`
+3. **Position filter**: Distinguishes between hitter/pitcher
+4. **Year/period context**: Considers which year the player was active
+
+### Matching priority
+
+```
+1. Exact player_name + team_code + year → Direct match
+2. player_name + is_pitcher flag → Narrow by role
+3. player_name + position → Narrow by position
+4. MLB ID lookup → If ID exists, use it
+```
+
+### When manual matching is needed
+
+The system will **NOT** auto-match if:
+- Multiple players have the same abbreviated name (e.g., "J. Rodriguez")
+- Position/pitcher status is ambiguous
+- No MLB ID exists
+
+In these cases, use the Archive UI to manually assign the correct player.
+
+### Future Enhancement: Fuzzy Matching
+
+The system could be enhanced to:
+1. Parse "A. Riley" → search for `first_name LIKE 'A%' AND last_name = 'Riley'`
+2. Cross-reference with MLB Stats API
+3. Consider year/period activity to disambiguate
 
 ---
 
@@ -261,6 +381,24 @@ npx tsx src/scripts/fetch_2024_mlb_teams.ts
 
 **Solution**: Rename files to match pattern or update import script to recognize your naming convention.
 
+### Issue: Only some teams imported from Excel
+
+**Cause**: Team name not recognized in `identifyTeam` mapping
+
+**Solution**: 
+1. Check the generated CSV for `UNK-XX` team codes
+2. Add the missing team name to `archiveImportService.ts` → `identifyTeam()`
+3. Re-upload the Excel file
+
+### Issue: Players missing from draft import
+
+**Cause**: Blank cells or position column not detected
+
+**Solution**:
+1. Ensure position column is in leftmost columns (col A-E)
+2. Ensure team headers are in rows 1-15
+3. Re-upload the Excel file
+
 ---
 
 ## Best Practices
@@ -316,3 +454,4 @@ npx tsx src/scripts/fetch_2024_mlb_teams.ts
 5. Ran `export_mlb_id_reference.ts` again to save complete mappings
 
 **Result**: Full recovery of MLB IDs with persistent backup in reference files.
+

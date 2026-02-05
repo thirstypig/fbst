@@ -28,9 +28,13 @@ a:hover {
 
 body {
   @apply bg-slate-100 text-slate-900;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
 }
-
 
 #root {
   width: 100%;
@@ -47,8 +51,6 @@ body {
     color: #747bff;
   }
 }
-
-
 
 @layer base {
   :root {
@@ -104,9 +106,85 @@ body {
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
   }
+
+  /* FBST Semantic Theme Variables - Light Mode (Wikipedia-inspired: gray bg, white tables, black text, light red accent) */
+  :root {
+    /* Surfaces */
+    --fbst-surface-primary: #f6f6f6;       /* Light gray background (like Wikipedia light) */
+    --fbst-surface-secondary: #eaecf0;     /* Slightly darker gray */
+    --fbst-surface-elevated: #ffffff;       /* White for cards/tables */
+    --fbst-surface-overlay: rgba(0, 0, 0, 0.5);
+
+    /* Text */
+    --fbst-text-primary: #202122;          /* Near black (Wikipedia body text) */
+    --fbst-text-secondary: #54595d;        /* Dark gray secondary */
+    --fbst-text-muted: #72777d;            /* Muted gray */
+    --fbst-text-inverted: #ffffff;
+    --fbst-text-heading: #a31515;          /* Light red for headers */
+
+    /* Inputs */
+    --fbst-input-bg: #ffffff;
+    --fbst-input-bg-hover: #f8f9fa;
+    --fbst-input-border: #a2a9b1;          /* Wikipedia border gray */
+    --fbst-input-border-focus: #a31515;    /* Red focus */
+    --fbst-input-text: #202122;
+    --fbst-input-placeholder: #72777d;
+
+    /* Tables */
+    --fbst-table-header-bg: #eaecf0;       /* Light gray header */
+    --fbst-table-header-text: #202122;     /* Black text */
+    --fbst-table-row-bg: #ffffff;          /* White rows */
+    --fbst-table-row-alt-bg: #f8f9fa;      /* Very light gray alt rows */
+    --fbst-table-row-hover: #fff5f5;       /* Light red tint on hover */
+    --fbst-table-border: #c8ccd1;          /* Wikipedia border */
+    --fbst-table-text: #202122;            /* Black text */
+
+    /* Accents */
+    --fbst-accent-primary: #a31515;        /* Light red accent */
+    --fbst-accent-success: #14866d;        /* Wikipedia green */
+    --fbst-accent-warning: #ac6600;        /* Wikipedia orange */
+    --fbst-accent-danger: #d33;            /* Wikipedia red */
+  }
+
+  /* FBST Semantic Theme Variables - Dark Mode (Wikipedia-inspired: dark gray bg, black tables, white text, dark red accent) */
+  .dark {
+    /* Surfaces */
+    --fbst-surface-primary: #101418;       /* Dark gray background (Wikipedia dark) */
+    --fbst-surface-secondary: #1a1d21;     /* Slightly lighter */
+    --fbst-surface-elevated: #000000;      /* Black for cards/tables */
+    --fbst-surface-overlay: rgba(0, 0, 0, 0.8);
+
+    /* Text */
+    --fbst-text-primary: #f8f9fa;          /* White text */
+    --fbst-text-secondary: #c8ccd1;        /* Light gray secondary */
+    --fbst-text-muted: #72777d;            /* Muted gray */
+    --fbst-text-inverted: #202122;
+    --fbst-text-heading: #ff6b6b;          /* Dark red for headers */
+
+    /* Inputs */
+    --fbst-input-bg: #000000;              /* Black input bg */
+    --fbst-input-bg-hover: #1a1d21;
+    --fbst-input-border: #3b4045;          /* Dark border */
+    --fbst-input-border-focus: #ff6b6b;    /* Red focus */
+    --fbst-input-text: #f8f9fa;
+    --fbst-input-placeholder: #72777d;
+
+    /* Tables */
+    --fbst-table-header-bg: #1a1d21;       /* Dark header */
+    --fbst-table-header-text: #f8f9fa;     /* White text */
+    --fbst-table-row-bg: #000000;          /* Black rows */
+    --fbst-table-row-alt-bg: #101418;      /* Dark alt rows */
+    --fbst-table-row-hover: rgba(255, 107, 107, 0.1); /* Red tint hover */
+    --fbst-table-border: #3b4045;          /* Dark border */
+    --fbst-table-text: #f8f9fa;            /* White text */
+
+    /* Accents */
+    --fbst-accent-primary: #ff6b6b;        /* Dark red accent */
+    --fbst-accent-success: #00af89;        /* Bright green */
+    --fbst-accent-warning: #fc3;           /* Bright yellow */
+    --fbst-accent-danger: #ff4242;         /* Bright red */
+  }
 }
-
-
 
 @layer base {
   * {
@@ -116,9 +194,3 @@ body {
     @apply bg-background text-foreground;
   }
 }
-
-
-
-
-
-

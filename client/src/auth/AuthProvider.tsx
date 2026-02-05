@@ -27,6 +27,7 @@ type MeResponse = {
 
 type AuthCtx = {
   me: MeResponse;
+  user: User | null; // convenience alias for me.user
   loading: boolean;
   refresh: () => Promise<void>;
 
@@ -93,6 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const api = useMemo<AuthCtx>(
     () => ({
       me,
+      user: me.user,
       loading,
       refresh,
       loginWithGoogleCredential,

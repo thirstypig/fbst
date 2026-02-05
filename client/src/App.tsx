@@ -18,7 +18,10 @@ import Leagues from "./pages/Leagues";
 import Commissioner from "./pages/Commissioner";
 import Admin from "./pages/Admin";
 import Rules from "./pages/Rules";
+import Guide from "./pages/Guide";
 import ArchivePage from "./pages/ArchivePage";
+import Auction from "./pages/Auction";
+import KeeperSelection from "./pages/KeeperSelection";
 import { ThemeProvider } from "./contexts/ThemeContext";
 
 export default function App() {
@@ -41,9 +44,13 @@ export default function App() {
 
             {/* New: league + commissioner/admin */}
             <Route path="/leagues" element={<Leagues />} />
+            <Route path="/leagues/:id/keepers" element={<KeeperSelection />} />
+            <Route path="/auction" element={<Auction />} />
             <Route path="/commissioner/:leagueId" element={<Commissioner />} />
             <Route path="/admin" element={<Admin />} />
+
             <Route path="/rules" element={<Rules />} />
+            <Route path="/guide" element={<Guide />} />
             <Route path="/archive" element={<ArchivePage />} />
 
             <Route path="*" element={<Navigate to="/" replace />} />

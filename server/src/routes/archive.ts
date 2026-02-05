@@ -9,6 +9,22 @@ const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+import multer from 'multer';
+import { ArchiveImportService } from '../services/archiveImportService.js';
+import { ArchiveExportService } from '../services/archiveExportService.js';
+import { ArchiveStatsService } from '../services/archiveStatsService.js';
+
+const archiver = new ArchiveExportService();
+const statsService = new ArchiveStatsService();
+
+// Configure multer
+const upload = multer({ dest: path.join(__dirname, '../data/uploads/') });
+
+// Ensure upload directory exists
+if (!fs.existsSync(path.join(__dirname, '../data/uploads/'))) {
+  fs.mkdirSync(path.join(__dirname, '../data/uploads/'), { recursive: true });
+}
+
 /**
  * GET /api/archive/seasons
  * Returns all years that have archive data
@@ -57,6 +73,26 @@ router.get('/archive/:year/standings', async (req, res) => {
   } catch (error: any) {
     console.error(`GET /archive/${req.params.year}/standings error:`, error);
     return res.status(500).json({ error: error?.message || 'Failed to fetch standings' });
+  }
+});
+
+/**
+ * GET /api/archive/:year/period/:num/standings
+ * Returns calculated standings for a specific period
+ */
+router.get('/archive/:year/period/:num/standings', async (req, res) => {
+  try {
+    const year = parseInt(req.params.year);
+    const periodNum = parseInt(req.params.num);
+    if (!Number.isFinite(year) || !Number.isFinite(periodNum)) {
+      return res.status(400).json({ error: 'Invalid parameters' });
+    }
+
+    const standings = await statsService.calculatePeriodStandings(year, periodNum);
+    return res.json({ year, periodNumber: periodNum, standings });
+  } catch (error: any) {
+    console.error(`GET /archive/${req.params.year}/period/${req.params.num}/standings error:`, error);
+    return res.status(500).json({ error: error?.message || 'Failed to fetch period standings' });
   }
 });
 
@@ -141,7 +177,7 @@ router.put('/archive/:year/teams/:teamCode', async (req, res) => {
 
 /**
  * GET /api/archive/:year/period/:num/stats
- * Returns all player stats for a specific period
+ * Returns all player stats for a specific period, separated by hitters and pitchers.
  */
 router.get('/archive/:year/period/:num/stats', async (req, res) => {
   try {
@@ -152,40 +188,46 @@ router.get('/archive/:year/period/:num/stats', async (req, res) => {
       return res.status(400).json({ error: 'Invalid year or period number' });
     }
 
-    const season = await prisma.historicalSeason.findFirst({
-      where: { year },
-    });
-
-    if (!season) {
-      return res.status(404).json({ error: `No archive found for year ${year}` });
-    }
-
     const period = await prisma.historicalPeriod.findFirst({
       where: {
-        seasonId: season.id,
-        periodNumber: periodNum,
+        season: { year },
+        periodNumber: periodNum
       },
       include: {
         stats: {
-          orderBy: [
-            { isPitcher: 'asc' },
-            { fullName: 'asc' },
-            { playerName: 'asc' },
-          ],
-        },
-      },
+          orderBy: { playerName: 'asc' }
+        }
+      }
     });
 
-    if (!period) {
-      return res.status(404).json({ error: `No period ${periodNum} found for year ${year}` });
+    if (!period) return res.status(404).json({ error: 'Period not found' });
+
+    const hitters: any[] = [];
+    const pitchers: any[] = [];
+
+    for (const stat of period.stats) {
+      const entry = {
+        ...stat,
+        GS: stat.GS,
+        SO: stat.SO
+      };
+      if (stat.isPitcher) {
+        pitchers.push(entry);
+      } else {
+        hitters.push(entry);
+      }
     }
 
     return res.json({
       year,
-      periodNumber: period.periodNumber,
+      periodNumber: periodNum,
+      periodId: period.id,
       startDate: period.startDate,
       endDate: period.endDate,
-      stats: period.stats,
+      hitters,
+      pitchers,
+      // For back-compat if needed:
+      stats: period.stats
     });
   } catch (error: any) {
     console.error(`GET /archive/${req.params.year}/period/${req.params.num}/stats error:`, error);
@@ -204,7 +246,7 @@ router.patch('/archive/stat/:id', async (req, res) => {
       return res.status(400).json({ error: 'Invalid stat ID' });
     }
 
-    const { fullName, mlbId, mlbTeam, position } = req.body;
+    const { fullName, mlbId, mlbTeam, position, isKeeper } = req.body;
 
     // Build update object with only provided fields
     const updateData: Record<string, any> = {};
@@ -212,6 +254,7 @@ router.patch('/archive/stat/:id', async (req, res) => {
     if (mlbId !== undefined) updateData.mlbId = mlbId;
     if (mlbTeam !== undefined) updateData.mlbTeam = mlbTeam;
     if (position !== undefined) updateData.position = position;
+    if (isKeeper !== undefined) updateData.isKeeper = Boolean(isKeeper);
 
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
@@ -233,18 +276,78 @@ router.patch('/archive/stat/:id', async (req, res) => {
 });
 
 /**
+ * GET /api/archive/recalculate-all
+ * Triggers recalculation for all historical years.
+ */
+router.post('/archive/recalculate-all', async (req, res) => {
+  try {
+    const seasons = await prisma.historicalSeason.findMany({ select: { year: true } });
+    let totalUpdated = 0;
+    
+    for (const { year } of seasons) {
+      console.log(`[Recalculate All] Starting year ${year}...`);
+      const { updated } = await statsService.recalculateYear(year);
+      totalUpdated += updated;
+    }
+    
+    return res.json({ success: true, message: 'Global recalculation complete', totalUpdated });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * POST /api/archive/:year/recalculate
- * Re-fetches MLB team data for players based on context
- * - If tab='draft': uses Opening Day of that year
- * - If tab='stats' and periodNumber provided: uses that period's start date
- * - Otherwise: recalculates all periods using their start dates
- * Requires commissioner/admin role
+ * Re-fetches MLB team data AND stats for players based on context
  */
 const OPENING_DAYS: Record<number, string> = {
+  2008: '2008-03-25',
+  2009: '2009-04-05',
+  2010: '2010-04-04',
+  2011: '2011-03-31',
+  2012: '2012-03-28',
+  2013: '2013-03-31',
+  2014: '2014-03-22',
+  2015: '2015-04-05',
+  2016: '2016-04-03',
+  2017: '2017-04-02',
+  2018: '2018-03-29',
+  2019: '2019-03-20',
+  2020: '2020-07-23',
+  2021: '2021-04-01',
+  2022: '2022-04-07',
+  2023: '2023-03-30',
   2024: '2024-03-20',
   2025: '2025-03-18',
   2026: '2026-03-25',
 };
+
+/**
+ * POST /api/archive/:year/sync
+ * Performs both auto-matching AND stat recalculation for a season.
+ */
+router.post('/archive/:year/sync', async (req, res) => {
+  try {
+    const year = parseInt(req.params.year);
+    if (!Number.isFinite(year)) {
+      return res.status(400).json({ error: 'Invalid year' });
+    }
+
+    const logs: string[] = [];
+    logs.push(`[Sync] Starting auto-match for ${year}...`);
+    const matchResult = await autoMatchPlayersForYear(year);
+    logs.push(`[Sync] Auto-matched ${matchResult.matched} players (${matchResult.unmatched} unmatched).`);
+
+    logs.push(`[Sync] Starting stat recalculation for ${year}...`);
+    const { updated } = await statsService.recalculateYear(year, 'all', undefined, true);
+    logs.push(`[Sync] Updated ${updated} player records with MLB stats.`);
+
+    return res.json({ success: true, year, updated, matchResult, logs });
+  } catch (error: any) {
+    console.error(`POST /archive/${req.params.year}/sync error:`, error);
+    return res.status(500).json({ error: error?.message || 'Failed to sync season' });
+  }
+});
 
 router.post('/archive/:year/recalculate', async (req, res) => {
   try {
@@ -253,125 +356,10 @@ router.post('/archive/:year/recalculate', async (req, res) => {
       return res.status(400).json({ error: 'Invalid year' });
     }
 
-    const { tab, periodNumber } = req.body;
-    const openingDay = OPENING_DAYS[year] || `${year}-03-28`; // Default to March 28
+    const { tab, periodNumber, fetchStats = true } = req.body;
+    const { updated } = await statsService.recalculateYear(year, tab, periodNumber ? parseInt(periodNumber) : undefined, fetchStats);
 
-    // Load team abbreviations
-    const teamsResponse = await fetch('https://statsapi.mlb.com/api/v1/teams?sportId=1&season=' + year);
-    const teamsData = await teamsResponse.json() as any;
-    const teamAbbreviations = new Map<number, string>();
-    for (const team of teamsData.teams || []) {
-      teamAbbreviations.set(team.id, team.abbreviation);
-    }
-
-    let updated = 0;
-    const errors: string[] = [];
-
-    // Helper to fetch team for a player on a specific date
-    async function getTeamForDate(mlbId: string, date: string): Promise<string | null> {
-      try {
-        const url = `https://statsapi.mlb.com/api/v1/people/${mlbId}?hydrate=currentTeam&date=${date}`;
-        const response = await fetch(url);
-        const data = await response.json() as any;
-        const person = data.people?.[0];
-        
-        let mlbTeam = person?.currentTeam?.abbreviation;
-        if (!mlbTeam && person?.currentTeam?.id) {
-          mlbTeam = teamAbbreviations.get(person.currentTeam.id);
-        }
-        return mlbTeam || null;
-      } catch {
-        return null;
-      }
-    }
-
-    if (tab === 'draft') {
-      // Recalculate using Opening Day for all players in the year
-      console.log(`[Recalculate] Auction Draft - using Opening Day: ${openingDay}`);
-      
-      const stats = await prisma.historicalPlayerStat.findMany({
-        where: {
-          period: { season: { year }, periodNumber: 1 }, // Period 1 represents draft
-          mlbId: { not: null }
-        },
-        select: { id: true, mlbId: true },
-      });
-
-      for (const stat of stats) {
-        if (!stat.mlbId) continue;
-        const mlbTeam = await getTeamForDate(stat.mlbId, openingDay);
-        if (mlbTeam) {
-          await prisma.historicalPlayerStat.update({
-            where: { id: stat.id },
-            data: { mlbTeam },
-          });
-          updated++;
-        }
-        await new Promise(resolve => setTimeout(resolve, 30)); // Rate limit
-      }
-    } else if (tab === 'stats' && periodNumber) {
-      // Recalculate for a specific period using its start date
-      const period = await prisma.historicalPeriod.findFirst({
-        where: { season: { year }, periodNumber: parseInt(periodNumber) },
-        include: { stats: { where: { mlbId: { not: null } }, select: { id: true, mlbId: true } } },
-      });
-
-      if (!period) {
-        return res.status(404).json({ error: `Period ${periodNumber} not found for ${year}` });
-      }
-
-      const dateStr = period.startDate?.toISOString().split('T')[0] || openingDay;
-      console.log(`[Recalculate] Period ${periodNumber} - using date: ${dateStr}`);
-
-      for (const stat of period.stats) {
-        if (!stat.mlbId) continue;
-        const mlbTeam = await getTeamForDate(stat.mlbId, dateStr);
-        if (mlbTeam) {
-          await prisma.historicalPlayerStat.update({
-            where: { id: stat.id },
-            data: { mlbTeam },
-          });
-          updated++;
-        }
-        await new Promise(resolve => setTimeout(resolve, 30)); // Rate limit
-      }
-    } else {
-      // Recalculate all periods
-      const periods = await prisma.historicalPeriod.findMany({
-        where: { season: { year } },
-        include: { stats: { where: { mlbId: { not: null } }, select: { id: true, mlbId: true } } },
-        orderBy: { periodNumber: 'asc' },
-      });
-
-      for (const period of periods) {
-        const dateStr = period.startDate?.toISOString().split('T')[0];
-        if (!dateStr) continue;
-
-        console.log(`[Recalculate] Period ${period.periodNumber} - using date: ${dateStr}`);
-
-        for (const stat of period.stats) {
-          if (!stat.mlbId) continue;
-          const mlbTeam = await getTeamForDate(stat.mlbId, dateStr);
-          if (mlbTeam) {
-            await prisma.historicalPlayerStat.update({
-              where: { id: stat.id },
-              data: { mlbTeam },
-            });
-            updated++;
-          }
-          await new Promise(resolve => setTimeout(resolve, 30)); // Rate limit
-        }
-      }
-    }
-
-    return res.json({
-      success: true,
-      year,
-      tab: tab || 'all',
-      periodNumber: periodNumber || null,
-      updated,
-      errors: errors.slice(0, 10),
-    });
+    return res.json({ success: true, year, updated });
   } catch (error: any) {
     console.error(`POST /archive/${req.params.year}/recalculate error:`, error);
     return res.status(500).json({ error: error?.message || 'Failed to recalculate' });
@@ -527,7 +515,7 @@ router.get('/archive/:year/period-results', async (req, res) => {
           if (cat === 'ERA' || cat === 'WHIP') return valA - valB;
           return valB - valA;
         });
-        
+
         // Handle ties (simplified: just use index)
         sorted.forEach((t, i) => {
           teamScores[t.teamCode] += (teams.length - i);
@@ -543,10 +531,27 @@ router.get('/archive/:year/period-results', async (req, res) => {
       });
     }
 
-    return res.json(results);
+    return res.json({ year, results });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/archive/auto-match-all
+// Runs name auto-matching for all seasons (full name, MLB ID).
+router.post('/archive/auto-match-all', async (req, res) => {
+  try {
+    const years = await prisma.historicalSeason.findMany({ select: { year: true } });
+    const results: { year: number; matched: number; unmatched: number }[] = [];
+    for (const { year } of years) {
+      const matchResult = await autoMatchPlayersForYear(year);
+      results.push({ year, matched: matchResult.matched, unmatched: matchResult.unmatched });
+    }
+    return res.json({ success: true, results });
+  } catch (error: any) {
+    console.error('POST /archive/auto-match-all error:', error);
+    return res.status(500).json({ error: error?.message || 'Failed to run auto-match for all seasons' });
   }
 });
 
@@ -573,7 +578,7 @@ router.get('/archive/:year/draft-results', async (req, res) => {
       where: { season: { year }, periodNumber: 1 },
       include: {
         stats: {
-          select: { playerName: true, fullName: true, mlbId: true, mlbTeam: true, teamCode: true, position: true }
+          select: { id: true, playerName: true, fullName: true, mlbId: true, mlbTeam: true, teamCode: true, position: true, isKeeper: true, draftDollars: true }
         }
       }
     });
@@ -609,12 +614,16 @@ router.get('/archive/:year/draft-results', async (req, res) => {
     const idxName = headers.findIndex(h => h.includes('player') && h.includes('name') || h === 'player');
     const idxTeam = headers.findIndex(h => h.includes('team') && h.includes('code') || h === 'team');
     // Pitcher column: might be "is_pitcher", "pitcher", "pos_type" etc.
-    const idxPitcher = headers.findIndex(h => h.includes('pitcher'));
+    const idxPitcher = headers.findIndex(h => h.includes('pitcher') || h === 'is_pitcher');
     const idxPos = headers.findIndex(h => h === 'position' || h === 'pos');
     // Dollars: "draft_dollars", "amount", "cost", "salary"
     const idxDollars = headers.findIndex(h => h.includes('dollar') || h.includes('amount') || h.includes('cost') || h.includes('salary'));
-    
-    console.log('Indices:', { idxName, idxTeam, idxPitcher, idxPos, idxDollars });
+    // Keeper: "is_keeper", "keeper"
+    const idxKeeper = headers.findIndex(h => h.includes('keeper'));
+    // MLB Team: "mlb_team", "mlb"
+    const idxMlbTeam = headers.findIndex(h => h.includes('mlb') && h.includes('team') || h === 'mlb_team');
+
+    console.log('Indices:', { idxName, idxTeam, idxPitcher, idxPos, idxDollars, idxKeeper, idxMlbTeam });
 
     const players: any[] = [];
     for (let i = 1; i < draftLines.length; i++) {
@@ -627,26 +636,48 @@ router.get('/archive/:year/draft-results', async (req, res) => {
         for (const char of line) {
           if (char === '"') inQuotes = !inQuotes;
           else if (char === ',' && !inQuotes) {
-            values.push(current.trim());
+            values.push(current.trim().replace(/^"/, '').replace(/"$/, ''));
             current = '';
           } else current += char;
         }
-        values.push(current.trim());
+        values.push(current.trim().replace(/^"/, '').replace(/"$/, ''));
 
         const pName = values[idxName];
         const tCode = values[idxTeam];
+
+        if (i < 5) console.log(`Row ${i} parsed:`, { pName, tCode });
+
         if (!pName || !tCode) continue;
 
+        // Prioritize DB values if they exist (restored data), fallback to CSV
         const enriched = playerLookup.get(`${pName.toLowerCase()}_${tCode}`);
+        if (pName.includes('Elly')) {
+            console.log('Elly Enriched:', enriched, 'CSV Dollars:', values[idxDollars]);
+        }
+        const csvIsKeeper = values[idxKeeper]?.toLowerCase();
         
+        // Keeper logic: DB > CSV > defaults
+        const isKeeper = (enriched?.isKeeper) 
+          || (csvIsKeeper === 'true' || csvIsKeeper === 'y' || csvIsKeeper === 'yes');
+
+        const mlbTeam = values[idxMlbTeam] || enriched?.mlbTeam || null;
+        
+        // Draft Dollars logic: DB > CSV > 0
+        const csvDollars = parseInt(values[idxDollars]) || 0;
+        const draftDollars = (enriched?.draftDollars && enriched.draftDollars > 0) 
+            ? enriched.draftDollars 
+            : csvDollars;
+
         players.push({
+          id: enriched?.id,
           playerName: pName,
           fullName: enriched?.fullName || pName,
           teamCode: tCode,
           position: values[idxPos] || (values[idxPitcher]?.toLowerCase() === 'true' ? 'P' : 'UT'),
-          mlbTeam: enriched?.mlbTeam || null,
-          draftDollars: parseInt(values[idxDollars]) || 0,
+          mlbTeam: mlbTeam,
+          draftDollars: draftDollars,
           isPitcher: values[idxPitcher]?.toLowerCase() === 'true',
+          isKeeper: isKeeper,
         });
     }
 
@@ -657,20 +688,145 @@ router.get('/archive/:year/draft-results', async (req, res) => {
   }
 });
 
-import multer from 'multer';
-import { ArchiveImportService } from '../services/archiveImportService.js';
+// Definitions moved to top
 
-// Configure multer
-const upload = multer({ dest: path.join(__dirname, '../data/uploads/') });
+/**
+ * POST /api/archive/archive-current
+ * Archives the current live season (highest year) if it has ended.
+ */
+router.post('/archive/archive-current', async (req, res) => {
+  try {
+    const league = await prisma.league.findFirst({
+      orderBy: { season: 'desc' }
+    });
 
-// Ensure upload directory exists
-if (!fs.existsSync(path.join(__dirname, '../data/uploads/'))) {
-  fs.mkdirSync(path.join(__dirname, '../data/uploads/'), { recursive: true });
+    if (!league) {
+      return res.status(404).json({ error: 'No active league found for archiving' });
+    }
+
+    const result = await archiver.archiveLeague(league.id);
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    return res.json(result);
+  } catch (error: any) {
+    console.error('POST /api/archive/archive-current error:', error);
+    return res.status(500).json({ error: error?.message || 'Internal server error' });
+  }
+});
+
+// Helper function for auto-matching players
+async function autoMatchPlayersForYear(year: number): Promise<{ matched: number; unmatched: number }> {
+  const players = await prisma.historicalPlayerStat.findMany({
+    where: {
+      period: { season: { year } },
+      OR: [
+        { mlbId: null },
+        { mlbId: '' }
+      ]
+    },
+    select: {
+      id: true,
+      playerName: true,
+      position: true,
+      isPitcher: true,
+    },
+    distinct: ['playerName']
+  });
+
+  const cache = new Map<string, any[]>();
+  let matched = 0;
+  let unmatched = 0;
+
+  for (const player of players) {
+    // Parse abbreviated name: "A. Riley" -> firstInitial, lastName
+    const match = player.playerName.match(/^([A-Za-z]+)\.?\s+(.+)$/);
+    if (!match) {
+      unmatched++;
+      continue;
+    }
+    const firstInitial = match[1].charAt(0).toUpperCase();
+    const lastName = match[2].trim();
+
+    // Check cache or query MLB API
+    let candidates: any[] | undefined = cache.get(lastName);
+    if (!candidates) {
+      try {
+        const url = `https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(lastName)}&sportIds=1&seasons=${year}`;
+        const response = await fetch(url);
+        const data = await response.json() as any;
+        const peopleList: any[] = data.people || [];
+        candidates = peopleList;
+        cache.set(lastName, peopleList);
+        await new Promise(resolve => setTimeout(resolve, 50));
+      } catch {
+        candidates = [];
+        cache.set(lastName, []);
+      }
+    }
+
+    // Filter by first initial
+    const candidateList = candidates || [];
+    let matches = candidateList.filter((c: any) => 
+      c.firstName?.charAt(0).toUpperCase() === firstInitial
+    );
+
+    // Filter by pitcher status
+    if (matches.length > 1 && player.isPitcher !== null) {
+      const pitcherCodes = ['P', 'SP', 'RP', 'TWP'];
+      const pitcherMatches = matches.filter((c: any) => {
+        const isPitcher = pitcherCodes.includes(c.primaryPosition?.abbreviation?.toUpperCase() || '');
+        return isPitcher === player.isPitcher;
+      });
+      if (pitcherMatches.length > 0) matches = pitcherMatches;
+    }
+
+    // If exactly one match, update database with fullName and mlbId
+    if (matches.length === 1) {
+      const m = matches[0];
+      await prisma.historicalPlayerStat.updateMany({
+        where: {
+          playerName: player.playerName,
+          period: { season: { year } }
+        },
+        data: {
+          fullName: m.fullName,
+          mlbId: String(m.id)
+        }
+      });
+      matched++;
+      console.log(`  [AutoMatch] ${player.playerName} -> ${m.fullName} (${m.id})`);
+    } else {
+      unmatched++;
+    }
+
+    // NEW: Always try to fix isPitcher if it's currently false but they have pitcher stats
+    // or if they match a known pitcher position.
+    await prisma.historicalPlayerStat.updateMany({
+      where: {
+        playerName: player.playerName,
+        period: { season: { year } },
+        isPitcher: false,
+        OR: [
+          { W: { gt: 0 } },
+          { SV: { gt: 0 } },
+          { IP: { gt: 0 } },
+          { position: { in: ['P', 'SP', 'RP', 'PITCHER', 'STAFF'] } }
+        ]
+      },
+      data: {
+        isPitcher: true
+      }
+    });
+  }
+
+  return { matched, unmatched };
 }
 
 /**
  * POST /api/archive/:year/import-excel
- * Uploads an Excel file, converts it to CSVs, and imports data
+ * Uploads an Excel file, converts it to CSVs, imports data, and auto-matches players
  */
 router.post('/archive/:year/import-excel', upload.single('file'), async (req, res) => {
   try {
@@ -686,10 +842,8 @@ router.post('/archive/:year/import-excel', upload.single('file'), async (req, re
     const filePath = req.file.path;
     const importer = new ArchiveImportService(year);
     
-    // Process
     const result = await importer.processAndImport(filePath);
 
-    // Cleanup
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
@@ -698,11 +852,100 @@ router.post('/archive/:year/import-excel', upload.single('file'), async (req, re
       return res.status(500).json({ error: 'Import failed', logs: result.messages });
     }
 
-    return res.json({ success: true, logs: result.messages });
+    // Auto-match players after successful import
+    console.log(`[Import] Running auto-match for ${year}...`);
+    const matchResult = await autoMatchPlayersForYear(year);
+    result.messages.push(`Auto-matched ${matchResult.matched} players (${matchResult.unmatched} unmatched)`);
+
+    return res.json({ success: true, logs: result.messages, autoMatch: matchResult });
 
   } catch (err: any) {
     console.error('Import error:', err);
     return res.status(500).json({ error: err?.message || 'Import failed' });
+  }
+});
+
+/**
+ * POST /api/archive/:year/auto-match
+ * Manually trigger auto-matching of abbreviated player names to full names
+ */
+router.post('/archive/:year/auto-match', async (req, res) => {
+  try {
+    const year = parseInt(req.params.year);
+    if (!Number.isFinite(year)) {
+      return res.status(400).json({ error: 'Invalid year' });
+    }
+
+    console.log(`[AutoMatch] Manual trigger for ${year}`);
+    const result = await autoMatchPlayersForYear(year);
+
+    return res.json({
+      success: true,
+      year,
+      matched: result.matched,
+      unmatched: result.unmatched,
+      message: `Matched ${result.matched} players, ${result.unmatched} could not be matched automatically`
+    });
+  } catch (error: any) {
+    console.error(`POST /archive/${req.params.year}/auto-match error:`, error);
+    return res.status(500).json({ error: error?.message || 'Auto-match failed' });
+  }
+});
+
+// ==============================
+// AI Analysis Endpoints
+// ==============================
+import { aiAnalysisService } from '../services/aiAnalysisService.js';
+
+/**
+ * GET /api/archive/:year/ai/trends/:teamCode
+ * Get AI-generated team performance trend analysis
+ */
+router.get('/archive/:year/ai/trends/:teamCode', async (req, res) => {
+  try {
+    const year = parseInt(req.params.year);
+    const { teamCode } = req.params;
+
+    if (!Number.isFinite(year)) {
+      return res.status(400).json({ error: 'Invalid year' });
+    }
+
+    const result = await aiAnalysisService.analyzeTeamTrends(year, teamCode.toUpperCase());
+    
+    if (!result.success) {
+      return res.status(500).json({ error: result.error });
+    }
+
+    return res.json({ year, teamCode: teamCode.toUpperCase(), analysis: result.analysis });
+  } catch (error: any) {
+    console.error(`GET /archive/${req.params.year}/ai/trends error:`, error);
+    return res.status(500).json({ error: error?.message || 'AI analysis failed' });
+  }
+});
+
+/**
+ * GET /api/archive/:year/ai/draft/:teamCode
+ * Get AI-generated draft strategy analysis
+ */
+router.get('/archive/:year/ai/draft/:teamCode', async (req, res) => {
+  try {
+    const year = parseInt(req.params.year);
+    const { teamCode } = req.params;
+
+    if (!Number.isFinite(year)) {
+      return res.status(400).json({ error: 'Invalid year' });
+    }
+
+    const result = await aiAnalysisService.analyzeDraft(year, teamCode.toUpperCase());
+    
+    if (!result.success) {
+      return res.status(500).json({ error: result.error });
+    }
+
+    return res.json({ year, teamCode: teamCode.toUpperCase(), analysis: result.analysis });
+  } catch (error: any) {
+    console.error(`GET /archive/${req.params.year}/ai/draft error:`, error);
+    return res.status(500).json({ error: error?.message || 'AI analysis failed' });
   }
 });
 

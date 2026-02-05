@@ -17,6 +17,7 @@ import {
 type Props = {
   player: PlayerSeasonStat | null;
   onClose: () => void;
+  open?: boolean; // allows controlling visibility externally
 };
 
 type TabId = "stats" | "profile";
@@ -130,7 +131,10 @@ function CloseButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-export default function PlayerDetailModal({ player, onClose }: Props) {
+export default function PlayerDetailModal({ player, onClose, open }: Props) {
+  // If open is explicitly passed, use it; otherwise fall back to player being non-null
+  const isVisible = open !== undefined ? open : !!player;
+  
   const [tab, setTab] = useState<TabId>("stats");
 
   const mlbId = useMemo(() => norm(player?.mlb_id), [player]);
@@ -199,7 +203,7 @@ export default function PlayerDetailModal({ player, onClose }: Props) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [player, onClose]);
 
-  if (!player) return null;
+  if (!isVisible || !player) return null;
 
   const title = norm(player.player_name ?? (player as any).name ?? "Player");
   const pos = norm(player.positions ?? (player as any).pos ?? "");

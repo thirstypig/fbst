@@ -1,415 +1,371 @@
-// client/src/pages/Players.tsx
-import React, { useEffect, useMemo, useState } from "react";
-
-import { getPlayerSeasonStats, type PlayerSeasonStat } from "../api";
-import PlayerDetailModal from "../components/PlayerDetailModal";
-import { formatAvg } from "../lib/playerDisplay";
-import { TableCard, Table, THead, Tr, Th, Td } from "../components/ui/TableCard";
-
-function norm(v: any) {
-  return String(v ?? "").trim();
-}
-
-function rowIsPitcher(p: PlayerSeasonStat) {
-  const v = (p as any).is_pitcher;
-  if (typeof v === "boolean") return v;
-  if ((p as any).group === "P") return true;
-  if ((p as any).group === "H") return false;
-  return Boolean((p as any).isPitcher);
-}
-
-function rowKey(p: PlayerSeasonStat): string {
-  return (p as any).row_id ?? `${(p as any).mlb_id ?? (p as any).mlbId ?? ""}-${rowIsPitcher(p) ? "P" : "H"}`;
-}
-
-function ogbaTeam(p: PlayerSeasonStat) {
-  return norm((p as any).ogba_team_code ?? (p as any).team);
-}
-
-function mlbTeam(p: PlayerSeasonStat) {
-  return norm((p as any).mlbTeam ?? (p as any).mlb_team);
-}
-
-function playerName(p: PlayerSeasonStat) {
-  return norm((p as any).player_name ?? (p as any).name);
-}
-
-function posStr(p: PlayerSeasonStat) {
-  return norm((p as any).positions ?? (p as any).pos);
-}
-
-function isFreeAgent(p: PlayerSeasonStat) {
-  const t = ogbaTeam(p).toUpperCase();
-  return !t || t === "FA";
-}
-
-function fmt2(v: any): string {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return "";
-  return n.toFixed(2);
-}
-
-function numFromAny(p: any, ...keys: string[]) {
-  for (const k of keys) {
-    const v = p?.[k];
-    if (v != null && String(v).trim() !== "") {
-      const n = Number(String(v).trim());
-      if (Number.isFinite(n)) return n;
-    }
-  }
-  return 0;
-}
+import React, { useEffect, useState, useMemo } from 'react';
+import { getPlayerSeasonStats, getPlayerPeriodStats, type PlayerSeasonStat, type PeriodStatRow, fmtRate } from '../api';
+import PlayerExpandedRow from '../components/auction/PlayerExpandedRow';
+import { POS_ORDER, getPrimaryPosition } from '../lib/baseballUtils';
+import { OGBA_TEAM_NAMES } from '../lib/ogbaTeams';
+import PageHeader from '../components/ui/PageHeader';
 
 export default function Players() {
-  const [rows, setRows] = useState<PlayerSeasonStat[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [players, setPlayers] = useState<PlayerSeasonStat[]>([]);
+  
+  // View State
+  const [viewGroup, setViewGroup] = useState<'hitters' | 'pitchers'>('hitters');
+  const [viewMode, setViewMode] = useState<'all' | 'remaining'>('all'); // Filter available
+  const [statsMode, setStatsMode] = useState<string>('season'); // 'season' | 'period-1' ... | 'period-current'
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const [group, setGroup] = useState<"hitters" | "pitchers">("hitters");
-  const [scope, setScope] = useState<"all" | "fa">("all");
+  const [periodStats, setPeriodStats] = useState<PeriodStatRow[]>([]);
+  const [periods, setPeriods] = useState<number[]>([]);
 
-  const [selected, setSelected] = useState<PlayerSeasonStat | null>(null);
+
+  // Filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterTeam, setFilterTeam] = useState<string>('ALL'); // MLB Team
+  const [filterFantasyTeam, setFilterFantasyTeam] = useState<string>('ALL'); // OGBA Team
+  const [filterPos, setFilterPos] = useState<string>('ALL');
+
+  // Sort State
+  const [sortKey, setSortKey] = useState<string>('name');
+  const [sortDesc, setSortDesc] = useState(false);
 
   useEffect(() => {
-    let mounted = true;
     (async () => {
       try {
-        setLoading(true);
-        setError(null);
-        const data = await getPlayerSeasonStats();
-        if (!mounted) return;
-        setRows(data ?? []);
-      } catch (e: any) {
-        if (!mounted) return;
-        setError(e?.message ?? "Failed to load players.");
+        const [p, per] = await Promise.all([
+             getPlayerSeasonStats(),
+             getPlayerPeriodStats()
+        ]);
+        setPlayers(p);
+        setPeriodStats(per);
+        
+        // Extract unique periods
+        const pSet = new Set(per.map(x => x.periodId).filter(n => typeof n === 'number'));
+        setPeriods(Array.from(pSet).sort((a,b) => b-a)); // Descending
+
+      } catch (e) {
+        console.error(e);
       } finally {
-        if (!mounted) return;
         setLoading(false);
       }
     })();
-    return () => {
-      mounted = false;
-    };
   }, []);
 
-  const filtered = useMemo(() => {
-    const wantPitchers = group === "pitchers";
-    let out = (rows ?? []).filter((p) => (wantPitchers ? rowIsPitcher(p) : !rowIsPitcher(p)));
-    if (scope === "fa") out = out.filter(isFreeAgent);
+  // Derived Options
+  const uniqueMLBTeams = useMemo(() => {
+    const teams = new Set(players.map(p => p.mlb_team || 'FA'));
+    return ['ALL', ...Array.from(teams).sort()];
+  }, [players]);
 
-    out.sort((a, b) => playerName(a).localeCompare(playerName(b)));
-    return out;
-  }, [rows, group, scope]);
+  const uniqueFantasyTeams = useMemo(() => {
+    // Only use current active teams (keys in OGBA_TEAM_NAMES that are 3 chars and present in data?)
+    // Actually simplicity: just get all codes from players
+    const codes = new Set(players.map(p => p.ogba_team_code).filter(Boolean));
+    return ['ALL', ...Array.from(codes).sort()];
+  }, [players]);
+
+  const uniquePositions = POS_ORDER;
+
+  // Filter & Sort
+  const filteredPlayers = useMemo(() => {
+     const baseList = players;
+
+     // If statsMode is NOT season, we need to map period stats or merge them?
+     // Efficient approach: Create a map of Period Stats for the selected period.
+     
+     let statMap: Map<string, PeriodStatRow> | null = null;
+     if (statsMode !== 'season') {
+         const targetP = statsMode === 'period-current' ? Math.max(...periods, 0) : Number(statsMode.split('-')[1]);
+         statMap = new Map();
+         periodStats.forEach(ps => {
+             if (ps.periodId === targetP) {
+                 statMap!.set(String(ps.mlbId), ps);
+             }
+         });
+     }
+
+     // Filter
+     const res = baseList.filter(p => {
+        // ... metadata filters match
+        
+        // Group
+        if (viewGroup === 'hitters' && p.is_pitcher) return false;
+        if (viewGroup === 'pitchers' && !p.is_pitcher) return false;
+
+        // Mode
+        if (viewMode === 'remaining' && (p.ogba_team_code || p.team)) return false;
+
+        // Search
+        if (searchQuery && !p.player_name?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+        if (filterTeam !== 'ALL' && (p.mlb_team || 'FA') !== filterTeam) return false;
+        if (filterFantasyTeam !== 'ALL' && (p.ogba_team_code || 'FA') !== filterFantasyTeam) return false;
+        
+        if (filterPos !== 'ALL') {
+             const pPos = getPrimaryPosition(p.positions);
+             if (!pPos.includes(filterPos)) return false; 
+        }
+        return true;
+     });
+
+     // Attach stats if period mode
+     // We return a wrapper or modifies object? Modifying might be risky for memo.
+     // Let's map to a display object.
+     const displayList = res.map(p => {
+         if (statsMode === 'season') return p;
+         const s = statMap?.get(String(p.mlb_id));
+         // Merge stats.
+         return {
+             ...p,
+             // Overwrite stats with explicit number conversion to satisfy type and ReactNode
+             R: Number(s?.R ?? 0),
+             HR: Number(s?.HR ?? 0),
+             RBI: Number(s?.RBI ?? 0),
+             SB: Number(s?.SB ?? 0),
+             AVG: Number(s?.AVG ?? 0),
+             W: Number(s?.W ?? 0),
+             SV: Number(s?.SV ?? 0),
+             K: Number(s?.K ?? 0),
+             ERA: Number(s?.ERA ?? 0),
+             WHIP: Number(s?.WHIP ?? 0),
+         } as PlayerSeasonStat;
+     });
+
+
+     // Sort
+     return displayList.sort((a, b) => {
+         let valA: string | number = 0; 
+         let valB: string | number = 0;
+
+         if (sortKey === 'name') {
+             valA = a.mlb_full_name || a.player_name || '';
+             valB = b.mlb_full_name || b.player_name || '';
+             return sortDesc ? valB.toString().localeCompare(valA.toString()) : valA.toString().localeCompare(valB.toString());
+         } else if (sortKey === 'fantasy') {
+             valA = a.ogba_team_code || 'ZZZ'; 
+             valB = b.ogba_team_code || 'ZZZ';
+             return sortDesc ? valB.toString().localeCompare(valA.toString()) : valA.toString().localeCompare(valB.toString());
+         } else {
+             // Stat sort
+             // @ts-expect-error key access
+             valA = Number(a[sortKey] ?? -999);
+             // @ts-expect-error key access
+             valB = Number(b[sortKey] ?? -999);
+             return sortDesc ? (valB as number) - (valA as number) : (valA as number) - (valB as number);
+         }
+     });
+  }, [players, periodStats, periods, statsMode, viewGroup, viewMode, searchQuery, filterTeam, filterFantasyTeam, filterPos, sortKey, sortDesc]);
+
+
+  const handleHeaderClick = (key: string) => {
+      if (sortKey === key) {
+          setSortDesc(!sortDesc);
+      } else {
+          setSortKey(key);
+          setSortDesc(true); // Default desc for stats
+      }
+  };
+
+  const Th = ({ label, sKey, w }: { label: string, sKey: string, w?: string }) => (
+      <th 
+        className={`px-2 py-2 font-semibold cursor-pointer select-none hover:text-[var(--fbst-text-primary)] transition-colors ${sortKey === sKey ? 'text-[var(--fbst-accent-primary)]' : 'text-[var(--fbst-text-muted)]'} ${w || 'text-left'}`}
+        onClick={() => handleHeaderClick(sKey)}
+      >
+          <div className={`flex items-center gap-1 ${w?.includes('text-center') ? 'justify-center' : (w?.includes('text-right') ? 'justify-end' : '')}`}>
+            {label} 
+            {sortKey === sKey && (sortDesc ? '▼' : '▲')}
+          </div>
+      </th>
+  );
+
+  const toggleExpand = (id: string) => {
+    setExpandedId(prev => (prev === id ? null : id));
+  };
+
+  if (loading) return <div className="p-8 text-center text-[var(--fbst-text-muted)]">Loading players...</div>;
 
   return (
-    <div className="px-10 py-8">
-      <div className="mb-6 text-center">
-        <div className="text-4xl font-semibold text-white">Players</div>
-        <div className="mt-2 text-sm text-white/60">Player pool and season totals from ogba_player_season_totals_*.csv.</div>
-      </div>
+    <div className="h-full flex flex-col bg-[var(--fbst-surface-primary)]">
+       {/* Page Header */}
+       <PageHeader 
+         title="Players" 
+         subtitle="Browse, sort, and filter all MLB players and their current fantasy status."
+       />
 
-      <div className="mb-6 flex items-center justify-center gap-3">
-        <div className="rounded-full bg-white/5 p-1">
-          <button
-            className={`rounded-full px-4 py-2 text-sm ${
-              group === "hitters" ? "bg-sky-600/80 text-white" : "text-white/70 hover:bg-white/10"
-            }`}
-            onClick={() => setGroup("hitters")}
-          >
-            Hitters
-          </button>
-          <button
-            className={`rounded-full px-4 py-2 text-sm ${
-              group === "pitchers" ? "bg-sky-600/80 text-white" : "text-white/70 hover:bg-white/10"
-            }`}
-            onClick={() => setGroup("pitchers")}
-          >
-            Pitchers
-          </button>
-        </div>
+       {/* Filters Header */}
+       <div className="p-4 border-b border-[var(--fbst-table-border)] flex flex-wrap items-center gap-4 bg-[var(--fbst-surface-elevated)] z-10 sticky top-0 shadow-sm">
+          
+           {/* Hitter/Pitcher Toggle */}
+           <div className="flex bg-[var(--fbst-surface-secondary)] rounded-lg p-1 border border-[var(--fbst-table-border)]">
+               <button 
+                   onClick={() => setViewGroup('hitters')}
+                   className={`px-4 py-1.5 text-sm font-bold rounded flex-1 transition-all ${viewGroup === 'hitters' ? 'bg-[var(--fbst-surface-elevated)] text-[var(--fbst-text-primary)] shadow-sm' : 'text-[var(--fbst-text-muted)] hover:text-[var(--fbst-text-secondary)]'}`}
+               >
+                   Hitters
+               </button>
+               <button 
+                   onClick={() => setViewGroup('pitchers')}
+                   className={`px-4 py-1.5 text-sm font-bold rounded flex-1 transition-all ${viewGroup === 'pitchers' ? 'bg-[var(--fbst-surface-elevated)] text-[var(--fbst-text-primary)] shadow-sm' : 'text-[var(--fbst-text-muted)] hover:text-[var(--fbst-text-secondary)]'}`}
+               >
+                   Pitchers
+               </button>
+           </div>
 
-        <div className="rounded-full bg-white/5 p-1">
-          <button
-            className={`rounded-full px-4 py-2 text-sm ${
-              scope === "all" ? "bg-white/10 text-white" : "text-white/70 hover:bg-white/10"
-            }`}
-            onClick={() => setScope("all")}
-          >
-            All players
-          </button>
-          <button
-            className={`rounded-full px-4 py-2 text-sm ${
-              scope === "fa" ? "bg-white/10 text-white" : "text-white/70 hover:bg-white/10"
-            }`}
-            onClick={() => setScope("fa")}
-          >
-            Free agents only
-          </button>
-        </div>
-      </div>
+           {/* Search */}
+           <input 
+                type="text" 
+                placeholder="Search players..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-48 px-3 py-1.5 rounded-lg bg-[var(--fbst-input-bg)] border border-[var(--fbst-input-border)] text-[var(--fbst-input-text)] text-sm focus:outline-none focus:border-[var(--fbst-input-border-focus)]"
+           />
 
-      <div className="mx-auto max-w-6xl">
-        <TableCard>
-          {group === "hitters" ? (
-            <Table className="min-w-[1400px] w-full">
-              <THead>
-                <Tr className="text-xs text-white/60">
-                  <Th align="left">PLAYER</Th>
-                  <Th w={80} align="center">
-                    TEAM
-                  </Th>
-                  <Th w={70} align="center">
-                    TM
-                  </Th>
+           {/* Filters */}
+            <select 
+                value={viewMode}
+                onChange={(e) => setViewMode(e.target.value as 'all' | 'remaining')}
+                className="px-2 py-1.5 text-sm rounded border border-[var(--fbst-table-border)] bg-[var(--fbst-surface-secondary)] text-[var(--fbst-text-primary)]"
+            >
+                <option value="all">All Players</option>
+                <option value="remaining">Available Only</option>
+            </select>
 
-                  <Th w={60} align="center">
-                    DH
-                  </Th>
-                  <Th w={60} align="center">
-                    C
-                  </Th>
-                  <Th w={60} align="center">
-                    1B
-                  </Th>
-                  <Th w={60} align="center">
-                    2B
-                  </Th>
-                  <Th w={60} align="center">
-                    3B
-                  </Th>
-                  <Th w={60} align="center">
-                    SS
-                  </Th>
-                  <Th w={60} align="center">
-                    OF
-                  </Th>
+            <select 
+                value={statsMode}
+                onChange={(e) => setStatsMode(e.target.value)}
+                className="px-2 py-1.5 text-sm rounded border border-[var(--fbst-table-border)] bg-[var(--fbst-surface-secondary)] text-[var(--fbst-text-primary)]"
+            >
+                <option value="season">Season (YTD)</option>
+                {/* <option value="period-current">Current Period (Up to Date)</option> */}
+                {periods.map(p => (
+                     <option key={p} value={`period-${p}`}>Period {p}</option>
+                ))}
+            </select>
 
-                  <Th w={90} align="center">
-                    POS
-                  </Th>
+            <select 
+                value={filterTeam}
+                onChange={(e) => setFilterTeam(e.target.value)}
+                className="px-2 py-1.5 text-sm rounded border border-[var(--fbst-table-border)] bg-[var(--fbst-surface-secondary)] text-[var(--fbst-text-primary)]"
+            >
+                <option value="ALL">All MLB Teams</option>
+                {uniqueMLBTeams.filter(t => t!=='ALL').map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
 
-                  <Th w={70} align="center">
-                    AB
-                  </Th>
-                  <Th w={70} align="center">
-                    H
-                  </Th>
-                  <Th w={70} align="center">
-                    R
-                  </Th>
-                  <Th w={70} align="center">
-                    HR
-                  </Th>
-                  <Th w={70} align="center">
-                    RBI
-                  </Th>
-                  <Th w={70} align="center">
-                    SB
-                  </Th>
-                  <Th w={90} align="center">
-                    AVG
-                  </Th>
-                  <Th w={70} align="center">
-                    GS
-                  </Th>
-                </Tr>
-              </THead>
+            <select 
+                value={filterFantasyTeam}
+                onChange={(e) => setFilterFantasyTeam(e.target.value)}
+                className="px-2 py-1.5 text-sm rounded border border-[var(--fbst-table-border)] bg-[var(--fbst-surface-secondary)] text-[var(--fbst-text-primary)]"
+            >
+                <option value="ALL">All Fantasy Teams</option>
+                {uniqueFantasyTeams.filter(t => t!=='ALL').map(t => <option key={t} value={t as string}>{OGBA_TEAM_NAMES[t as string] || t}</option>)}
+            </select>
 
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={20} className="px-4 py-6 text-center text-sm text-white/60">
-                      Loading…
-                    </td>
-                  </tr>
-                ) : error ? (
-                  <tr>
-                    <td colSpan={20} className="px-4 py-6 text-center text-sm text-red-300">
-                      {error}
-                    </td>
-                  </tr>
-                ) : (
-                  filtered.map((p, idx) => {
-                    const avg = formatAvg((p as any).AVG ?? 0);
-                    const gs = (p as any).GS ?? "";
-                    return (
-                      <Tr
-                        key={rowKey(p)}
-                        className={[
-                          "border-t border-white/10 cursor-pointer hover:bg-white/5",
-                          idx % 2 === 0 ? "bg-slate-950" : "bg-slate-950/60",
-                        ].join(" ")}
-                        onClick={() => setSelected(p)}
-                        title="Click for player details"
-                      >
-                        <Td align="left" className="font-medium">
-                          {playerName(p)}
-                        </Td>
-                        <Td align="center" className="text-white/80">
-                          {ogbaTeam(p) || "FA"}
-                        </Td>
-                        <Td align="center" className="text-white/80">
-                          {mlbTeam(p) || "—"}
-                        </Td>
+            <select 
+                value={filterPos}
+                onChange={(e) => setFilterPos(e.target.value)}
+                className="px-2 py-1.5 text-sm rounded border border-[var(--fbst-table-border)] bg-[var(--fbst-surface-secondary)] text-[var(--fbst-text-primary)]"
+            >
+                <option value="ALL">Position</option>
+                {uniquePositions.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+       </div>
 
-                        <Td align="center" className="text-white/40">
-                          —
-                        </Td>
-                        <Td align="center" className="text-white/40">
-                          —
-                        </Td>
-                        <Td align="center" className="text-white/40">
-                          —
-                        </Td>
-                        <Td align="center" className="text-white/40">
-                          —
-                        </Td>
-                        <Td align="center" className="text-white/40">
-                          —
-                        </Td>
-                        <Td align="center" className="text-white/40">
-                          —
-                        </Td>
-                        <Td align="center" className="text-white/40">
-                          —
-                        </Td>
+       {/* Results Table */}
+       <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-[var(--fbst-table-border)]">
+           <table className="w-full text-sm text-left border-collapse">
+               <thead className="sticky top-0 bg-[var(--fbst-surface-primary)] border-b border-[var(--fbst-table-border)] shadow-sm z-10">
+                    <tr>
+                        <Th label="Player" sKey="name" w="pl-4 text-left" />
+                        
+                        {viewGroup === 'hitters' ? (
+                            <>
+                                 <Th label="R" sKey="R" w="text-center" />
+                                 <Th label="HR" sKey="HR" w="text-center" />
+                                 <Th label="RBI" sKey="RBI" w="text-center" />
+                                 <Th label="SB" sKey="SB" w="text-center" />
+                                 <Th label="AVG" sKey="AVG" w="text-center" />
+                            </>
+                        ) : (
+                            <>
+                                 <Th label="W" sKey="W" w="text-center" />
+                                 <Th label="SV" sKey="SV" w="text-center" />
+                                 <Th label="K" sKey="K" w="text-center" />
+                                 <Th label="ERA" sKey="ERA" w="text-center" />
+                                 <Th label="WHIP" sKey="WHIP" w="text-center" />
+                            </>
+                        )}
+                        
+                        <Th label="Fantasy Team" sKey="fantasy" w="pr-4 text-center" />
+                    </tr>
+               </thead>
+               <tbody className="divide-y divide-[var(--fbst-table-border)]">
+                   {filteredPlayers.map(p => {
+                       const isExpanded = expandedId === p.row_id;
+                       const isTaken = !!p.ogba_team_code || !!p.team;
+                       const teamName = p.ogba_team_code ? (OGBA_TEAM_NAMES[p.ogba_team_code] || p.ogba_team_code) : (p.team ? 'Taken' : '-');
 
-                        <Td align="center" className="text-white/80">
-                          {posStr(p)}
-                        </Td>
+                       return (
+                           <React.Fragment key={p.row_id}>
+                               <tr 
+                                   className={`cursor-pointer hover:bg-[var(--fbst-table-row-hover)] transition-colors ${isExpanded ? 'bg-[var(--fbst-table-row-alt-bg)]' : ''}`}
+                                   onClick={() => toggleExpand(p.row_id)}
+                               >
+                                   <td className="pl-4 py-2">
+                                       <div className="font-semibold text-[var(--fbst-text-primary)] text-base">{p.mlb_full_name || p.player_name}</div>
+                                       <div className="text-xs text-[var(--fbst-text-muted)] flex gap-2">
+                                           <span className="font-bold bg-[var(--fbst-surface-secondary)] px-1 rounded">{getPrimaryPosition(p.positions) || (p.is_pitcher ? 'P' : 'UT')}</span>
+                                           <span>{p.mlb_team || 'FA'}</span>
+                                       </div>
+                                   </td>
+                                   {/* <td className="text-center py-2 text-[var(--fbst-text-muted)]">{p.age || '-'}</td> */}{/* Age removed pending type update */}
 
-                        <Td align="center" className="tabular-nums">
-                          {(p as any).AB ?? 0}
-                        </Td>
-                        <Td align="center" className="tabular-nums">
-                          {(p as any).H ?? 0}
-                        </Td>
-                        <Td align="center" className="tabular-nums">
-                          {(p as any).R ?? 0}
-                        </Td>
-                        <Td align="center" className="tabular-nums">
-                          {(p as any).HR ?? 0}
-                        </Td>
-                        <Td align="center" className="tabular-nums">
-                          {(p as any).RBI ?? 0}
-                        </Td>
-                        <Td align="center" className="tabular-nums">
-                          {(p as any).SB ?? 0}
-                        </Td>
-                        <Td align="center" className="tabular-nums">
-                          {avg}
-                        </Td>
-                        <Td align="center" className="tabular-nums">
-                          {gs === "" ? "—" : String(gs)}
-                        </Td>
-                      </Tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </Table>
-          ) : (
-            <Table className="min-w-[1180px] w-full">
-              <THead>
-                <Tr className="text-xs text-white/60">
-                  <Th align="left">PLAYER</Th>
-                  <Th w={80} align="center">
-                    TEAM
-                  </Th>
-                  <Th w={70} align="center">
-                    TM
-                  </Th>
-                  <Th w={90} align="center">
-                    POS
-                  </Th>
-                  <Th w={70} align="center">
-                    W
-                  </Th>
-                  <Th w={70} align="center">
-                    SV
-                  </Th>
-                  <Th w={70} align="center">
-                    K
-                  </Th>
-                  <Th w={90} align="center">
-                    ERA
-                  </Th>
-                  <Th w={90} align="center">
-                    WHIP
-                  </Th>
-                  <Th w={70} align="center">
-                    SO
-                  </Th>
-                </Tr>
-              </THead>
+                                   {viewGroup === 'hitters' ? (
+                                        <>
+                                            <td className="text-center py-2">{p.R}</td>
+                                            <td className="text-center py-2">{p.HR}</td>
+                                            <td className="text-center py-2">{p.RBI}</td>
+                                            <td className="text-center py-2">{p.SB}</td>
+                                            <td className="text-center py-2">{typeof p.AVG === 'number' ? fmtRate(p.AVG) : '-'}</td>
+                                        </>
+                                   ) : (
+                                        <>
+                                            <td className="text-center py-2">{p.W}</td>
+                                            <td className="text-center py-2">{p.SV}</td>
+                                            <td className="text-center py-2">{p.K}</td>
+                                            <td className="text-center py-2">{p.ERA ? Number(p.ERA).toFixed(2) : '-'}</td>
+                                            <td className="text-center py-2">{p.WHIP ? Number(p.WHIP).toFixed(2) : '-'}</td>
+                                        </>
+                                   )}
 
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={10} className="px-4 py-6 text-center text-sm text-white/60">
-                      Loading…
-                    </td>
-                  </tr>
-                ) : error ? (
-                  <tr>
-                    <td colSpan={10} className="px-4 py-6 text-center text-sm text-red-300">
-                      {error}
-                    </td>
-                  </tr>
-                ) : (
-                  filtered.map((p, idx) => {
-                    const so = numFromAny(p as any, "SHO", "sho", "SO", "so");
-                    return (
-                      <Tr
-                        key={rowKey(p)}
-                        className={[
-                          "border-t border-white/10 cursor-pointer hover:bg-white/5",
-                          idx % 2 === 0 ? "bg-slate-950" : "bg-slate-950/60",
-                        ].join(" ")}
-                        onClick={() => setSelected(p)}
-                        title="Click for player details"
-                      >
-                        <Td align="left" className="font-medium">
-                          {playerName(p)}
-                        </Td>
-                        <Td align="center" className="text-white/80">
-                          {ogbaTeam(p) || "FA"}
-                        </Td>
-                        <Td align="center" className="text-white/80">
-                          {mlbTeam(p) || "—"}
-                        </Td>
-                        <Td align="center" className="text-white/80">
-                          {posStr(p) || "P"}
-                        </Td>
-                        <Td align="center" className="tabular-nums">
-                          {(p as any).W ?? 0}
-                        </Td>
-                        <Td align="center" className="tabular-nums">
-                          {(p as any).SV ?? 0}
-                        </Td>
-                        <Td align="center" className="tabular-nums">
-                          {(p as any).K ?? 0}
-                        </Td>
-                        <Td align="center" className="tabular-nums">
-                          {fmt2((p as any).ERA)}
-                        </Td>
-                        <Td align="center" className="tabular-nums">
-                          {fmt2((p as any).WHIP)}
-                        </Td>
-                        <Td align="center" className="tabular-nums">
-                          {so}
-                        </Td>
-                      </Tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </Table>
-          )}
-        </TableCard>
-      </div>
-
-      <PlayerDetailModal open={!!selected} onClose={() => setSelected(null)} player={selected} />
+                                   <td className="pr-4 py-2 text-center font-medium text-[var(--fbst-accent-primary)]">
+                                       {isTaken && (
+                                           <span className="bg-[var(--fbst-surface-secondary)] px-2 py-0.5 rounded text-xs">
+                                               {teamName}
+                                           </span>
+                                       )}
+                                       {!isTaken && <span className="text-[var(--fbst-text-muted)] opacity-50">Free Agent</span>}
+                                   </td>
+                               </tr>
+                               
+                               {isExpanded && (
+                                   <PlayerExpandedRow
+                                       player={p}
+                                       isTaken={isTaken}
+                                       ownerName={teamName}
+                                       colSpan={9}
+                                   />
+                               )}
+                           </React.Fragment>
+                       );
+                   })}
+               </tbody>
+           </table>
+           
+           {filteredPlayers.length === 0 && (
+                <div className="p-12 text-center text-[var(--fbst-text-muted)] italic">
+                    No players found matching your filters.
+                </div>
+            )}
+       </div>
     </div>
   );
 }

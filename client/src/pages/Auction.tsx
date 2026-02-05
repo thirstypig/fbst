@@ -1,224 +1,211 @@
-import React, { useEffect, useMemo, useState } from "react";
 
-import { getPlayerSeasonStats, type PlayerSeasonStat } from "../api";
-import PlayerDetailModal from "../components/PlayerDetailModal";
-import { formatAvg } from "../lib/playerDisplay";
+import React, { useEffect, useState, useMemo } from 'react';
+import AuctionLayout from '../components/auction/AuctionLayout';
+import AuctionStage from '../components/auction/AuctionStage';
+import ContextDeck from '../components/auction/ContextDeck';
+import PlayerPoolTab from '../components/auction/PlayerPoolTab';
+import TeamListTab from '../components/auction/TeamListTab';
+import AIAnalysisTab from '../components/auction/AIAnalysisTab';
+import MyNominationQueue from '../components/auction/MyNominationQueue';
+import { getPlayerSeasonStats, type PlayerSeasonStat, getLeagues, getLeague, getMe } from '../api';
+import { useAuctionState } from '../hooks/useAuctionState';
+import { useNominationQueue } from '../hooks/useNominationQueue';
 
-function norm(v: any) {
-  return String(v ?? "").trim();
-}
-function isPitcherRow(p: PlayerSeasonStat) {
-  return Boolean(p.is_pitcher ?? p.isPitcher) || p.group === "P";
-}
-function ogbaTeam(p: PlayerSeasonStat) {
-  return norm(p.ogba_team_code ?? p.team);
-}
-function mlbTeam(p: PlayerSeasonStat) {
-  return norm(p.mlbTeam ?? p.mlb_team);
-}
-function playerName(p: PlayerSeasonStat) {
-  return norm(p.player_name ?? p.name);
-}
-function posStr(p: PlayerSeasonStat) {
-  return norm(p.positions ?? p.pos);
-}
-function isFreeAgent(p: PlayerSeasonStat) {
-  const t = ogbaTeam(p).toUpperCase();
-  return !t || t === "FA";
-}
+// MOCK for verify
+const MOCK_LOG = [
+    { type: 'WIN', amount: 3, playerName: 'Test Player', teamName: 'Test Team', timestamp: Date.now() },
+    { type: 'WIN', amount: 45, playerName: 'Star Player', teamName: 'Big Spender', timestamp: Date.now() }
+];
+export default function Auction() {
+  const [players, setPlayers] = useState<PlayerSeasonStat[]>([]);
+  const [initLoading, setInitLoading] = useState(true);
+  
+  // Auth / Context State
+  const [myTeamId, setMyTeamId] = useState<number | undefined>(undefined);
+  const [activeLeagueId, setActiveLeagueId] = useState<number | null>(null);
 
-export default function Players() {
-  const [rows, setRows] = useState<PlayerSeasonStat[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Use the Hook
+  const { state: auctionState, actions } = useAuctionState();
+  const { queue: myQueue, add: addToQueue, remove: removeFromQueue, isQueued } = useNominationQueue(myTeamId);
 
-  const [group, setGroup] = useState<"hitters" | "pitchers">("hitters");
-  const [scope, setScope] = useState<"all" | "fa">("all");
-
-  const [selected, setSelected] = useState<PlayerSeasonStat | null>(null);
-
+  // Initialization: Fetch Data & Identify User
   useEffect(() => {
     let mounted = true;
-    (async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await getPlayerSeasonStats();
-        if (!mounted) return;
-        setRows(data ?? []);
-      } catch (e: any) {
-        if (!mounted) return;
-        setError(e?.message ?? "Failed to load players.");
-      } finally {
-        if (!mounted) return;
-        setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
+    const init = async () => {
+        try {
+            setInitLoading(true);
+
+            // 1. Fetch Players
+            const stats = await getPlayerSeasonStats();
+            if(mounted) setPlayers(stats);
+            
+            // 2. Identify League & User
+            const leaguesRes = await getLeagues();
+            const firstLeague = leaguesRes.leagues[0]; 
+            const meRes = await getMe();
+            const myUserId = meRes.user?.id;
+
+            if (firstLeague) {
+                if(mounted) setActiveLeagueId(firstLeague.id);
+                // Fetch full league detail to get teams
+                const detail = await getLeague(firstLeague.id);
+                const myTeam = detail.league.teams.find((t: any) => t.ownerUserId === myUserId);
+                if (myTeam && mounted) {
+                    setMyTeamId(myTeam.id);
+                }
+            }
+
+        } catch (e) {
+            console.error(e);
+        } finally {
+            if(mounted) setInitLoading(false);
+        }
     };
-  }, []);
+    init();
+    return () => { mounted = false; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const filtered = useMemo(() => {
-    const wantPitchers = group === "pitchers";
-    let out = rows.filter((p) => (wantPitchers ? isPitcherRow(p) : !isPitcherRow(p)));
+  // Ensure Auction Server is Initialized for this League
+  useEffect(() => {
+      // One-time check: if we have a league ID but server says null, trying initing.
+      // This is a convenience for now.
+      if (activeLeagueId && auctionState && auctionState.leagueId !== activeLeagueId && auctionState.status === 'not_started') {
+           // We only auto-init if we are confident? Or maybe providing a "Start Auction" button is better.
+           // For audit "continue", let's leave it to manual or existing state.
+           // But wait, if server is fresh restart, state is empty. We need to init.
+           actions.initAuction(activeLeagueId);
+      }
+  }, [activeLeagueId, auctionState?.leagueId, auctionState?.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    if (scope === "fa") out = out.filter(isFreeAgent);
 
-    // Stable ordering: player name asc
-    out.sort((a, b) => playerName(a).localeCompare(playerName(b)));
-    return out;
-  }, [rows, group, scope]);
+  // Handler: Nominate
+  const handleNominate = (player: PlayerSeasonStat) => {
+      if (!myTeamId) {
+          alert("You are not part of this league/auction.");
+          return;
+      }
+      if (!activeLeagueId) return;
+
+      // Ask for opening bid? Default $1
+      const startBid = 1; 
+
+      actions.nominate({
+          nominatorTeamId: myTeamId,
+          playerId: player.mlb_id || '',
+          playerName: player.player_name || 'Unknown',
+          startBid: startBid,
+          positions: player.positions || (player.is_pitcher ? 'P' : 'UT'),
+          team: player.mlb_team || 'FA',
+          isPitcher: player.is_pitcher || false
+      });
+  };
+
+  const handleBid = (amount: number) => {
+      if (!myTeamId) return;
+      actions.bid({
+          bidderTeamId: myTeamId,
+          amount
+      });
+  };
+
+  // Adapter for TeamListTab (it expects local TeamData, we have server AuctionTeam)
+  // We mash them together or refactor TeamListTab.
+  // For now, let's map server teams to expected shape.
+  const displayTeams = useMemo(() => {
+      if (!auctionState?.teams) return [];
+      return auctionState.teams.map((t: any) => ({
+          ...t,
+          isMe: t.id === myTeamId,
+          rosterCount: t.rosterCount || 0 // Ensure field exists
+      }));
+  }, [auctionState?.teams, myTeamId]);
+  
+  if (initLoading) return <div className="p-8 text-center text-[var(--fbst-text-muted)]">Loading auction room...</div>;
 
   return (
-    <div className="px-10 py-8">
-      <div className="mb-6 text-center">
-        <div className="text-4xl font-semibold text-white">Players</div>
-        <div className="mt-2 text-sm text-white/60">
-          Player pool and season totals from ogba_player_season_totals_*.csv.
-        </div>
-      </div>
-
-      <div className="mb-6 flex items-center justify-center gap-3">
-        <div className="rounded-full bg-white/5 p-1">
-          <button
-            className={`rounded-full px-4 py-2 text-sm ${
-              group === "hitters" ? "bg-sky-600/80 text-white" : "text-white/70 hover:bg-white/10"
-            }`}
-            onClick={() => setGroup("hitters")}
-          >
-            Hitters
-          </button>
-          <button
-            className={`rounded-full px-4 py-2 text-sm ${
-              group === "pitchers" ? "bg-sky-600/80 text-white" : "text-white/70 hover:bg-white/10"
-            }`}
-            onClick={() => setGroup("pitchers")}
-          >
-            Pitchers
-          </button>
-        </div>
-
-        <div className="rounded-full bg-white/5 p-1">
-          <button
-            className={`rounded-full px-4 py-2 text-sm ${
-              scope === "all" ? "bg-white/10 text-white" : "text-white/70 hover:bg-white/10"
-            }`}
-            onClick={() => setScope("all")}
-          >
-            All players
-          </button>
-          <button
-            className={`rounded-full px-4 py-2 text-sm ${
-              scope === "fa" ? "bg-white/10 text-white" : "text-white/70 hover:bg-white/10"
-            }`}
-            onClick={() => setScope("fa")}
-          >
-            Free agents only
-          </button>
-        </div>
-      </div>
-
-      <div className="mx-auto max-w-6xl overflow-x-auto rounded-2xl border border-white/10 bg-white/5">
-        <table className="min-w-[1400px] w-full border-separate border-spacing-0">
-          <thead>
-            <tr className="text-xs text-white/60">
-              {/* requested order: Player, Team, TM, (pos games placeholders), POS, AB,H,R,HR,RBI,SB,AVG,GS */}
-              <Th>PLAYER</Th>
-              <Th w={80}>TEAM</Th>
-              <Th w={70}>TM</Th>
-
-              {/* keep these columns for future (API working) */}
-              <Th w={60}>DH</Th>
-              <Th w={60}>C</Th>
-              <Th w={60}>1B</Th>
-              <Th w={60}>2B</Th>
-              <Th w={60}>3B</Th>
-              <Th w={60}>SS</Th>
-              <Th w={60}>OF</Th>
-
-              <Th w={90}>POS</Th>
-
-              <Th w={70}>AB</Th>
-              <Th w={70}>H</Th>
-              <Th w={70}>R</Th>
-              <Th w={70}>HR</Th>
-              <Th w={70}>RBI</Th>
-              <Th w={70}>SB</Th>
-              <Th w={90}>AVG</Th>
-              <Th w={70}>GS</Th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {loading ? (
-              <tr>
-                <td className="px-4 py-6 text-sm text-white/60" colSpan={20}>
-                  Loading…
-                </td>
-              </tr>
-            ) : error ? (
-              <tr>
-                <td className="px-4 py-6 text-sm text-red-300" colSpan={20}>
-                  {error}
-                </td>
-              </tr>
-            ) : (
-              filtered.map((p) => {
-                const avg = formatAvg((p as any).AVG ?? 0);
-                const gs = (p as any).GS ?? "";
-                return (
-                  <tr
-                    key={`${p.mlb_id}-${ogbaTeam(p)}-${playerName(p)}`}
-                    className="cursor-pointer text-sm text-white/90 hover:bg-white/5"
-                    onClick={() => setSelected(p)}
-                  >
-                    <Td className="font-medium">{playerName(p)}</Td>
-                    <Td className="text-white/80">{ogbaTeam(p) || "FA"}</Td>
-                    <Td className="text-white/80">{mlbTeam(p) || "—"}</Td>
-
-                    {/* placeholders until we wire a real source */}
-                    <Td className="text-white/40">—</Td>
-                    <Td className="text-white/40">—</Td>
-                    <Td className="text-white/40">—</Td>
-                    <Td className="text-white/40">—</Td>
-                    <Td className="text-white/40">—</Td>
-                    <Td className="text-white/40">—</Td>
-                    <Td className="text-white/40">—</Td>
-
-                    <Td className="text-white/80">{posStr(p)}</Td>
-
-                    <Td className="tabular-nums">{(p as any).AB ?? 0}</Td>
-                    <Td className="tabular-nums">{(p as any).H ?? 0}</Td>
-                    <Td className="tabular-nums">{(p as any).R ?? 0}</Td>
-                    <Td className="tabular-nums">{(p as any).HR ?? 0}</Td>
-                    <Td className="tabular-nums">{(p as any).RBI ?? 0}</Td>
-                    <Td className="tabular-nums">{(p as any).SB ?? 0}</Td>
-                    <Td className="tabular-nums">{avg}</Td>
-                    <Td className="tabular-nums">{gs === "" ? "—" : String(gs)}</Td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <PlayerDetailModal open={!!selected} onClose={() => setSelected(null)} player={selected} />
-    </div>
+    <AuctionLayout
+        title="Auction"
+        subtitle="Real-time auction draft room. Nominate players and manage bids."
+        stage={
+            <div className="flex flex-col h-full gap-4">
+                <div className="flex-1 overflow-auto">
+                    <AuctionStage 
+                        serverState={auctionState}
+                        myTeamId={myTeamId}
+                        onBid={handleBid}
+                        onFinish={actions.finishAuction}
+                        onPause={actions.pause}
+                        onResume={actions.resume}
+                        onReset={actions.reset}
+                    />
+                </div>
+                {/* Personal Queue */}
+                <div className="shrink-0 max-h-[250px] flex flex-col">
+                    <MyNominationQueue 
+                        players={players}
+                        queueIds={myQueue}
+                        onRemove={removeFromQueue}
+                        onNominate={auctionState?.status === 'nominating' ? handleNominate : undefined}
+                        isMyTurn={displayTeams.find(t => t.id === myTeamId)?.isMe && auctionState?.queue?.[auctionState.queueIndex] === myTeamId /* Approximation, AuctionStage handles logic actually */}
+                        myTeamId={myTeamId}
+                    />
+                </div>
+            </div>
+        }
+        context={
+            <ContextDeck 
+                tabs={[
+                    { 
+                        key: 'pool', 
+                        label: 'Player Pool', 
+                        content: <PlayerPoolTab 
+                                    players={players} 
+                                    teams={displayTeams} 
+                                    onNominate={auctionState?.status === 'nominating' ? handleNominate : undefined}
+                                    onQueue={addToQueue}
+                                    isQueued={isQueued}
+                                 /> 
+                    },
+                    { 
+                        key: 'teams', 
+                        label: 'Teams', 
+                        count: displayTeams.length, 
+                        content: <TeamListTab teams={displayTeams} players={players} /> 
+                    },
+                    { 
+                        key: 'analysis', 
+                        label: 'AI Analysis', 
+                        content: <AIAnalysisTab log={auctionState?.log?.length ? auctionState.log : (MOCK_LOG as any)} teams={displayTeams} /> 
+                    },
+                    { 
+                        key: 'log', 
+                        label: 'Log', 
+                        content: <div className="h-full overflow-auto bg-[var(--fbst-surface-primary)] divide-y divide-[var(--fbst-table-border)]">
+                            {(!auctionState?.log || auctionState.log.length === 0) && (
+                                <div className="p-4 text-center text-[var(--fbst-text-muted)] text-sm">
+                                    No auction activity yet.
+                                </div>
+                            )}
+                            {auctionState?.log?.map((evt, i) => (
+                                <div key={i} className="p-3 flex flex-col gap-1 text-sm hover:bg-[var(--fbst-surface-secondary)]/30">
+                                    <div className="flex justify-between items-start">
+                                        <span className={`font-bold ${evt.type === 'WIN' ? 'text-[var(--fbst-accent-success)]' : evt.type === 'BID' ? 'text-[var(--fbst-text-primary)]' : 'text-[var(--fbst-accent-primary)]'}`}>
+                                            {evt.type}
+                                        </span>
+                                        <span className="text-[10px] text-[var(--fbst-text-muted)]">
+                                            {new Date(evt.timestamp).toLocaleTimeString()}
+                                        </span>
+                                    </div>
+                                    <div className="text-[var(--fbst-text-secondary)]">
+                                        {evt.message}
+                                    </div>
+                                </div>
+                            ))}
+                        </div> 
+                    }
+                ]} 
+            />
+        }
+    />
   );
-}
-
-function Th({ children, w }: { children: React.ReactNode; w?: number }) {
-  return (
-    <th
-      style={w ? { width: w } : undefined}
-      className="border-b border-white/10 px-3 py-3 text-left font-medium"
-    >
-      {children}
-    </th>
-  );
-}
-function Td({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <td className={`border-b border-white/10 px-3 py-3 ${className ?? ""}`}>{children}</td>;
 }

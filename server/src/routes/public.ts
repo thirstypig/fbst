@@ -36,4 +36,28 @@ publicRouter.get("/public/leagues/:slug", async (req, res) => {
     return res.status(500).json({ error: String(e?.message ?? e ?? "Unknown error") });
   }
 });
+
+/**
+ * GET /api/public/leagues
+ * List all public leagues
+ */
+publicRouter.get("/public/leagues", async (req, res) => {
+  try {
+    const leagues = await prisma.league.findMany({
+      where: { isPublic: true },
+      select: {
+        id: true,
+        name: true,
+        season: true,
+        draftMode: true,
+        publicSlug: true,
+      },
+      orderBy: [{ season: "desc" }, { name: "asc" }],
+    });
+    return res.json({ leagues });
+  } catch (err: any) {
+    return res.status(500).json({ error: String(err?.message || "Public leagues error") });
+  }
+});
+
 export default publicRouter;

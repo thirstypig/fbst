@@ -16,8 +16,9 @@ import {
 } from "../lib/api";
 import { classNames } from "../lib/classNames";
 import { useTheme } from "../contexts/ThemeContext";
-import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from "../components/ui/ThemedTable";
+import { ThemedTable, ThemedThead } from "../components/ui/ThemedTable";
 import { OGBA_TEAM_NAMES } from "../lib/ogbaTeams";
+import PageHeader from "../components/ui/PageHeader";
 
 // If you have canonical labels/dates elsewhere, replace this list.
 // This is only a dropdown source.
@@ -185,7 +186,7 @@ export default function Period() {
 
   const standingsRows = useMemo(() => buildStandings(resp), [resp]);
 
-  const categories = resp?.categories ?? [];
+  const categories = useMemo(() => resp?.categories ?? [], [resp]);
   const { hitting: hittingCats, pitching: pitchingCats } = useMemo(() => splitCats(categories), [categories]);
 
   const teamCount = toNum((resp as any)?.teamCount);
@@ -207,36 +208,38 @@ export default function Period() {
     <div className={`flex-1 min-h-screen ${theme === 'dark' ? 'bg-slate-950 text-slate-50' : 'bg-gray-50 text-gray-900'}`}>
       <main className="max-w-6xl mx-auto px-6 py-10">
         {/* Header row */}
-        <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight">Period</h1>
-            <p className="mt-1 text-sm text-slate-400">Category standings computed server-side from player-period totals.</p>
-
-            {resp && (
-              <div className="mt-2 text-xs text-slate-500">
-                Period: {String((resp as any).periodId ?? periodLabel)}
-                {(resp as any).periodNum ? ` · Period #${(resp as any).periodNum}` : ""}
-                {teamCount ? ` · Teams: ${teamCount}` : ""}
-              </div>
-            )}
-          </div>
-
-          {/* Period picker */}
-          <div className="flex items-center gap-3">
-            <div className="text-xs uppercase tracking-wide text-slate-400">Period</div>
-            <select
-              value={periodId}
-              onChange={(e) => setPeriodId(Number(e.target.value))}
-              className="rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 shadow-sm outline-none focus:ring-2 focus:ring-sky-500/40"
-            >
-              {PERIOD_OPTIONS.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.label} (Period {p.id})
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+        {/* Header row */}
+        <PageHeader 
+          title="Period" 
+          subtitle={
+            <div>
+              <div>Category standings computed server-side from player-period totals.</div>
+              {resp && (
+                <div className="mt-1 text-slate-500">
+                  Period: {String((resp as any).periodId ?? periodLabel)}
+                  {(resp as any).periodNum ? ` · Period #${(resp as any).periodNum}` : ""}
+                  {teamCount ? ` · Teams: ${teamCount}` : ""}
+                </div>
+              )}
+            </div>
+          }
+          rightElement={
+            <div className="flex items-center gap-3 bg-[var(--fbst-surface-secondary)] p-2 rounded-lg border border-[var(--fbst-table-border)]">
+              <div className="text-xs uppercase tracking-wide text-slate-400">Select Period</div>
+              <select
+                value={periodId}
+                onChange={(e) => setPeriodId(Number(e.target.value))}
+                className="bg-transparent text-sm text-[var(--fbst-text-primary)] outline-none font-semibold cursor-pointer"
+              >
+                {PERIOD_OPTIONS.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label} (Period {p.id})
+                  </option>
+                ))}
+              </select>
+            </div>
+          }
+        />
 
         {/* Errors */}
         {error && (

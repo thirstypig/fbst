@@ -194,3 +194,13 @@ Player canonical ID strategy is mlbId (hidden from UI), with alias mapping via P
 
 yaml
 Copy code
+## 7) Coding Guidelines
+
+To maintain a high-quality, extensible, and performant codebase, please follow these principles:
+
+- **SOLID Principles**: Follow Single Responsibility, Open-Closed, Liskov Substitution, Interface Segregation, and Dependency Inversion principles.
+- **DRY (Don't Repeat Yourself)**: Avoid code duplication by extracting common logic into reusable functions, classes, or modules.
+- **KISS (Keep It Simple, Stupid)**: Strive for simplicity in design and implementation. Avoid over-engineering.
+- **Clean Code**: Write readable, self-documenting code with meaningful names, small functions, and clear structure.
+- **Error Handling**: Implement robust error handling and logging. Use low-cardinality logging with stable message strings (e.g., `logger.info({id, foo}, 'Msg')`).
+- **Performance**: Optimize for performance where necessary, but prioritize readability and maintainability.
