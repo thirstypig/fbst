@@ -7,12 +7,13 @@
     "// NOTE_2": "API server (Express/TS) lives in ./server",
     "// NOTE_3": "These scripts are just delegators so you always run them from repo root",
     "dev": "cd client && npm run dev",
-    "build": "cd client && npm run build",
+    "build": "cd client && npm install && npm run build",
+    "server": "cd server && npm install && npm start",
+    "start": "cd server && npm install && npm start",
     "preview": "cd client && npm run preview",
     "lint": "cd client && npm run lint",
-    "server": "cd server && npm start",
-    "prisma:migrate": "prisma migrate dev",
-    "prisma:generate": "prisma generate"
+    "prisma:migrate": "cd server && npx prisma migrate dev",
+    "prisma:generate": "cd server && npx prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^6.19.1",

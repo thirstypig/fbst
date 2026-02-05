@@ -108,9 +108,47 @@ async function main() {
     res.json(dataService.getAuctionValues());
   });
 
-  // 404 Handler for API routes
+  // --- 1. Static Assets (Frontend) ---
+  // Resolve path to client/dist relative to this file (server/src/index.ts -> server/src -> server -> root -> client/dist)
+  // Or more robustly: server/src/index.ts is compiled to server/src/index.js (usually?) or run via tsx.
+  // We'll assume process.cwd() is server root or repo root. Let's send a safer path.
+  // If running from 'server' dir: ../client/dist
+  // If running from root: ./client/dist
+  const clientDistPath = path.resolve(process.cwd(), '../client/dist');
+  
+  if (fs.existsSync(clientDistPath)) {
+    logger.info({ path: clientDistPath }, "Serving static frontend assets");
+    app.use(express.static(clientDistPath));
+  } else {
+    // try alternative (repo root)
+    const altPath = path.resolve(process.cwd(), 'client/dist');
+    if (fs.existsSync(altPath)) {
+        logger.info({ path: altPath }, "Serving static frontend assets (alt path)");
+        app.use(express.static(altPath));
+    } else {
+       logger.warn({ checked: [clientDistPath, altPath] }, "⚠️ Frontend build not found. API mode only.");
+    }
+  }
+
+  // --- 2. 404 Handler for API routes (Keep this Strict) ---
   app.use("/api/*", (req, res) => {
     res.status(404).json({ error: "API endpoint not found", path: req.originalUrl });
+  });
+
+  // --- 3. SPA Catch-All (For React Routing) ---
+  // If it's not an API route and not a static file, serve index.html
+  app.get("*", (req, res) => {
+     // Try primary path
+     let index = path.join(clientDistPath, 'index.html');
+     if (!fs.existsSync(index)) {
+         index = path.join(process.cwd(), 'client/dist/index.html');
+     }
+
+     if (fs.existsSync(index)) {
+        res.sendFile(index);
+     } else {
+        res.status(404).send("FBST UI not built or found.");
+     }
   });
 
   const server = app.listen(PORT, "0.0.0.0", () => {
