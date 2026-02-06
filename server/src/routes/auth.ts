@@ -1,8 +1,8 @@
 // server/src/routes/auth.ts
 import { Router } from "express";
 import { OAuth2Client } from "google-auth-library";
-import { prisma } from "../db/prisma";
-import { clearSessionCookie, setSessionCookie } from "../middleware/auth";
+import { prisma } from "../db/prisma.js";
+import { clearSessionCookie, setSessionCookie } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -16,9 +16,15 @@ const GOOGLE_CLIENT_ID = () => mustEnv("GOOGLE_CLIENT_ID");
 const GOOGLE_CLIENT_SECRET = () => mustEnv("GOOGLE_CLIENT_SECRET");
 
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
-const SERVER_ORIGIN = process.env.SERVER_ORIGIN || "http://localhost:4000";
-const GOOGLE_REDIRECT_URI =
-  process.env.GOOGLE_REDIRECT_URI || `${SERVER_ORIGIN}/api/auth/google/callback`;
+const SERVER_ORIGIN = process.env.SERVER_ORIGIN; // No default here to force awareness
+
+function getRedirectUri(req: any): string {
+  if (process.env.GOOGLE_REDIRECT_URI) return process.env.GOOGLE_REDIRECT_URI;
+  
+  // Try to construct from SERVER_ORIGIN or Host header
+  const origin = SERVER_ORIGIN || `${req.protocol}://${req.get('host')}`;
+  return `${origin}/api/auth/google/callback`;
+}
 
 function adminEmailSet(): Set<string> {
   return new Set(
@@ -29,12 +35,11 @@ function adminEmailSet(): Set<string> {
   );
 }
 
-function oauthClient(): OAuth2Client {
-  console.log("[AUTH] Using Redirect URI:", GOOGLE_REDIRECT_URI);
+function oauthClient(redirectUri: string): OAuth2Client {
   return new OAuth2Client({
     clientId: GOOGLE_CLIENT_ID(),
     clientSecret: GOOGLE_CLIENT_SECRET(),
-    redirectUri: GOOGLE_REDIRECT_URI,
+    redirectUri,
   });
 }
 
@@ -115,7 +120,7 @@ router.get("/auth/me", async (req, res) => {
   }
 });
 
-router.get("/auth/google", (_req, res) => {
+router.get("/auth/google", (req, res) => {
   try {
     // 1. Check Config
     if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
@@ -123,7 +128,14 @@ router.get("/auth/google", (_req, res) => {
       return res.status(500).send("Server Authentication Configuration is missing. Please contact administrator.");
     }
 
-    const client = oauthClient();
+    const redirectUri = getRedirectUri(req);
+    console.log("[AUTH] Generating Google Auth URL with Redirect URI:", redirectUri);
+    
+    if (!redirectUri.includes("fbst-api.onrender.com") && process.env.NODE_ENV === "production") {
+      console.warn("⚠️ [AUTH] WARNING: Redirect URI does not contain production domain. Check SERVER_ORIGIN env var.");
+    }
+
+    const client = oauthClient(redirectUri);
     const url = client.generateAuthUrl({
       access_type: "offline",
       prompt: "consent",
@@ -137,11 +149,13 @@ router.get("/auth/google", (_req, res) => {
 });
 
 router.get("/auth/google/callback", async (req, res) => {
+  const redirectUri = getRedirectUri(req);
   try {
     const code = String(req.query.code || "").trim();
     if (!code) return res.status(400).send("Missing ?code");
 
-    const client = oauthClient();
+    console.log("[AUTH] Callback received. Exchanging code using Redirect URI:", redirectUri);
+    const client = oauthClient(redirectUri);
     const { tokens } = await client.getToken(code);
 
     const idToken = tokens.id_token;

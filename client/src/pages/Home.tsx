@@ -208,8 +208,8 @@ export default function Home() {
       )}
 
       {/* Floating Build Info */}
-      <div className="fixed bottom-6 right-8 pointer-events-none opacity-40 hover:opacity-100 transition-opacity duration-500 z-50">
-        <div className="flex flex-col items-end backdrop-blur-md bg-white/5 p-4 rounded-2xl border border-white/10 shadow-2xl">
+      <div className="fixed bottom-6 right-8 pointer-events-auto opacity-60 hover:opacity-100 transition-opacity duration-500 z-50">
+        <div className="flex flex-col items-end backdrop-blur-md bg-white/10 p-4 rounded-2xl border border-white/20 shadow-2xl">
           <div className="flex items-center gap-2 mb-1">
              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
              <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)]">System Terminal</div>
