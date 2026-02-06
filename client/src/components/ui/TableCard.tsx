@@ -24,7 +24,7 @@ export function TableCard({
   return (
     <div
       className={[
-        "overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/70 shadow-xl",
+        "overflow-hidden rounded-3xl liquid-glass transition-all duration-300",
         className ?? "",
       ].join(" ")}
     >
@@ -51,7 +51,7 @@ export function THead({
   className?: string;
 }) {
   return (
-    <thead className={["bg-slate-900/80 border-b border-slate-800", className ?? ""].join(" ")}>
+    <thead className={["bg-white/5 border-b border-white/10", className ?? ""].join(" ")}>
       {children}
     </thead>
   );
@@ -79,7 +79,11 @@ export function Tr({
   title?: string;
 }) {
   return (
-    <tr className={className} onClick={onClick} title={title}>
+    <tr 
+      className={["hover:bg-white/5 transition-colors duration-150 border-b border-white/5 last:border-0", className ?? ""].join(" ")} 
+      onClick={onClick} 
+      title={title}
+    >
       {children}
     </tr>
   );
@@ -100,7 +104,7 @@ export function Th({
     <th
       style={w ? { width: w } : undefined}
       className={[
-        "px-3 py-3 text-xs font-medium uppercase tracking-wide text-slate-400",
+        "px-4 py-4 text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-text-muted)]",
         alignCls(align),
         className ?? "",
       ].join(" ")}
@@ -122,7 +126,7 @@ export function Td({
   return (
     <td
       className={[
-        "px-3 py-3 align-middle text-slate-100",
+        "px-4 py-4 align-middle text-[var(--fbst-text-primary)] text-sm",
         alignCls(align),
         className ?? "",
       ].join(" ")}

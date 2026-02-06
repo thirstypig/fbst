@@ -10,45 +10,44 @@ const navItems = [
 ];
 
 function Layout() {
-  const [isLight, setIsLight] = useState(false);
+  const [isLight, setIsLight] = useState(() => {
+    return !document.documentElement.classList.contains('dark');
+  });
 
   const toggleTheme = () => {
-    setIsLight((prev) => !prev);
+    setIsLight((prev) => {
+      const newVal = !prev;
+      if (newVal) {
+        document.documentElement.classList.remove('dark');
+      } else {
+        document.documentElement.classList.add('dark');
+      }
+      return newVal;
+    });
   };
 
-  const shellBg = isLight ? "bg-slate-50 text-slate-900" : "bg-slate-950 text-slate-100";
-  const sidebarBg = isLight
-    ? "bg-slate-100 border-slate-200"
-    : "bg-slate-950/95 border-slate-800";
-  const mainBg = isLight ? "bg-slate-50" : "bg-slate-950";
-  const headerBorder = isLight ? "border-slate-200" : "border-slate-800";
-
   return (
-    <div className={`flex min-h-screen ${shellBg}`}>
+    <div className={`flex min-h-screen text-[var(--fbst-text-primary)] transition-colors duration-300`}>
       {/* Sidebar */}
-      <aside className={`flex w-56 flex-col border-r ${sidebarBg}`}>
-        <div className="border-b border-slate-800/60 px-5 py-4">
-          <div className="text-lg font-semibold tracking-wide">FBST</div>
-          <div className="text-xs text-slate-500">
+      <aside className="fixed inset-y-0 left-0 z-50 flex w-64 flex-col liquid-glass border-r border-white/10 m-4 rounded-3xl overflow-hidden">
+        <div className="px-6 py-8">
+          <div className="text-2xl font-bold tracking-tighter text-[var(--fbst-text-heading)]">FBST</div>
+          <div className="text-[10px] uppercase tracking-widest text-[var(--fbst-text-muted)] font-bold mt-1">
             Fantasy Baseball Stat Tool
           </div>
         </div>
 
-        <nav className="mt-4 flex flex-1 flex-col gap-1 px-3">
+        <nav className="flex-1 px-4 space-y-2">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
                 [
-                  "rounded-md px-3 py-2 text-sm font-medium text-left",
+                  "flex items-center px-4 py-3 text-sm font-semibold transition-all duration-200 rounded-2xl",
                   isActive
-                    ? isLight
-                      ? "bg-slate-900 text-slate-50"
-                      : "bg-slate-200 text-slate-900"
-                    : isLight
-                    ? "text-slate-700 hover:bg-slate-200 hover:text-slate-900"
-                    : "text-slate-300 hover:bg-slate-800 hover:text-slate-50",
+                    ? "bg-[var(--fbst-accent)] text-white shadow-lg shadow-red-500/20"
+                    : "text-[var(--fbst-text-secondary)] hover:bg-white/10 hover:text-[var(--fbst-text-primary)]",
                 ].join(" ")
               }
             >
@@ -57,35 +56,39 @@ function Layout() {
           ))}
       </nav>
 
-      <div className="px-5 py-4 text-[10px] text-slate-600 border-t border-slate-800/30">
-        v. {__COMMIT_HASH__}
+      <div className="p-6 border-t border-white/10 bg-black/5">
+        <div className="text-[10px] font-bold text-[var(--fbst-text-muted)] uppercase tracking-tighter">
+          Version Hash
+        </div>
+        <div className="text-[11px] font-mono text-[var(--fbst-text-secondary)] mt-0.5">
+          {__COMMIT_HASH__}
+        </div>
       </div>
       </aside>
 
-      {/* Main content */}
-      <main className={`flex flex-1 flex-col ${mainBg}`}>
+      {/* Main content wrapper with margin for fixed sidebar */}
+      <div className="flex flex-1 flex-col ml-72">
         {/* Top bar */}
         <header
-          className={`flex items-center justify-between border-b ${headerBorder} px-8 py-4`}
+          className="flex h-20 items-center justify-between px-10 py-4"
         >
-          <div className="text-sm font-medium text-slate-500">
-            OGBA 2026 – Fantasy Baseball Stat Tool
+          <div className="text-xs font-bold uppercase tracking-widest text-[var(--fbst-text-muted)]">
+            OGBA 2026 Season Dashboard
           </div>
           <button
             type="button"
             onClick={toggleTheme}
-            aria-pressed={isLight}
-            className="rounded-md border border-slate-400 bg-slate-100 px-3 py-1 text-xs text-slate-800 hover:bg-slate-200"
+            className="flex items-center gap-2 px-4 py-2 text-xs font-bold transition-all liquid-glass rounded-2xl hover:scale-105 active:scale-95"
           >
-            {isLight ? "Dark mode" : "Light mode"}
+            {isLight ? "🌙 Dark Mode" : "☀️ Light Mode"}
           </button>
         </header>
 
         {/* Routed page body */}
-        <section className="flex-1 px-8 py-6">
+        <section className="flex-1 px-10 pb-12">
           <Outlet />
         </section>
-      </main>
+      </div>
     </div>
   );
 }

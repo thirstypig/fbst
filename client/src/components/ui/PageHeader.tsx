@@ -10,25 +10,25 @@ interface PageHeaderProps {
 
 export default function PageHeader({ title, subtitle, rightElement, className, backTo }: PageHeaderProps) {
   return (
-    <div className={`py-6 px-4 md:px-8 mb-6 bg-[var(--fbst-surface-primary)] border-b border-[var(--fbst-table-border)] ${className || ''}`}>
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
+    <div className={`py-12 mb-8 ${className || ''}`}>
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+        <div className="space-y-2">
           {backTo && (
-              <Link to={backTo} className="mb-2 inline-flex items-center text-sm text-[var(--fbst-text-muted)] hover:text-white transition-colors">
-                  &larr; Back
+              <Link to={backTo} className="mb-4 inline-flex items-center text-xs font-bold uppercase tracking-widest text-[var(--fbst-text-muted)] hover:text-[var(--fbst-accent)] transition-colors">
+                  &larr; Back to Safety
               </Link>
           )}
-          <h1 className="text-3xl font-bold font-sans text-[var(--fbst-text-heading)] drop-shadow-sm text-center md:text-left">
+          <h1 className="text-5xl font-black tracking-tighter text-[var(--fbst-text-heading)] drop-shadow-sm leading-none">
               {title}
           </h1>
           {subtitle && (
-              <div className="mt-1 text-sm text-[var(--fbst-text-muted)] font-medium max-w-2xl text-center md:text-left">
+              <div className="text-sm text-[var(--fbst-text-secondary)] font-medium max-w-2xl leading-relaxed">
                 {subtitle}
               </div>
           )}
         </div>
         {rightElement && (
-            <div className="flex justify-center md:justify-end">
+            <div className="flex items-center">
                 {rightElement}
             </div>
         )}

@@ -84,110 +84,138 @@ export default function Home() {
   }
 
   return (
-    <div className="px-10 py-8 text-slate-100">
-      <div className="mb-6">
+    <div className="relative min-h-full">
+      <div className="mb-10">
         <PageHeader 
-          title="Home" 
-          subtitle={<span>Welcome back, <span className="text-slate-900 dark:text-white font-medium">{user.name || user.email}</span>.</span>}
+          title="Season Dashboard" 
+          subtitle={<span>Welcome back, <span className="text-[var(--fbst-text-heading)] font-black uppercase tracking-tighter">{user.name || user.email}</span>. Your roster is synchronized.</span>}
         />
       </div>
 
       {loading ? (
-          <div className="text-slate-400">Loading your team...</div>
+          <div className="flex items-center justify-center py-20">
+            <div className="text-sm font-bold uppercase tracking-widest text-[var(--fbst-text-muted)] animate-pulse">Synchronizing Data...</div>
+          </div>
       ) : !myTeam ? (
-          <div className="rounded-xl bg-white/5 p-6 text-center text-slate-400">
-             You are not associated with a team in the active league.
-             <div className="mt-4">
-               <Link to="/leagues" className="text-sky-400 hover:underline">Browse Leagues</Link>
-             </div>
+          <div className="liquid-glass rounded-3xl p-12 text-center">
+             <div className="text-xl font-bold text-[var(--fbst-text-primary)] mb-2">Neutral Territory</div>
+             <p className="text-sm text-[var(--fbst-text-secondary)] mb-6">You are not associated with a team in the active league.</p>
+             <Link to="/leagues" className="px-6 py-3 text-sm font-bold text-white bg-[var(--fbst-accent)] rounded-2xl shadow-lg shadow-red-500/30 hover:scale-105 active:scale-95 transition-all">
+               Browse Leagues
+             </Link>
           </div>
       ) : (
-          <div className="space-y-8">
-             <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-6">
-                 <div className="mb-4 flex items-center justify-between">
+          <div className="space-y-10">
+             <div className="liquid-glass rounded-3xl p-8 border-b-8 border-[var(--fbst-accent)]">
+                 <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
                      <div>
-                        <h2 className="text-2xl font-bold" style={{ color: 'var(--fbst-text-heading)' }}>{myTeam.name}</h2>
-                        <div className="text-sm text-slate-400">Team Code: {myTeam.code || '—'}</div>
+                        <div className="text-[10px] uppercase tracking-widest font-black text-[var(--fbst-text-muted)] mb-1">Active Franchise</div>
+                        <h2 className="text-4xl font-black tracking-tighter text-[var(--fbst-text-heading)]">{myTeam.name}</h2>
+                        <div className="text-xs font-mono text-[var(--fbst-text-secondary)] mt-1 opacity-60">ID: {myTeam.code || myTeam.id}</div>
                      </div>
-                     <div className="text-right">
-                       <Link to="/players" className="text-sm text-sky-400 hover:underline">Add Players (Auction)</Link>
+                     <div className="flex items-center">
+                       <Link to="/players" className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-white bg-[var(--fbst-accent)] rounded-xl hover:scale-105 transition-all">
+                         Market Access (Auction)
+                       </Link>
                      </div>
                  </div>
 
-                 {/* Hitters */}
-                 <h3 className="text-lg font-semibold text-white/80 mb-3 border-b border-white/10 pb-2">Hitters (Season Stats)</h3>
-                 <div className="overflow-x-auto">
-                 <Table className="w-full">
-                    <THead>
-                        <Tr className="text-xs text-white/60">
-                            <Th align="left">Pos</Th>
-                            <Th align="left">Player</Th>
-                            <Th align="center">AB</Th>
-                            <Th align="center">H</Th>
-                            <Th align="center">HR</Th>
-                            <Th align="center">RBI</Th>
-                            <Th align="center">SB</Th>
-                            <Th align="center">AVG</Th>
-                        </Tr>
-                    </THead>
-                    <tbody>
-                        {hitters.length === 0 && <tr><td colSpan={8} className="p-4 text-center text-xs text-white/40">No hitters on roster</td></tr>}
-                        {hitters.map(r => {
-                            const s = r.stat || {};
-                            return (
-                                <Tr key={r.id} className="border-t border-white/5">
-                                    <Td className="text-white/60 font-mono text-xs">{r.player.posPrimary}</Td>
-                                    <Td className="font-medium text-white">{r.player.name}</Td>
-                                    <Td align="center" className="tabular-nums">{num(s.AB)}</Td>
-                                    <Td align="center" className="tabular-nums">{num(s.H)}</Td>
-                                    <Td align="center" className="tabular-nums">{num(s.HR)}</Td>
-                                    <Td align="center" className="tabular-nums">{num(s.RBI)}</Td>
-                                    <Td align="center" className="tabular-nums">{num(s.SB)}</Td>
-                                    <Td align="center" className="tabular-nums">{formatAvg(s.AVG || 0)}</Td>
-                                </Tr>
-                            );
-                        })}
-                    </tbody>
-                 </Table>
-                 </div>
+                 <div className="grid grid-cols-1 gap-10">
+                   {/* Hitters */}
+                   <div>
+                     <div className="flex items-center gap-3 mb-4">
+                       <span className="w-2 h-8 bg-blue-500 rounded-full"></span>
+                       <h3 className="text-lg font-black uppercase tracking-tight text-[var(--fbst-text-primary)]">Hitting Corps <span className="text-[var(--fbst-text-muted)] font-medium text-sm ml-2">YTD Distribution</span></h3>
+                     </div>
+                     <TableCard>
+                     <Table>
+                        <THead>
+                            <Tr>
+                                <Th align="left">Pos</Th>
+                                <Th align="left">Asset</Th>
+                                <Th align="center">AB</Th>
+                                <Th align="center">H</Th>
+                                <Th align="center">HR</Th>
+                                <Th align="center">RBI</Th>
+                                <Th align="center">SB</Th>
+                                <Th align="center">AVG</Th>
+                            </Tr>
+                        </THead>
+                        <tbody>
+                            {hitters.length === 0 && <tr><td colSpan={8} className="p-10 text-center text-xs font-bold text-[var(--fbst-text-muted)] uppercase tracking-widest">No active hitter assets</td></tr>}
+                            {hitters.map(r => {
+                                const s = r.stat || {};
+                                return (
+                                    <Tr key={r.id}>
+                                        <Td className="font-mono text-[10px] font-bold text-[var(--fbst-text-muted)]">{r.player.posPrimary}</Td>
+                                        <Td className="font-bold">{r.player.name}</Td>
+                                        <Td align="center" className="tabular-nums font-mono opacity-60">{num(s.AB)}</Td>
+                                        <Td align="center" className="tabular-nums font-mono opacity-60">{num(s.H)}</Td>
+                                        <Td align="center" className="tabular-nums font-bold text-blue-500">{num(s.HR)}</Td>
+                                        <Td align="center" className="tabular-nums font-bold">{num(s.RBI)}</Td>
+                                        <Td align="center" className="tabular-nums font-bold text-emerald-500">{num(s.SB)}</Td>
+                                        <Td align="center" className="tabular-nums font-black">{formatAvg(s.AVG || 0)}</Td>
+                                    </Tr>
+                                );
+                            })}
+                        </tbody>
+                     </Table>
+                     </TableCard>
+                   </div>
 
-                 {/* Pitchers */}
-                 <h3 className="text-lg font-semibold text-white/80 mb-3 mt-8 border-b border-white/10 pb-2">Pitchers (Season Stats)</h3>
-                 <div className="overflow-x-auto">
-                 <Table className="w-full">
-                    <THead>
-                        <Tr className="text-xs text-white/60">
-                            <Th align="left">Pos</Th>
-                            <Th align="left">Player</Th>
-                            <Th align="center">W</Th>
-                            <Th align="center">SV</Th>
-                            <Th align="center">K</Th>
-                            <Th align="center">ERA</Th>
-                            <Th align="center">WHIP</Th>
-                        </Tr>
-                    </THead>
-                    <tbody>
-                        {pitchers.length === 0 && <tr><td colSpan={7} className="p-4 text-center text-xs text-white/40">No pitchers on roster</td></tr>}
-                        {pitchers.map(r => {
-                            const s = r.stat || {};
-                            return (
-                                <Tr key={r.id} className="border-t border-white/5">
-                                    <Td className="text-white/60 font-mono text-xs">{r.player.posPrimary}</Td>
-                                    <Td className="font-medium text-white">{r.player.name}</Td>
-                                    <Td align="center" className="tabular-nums">{num(s.W)}</Td>
-                                    <Td align="center" className="tabular-nums">{num(s.SV)}</Td>
-                                    <Td align="center" className="tabular-nums">{num(s.K)}</Td>
-                                    <Td align="center" className="tabular-nums">{s.ERA?.toFixed(2) || '—'}</Td>
-                                    <Td align="center" className="tabular-nums">{s.WHIP?.toFixed(2) || '—'}</Td>
-                                </Tr>
-                            );
-                        })}
-                    </tbody>
-                 </Table>
+                   {/* Pitchers */}
+                   <div>
+                     <div className="flex items-center gap-3 mb-4">
+                       <span className="w-2 h-8 bg-emerald-500 rounded-full"></span>
+                       <h3 className="text-lg font-black uppercase tracking-tight text-[var(--fbst-text-primary)]">Pitching Rotation <span className="text-[var(--fbst-text-muted)] font-medium text-sm ml-2">Control Matrix</span></h3>
+                     </div>
+                     <TableCard>
+                     <Table>
+                        <THead>
+                            <Tr>
+                                <Th align="left">Pos</Th>
+                                <Th align="left">Asset</Th>
+                                <Th align="center">W</Th>
+                                <Th align="center">SV</Th>
+                                <Th align="center">K</Th>
+                                <Th align="center">ERA</Th>
+                                <Th align="center">WHIP</Th>
+                            </Tr>
+                        </THead>
+                        <tbody>
+                            {pitchers.length === 0 && <tr><td colSpan={7} className="p-10 text-center text-xs font-bold text-[var(--fbst-text-muted)] uppercase tracking-widest">No active pitching assets</td></tr>}
+                            {pitchers.map(r => {
+                                const s = r.stat || {};
+                                return (
+                                    <Tr key={r.id}>
+                                        <Td className="font-mono text-[10px] font-bold text-[var(--fbst-text-muted)]">{r.player.posPrimary}</Td>
+                                        <Td className="font-bold">{r.player.name}</Td>
+                                        <Td align="center" className="tabular-nums font-bold text-emerald-500">{num(s.W)}</Td>
+                                        <Td align="center" className="tabular-nums font-bold text-amber-500">{num(s.SV)}</Td>
+                                        <Td align="center" className="tabular-nums font-bold text-blue-500">{num(s.K)}</Td>
+                                        <Td align="center" className="tabular-nums font-black">{s.ERA?.toFixed(2) || '—'}</Td>
+                                        <Td align="center" className="tabular-nums font-black">{s.WHIP?.toFixed(2) || '—'}</Td>
+                                    </Tr>
+                                );
+                            })}
+                        </tbody>
+                     </Table>
+                     </TableCard>
+                   </div>
                  </div>
              </div>
           </div>
       )}
+
+      {/* Floating Build Info */}
+      <div className="fixed bottom-6 right-8 pointer-events-none opacity-40 hover:opacity-100 transition-opacity duration-500">
+        <div className="flex flex-col items-end">
+          <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)]">Terminal Protocol</div>
+          <div className="text-[10px] font-mono font-bold text-[var(--fbst-text-secondary)] mt-0.5">
+            BUILD_{__COMMIT_HASH__}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

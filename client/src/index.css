@@ -107,82 +107,107 @@ body {
     --chart-5: 340 75% 55%;
   }
 
-  /* FBST Semantic Theme Variables - Light Mode (Wikipedia-inspired: gray bg, white tables, black text, light red accent) */
+  /* --- Liquid Glass Theme --- */
   :root {
+    --glass-bg: rgba(255, 255, 255, 0.4);
+    --glass-border: rgba(255, 255, 255, 0.3);
+    --glass-blur: blur(12px);
+    --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+
+    --fbst-accent: #ff4d4d;
+    --fbst-accent-hover: #ff1a1a;
+
     /* Surfaces */
-    --fbst-surface-primary: #f6f6f6;       /* Light gray background (like Wikipedia light) */
-    --fbst-surface-secondary: #eaecf0;     /* Slightly darker gray */
-    --fbst-surface-elevated: #ffffff;       /* White for cards/tables */
-    --fbst-surface-overlay: rgba(0, 0, 0, 0.5);
+    --fbst-surface-primary: #f8fafc;
+    --fbst-surface-elevated: var(--glass-bg);
 
     /* Text */
-    --fbst-text-primary: #202122;          /* Near black (Wikipedia body text) */
-    --fbst-text-secondary: #54595d;        /* Dark gray secondary */
-    --fbst-text-muted: #72777d;            /* Muted gray */
-    --fbst-text-inverted: #ffffff;
-    --fbst-text-heading: #a31515;          /* Light red for headers */
-
-    /* Inputs */
-    --fbst-input-bg: #ffffff;
-    --fbst-input-bg-hover: #f8f9fa;
-    --fbst-input-border: #a2a9b1;          /* Wikipedia border gray */
-    --fbst-input-border-focus: #a31515;    /* Red focus */
-    --fbst-input-text: #202122;
-    --fbst-input-placeholder: #72777d;
-
-    /* Tables */
-    --fbst-table-header-bg: #eaecf0;       /* Light gray header */
-    --fbst-table-header-text: #202122;     /* Black text */
-    --fbst-table-row-bg: #ffffff;          /* White rows */
-    --fbst-table-row-alt-bg: #f8f9fa;      /* Very light gray alt rows */
-    --fbst-table-row-hover: #fff5f5;       /* Light red tint on hover */
-    --fbst-table-border: #c8ccd1;          /* Wikipedia border */
-    --fbst-table-text: #202122;            /* Black text */
-
-    /* Accents */
-    --fbst-accent-primary: #a31515;        /* Light red accent */
-    --fbst-accent-success: #14866d;        /* Wikipedia green */
-    --fbst-accent-warning: #ac6600;        /* Wikipedia orange */
-    --fbst-accent-danger: #d33;            /* Wikipedia red */
+    --fbst-text-primary: #0f172a;
+    --fbst-text-secondary: #475569;
+    --fbst-text-muted: #94a3b8;
+    --fbst-text-heading: #e11d48;
   }
 
-  /* FBST Semantic Theme Variables - Dark Mode (Wikipedia-inspired: dark gray bg, black tables, white text, dark red accent) */
   .dark {
+    --glass-bg: rgba(15, 23, 42, 0.6);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-blur: blur(16px);
+    --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+
+    --fbst-accent: #fb7185;
+    --fbst-accent-hover: #f43f5e;
+
     /* Surfaces */
-    --fbst-surface-primary: #101418;       /* Dark gray background (Wikipedia dark) */
-    --fbst-surface-secondary: #1a1d21;     /* Slightly lighter */
-    --fbst-surface-elevated: #000000;      /* Black for cards/tables */
-    --fbst-surface-overlay: rgba(0, 0, 0, 0.8);
+    --fbst-surface-primary: #020617;
+    --fbst-surface-elevated: var(--glass-bg);
 
     /* Text */
-    --fbst-text-primary: #f8f9fa;          /* White text */
-    --fbst-text-secondary: #c8ccd1;        /* Light gray secondary */
-    --fbst-text-muted: #72777d;            /* Muted gray */
-    --fbst-text-inverted: #202122;
-    --fbst-text-heading: #ff6b6b;          /* Dark red for headers */
+    --fbst-text-primary: #f1f5f9;
+    --fbst-text-secondary: #94a3b8;
+    --fbst-text-muted: #64748b;
+    --fbst-text-heading: #fb7185;
+  }
 
-    /* Inputs */
-    --fbst-input-bg: #000000;              /* Black input bg */
-    --fbst-input-bg-hover: #1a1d21;
-    --fbst-input-border: #3b4045;          /* Dark border */
-    --fbst-input-border-focus: #ff6b6b;    /* Red focus */
-    --fbst-input-text: #f8f9fa;
-    --fbst-input-placeholder: #72777d;
+  .liquid-glass {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+  }
 
-    /* Tables */
-    --fbst-table-header-bg: #1a1d21;       /* Dark header */
-    --fbst-table-header-text: #f8f9fa;     /* White text */
-    --fbst-table-row-bg: #000000;          /* Black rows */
-    --fbst-table-row-alt-bg: #101418;      /* Dark alt rows */
-    --fbst-table-row-hover: rgba(255, 107, 107, 0.1); /* Red tint hover */
-    --fbst-table-border: #3b4045;          /* Dark border */
-    --fbst-table-text: #f8f9fa;            /* White text */
+  /* Global Animated Background */
+  body {
+    position: relative;
+    min-height: 100vh;
+    overflow-x: hidden;
+    background: var(--fbst-surface-primary);
+  }
 
-    /* Accents */
-    --fbst-accent-primary: #ff6b6b;        /* Dark red accent */
-    --fbst-accent-success: #00af89;        /* Bright green */
-    --fbst-accent-warning: #fc3;           /* Bright yellow */
-    --fbst-accent-danger: #ff4242;         /* Bright red */
+  body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background:
+      radial-gradient(
+        circle at 20% 30%,
+        rgba(225, 29, 72, 0.08) 0%,
+        transparent 40%
+      ),
+      radial-gradient(
+        circle at 80% 70%,
+        rgba(14, 165, 233, 0.08) 0%,
+        transparent 40%
+      ),
+      radial-gradient(
+        circle at 50% 50%,
+        rgba(168, 85, 247, 0.05) 0%,
+        transparent 60%
+      );
+    pointer-events: none;
+  }
+
+  .dark body::before {
+    background:
+      radial-gradient(
+        circle at 20% 30%,
+        rgba(225, 29, 72, 0.15) 0%,
+        transparent 40%
+      ),
+      radial-gradient(
+        circle at 80% 70%,
+        rgba(14, 165, 233, 0.15) 0%,
+        transparent 40%
+      ),
+      radial-gradient(
+        circle at 50% 50%,
+        rgba(15, 23, 42, 1) 0%,
+        transparent 100%
+      );
   }
 }
 
