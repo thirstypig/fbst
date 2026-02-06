@@ -76,10 +76,13 @@ export default function Home() {
 
   if (!user) {
     return (
-      <div className="px-10 py-8 text-center text-slate-100">
-        <h1 className="text-3xl font-semibold">Welcome to FBST</h1>
-        <p className="mt-4 text-slate-400">Please <Link to="/login" className="text-sky-400 hover:underline">log in</Link> to view your team.</p>
-      </div>
+      <>
+        <div className="px-10 py-8 text-center text-slate-100">
+          <h1 className="text-3xl font-semibold">Welcome to FBST</h1>
+          <p className="mt-4 text-slate-400">Please <Link to="/login" className="text-sky-400 hover:underline">log in</Link> to view your team.</p>
+        </div>
+        <BuildInfoPanel />
+      </>
     );
   }
 
@@ -206,20 +209,25 @@ export default function Home() {
              </div>
           </div>
       )}
+      {/* Authenticated content ends */}
+      <BuildInfoPanel />
+    </div>
+  );
+}
 
-      {/* Floating Build Info */}
-      <div className="fixed bottom-6 right-8 pointer-events-auto opacity-60 hover:opacity-100 transition-opacity duration-500 z-50">
-        <div className="flex flex-col items-end backdrop-blur-md bg-white/10 p-4 rounded-2xl border border-white/20 shadow-2xl">
-          <div className="flex items-center gap-2 mb-1">
-             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-             <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)]">System Terminal</div>
-          </div>
-          <div className="text-[10px] font-mono font-bold text-[var(--fbst-text-heading)] tabular-nums">
-            REL_{__COMMIT_HASH__}
-          </div>
-          <div className="text-[8px] font-mono text-[var(--fbst-text-muted)] mt-0.5 tabular-nums opacity-60">
-            {new Date(__BUILD_TIME__).toLocaleString()}
-          </div>
+function BuildInfoPanel() {
+  return (
+    <div className="fixed bottom-6 right-8 pointer-events-auto opacity-60 hover:opacity-100 transition-opacity duration-500 z-50">
+      <div className="flex flex-col items-end backdrop-blur-md bg-white/10 p-4 rounded-2xl border border-white/20 shadow-2xl">
+        <div className="flex items-center gap-2 mb-1">
+           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+           <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)]">System Terminal</div>
+        </div>
+        <div className="text-[10px] font-mono font-bold text-[var(--fbst-text-heading)] tabular-nums">
+          REL_{__COMMIT_HASH__}
+        </div>
+        <div className="text-[8px] font-mono text-[var(--fbst-text-muted)] mt-0.5 tabular-nums opacity-60">
+          {new Date(__BUILD_TIME__).toLocaleString()}
         </div>
       </div>
     </div>
