@@ -155,10 +155,20 @@ async function main() {
     logger.info({ port: PORT }, '🔥 FBST server listening on 0.0.0.0');
     
     // Auth Config Check
-    const hasClientId = !!process.env.GOOGLE_CLIENT_ID;
-    const hasClientSecret = !!process.env.GOOGLE_CLIENT_SECRET;
+    const cid = process.env.GOOGLE_CLIENT_ID || "";
+    const hasClientId = cid.length > 0;
+    const hasClientSecret = (process.env.GOOGLE_CLIENT_SECRET || "").length > 0;
+    const maskedClientId = hasClientId 
+      ? `${cid.substring(0, 5)}...${cid.substring(cid.length - 10)}`
+      : "missing";
+
     logger.info(
-      { hasClientId, hasClientSecret, redirectUri: process.env.GOOGLE_REDIRECT_URI || "default" },
+      { 
+        hasClientId, 
+        hasClientSecret, 
+        maskedClientId,
+        redirectUri: process.env.GOOGLE_REDIRECT_URI || "default" 
+      },
       "Auth Configuration Check"
     );
 
