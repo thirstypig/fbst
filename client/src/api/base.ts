@@ -4,10 +4,12 @@ import { JsonError } from './types';
 const RAW_BASE: string =
   import.meta.env.VITE_API_BASE ??
   import.meta.env.VITE_API_BASE_URL ??
-  "http://localhost:4000";
+  ""; // Default to empty string for unified deployments (relative paths)
 
 export const API_BASE: string = (() => {
-  const b = String(RAW_BASE).replace(/\/+$/, ""); // trim trailing slash(es)
+  const b = String(RAW_BASE).replace(/\/+$/, "");
+  // If base is empty, we want it to be /api
+  if (!b || b === "") return "/api";
   return b.endsWith("/api") ? b : `${b}/api`;
 })();
 
