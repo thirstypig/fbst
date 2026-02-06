@@ -208,11 +208,17 @@ export default function Home() {
       )}
 
       {/* Floating Build Info */}
-      <div className="fixed bottom-6 right-8 pointer-events-none opacity-40 hover:opacity-100 transition-opacity duration-500">
-        <div className="flex flex-col items-end">
-          <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)]">Terminal Protocol</div>
-          <div className="text-[10px] font-mono font-bold text-[var(--fbst-text-secondary)] mt-0.5">
-            BUILD_{__COMMIT_HASH__}
+      <div className="fixed bottom-6 right-8 pointer-events-none opacity-40 hover:opacity-100 transition-opacity duration-500 z-50">
+        <div className="flex flex-col items-end backdrop-blur-md bg-white/5 p-4 rounded-2xl border border-white/10 shadow-2xl">
+          <div className="flex items-center gap-2 mb-1">
+             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+             <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)]">System Terminal</div>
+          </div>
+          <div className="text-[10px] font-mono font-bold text-[var(--fbst-text-heading)] tabular-nums">
+            REL_{__COMMIT_HASH__}
+          </div>
+          <div className="text-[8px] font-mono text-[var(--fbst-text-muted)] mt-0.5 tabular-nums opacity-60">
+            {new Date(__BUILD_TIME__).toLocaleString()}
           </div>
         </div>
       </div>

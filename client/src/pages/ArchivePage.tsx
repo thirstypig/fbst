@@ -1,8 +1,6 @@
 // client/src/pages/ArchivePage.tsx
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { getArchiveSeasons, getArchivePeriods, getArchivePeriodStats, getArchiveDraftResults, updateArchiveTeamName, fmtRate } from '../api';
-import { useTheme } from '../contexts/ThemeContext';
 import { OGBA_TEAM_NAMES } from '../lib/ogbaTeams';
 import { useAuth } from '../hooks/useAuth';
 import EditPlayerNameModal from '../components/EditPlayerNameModal';
@@ -13,7 +11,7 @@ import AIInsightsModal from '../components/AIInsightsModal';
 import PageHeader from '../components/ui/PageHeader';
 import { 
   SeasonTable, TeamSeasonRow, PeriodMeta, 
-  PeriodSummaryTable, TeamPeriodSummaryRow, CategoryId, 
+  PeriodSummaryTable, TeamPeriodSummaryRow, 
   CategoryPeriodTable, CategoryPeriodRow 
 } from '../components/StatsTables';
 
@@ -88,10 +86,9 @@ const KEEPER_MAP: Record<number, Record<string, string[]>> = {
   }
 };
 
-import { TableCard, Table, THead, Tr, Th, Td } from "../components/ui/TableCard";
+
 
 export default function ArchivePage() {
-  const { theme } = useTheme();
   const { user } = useAuth();
   
   const [seasons, setSeasons] = useState<any[]>([]);
@@ -99,7 +96,6 @@ export default function ArchivePage() {
   const [periods, setPeriods] = useState<any[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState<number | null>(null);
   const [stats, setStats] = useState<PlayerStat[]>([]);
-  const [standings, setStandings] = useState<any[]>([]);
   const [periodResults, setPeriodResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [standingsLoading, setStandingsLoading] = useState(false);
@@ -168,35 +164,6 @@ export default function ArchivePage() {
     }
   };
 
-  const toggleKeeper = async (player: DraftPlayer) => {
-    if (!player.id) {
-      alert("Cannot edit this player. Please run 'Auto-Match' in Admin Tools first to link this record to the database.");
-      return;
-    }
-    
-    // Optimistic update
-    const newValue = !player.isKeeper;
-    setDraftPlayers(prev => prev.map(p => p.id === player.id ? { ...p, isKeeper: newValue } : p));
-
-    try {
-      const res = await fetch(`/api/archive/stat/${player.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}` 
-        },
-        body: JSON.stringify({ isKeeper: newValue })
-      });
-      
-      if (!res.ok) throw new Error("Failed to update keeper status");
-      
-    } catch (err: any) {
-      // Revert on error
-      console.error(err);
-      alert("Error updating keeper: " + err.message);
-      setDraftPlayers(prev => prev.map(p => p.id === player.id ? { ...p, isKeeper: !newValue } : p));
-    }
-  };
 
   // Load available seasons
   useEffect(() => {
@@ -486,176 +453,177 @@ export default function ArchivePage() {
     setStats(prev => prev.map(s => s.id === updatedStat.id ? updatedStat : s));
   };
 
-  const isDark = theme === 'dark';
-  const themeClasses = {
-    bg: isDark ? 'bg-slate-950' : 'bg-gray-50',
-    text: isDark ? 'text-slate-50' : 'text-gray-900',
-    muted: isDark ? 'text-slate-400' : 'text-gray-600',
-    card: isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-gray-200',
-    header: isDark ? 'bg-slate-800' : 'bg-gray-100',
-    row: isDark ? 'hover:bg-slate-800/50' : 'hover:bg-gray-50',
-    divider: isDark ? 'divide-slate-800 border-slate-800' : 'divide-gray-200 border-gray-200',
-  };
-
   return (
-    <div className={`flex-1 min-h-screen ${themeClasses.bg} ${themeClasses.text}`}>
-      <main className="max-w-4xl mx-auto px-4 py-6">
-        {/* Header */}
+    <div className="flex-1 min-h-screen">
+      <main className="max-w-6xl mx-auto px-6 py-12">
         <PageHeader 
           title="Historical Archive" 
-          subtitle="Browse past season statistics"
+          subtitle="Explore the legacy of the FSBT. Browse past season standings, draft results, and performance records."
         />
 
         {error && (
-          <div className={`mb-4 rounded-lg border px-3 py-2 text-sm ${isDark ? 'border-red-500/40 bg-red-500/10 text-red-200' : 'border-red-300 bg-red-50 text-red-900'}`}>
-            {error}
+          <div className="mb-8 rounded-2xl border border-red-500/20 bg-red-500/10 px-6 py-4 text-sm font-medium text-red-300 flex items-center gap-3">
+             <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+            System Error: {error}
           </div>
         )}
 
-        {/* Compact Selectors */}
-        <div className="mb-4 flex gap-3 flex-wrap">
-          <select
-            value={selectedYear || ''}
-            onChange={(e) => setSelectedYear(Number(e.target.value))}
-            className={`rounded border px-3 py-1.5 text-sm ${isDark ? 'border-slate-700 bg-slate-900 text-white' : 'border-gray-300 bg-white text-gray-900'}`}
-          >
-          <option value="">Year...</option>
-            {seasons.map((s) => {
-              // Handle both number and object formats
-              const year = typeof s === 'number' ? s : s.year;
-              return (
-                <option key={year} value={year}>{year}</option>
-              );
-            })}
-          </select>
+        {/* TOP SELECTORS */}
+        <div className="mb-12 flex flex-wrap gap-4 items-center">
+            <div className="flex items-center gap-3 liquid-glass p-1.5 rounded-2xl border border-white/10 pr-4">
+              <div className="bg-white/5 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)]">Year</div>
+              <select
+                value={selectedYear || ''}
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                className="bg-transparent text-sm text-[var(--fbst-text-primary)] outline-none font-bold cursor-pointer hover:text-[var(--fbst-accent)] transition-colors"
+              >
+                <option value="" className="bg-slate-900 border-none">Select Year...</option>
+                {seasons.map((s) => {
+                  const year = typeof s === 'number' ? s : s.year;
+                  return (
+                    <option key={year} value={year} className="bg-slate-900 border-none">{year}</option>
+                  );
+                })}
+              </select>
+            </div>
 
-          <select
-            value={selectedPeriod || ''}
-            onChange={(e) => setSelectedPeriod(Number(e.target.value))}
-            disabled={!selectedYear}
-            className={`rounded border px-3 py-1.5 text-sm ${isDark ? 'border-slate-700 bg-slate-900 text-white disabled:opacity-50' : 'border-gray-300 bg-white text-gray-900 disabled:opacity-50'}`}
-          >
-            <option value="0">Full Season (Matrix)</option>
-            {periods.map((p) => {
-              // Format date range for display
-              const formatDate = (dateStr: string | null) => {
-                if (!dateStr) return '';
-                const d = new Date(dateStr);
-                return `${d.getMonth() + 1}/${d.getDate()}`;
-              };
-              const startLabel = p.periodNumber === 1 ? 'Draft' : formatDate(p.startDate);
-              const endLabel = formatDate(p.endDate);
-              const dateRange = startLabel && endLabel ? ` (${startLabel} - ${endLabel})` : '';
-              return (
-                <option key={p.id} value={p.periodNumber}>
-                  Period {p.periodNumber}{dateRange}
-                </option>
-              );
-            })}
-          </select>
+            <div className="flex items-center gap-3 liquid-glass p-1.5 rounded-2xl border border-white/10 pr-4">
+              <div className="bg-white/5 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)]">Interval</div>
+              <select
+                value={selectedPeriod || ''}
+                onChange={(e) => setSelectedPeriod(Number(e.target.value))}
+                disabled={!selectedYear}
+                className="bg-transparent text-sm text-[var(--fbst-text-primary)] outline-none font-bold cursor-pointer hover:text-[var(--fbst-accent)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <option value="0" className="bg-slate-900 border-none">Full Season (Matrix)</option>
+                {periods.map((p) => {
+                  const formatDate = (dateStr: string | null) => {
+                    if (!dateStr) return '';
+                    const d = new Date(dateStr);
+                    return `${d.getMonth() + 1}/${d.getDate()}`;
+                  };
+                  const startLabel = p.periodNumber === 1 ? 'Draft' : formatDate(p.startDate);
+                  const endLabel = formatDate(p.endDate);
+                  const dateRange = startLabel && endLabel ? ` (${startLabel} - ${endLabel})` : '';
+                  return (
+                    <option key={p.id} value={p.periodNumber} className="bg-slate-900 border-none">
+                      Period {p.periodNumber}{dateRange}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
 
-          {/* Recalculate button for admins/commissioners */}
-          {canEdit && (
-            <button
-              onClick={handleRecalculate}
-              disabled={recalculating || !selectedYear}
-              className={`ml-2 px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                recalculating
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : isDark
-                    ? 'bg-amber-600 hover:bg-amber-700 text-white'
-                    : 'bg-amber-500 hover:bg-amber-600 text-white'
-              }`}
-              title="Re-fetch MLB team data for all players"
-            >
-              {recalculating ? 'Recalculating...' : '⟳ Recalculate'}
-            </button>
-          )}
+            {canEdit && (
+              <button
+                onClick={handleRecalculate}
+                disabled={recalculating || !selectedYear}
+                className={`px-6 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${
+                  recalculating
+                    ? 'bg-white/5 text-[var(--fbst-text-muted)] cursor-not-allowed'
+                    : 'bg-amber-500/10 text-amber-500 border border-amber-500/20 hover:bg-amber-500/20 shadow-lg shadow-amber-500/5'
+                }`}
+              >
+                {recalculating ? 'Processing...' : '⟳ Sync Registry'}
+              </button>
+            )}
         </div>
 
-        {/* Tabs: Standings | Stats | Draft Results */}
+        {/* NAVIGATION TABS */}
         {selectedYear && (
-          <div className="mb-4 flex gap-1">
+          <div className="mb-12 flex gap-2 liquid-glass p-1.5 rounded-3xl border border-white/10 shadow-xl w-fit">
             <button
               onClick={() => setActiveTab('standings')}
-              className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${
+              className={`px-6 py-3 text-xs font-black uppercase tracking-widest rounded-2xl transition-all ${
                 activeTab === 'standings'
-                  ? isDark ? 'bg-slate-800 text-white border-b-2 border-blue-500' : 'bg-white text-gray-900 border-b-2 border-blue-500'
-                  : isDark ? 'bg-slate-900/50 text-slate-400 hover:text-white' : 'bg-gray-100 text-gray-500 hover:text-gray-900'
+                  ? 'bg-[var(--fbst-accent)] text-white shadow-xl scale-105'
+                  : 'text-[var(--fbst-text-muted)] hover:text-[var(--fbst-text-primary)] hover:bg-white/5'
               }`}
             >
               Standings
             </button>
             <button
               onClick={() => setActiveTab('stats')}
-              className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${
+              className={`px-6 py-3 text-xs font-black uppercase tracking-widest rounded-2xl transition-all ${
                 activeTab === 'stats'
-                  ? isDark ? 'bg-slate-800 text-white border-b-2 border-blue-500' : 'bg-white text-gray-900 border-b-2 border-blue-500'
-                  : isDark ? 'bg-slate-900/50 text-slate-400 hover:text-white' : 'bg-gray-100 text-gray-500 hover:text-gray-900'
+                  ? 'bg-[var(--fbst-accent)] text-white shadow-xl scale-105'
+                  : 'text-[var(--fbst-text-muted)] hover:text-[var(--fbst-text-primary)] hover:bg-white/5'
               }`}
             >
               Period Stats
             </button>
             <button
               onClick={() => setActiveTab('draft')}
-              className={`px-4 py-2 border-b-2 font-medium text-sm transition-colors ${
+              className={`px-6 py-3 text-xs font-black uppercase tracking-widest rounded-2xl transition-all ${
                 activeTab === 'draft'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                  ? 'bg-[var(--fbst-accent)] text-white shadow-xl scale-105'
+                  : 'text-[var(--fbst-text-muted)] hover:text-[var(--fbst-text-primary)] hover:bg-white/5'
               }`}
             >
               Auction Draft
             </button>
-            {/* Admin Tab */}
             {canEdit && (
               <button
                 onClick={() => setActiveTab('admin')}
-                className={`px-4 py-2 border-b-2 font-medium text-sm transition-colors ${
+                className={`px-6 py-3 text-xs font-black uppercase tracking-widest rounded-2xl transition-all ${
                   activeTab === 'admin'
-                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                    ? 'bg-amber-500 text-white shadow-xl scale-105'
+                    : 'text-amber-500/60 hover:text-amber-500 hover:bg-amber-500/5'
                 }`}
               >
-                Admin Tools
+                Admin
               </button>
             )}
           </div>
         )}
 
+
         {/* Draft Results Tab */}
         {activeTab === 'draft' && selectedYear && (
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
               {/* Pre-Draft Trades */}
-              <div className="flex-1">
+              <div className="lg:col-span-2">
                 {draftTrades.length > 0 ? (
-                  <div className={`rounded-lg border p-4 ${themeClasses.card}`}>
-                    <h3 className="font-semibold mb-2 text-amber-500">📝 Pre-Draft Trades</h3>
-                    {draftTrades.map((trade, i) => (
-                      <div key={i} className={`text-sm ${themeClasses.muted}`}>
-                        <span className="font-medium">${trade.amount}</span> from {trade.fromTeamName} ({trade.fromTeamCode}) → {trade.toTeamName} ({trade.toTeamCode})
-                        {trade.note && <span className="italic ml-2">"{trade.note}"</span>}
-                      </div>
-                    ))}
+                  <div className="rounded-3xl liquid-glass border border-white/10 shadow-xl overflow-hidden">
+                    <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-4 flex items-center gap-3">
+                       <span className="text-amber-500">📝</span>
+                       <h3 className="text-sm font-black uppercase tracking-widest text-amber-500">Capital Reallocations</h3>
+                    </div>
+                    <div className="p-6 space-y-4">
+                      {draftTrades.map((trade, i) => (
+                        <div key={i} className="flex items-center justify-between text-sm group">
+                          <div className="flex items-center gap-3">
+                             <div className="bg-white/5 px-2 py-1 rounded-lg text-[10px] font-black tabular-nums text-[var(--fbst-text-muted)]">${trade.amount}</div>
+                             <div className="text-[var(--fbst-text-primary)] font-bold">{trade.fromTeamCode} → {trade.toTeamCode}</div>
+                             {trade.note && <div className="text-[var(--fbst-text-muted)] text-xs italic opacity-40 group-hover:opacity-100 transition-opacity">"{trade.note}"</div>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ) : (
-                  <div className={`p-4 rounded-lg border border-dashed text-xs ${themeClasses.muted}`}>No pre-draft trades found</div>
+                  <div className="rounded-3xl border border-dashed border-white/10 p-12 text-center text-[var(--fbst-text-muted)] italic text-sm opacity-40">
+                    Baseline capital distribution (No pre-draft reallocations).
+                  </div>
                 )}
               </div>
 
               {/* Keeper Legend */}
-              <div className={`px-4 py-2 rounded-lg border ${themeClasses.card} text-xs`}>
-                <div className="font-semibold mb-1">Legend</div>
-                <div className="flex gap-4">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-amber-500/20 border border-amber-500/50"></div>
-                    <span className="text-amber-500 font-medium">Keepers</span>
+              <div className="rounded-3xl liquid-glass border border-white/10 p-6 shadow-xl">
+                <div className="text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] mb-4">Schema Legend</div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                     <span className="text-xs font-bold text-[var(--fbst-text-secondary)]">Protected Status</span>
+                     <span className="px-2 py-0.5 rounded-lg bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[10px] font-black uppercase tracking-tighter">Keeper</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-blue-400 font-medium">Hitters</span>
+                  <div className="flex items-center justify-between">
+                     <span className="text-xs font-bold text-[var(--fbst-text-secondary)]">Hitter Class</span>
+                     <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-purple-400 font-medium">Pitchers</span>
+                  <div className="flex items-center justify-between">
+                     <span className="text-xs font-bold text-[var(--fbst-text-secondary)]">Pitcher Class</span>
+                     <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
                   </div>
                 </div>
               </div>
@@ -663,9 +631,9 @@ export default function ArchivePage() {
 
             {/* Draft Results by Team */}
             {draftLoading ? (
-              <div className={`text-center py-8 ${themeClasses.muted}`}>Loading draft results...</div>
+              <div className="text-center py-20 text-[var(--fbst-text-muted)] italic animate-pulse">Reconstructing draft ledger...</div>
             ) : draftPlayers.length === 0 ? (
-              <div className={`text-center py-8 ${themeClasses.muted}`}>No draft results found for {selectedYear}</div>
+              <div className="text-center py-20 text-[var(--fbst-text-muted)] italic opacity-40">Zero player records found for the {selectedYear} recruitment cycle.</div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {Object.keys(OGBA_TEAM_NAMES).sort().map(teamCode => {
@@ -692,7 +660,7 @@ export default function ArchivePage() {
                   const yearKeepers = KEEPER_MAP[selectedYear!]?.[teamCode] || [];
 
                   return (
-                    <div key={teamCode} className={`rounded-lg border overflow-hidden ${themeClasses.card} self-start`}>
+                    <div key={teamCode} className="rounded-3xl liquid-glass border border-white/10 shadow-xl overflow-hidden self-start">
                       {/* Collapsible Header */}
                       <button
                         onClick={() => {
@@ -701,14 +669,18 @@ export default function ArchivePage() {
                           else newExpanded.add(teamCode);
                           setExpandedTeams(newExpanded);
                         }}
-                        className={`w-full px-3 py-2 flex items-center justify-between ${themeClasses.header} hover:opacity-80 transition-opacity`}
+                        className="w-full px-8 py-6 flex items-center justify-between bg-white/5 border-b border-white/10 hover:bg-white/10 transition-colors"
                       >
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[10px] transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
-                          <span className="font-semibold text-sm">{OGBA_TEAM_NAMES[teamCode] || teamCode}</span>
-                          <span className={`text-xs ${themeClasses.muted}`}>({teamPlayers.length})</span>
+                        <div className="flex items-center gap-4">
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black transition-transform ${isExpanded ? 'rotate-180 bg-white/10' : 'bg-white/5 opacity-40'}`}>
+                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                          </div>
+                          <div>
+                            <div className="font-black text-lg tracking-tight text-[var(--fbst-text-heading)]">{OGBA_TEAM_NAMES[teamCode] || teamCode}</div>
+                            <div className="text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] opacity-60">{teamCode} • {teamPlayers.length} Nodes</div>
+                          </div>
                         </div>
-                        <span className="text-sm font-bold text-green-500">${totalSpent}</span>
+                        <div className="text-xl font-black text-emerald-400 tabular-nums">${totalSpent}</div>
                       </button>
                       
                       {/* Collapsible Content - Compact Tables */}
@@ -716,44 +688,35 @@ export default function ArchivePage() {
                         <div className="w-full">
                           {/* Hitters */}
                           {hitters.length > 0 && (
-                            <div className="border-b last:border-0 overflow-x-auto">
-                              <div className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${isDark ? 'bg-blue-900/20 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
-                                Hitters
-                              </div>
+                            <div className="border-b border-white/5">
+                              <div className="px-8 py-3 bg-blue-500/5 text-[10px] font-black uppercase tracking-[0.2em] text-blue-400">Batting Roster</div>
                               <table className="w-full text-xs">
                                 <thead>
-                                  <tr className={isDark ? 'bg-slate-800/10' : 'bg-gray-50/50'}>
-                                    <th className="px-3 py-1.5 text-left font-medium">Player</th>
-                                    <th className="px-2 py-1.5 text-center font-medium w-10">Pos</th>
-                                    <th className="px-2 py-1.5 text-center font-medium w-10">MLB</th>
-                                    <th className="px-2 py-1.5 text-right font-medium w-12">$</th>
+                                  <tr className="bg-white/5 text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)]">
+                                    <th className="px-8 py-3 text-left">Identity</th>
+                                    <th className="px-4 py-3 text-center w-12">Pos</th>
+                                    <th className="px-4 py-3 text-center w-12">Org</th>
+                                    <th className="px-8 py-3 text-right w-20">Value</th>
                                   </tr>
                                 </thead>
-                                <tbody>
+                                <tbody className="divide-y divide-white/5">
                                   {hitters.map((p, i) => {
                                     const isKeeper = p.isKeeper || yearKeepers.some((k: string) => 
                                       p.playerName === k || p.fullName === k || p.fullName.includes(k)
                                     );
                                     return (
-                                      <tr key={i} className={`border-t ${isDark ? 'border-slate-700/50' : 'border-gray-100'} ${isKeeper ? (isDark ? 'bg-amber-900/10' : 'bg-amber-50/50') : ''}`}>
-                                        <td className="px-3 py-0.5">
-                                          <div className="flex items-center gap-1.5 py-0.5">
-                                            <span className="font-medium text-blue-400">
-                                              {p.fullName}
-                                            </span>
-                                            {(isKeeper) && (
-                                              <button
-                                                className={`px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded border border-amber-500 bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400 cursor-default`}
-                                                title="Keeper"
-                                              >
-                                                K
-                                              </button>
+                                      <tr key={i} className={`hover:bg-white/5 transition-colors ${isKeeper ? 'bg-amber-500/5' : ''}`}>
+                                        <td className="px-8 py-3 font-bold">
+                                          <div className="flex items-center gap-3">
+                                            <span className="text-blue-400">{p.fullName}</span>
+                                            {isKeeper && (
+                                              <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[8px] font-black uppercase">K</span>
                                             )}
                                           </div>
                                         </td>
-                                        <td className={`px-2 py-0.5 text-center ${themeClasses.muted}`}>{p.position}</td>
-                                        <td className={`px-2 py-0.5 text-center ${themeClasses.muted}`}>{p.mlbTeam || '-'}</td>
-                                        <td className="px-2 py-0.5 text-right font-medium tabular-nums text-green-500">${p.draftDollars}</td>
+                                        <td className="px-4 py-3 text-center text-[var(--fbst-text-muted)] font-black uppercase">{p.position}</td>
+                                        <td className="px-4 py-3 text-center text-[var(--fbst-text-muted)] opacity-60">{p.mlbTeam || 'FA'}</td>
+                                        <td className="px-8 py-3 text-right font-black text-emerald-400 tabular-nums">${p.draftDollars}</td>
                                       </tr>
                                     );
                                   })}
@@ -764,44 +727,35 @@ export default function ArchivePage() {
 
                           {/* Pitchers */}
                           {pitchers.length > 0 && (
-                            <div className="overflow-x-auto">
-                              <div className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${isDark ? 'bg-purple-900/20 text-purple-400' : 'bg-purple-50 text-purple-600'}`}>
-                                Pitchers
-                              </div>
+                            <div>
+                              <div className="px-8 py-3 bg-purple-500/5 text-[10px] font-black uppercase tracking-[0.2em] text-purple-400">Pitching Roster</div>
                               <table className="w-full text-xs">
                                 <thead>
-                                  <tr className={isDark ? 'bg-slate-800/10' : 'bg-gray-50/50'}>
-                                    <th className="px-3 py-1.5 text-left font-medium">Player</th>
-                                    <th className="px-2 py-1.5 text-center font-medium w-10">Pos</th>
-                                    <th className="px-2 py-1.5 text-center font-medium w-10">MLB</th>
-                                    <th className="px-2 py-1.5 text-right font-medium w-12">$</th>
+                                  <tr className="bg-white/5 text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)]">
+                                    <th className="px-8 py-3 text-left">Identity</th>
+                                    <th className="px-4 py-3 text-center w-12">Pos</th>
+                                    <th className="px-4 py-3 text-center w-12">Org</th>
+                                    <th className="px-8 py-3 text-right w-20">Value</th>
                                   </tr>
                                 </thead>
-                                <tbody>
+                                <tbody className="divide-y divide-white/5">
                                   {pitchers.map((p, i) => {
                                     const isKeeper = p.isKeeper || yearKeepers.some((k: string) => 
                                       p.playerName === k || p.fullName === k || p.fullName.includes(k)
                                     );
                                     return (
-                                      <tr key={i} className={`border-t ${isDark ? 'border-slate-700/50' : 'border-gray-100'} ${isKeeper ? (isDark ? 'bg-amber-900/10' : 'bg-amber-50/50') : ''}`}>
-                                        <td className="px-3 py-0.5">
-                                          <div className="flex items-center gap-1.5 py-0.5">
-                                            <span className="font-medium text-purple-400">
-                                              {p.fullName}
-                                            </span>
-                                            {(isKeeper) && (
-                                              <button
-                                                className={`px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded border border-amber-500 bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400 cursor-default`}
-                                                title="Keeper"
-                                              >
-                                                K
-                                              </button>
+                                      <tr key={i} className={`hover:bg-white/5 transition-colors ${isKeeper ? 'bg-amber-500/5' : ''}`}>
+                                        <td className="px-8 py-3 font-bold">
+                                          <div className="flex items-center gap-3">
+                                            <span className="text-purple-400">{p.fullName}</span>
+                                            {isKeeper && (
+                                              <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[8px] font-black uppercase">K</span>
                                             )}
                                           </div>
                                         </td>
-                                        <td className={`px-2 py-0.5 text-center ${themeClasses.muted}`}>{p.position}</td>
-                                        <td className={`px-2 py-0.5 text-center ${themeClasses.muted}`}>{p.mlbTeam || '-'}</td>
-                                        <td className="px-2 py-0.5 text-right font-medium tabular-nums text-green-500">${p.draftDollars}</td>
+                                        <td className="px-4 py-3 text-center text-[var(--fbst-text-muted)] font-black uppercase">{p.position}</td>
+                                        <td className="px-4 py-3 text-center text-[var(--fbst-text-muted)] opacity-60">{p.mlbTeam || 'FA'}</td>
+                                        <td className="px-8 py-3 text-right font-black text-emerald-400 tabular-nums">${p.draftDollars}</td>
                                       </tr>
                                     );
                                   })}
@@ -810,10 +764,7 @@ export default function ArchivePage() {
                             </div>
                           )}
 
-                          <div className={`px-3 py-1.5 flex justify-between items-center text-xs font-bold border-t ${isDark ? 'border-slate-700 bg-slate-800/80' : 'border-gray-200 bg-gray-50/80'}`}>
-                            <span className={themeClasses.muted}>TOTAL SPENT</span>
-                            <span className="text-green-500 tabular-nums">${totalSpent}</span>
-                          </div>
+                          {/* No footer needed, layout looks cleaner without it or inside the list */}
                         </div>
                       )}
                     </div>
@@ -825,20 +776,19 @@ export default function ArchivePage() {
         )}
 
         {/* Standings Tab Content */}
-        {activeTab === 'standings' && standingsLoading && (
-          <div className={`text-center py-8 ${themeClasses.muted}`}>Loading standings...</div>
-        )}
-
-        {activeTab === 'standings' && !standingsLoading && (
-            selectedPeriod && selectedPeriod > 0 ? (
+        {activeTab === 'standings' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {standingsLoading ? (
+              <div className="text-center py-20 text-[var(--fbst-text-muted)] italic animate-pulse">Aggregating standings data...</div>
+            ) : selectedPeriod && selectedPeriod > 0 ? (
                 // Period Detail View
-                <>
+                <div className="space-y-12">
                     <PeriodSummaryTable 
                         periodId={String(selectedPeriod)} 
                         rows={periodSummaryRows} 
                         categories={['R','HR','RBI','SB','AVG','W','SV','K','ERA','WHIP']} 
                     />
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                         {Object.entries(categoryRows).map(([catId, rows]) => (
                             <CategoryPeriodTable 
                                 key={catId} 
@@ -848,58 +798,61 @@ export default function ArchivePage() {
                             />
                         ))}
                     </div>
-                </>
+                </div>
             ) : (
                 // Season Matrix View
-                <SeasonTable 
-                    periods={periodMeta} 
-                    rows={seasonRows} 
-                />
-            )
+                <div className="rounded-3xl liquid-glass border border-white/10 shadow-2xl overflow-hidden">
+                  <SeasonTable 
+                      periods={periodMeta} 
+                      rows={seasonRows} 
+                  />
+                </div>
+            )}
+          </div>
         )}
 
 
         {/* Period Trends Tab (Cumulative Results) */}
         {activeTab === 'period-results' && selectedYear && (
-          <div className={`rounded-lg border overflow-hidden ${themeClasses.card}`}>
-            {/* Legend for Period Winners (Optional) */}
-            <div className="px-4 py-2 bg-amber-500/5 border-b border-amber-500/20 flex items-center justify-between">
-              <span className="text-xs text-amber-500 font-semibold flex items-center gap-1.5">
-                📈 Cumulative Standings Trend
-              </span>
-              <span className={`text-[10px] ${themeClasses.muted}`}>Click headers to sort</span>
+          <div className="rounded-3xl liquid-glass border border-white/10 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="bg-white/5 border-b border-white/10 px-8 py-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-black tracking-tight text-[var(--fbst-text-heading)]">Standings Evolution</h2>
+                <div className="mt-1 text-sm font-medium text-[var(--fbst-text-muted)]">Cumulative point velocity across all intervals.</div>
+              </div>
+              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)] opacity-40">Scroll to Sort</div>
             </div>
 
             <div className="overflow-x-auto">
               {periodResultsLoading ? (
-                <div className={`text-center py-8 ${themeClasses.muted}`}>Calculating cumulative trends...</div>
+                <div className="text-center py-20 text-[var(--fbst-text-muted)] italic animate-pulse">Calculating point velocities...</div>
               ) : periodResults.length === 0 ? (
-                <div className={`text-center py-8 ${themeClasses.muted}`}>No period results available</div>
+                <div className="text-center py-20 text-[var(--fbst-text-muted)] italic opacity-40">Zero velocity data available.</div>
               ) : (
-                <table className="w-full text-xs text-left">
+                <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className={isDark ? 'bg-slate-800/50' : 'bg-gray-50'}>
-                      <th className="px-4 py-3 font-semibold w-64 border-b border-slate-700/50">Team Name</th>
+                    <tr className="bg-white/5 border-b border-white/10">
+                      <th className="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] min-w-[240px]">Franchise</th>
                       {periodResults.map(p => (
                         <th 
                           key={p.periodNumber} 
                           onClick={() => handleSort(p.periodNumber)}
-                          className="px-2 py-3 font-semibold text-center border-b border-slate-700/50 cursor-pointer hover:bg-slate-700/20"
+                          className="px-4 py-4 text-center text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] cursor-pointer hover:bg-white/10 transition-colors"
                         >
                           <div className="flex items-center justify-center gap-1">
                             P{p.periodNumber}
                             {sortConfig.key === p.periodNumber && (
-                              <span>{sortConfig.direction === 'desc' ? '▼' : '▲'}</span>
+                              <span className="text-[var(--fbst-accent)]">{sortConfig.direction === 'desc' ? '▼' : '▲'}</span>
                             )}
                           </div>
                         </th>
                       ))}
                       <th 
                         onClick={() => handleSort('final')}
-                        className="px-4 py-3 font-bold text-center border-b border-slate-700/50 bg-green-500/5 text-green-500 cursor-pointer hover:bg-green-500/10"
+                        className="px-8 py-4 text-center text-[10px] font-black uppercase tracking-widest text-[var(--fbst-accent)] cursor-pointer hover:bg-[var(--fbst-accent)]/10 transition-colors bg-[var(--fbst-accent)]/5"
                       >
                         <div className="flex items-center justify-center gap-1">
-                          Final
+                          RESULT
                           {sortConfig.key === 'final' && (
                             <span>{sortConfig.direction === 'desc' ? '▼' : '▲'}</span>
                           )}
@@ -907,8 +860,8 @@ export default function ArchivePage() {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-700/30">
-                    {periodResults.length > 0 && Object.keys(OGBA_TEAM_NAMES)
+                  <tbody className="divide-y divide-white/5">
+                    {Object.keys(OGBA_TEAM_NAMES)
                       .sort((a, b) => {
                         const getScore = (teamCode: string, key: string | number) => {
                           if (key === 'final') {
@@ -927,20 +880,21 @@ export default function ArchivePage() {
                           ?.find((s: any) => s.teamCode === teamCode)?.totalScore || 0;
 
                         return (
-                          <tr key={teamCode} className={isDark ? 'hover:bg-slate-800/40' : 'hover:bg-gray-50'}>
-                            <td className="px-4 py-2.5 font-medium whitespace-nowrap">
+                          <tr key={teamCode} className="hover:bg-white/5 transition-colors group">
+                            <td className="px-8 py-4 font-bold text-[var(--fbst-text-primary)]">
                               {OGBA_TEAM_NAMES[teamCode] || teamCode}
                             </td>
                             {periodResults.map(p => {
                               const standing = p.standings?.find((s: any) => s.teamCode === teamCode);
-                              const isWinner = standing && standing.totalScore === Math.max(...p.standings.map((s: any) => s.totalScore));
+                              const maxScore = Math.max(...p.standings.map((s: any) => s.totalScore));
+                              const isWinner = standing && standing.totalScore === maxScore;
                               return (
-                                <td key={p.periodNumber} className={`px-2 py-2.5 text-center transition-colors ${isWinner ? 'font-bold text-amber-500 bg-amber-500/5' : themeClasses.muted}`}>
+                                <td key={p.periodNumber} className={`px-4 py-4 text-center tabular-nums transition-colors ${isWinner ? 'font-black text-amber-400 bg-amber-500/5' : 'text-[var(--fbst-text-muted)]'}`}>
                                   {standing ? standing.totalScore.toFixed(1) : '-'}
                                 </td>
                               );
                             })}
-                            <td className="px-4 py-2.5 text-center font-bold text-green-500 bg-green-500/5 tabular-nums">
+                            <td className="px-8 py-4 text-center font-black text-[var(--fbst-accent)] bg-[var(--fbst-accent)]/5 tabular-nums">
                               {finalScore.toFixed(1)}
                             </td>
                           </tr>
@@ -950,197 +904,187 @@ export default function ArchivePage() {
                 </table>
               )}
             </div>
-            <div className={`px-3 py-2 text-[10px] ${themeClasses.muted} border-t ${themeClasses.divider}`}>
-              * Scores shown are cumulative totals at the end of each period.
+            <div className="px-8 py-4 bg-white/5 border-t border-white/10 text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-text-muted)] opacity-60">
+              * Indices represent cumulative point aggregates at terminal interval nodes.
             </div>
           </div>
         )}
 
+
         {/* Stats Tab Content */}
-        {activeTab === 'stats' && loading && (
-          <div className={`text-center py-8 ${themeClasses.muted}`}>Loading...</div>
-        )}
+        {activeTab === 'stats' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {loading ? (
+              <div className="text-center py-20 text-[var(--fbst-text-muted)] italic animate-pulse">Filtering archival data streams...</div>
+            ) : stats.length === 0 && selectedYear && selectedPeriod ? (
+              <div className="text-center py-20 text-[var(--fbst-text-muted)] italic opacity-40">No records found for the specified temporal coordinates.</div>
+            ) : (
+              <div className="space-y-8">
+                <div className="flex items-center gap-4 bg-white/5 p-4 rounded-3xl border border-white/10 shadow-lg justify-center w-fit mx-auto mb-12">
+                   <div className="bg-white/5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)]">Inventory</div>
+                   <div className="text-sm font-bold text-[var(--fbst-text-primary)]">{stats.length} Nodes • {teamCodes.length} Franchises</div>
+                </div>
 
-        {activeTab === 'stats' && !loading && stats.length === 0 && selectedYear && selectedPeriod && (
-          <div className={`text-center py-8 ${themeClasses.muted}`}>No stats found</div>
-        )}
+                {teamCodes.map((teamCode) => {
+                  const teamPlayers = teamGroups[teamCode];
+                  const hitters = teamPlayers.filter(p => !p.isPitcher).sort(sortHitters);
+                  const pitchers = teamPlayers.filter(p => p.isPitcher).sort(sortPitchers);
+                  const isExpanded = expandedTeams.has(teamCode);
+                  const missingIds = teamPlayers.filter(p => !p.mlbId).length;
 
-        {/* Team Cards */}
-        {activeTab === 'stats' && !loading && stats.length > 0 && (
-          <div className="space-y-3">
-            <div className={`text-xs ${themeClasses.muted} mb-2`}>
-              {stats.length} players • {teamCodes.length} teams
-            </div>
+                  return (
+                    <div key={teamCode} className="rounded-3xl liquid-glass border border-white/10 shadow-xl overflow-hidden self-start">
+                      <button
+                        onClick={() => toggleTeam(teamCode)}
+                        className="w-full px-8 py-6 flex items-center justify-between bg-white/5 border-b border-white/10 hover:bg-white/10 transition-colors"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black transition-transform ${isExpanded ? 'rotate-180 bg-white/10' : 'bg-white/5 opacity-40'}`}>
+                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                          </div>
+                          <div>
+                            <div className="font-black text-lg tracking-tight text-[var(--fbst-text-heading)]">{OGBA_TEAM_NAMES[teamCode] || teamCode}</div>
+                            <div className="text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] opacity-60">
+                               {hitters.length}H / {pitchers.length}P
+                               {missingIds > 0 && <span className="ml-2 text-amber-500">⚠️ {missingIds} UNLINKED</span>}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
 
-            {teamCodes.map((teamCode) => {
-              const teamPlayers = teamGroups[teamCode];
-              const hitters = teamPlayers.filter(p => !p.isPitcher).sort(sortHitters);
-              const pitchers = teamPlayers.filter(p => p.isPitcher).sort(sortPitchers);
-              const isExpanded = expandedTeams.has(teamCode);
-              const missingIds = teamPlayers.filter(p => !p.mlbId).length;
+                      {isExpanded && (
+                        <div className="p-8 space-y-12 animate-in slide-in-from-top-4 duration-300">
+                          {hitters.length > 0 && (
+                            <div className="rounded-2xl border border-white/5 overflow-hidden">
+                              <div className="px-6 py-3 bg-blue-500/5 text-[10px] font-black uppercase tracking-[0.2em] text-blue-400 border-b border-white/5">Batting Stats</div>
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-xs text-left">
+                                  <thead>
+                                    <tr className="bg-white/5 text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] border-b border-white/10">
+                                      <th className="px-6 py-4">Identity</th>
+                                      <th className="px-4 py-4 text-center">Pos</th>
+                                      <th className="px-4 py-4 text-center">Org</th>
+                                      <th className="px-4 py-4 text-right">R</th>
+                                      <th className="px-4 py-4 text-right">HR</th>
+                                      <th className="px-4 py-4 text-right">RBI</th>
+                                      <th className="px-4 py-4 text-right">SB</th>
+                                      <th className="px-4 py-4 text-right">AVG</th>
+                                      <th className="px-6 py-4 text-right text-sky-400">GS</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-white/5">
+                                    {hitters.map((p) => (
+                                      <tr key={p.id} onClick={() => setEditingStat(p)} className="cursor-pointer hover:bg-white/5 transition-colors group">
+                                        <td className="px-6 py-3 font-bold">
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-[var(--fbst-text-primary)] group-hover:text-[var(--fbst-accent)] transition-colors">{p.displayName || p.fullName || p.playerName}</span>
+                                            {!p.mlbId && <span className="text-amber-500 text-[8px]" title="Missing MLB ID">⚠️</span>}
+                                          </div>
+                                        </td>
+                                        <td className="px-4 py-3 text-center text-[var(--fbst-text-muted)] font-black uppercase">{p.position || '—'}</td>
+                                        <td className="px-4 py-3 text-center text-[var(--fbst-text-muted)] opacity-60">{p.mlbTeam || '—'}</td>
+                                        <td className="px-4 py-3 text-right tabular-nums">{p.R ?? '0'}</td>
+                                        <td className="px-4 py-3 text-right tabular-nums">{p.HR ?? '0'}</td>
+                                        <td className="px-4 py-3 text-right tabular-nums">{p.RBI ?? '0'}</td>
+                                        <td className="px-4 py-3 text-right tabular-nums">{p.SB ?? '0'}</td>
+                                        <td className="px-4 py-3 text-right tabular-nums">{p.AVG !== undefined ? fmtRate(p.AVG) : '.000'}</td>
+                                        <td className="px-6 py-3 text-right tabular-nums font-black text-sky-400 opacity-60 group-hover:opacity-100 transition-opacity">{p.GS ?? '0'}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
 
-              return (
-                <div key={teamCode} className={`rounded-lg border overflow-hidden ${themeClasses.card}`}>
-                  {/* Team Header - Collapsible */}
-                  <button
-                    onClick={() => toggleTeam(teamCode)}
-                    className={`w-full px-4 py-2.5 flex items-center justify-between ${themeClasses.header}`}
-                  >
-                    <div className="flex items-center gap-2 group relative">
-                      <span className="font-semibold text-sm">{OGBA_TEAM_NAMES[teamCode] || teamCode}</span>
-                       
-                      <span className={`text-xs ${themeClasses.muted}`}>
-                        {hitters.length}H / {pitchers.length}P
-                      </span>
-                      {missingIds > 0 && (
-                        <span className="text-xs text-amber-500">⚠️ {missingIds}</span>
+                          {pitchers.length > 0 && (
+                            <div className="rounded-2xl border border-white/5 overflow-hidden">
+                              <div className="px-6 py-3 bg-purple-500/5 text-[10px] font-black uppercase tracking-[0.2em] text-purple-400 border-b border-white/5">Pitching Stats</div>
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-xs text-left">
+                                  <thead>
+                                    <tr className="bg-white/5 text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] border-b border-white/10">
+                                      <th className="px-6 py-4">Identity</th>
+                                      <th className="px-4 py-4 text-center">Pos</th>
+                                      <th className="px-4 py-4 text-center">Org</th>
+                                      <th className="px-4 py-4 text-right">W</th>
+                                      <th className="px-4 py-4 text-right">SV</th>
+                                      <th className="px-4 py-4 text-right">K</th>
+                                      <th className="px-4 py-4 text-right">ERA</th>
+                                      <th className="px-4 py-4 text-right">WHIP</th>
+                                      <th className="px-6 py-4 text-right text-purple-400">SO</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-white/5">
+                                    {pitchers.map((p) => (
+                                      <tr key={p.id} onClick={() => setEditingStat(p)} className="cursor-pointer hover:bg-white/5 transition-colors group">
+                                        <td className="px-6 py-3 font-bold">
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-[var(--fbst-text-primary)] group-hover:text-[var(--fbst-accent)] transition-colors">{p.displayName || p.fullName || p.playerName}</span>
+                                            {!p.mlbId && <span className="text-amber-500 text-[8px]" title="Missing MLB ID">⚠️</span>}
+                                          </div>
+                                        </td>
+                                        <td className="px-4 py-3 text-center text-[var(--fbst-text-muted)] font-black uppercase">{p.position || 'P'}</td>
+                                        <td className="px-4 py-3 text-center text-[var(--fbst-text-muted)] opacity-60">{p.mlbTeam || '—'}</td>
+                                        <td className="px-4 py-3 text-right tabular-nums">{p.W ?? '0'}</td>
+                                        <td className="px-4 py-3 text-right tabular-nums">{p.SV ?? '0'}</td>
+                                        <td className="px-4 py-3 text-right tabular-nums">{p.K ?? '0'}</td>
+                                        <td className="px-4 py-3 text-right tabular-nums">{p.ERA?.toFixed(2) ?? '0.00'}</td>
+                                        <td className="px-4 py-3 text-right tabular-nums">{p.WHIP?.toFixed(2) ?? '0.00'}</td>
+                                        <td className="px-6 py-3 text-right tabular-nums font-black text-purple-400 opacity-60 group-hover:opacity-100 transition-opacity">{p.SO ?? '0'}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
-                    <svg className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-
-                  {/* Expanded Content */}
-                  {isExpanded && (
-                    <div className={`border-t ${themeClasses.divider} p-4`}>
-                      <div className="grid grid-cols-1 gap-6">
-                        {/* Hitters Table */}
-                        {hitters.length > 0 && (
-                          <div className={`rounded-lg border overflow-hidden ${themeClasses.card} h-fit`}>
-                            <TableCard>
-                              <div className={`px-4 py-2 text-xs font-bold uppercase tracking-wider ${isDark ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-100 text-blue-800'}`}>
-                                Hitters
-                              </div>
-                              <Table className="text-xs">
-                                <THead>
-                                  <Tr>
-                                    <Th className="text-left font-medium">Player</Th>
-                                    <Th className="text-center font-medium">Pos</Th>
-                                    <Th className="text-left font-medium">Team</Th>
-                                    <Th className="text-right font-medium">R</Th>
-                                    <Th className="text-right font-medium">HR</Th>
-                                    <Th className="text-right font-medium">RBI</Th>
-                                    <Th className="text-right font-medium">SB</Th>
-                                    <Th className="text-right font-medium">AVG</Th>
-                                    <Th className="text-right font-medium">GS</Th>
-                                  </Tr>
-                                </THead>
-                                <tbody>
-                                  {hitters.map((p) => (
-                                    <Tr key={p.id} onClick={() => setEditingStat(p)} className="cursor-pointer hover:bg-white/5 transition-colors">
-                                      <Td className="px-2 py-1.5 border-t border-slate-800/50">
-                                        <div className="flex items-center gap-1 font-medium">
-                                          {p.displayName || p.fullName || p.playerName}
-                                          {!p.mlbId && <span className="text-amber-500" title="Missing MLB ID">⚠️</span>}
-                                        </div>
-                                      </Td>
-                                      <Td align="center" className="px-2 py-1.5 border-t border-slate-800/50 text-slate-500">{p.position || '—'}</Td>
-                                      <Td className="px-2 py-1.5 border-t border-slate-800/50 text-xs text-slate-500">{p.mlbTeam || '—'}</Td>
-                                      <Td align="center" className="px-2 py-1.5 border-t border-slate-800/50 tabular-nums">{p.R ?? '0'}</Td>
-                                      <Td align="center" className="px-2 py-1.5 border-t border-slate-800/50 tabular-nums">{p.HR ?? '0'}</Td>
-                                      <Td align="center" className="px-2 py-1.5 border-t border-slate-800/50 tabular-nums">{p.RBI ?? '0'}</Td>
-                                      <Td align="center" className="px-2 py-1.5 border-t border-slate-800/50 tabular-nums">{p.SB ?? '0'}</Td>
-                                      <Td align="center" className="px-2 py-1.5 border-t border-slate-800/50 tabular-nums">{p.AVG !== undefined ? fmtRate(p.AVG) : '.000'}</Td>
-                                      <Td align="center" className="px-2 py-1.5 border-t border-slate-800/50 tabular-nums font-semibold text-sky-400">{p.GS ?? '0'}</Td>
-                                    </Tr>
-                                  ))}
-                                </tbody>
-                              </Table>
-                            </TableCard>
-                          </div>
-                        )}
-
-                        {/* Pitchers Table */}
-                        {pitchers.length > 0 && (
-                          <div className={`rounded-lg border overflow-hidden ${themeClasses.card} h-fit`}>
-                            <TableCard>
-                              <div className={`px-4 py-2 text-xs font-bold uppercase tracking-wider ${isDark ? 'bg-purple-900/30 text-purple-400' : 'bg-purple-100 text-purple-800'}`}>
-                                Pitchers
-                              </div>
-                              <Table className="text-xs">
-                                <THead>
-                                  <Tr>
-                                    <Th className="text-left font-medium">Player</Th>
-                                    <Th className="text-center font-medium">Pos</Th>
-                                    <Th className="text-left font-medium">Team</Th>
-                                    <Th className="text-right font-medium">W</Th>
-                                    <Th className="text-right font-medium">SV</Th>
-                                    <Th className="text-right font-medium">K</Th>
-                                    <Th className="text-right font-medium">ERA</Th>
-                                    <Th className="text-right font-medium">WHIP</Th>
-                                    <Th className="text-right font-medium">SO</Th>
-                                  </Tr>
-                                </THead>
-                                <tbody>
-                                  {pitchers.map((p) => (
-                                    <Tr key={p.id} onClick={() => setEditingStat(p)} className="cursor-pointer hover:bg-white/5 transition-colors">
-                                      <Td className="px-2 py-1.5 border-t border-slate-800/50">
-                                        <div className="flex items-center gap-1 font-medium">
-                                          {p.displayName || p.fullName || p.playerName}
-                                          {!p.mlbId && <span className="text-amber-500" title="Missing MLB ID">⚠️</span>}
-                                        </div>
-                                      </Td>
-                                      <Td align="center" className="px-2 py-1.5 border-t border-slate-800/50 text-slate-500">{p.position || 'P'}</Td>
-                                      <Td className="px-2 py-1.5 border-t border-slate-800/50 text-xs text-slate-500">{p.mlbTeam || '—'}</Td>
-                                      <Td align="center" className="px-2 py-1.5 border-t border-slate-800/50 tabular-nums">{p.W ?? '0'}</Td>
-                                      <Td align="center" className="px-2 py-1.5 border-t border-slate-800/50 tabular-nums">{p.SV ?? '0'}</Td>
-                                      <Td align="center" className="px-2 py-1.5 border-t border-slate-800/50 tabular-nums">{p.K ?? '0'}</Td>
-                                      <Td align="center" className="px-2 py-1.5 border-t border-slate-800/50 tabular-nums">{p.ERA?.toFixed(2) ?? '0.00'}</Td>
-                                      <Td align="center" className="px-2 py-1.5 border-t border-slate-800/50 tabular-nums">{p.WHIP?.toFixed(2) ?? '0.00'}</Td>
-                                      <Td align="center" className="px-2 py-1.5 border-t border-slate-800/50 tabular-nums font-semibold text-purple-400">{p.SO ?? '0'}</Td>
-                                    </Tr>
-                                  ))}
-                                </tbody>
-                              </Table>
-                            </TableCard>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
         {/* Admin Tab Content */}
         {activeTab === 'admin' && canEdit && selectedYear && (
-          <div className="max-w-4xl mx-auto">
+          <div className="animate-in fade-in zoom-in-95 duration-500">
              <ArchiveAdminPanel year={selectedYear} />
           </div>
         )}
 
         {/* Edit Modal */}
         {editingStat && (
-        <EditPlayerNameModal
-          onClose={() => setEditingStat(null)}
-          onSave={handleSavePlayer}
-          stat={editingStat}
-        />
-      )}
+          <EditPlayerNameModal
+            onClose={() => setEditingStat(null)}
+            onSave={handleSavePlayer}
+            stat={editingStat}
+          />
+        )}
 
-      {editingTeam && (
-        <EditTeamNameModal
-          isOpen={!!editingTeam}
-          onClose={() => setEditingTeam(null)}
-          onSave={handleSaveTeamName}
-          currentName={editingTeam.name}
-          teamCode={editingTeam.teamCode}
-        />
-      )}
+        {editingTeam && (
+          <EditTeamNameModal
+            isOpen={!!editingTeam}
+            onClose={() => setEditingTeam(null)}
+            onSave={handleSaveTeamName}
+            currentName={editingTeam.name}
+            teamCode={editingTeam.teamCode}
+          />
+        )}
 
-      {/* AI Insights Modal */}
-      {aiModalTeam && selectedYear && (
-        <AIInsightsModal
-          isOpen={!!aiModalTeam}
-          onClose={() => setAiModalTeam(null)}
-          year={selectedYear}
-          teamCode={aiModalTeam.code}
-          teamName={aiModalTeam.name}
-        />
-      )}
+        {/* AI Insights Modal */}
+        {aiModalTeam && selectedYear && (
+          <AIInsightsModal
+            isOpen={!!aiModalTeam}
+            onClose={() => setAiModalTeam(null)}
+            year={selectedYear}
+            teamCode={aiModalTeam.code}
+            teamName={aiModalTeam.name}
+          />
+        )}
       </main>
     </div>
   );

@@ -1,13 +1,10 @@
-// client/src/pages/Season.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSeasonStandings, getPeriodCategoryStandings } from "../lib/api";
-import { classNames } from "../lib/classNames";
 import { OGBA_TEAM_NAMES } from "../lib/ogbaTeams";
-import { TableCard, Table, THead, Tr, Th, Td } from "../components/ui/TableCard";
 import { useTheme } from "../contexts/ThemeContext";
 import PageHeader from "../components/ui/PageHeader";
-import { PeriodSummaryTable, CategoryPeriodTable, TeamPeriodSummaryRow, CategoryPeriodRow, CategoryId } from "../components/StatsTables";
+import { PeriodSummaryTable, CategoryPeriodTable, TeamPeriodSummaryRow, CategoryPeriodRow } from "../components/StatsTables";
 
 type SeasonStandingsApiRow = {
   teamId: number;
@@ -79,348 +76,253 @@ function normalizeSeasonRow(row: SeasonStandingsApiRow, periodIds: number[]): No
   };
 }
 
-async function computePeriodTotalsByTeamCode(periodIds: number[]) {
-  const byCode = new Map<string, number[]>();
-
-  const ensure = (code: string) => {
-    const c = code.toUpperCase();
-    if (!byCode.has(c)) byCode.set(c, new Array(periodIds.length).fill(0));
-    return byCode.get(c)!;
-  };
-
-  for (let i = 0; i < periodIds.length; i++) {
-    const pid = periodIds[i];
-    const resp = await getPeriodCategoryStandings(pid);
-
-    const totals = new Map<string, number>();
-
-    for (const cat of resp.categories ?? []) {
-      for (const r of cat.rows ?? []) {
-        const code = String((r as any).teamCode ?? "").trim().toUpperCase();
-        if (!code) continue;
-        totals.set(code, (totals.get(code) ?? 0) + toNum((r as any).points));
-      }
-    }
-
-    for (const [code, totalPts] of totals.entries()) {
-      const arr = ensure(code);
-      arr[i] = totalPts;
-    }
-  }
-
-  return byCode;
-}
-
-
 const SeasonPage: React.FC = () => {
   const navigate = useNavigate();
-  const { theme } = useTheme();
-
-  const [periodIds, setPeriodIds] = useState<number[]>([]);
-  const [rows, setRows] = useState<NormalizedSeasonRow[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  useTheme();
 
   const [viewMode, setViewMode] = useState<'season' | 'period'>('season');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Season Matrix State
+  const [periodIds, setPeriodIds] = useState<number[]>([]);
+  const [rows, setRows] = useState<NormalizedSeasonRow[]>([]);
+
+  // Period Detail State
   const [selectedPeriodId, setSelectedPeriodId] = useState<number | null>(null);
+  const [periodLoading, setPeriodLoading] = useState(false);
   const [periodSummaryRows, setPeriodSummaryRows] = useState<TeamPeriodSummaryRow[]>([]);
   const [periodCategoryRows, setPeriodCategoryRows] = useState<Record<string, CategoryPeriodRow[]>>({});
-  const [periodLoading, setPeriodLoading] = useState(false);
 
+  // Sort logic for matrix
+  const sortedRows = useMemo(() => {
+    return [...rows].sort((a, b) => b.totalPoints - a.totalPoints);
+  }, [rows]);
 
-  // Season standings
+  // Initial Load: Season Standings
   useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      setError(null);
-
+    async function loadSeason() {
       try {
-        const apiData = (await getSeasonStandings()) as SeasonStandingsApiResponse;
-        if (cancelled) return;
-
-        const pids = apiData.periodIds && apiData.periodIds.length ? apiData.periodIds : [1, 2, 3, 4, 5, 6];
-
-        let normalized = apiData.rows?.map((row) => normalizeSeasonRow(row, pids)) ?? [];
-
-        const allPeriodsAllZero =
-          normalized.length > 0 && normalized.every((r) => r.periodPoints.every((v) => toNum(v) === 0));
-
-        if (allPeriodsAllZero) {
-          const byCode = await computePeriodTotalsByTeamCode(pids);
-          if (cancelled) return;
-
-          normalized = normalized.map((r) => {
-            if (!r.teamCode) return r;
-            const arr = byCode.get(r.teamCode.toUpperCase());
-            if (!arr) return r;
-
-            return {
-              ...r,
-              periodPoints: arr,
-              totalPoints: sumNums(arr),
-            };
-          });
-        } else {
-          normalized = normalized.map((r) => ({
-            ...r,
-            totalPoints: sumNums(r.periodPoints),
-          }));
-        }
-
-        if (pids.length > 0 && !selectedPeriodId) {
-            setSelectedPeriodId(pids[pids.length - 1]);
-        }
-        setPeriodIds(pids);
+        setLoading(true);
+        setError(null);
+        const data = await getSeasonStandings();
+        setPeriodIds(data.periodIds || []);
+        
+        const normalized = (data.rows || []).map(r => normalizeSeasonRow(r as any, data.periodIds));
         setRows(normalized);
+
+        if (data.periodIds?.length > 0) {
+          setSelectedPeriodId(data.periodIds[data.periodIds.length - 1]);
+        }
       } catch (err: any) {
-        if (cancelled) return;
-        console.error("Failed to load season standings", err);
         setError(err?.message || "Failed to load season standings");
-        setRows([]);
       } finally {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       }
     }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
+    loadSeason();
   }, []);
 
-  // Fetch Period Data when viewMode is period
+  // Load Period Details
   useEffect(() => {
     if (viewMode !== 'period' || !selectedPeriodId) return;
 
-    let cancelled = false;
     async function loadPeriod() {
+      try {
         setPeriodLoading(true);
-        try {
-            const resp = await getPeriodCategoryStandings(selectedPeriodId!);
-            if (cancelled) return;
+        const resp = await getPeriodCategoryStandings(selectedPeriodId!);
+        
+        // Transform for Category tables
+        const catMap: Record<string, CategoryPeriodRow[]> = {};
+        
+        // Use a map to build summary rows by team
+        const teamSummaryMap = new Map<string, TeamPeriodSummaryRow>();
 
-            // Transform to StatsTables format
-            const cats = resp.categories ?? [];
-            const catRowsMap: Record<string, CategoryPeriodRow[]> = {};
-            const teamPointsMap = new Map<string, { total: number, cats: {id: string, pts: number}[] }>();
-
-            const allTeamCodes = new Set<string>();
-
-            // Process categories
-            for (const cat of cats) {
-                const cRows: CategoryPeriodRow[] = (cat.rows ?? []).map((r: any) => {
-                   const teamCode = r.teamCode || DISPLAY_TO_CODE[normName(r.teamName)] || r.teamName.substring(0,3).toUpperCase();
-                   allTeamCodes.add(teamCode);
-                   
-                   // Helper to track totals
-                   if (!teamPointsMap.has(teamCode)) {
-                       teamPointsMap.set(teamCode, { total: 0, cats: [] });
-                   }
-                   const tData = teamPointsMap.get(teamCode)!;
-                   const points = toNum(r.points);
-                   tData.total += points;
-                   tData.cats.push({ id: cat.key, pts: points });
-
-                   return {
-                       teamId: teamCode,
-                       teamName: r.teamName,
-                       periodStat: toNum(r.value), // Assuming 'value' is the stat
-                       points: points,
-                       pointsDelta: 0
-                   };
-                });
-                catRowsMap[cat.key] = cRows;
+        (resp.categories || []).forEach((cat: any) => {
+          catMap[cat.categoryId] = cat.rows || [];
+          
+          (cat.rows || []).forEach((row: any) => {
+            const code = row.teamCode;
+            if (!teamSummaryMap.has(code)) {
+              teamSummaryMap.set(code, {
+                teamId: code,
+                teamName: OGBA_TEAM_NAMES[code] || code,
+                gamesPlayed: 0, // Not currently used in this view
+                totalPoints: 0,
+                totalPointsDelta: 0,
+                categories: []
+              });
             }
+            const team = teamSummaryMap.get(code)!;
+            team.totalPoints += toNum(row.points);
+            team.categories.push({
+              categoryId: cat.categoryId,
+              points: toNum(row.points)
+            });
+          });
+        });
 
-            // Build Summary Rows
-            const sumRows: TeamPeriodSummaryRow[] = [];
-            for (const [code, data] of teamPointsMap.entries()) {
-                sumRows.push({
-                    teamId: code,
-                    teamName: OGBA_TEAM_NAMES[code] || code, 
-                    gamesPlayed: 0,
-                    totalPoints: data.total,
-                    totalPointsDelta: 0,
-                    categories: data.cats.map(c => ({ categoryId: c.id, points: c.pts }))
-                });
-            }
-            
-            setPeriodCategoryRows(catRowsMap);
-            setPeriodSummaryRows(sumRows);
-
-        } catch (err) {
-            console.error(err);
-        } finally {
-            if (!cancelled) setPeriodLoading(false);
-        }
+        setPeriodCategoryRows(catMap);
+        setPeriodSummaryRows(Array.from(teamSummaryMap.values()).sort((a, b) => b.totalPoints - a.totalPoints));
+      } catch (err: any) {
+        console.error("Failed to load period standings", err);
+      } finally {
+        setPeriodLoading(false);
+      }
     }
     loadPeriod();
-    return () => { cancelled = true; };
   }, [viewMode, selectedPeriodId]);
-
-  const sortedRows = useMemo(() => [...rows].sort((a, b) => b.totalPoints - a.totalPoints), [rows]);
-  const colSpan = 3 + periodIds.length + 1;
 
 
   return (
-    <div className={`flex-1 min-h-screen ${theme === 'dark' ? 'bg-slate-950 text-slate-50' : 'bg-gray-50 text-gray-900'}`}>
-      <main className="max-w-6xl mx-auto px-6 py-10">
+    <div className="flex-1 min-h-screen">
+      <main className="max-w-6xl mx-auto px-6 py-12">
         <PageHeader 
           title={viewMode === 'season' ? "Season Standings" : `Period ${selectedPeriodId} Standings`}
-          subtitle="Roto points by period for the full season (higher total is better). Use the roster link to view team rosters."
-        />
-
-        <div className="flex justify-between items-center mb-6">
-            <div className="flex gap-2 bg-slate-200 dark:bg-slate-800 p-1 rounded-lg">
+          subtitle="Roto points distribution for the full season or specific periods. Higher totals indicate stronger performance across categories."
+          rightElement={
+             <div className="flex gap-2 liquid-glass p-1 rounded-2xl border border-white/10 shadow-lg">
                 <button
                     onClick={() => setViewMode('season')}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${viewMode === 'season' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-300'}`}
+                    className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${viewMode === 'season' ? 'bg-[var(--fbst-accent)] text-white shadow-lg' : 'text-[var(--fbst-text-muted)] hover:text-[var(--fbst-text-primary)]'}`}
                 >
                     Season
                 </button>
                 <button
                     onClick={() => setViewMode('period')}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${viewMode === 'period' ? 'bg-white dark:bg-slate-600 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-300'}`}
+                    className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${viewMode === 'period' ? 'bg-[var(--fbst-accent)] text-white shadow-lg' : 'text-[var(--fbst-text-muted)] hover:text-[var(--fbst-text-primary)]'}`}
                 >
                     Period
                 </button>
             </div>
+          }
+        />
 
-            {viewMode === 'period' && (
-                <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Period:</span>
-                    <select 
-                        value={selectedPeriodId || ''} 
-                        onChange={e => setSelectedPeriodId(Number(e.target.value))}
-                        className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded px-2 py-1 text-sm"
-                    >
-                        {periodIds.map(pid => (
-                            <option key={pid} value={pid}>Period {pid}</option>
-                        ))}
-                    </select>
-                </div>
-            )}
-        </div>
-
-        {viewMode === 'season' ? (
-        <>
-            {error && (
-          <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm text-red-200">
-            {error}
+        {error && (
+          <div className="mb-8 rounded-2xl border border-red-500/20 bg-red-500/10 px-6 py-4 text-sm font-medium text-red-300 flex items-center gap-3">
+             <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+            System Error: {error}
           </div>
         )}
 
-        <TableCard>
-          <Table>
-            <THead>
-              <Tr>
-                <Th w={40} align="center">
-                  #
-                </Th>
-                <Th align="left">Team</Th>
-                <Th align="left">Roster</Th>
+        {viewMode === 'season' ? (
+          <div className="overflow-hidden rounded-3xl liquid-glass border border-white/10 shadow-2xl">
+            <div className="bg-white/5 border-b border-white/10 px-8 py-6 flex items-center justify-between">
+               <div>
+                  <h2 className="text-xl font-black tracking-tight text-[var(--fbst-text-heading)]">Point Matrix</h2>
+                  <div className="mt-1 text-sm font-medium text-[var(--fbst-text-muted)]">Cumulative results across all completed periods.</div>
+               </div>
+            </div>
 
-                {periodIds.map((pid) => (
-                  <Th key={pid} align="right">
-                    P{pid}
-                  </Th>
-                ))}
-
-                <Th align="right">Total</Th>
-              </Tr>
-            </THead>
-
-            <tbody>
-              {loading && (
-                <tr>
-                  <td colSpan={colSpan} className="px-4 py-6 text-center text-sm text-slate-400">
-                    Loading season standings…
-                  </td>
-                </tr>
-              )}
-
-              {!loading && sortedRows.length === 0 && (
-                <tr>
-                  <td colSpan={colSpan} className="px-4 py-6 text-center text-sm text-slate-400">
-                    No season standings available.
-                  </td>
-                </tr>
-              )}
-
-              {!loading &&
-                sortedRows.map((row, index) => (
-                  <Tr
-                    key={row.teamId}
-                    className={classNames(
-                      "border-t border-slate-800/70",
-                      index % 2 === 0 ? "bg-slate-950" : "bg-slate-950/60"
-                    )}
-                  >
-                    <Td align="center" className="text-xs text-slate-400 align-top">
-                      {index + 1}
-                    </Td>
-
-                    <Td align="left" className="align-top">
-                      <div className="text-sm font-medium text-slate-100">{row.teamName}</div>
-                      {row.teamCode && <div className="text-xs text-slate-500 mt-0.5">{row.teamCode}</div>}
-                    </Td>
-
-                    <Td align="left" className="align-top">
-                      {row.teamCode ? (
-                        <button
-                          type="button"
-                          className="text-sm text-sky-300 hover:text-sky-200"
-                          onClick={() => navigate(`/teams/${encodeURIComponent(row.teamCode!)}`)}
-                        >
-                          View roster →
-                        </button>
-                      ) : (
-                        <span className="text-sm text-slate-600">—</span>
-                      )}
-                    </Td>
-
-                    {periodIds.map((pid, idx) => (
-                      <Td key={pid} align="right" className="align-top tabular-nums">
-                        {toNum(row.periodPoints[idx]).toFixed(1).replace(/\.0$/, "")}
-                      </Td>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="bg-white/5 border-b border-white/10">
+                    <th className="px-6 py-4 text-left w-16 text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)]">#</th>
+                    <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)]">Franchise</th>
+                    
+                    {periodIds.map((pid) => (
+                      <th key={pid} className="px-4 py-4 text-center text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] min-w-[80px]">
+                        P{pid}
+                      </th>
                     ))}
 
-                    <Td align="right" className="align-top">
-                      <span className="text-sm font-semibold text-slate-50 tabular-nums">
-                        {toNum(row.totalPoints).toFixed(1).replace(/\.0$/, "")}
-                      </span>
-                    </Td>
-                  </Tr>
-                ))}
-            </tbody>
-          </Table>
-          </TableCard>
-        </>
-        ) : (
-             // Period View
-             <div className="space-y-8">
-                {periodLoading ? (
-                    <div className="text-center py-12 text-slate-500">Loading period data...</div>
-                ) : (
-                    <>
-                        <PeriodSummaryTable
-                            periodId={`P${selectedPeriodId}`}
-                            rows={periodSummaryRows}
-                            categories={Object.keys(periodCategoryRows)}
-                        />
-                         {Object.keys(periodCategoryRows).map(catKey => (
-                            <CategoryPeriodTable
-                                key={catKey}
-                                periodId={`P${selectedPeriodId}`}
-                                categoryId={catKey}
-                                rows={periodCategoryRows[catKey]}
-                            />
+                    <th className="px-6 py-4 text-center text-[10px] font-black uppercase tracking-widest text-[var(--fbst-accent)] min-w-[120px]">
+                      TOTAL
+                    </th>
+                    <th className="px-6 py-4 text-right pr-8 text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)]">Link</th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-white/5">
+                  {loading ? (
+                    <tr>
+                      <td colSpan={periodIds.length + 4} className="px-6 py-20 text-center text-[var(--fbst-text-muted)] italic font-medium animate-pulse">
+                        Synchronizing season dataset...
+                      </td>
+                    </tr>
+                  ) : rows.length === 0 ? (
+                    <tr>
+                      <td colSpan={periodIds.length + 4} className="px-6 py-20 text-center text-[var(--fbst-text-muted)] italic font-medium">
+                        No season records available.
+                      </td>
+                    </tr>
+                  ) : (
+                    sortedRows.map((row, idx) => (
+                      <tr key={row.teamId} className="hover:bg-white/5 transition-colors duration-150 group">
+                        <td className="px-6 py-4 text-xs font-bold text-[var(--fbst-text-muted)] opacity-50 tabular-nums">{idx + 1}</td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm font-bold text-[var(--fbst-text-primary)]">{row.teamName}</div>
+                          <div className="text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] mt-1 opacity-60">{row.teamCode || '-'}</div>
+                        </td>
+                        
+                        {periodIds.map((_pid, pIdx) => (
+                          <td key={pIdx} className="px-4 py-4 text-center font-medium text-[var(--fbst-text-primary)] tabular-nums">
+                            {Number(row.periodPoints[pIdx] || 0).toFixed(1).replace(/\.0$/, "")}
+                          </td>
                         ))}
-                    </>
-                )}
-             </div>
+
+                        <td className="px-6 py-4 text-center">
+                          <span className="text-sm font-black text-[var(--fbst-accent)] tabular-nums">{row.totalPoints.toFixed(1).replace(/\.0$/, "")}</span>
+                        </td>
+                        <td className="px-6 py-4 text-right pr-8">
+                           {row.teamCode ? (
+                              <button
+                                onClick={() => navigate(`/teams/${encodeURIComponent(row.teamCode!)}`)}
+                                className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)] hover:text-[var(--fbst-accent)] transition-all opacity-0 group-hover:opacity-100"
+                              >
+                                View →
+                              </button>
+                           ) : null}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-12">
+            <div className="flex items-center gap-4 bg-white/5 p-4 rounded-3xl border border-white/10 shadow-lg justify-center">
+               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)]">Focus Period</span>
+               <div className="flex gap-2">
+                 {periodIds.map(pid => (
+                   <button
+                    key={pid}
+                    onClick={() => setSelectedPeriodId(pid)}
+                    className={`w-10 h-10 rounded-xl text-xs font-black transition-all border border-white/10 ${selectedPeriodId === pid ? 'bg-[var(--fbst-accent)] text-white shadow-lg' : 'bg-white/5 text-[var(--fbst-text-muted)] hover:bg-white/10'}`}
+                   >
+                     {pid}
+                   </button>
+                 ))}
+               </div>
+            </div>
+
+            {periodLoading ? (
+               <div className="text-center py-20">
+                  <div className="text-[var(--fbst-text-muted)] text-lg font-medium italic animate-pulse">Scanning period telemetry...</div>
+               </div>
+            ) : (
+              <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <PeriodSummaryTable
+                    periodId={`P${selectedPeriodId}`}
+                    rows={periodSummaryRows}
+                    categories={Object.keys(periodCategoryRows)}
+                />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                   {Object.keys(periodCategoryRows).map(catKey => (
+                      <CategoryPeriodTable
+                          key={catKey}
+                          periodId={`P${selectedPeriodId}`}
+                          categoryId={catKey}
+                          rows={periodCategoryRows[catKey]}
+                      />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </main>
     </div>

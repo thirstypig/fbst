@@ -12,6 +12,7 @@ try {
 export default defineConfig({
   define: {
     __COMMIT_HASH__: JSON.stringify(commitHash),
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
   },
   plugins: [react()],
   server: {

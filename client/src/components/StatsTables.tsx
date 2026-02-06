@@ -182,78 +182,83 @@ export const PeriodSummaryTable: React.FC<PeriodSummaryTableProps> = ({
   const sortedRows = [...rows].sort((a, b) => b.totalPoints - a.totalPoints);
 
   return (
-    <div>
-      <h2 className="text-lg font-semibold mb-2">Period Summary – {periodId}</h2>
-      <div className="overflow-x-auto">
-        <table className="min-w-full border-collapse text-sm">
-          <thead>
-            <tr>
-              <th className="px-2 py-1 text-left border-b border-slate-700">
-                Team
-              </th>
-              <th className="px-2 py-1 text-center border-b border-slate-700">
-                GP
-              </th>
-              {categories.map((cat) => (
-                <th
-                  key={cat}
-                  className="px-2 py-1 text-center border-b border-slate-700"
-                >
-                  {cat}
+    <div className="mb-8">
+      <h2 className="text-xl font-black tracking-tight text-[var(--fbst-text-heading)] mb-4 flex items-center gap-3">
+        <span className="w-2 h-8 bg-[var(--fbst-accent)] rounded-full"></span>
+        Period Summary – {periodId}
+      </h2>
+      <div className="overflow-hidden rounded-3xl liquid-glass border border-white/10 shadow-xl">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="bg-white/5 border-b border-white/10">
+                <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-text-muted)]">
+                  Team
                 </th>
-              ))}
-              <th className="px-2 py-1 text-center border-b border-slate-700">
-                Total Pts
-              </th>
-              <th className="px-2 py-1 text-center border-b border-slate-700">
-                +/−
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedRows.map((row) => {
-              const catMap = new Map(
-                row.categories.map((c) => [c.categoryId, c.points])
-              );
+                <th className="px-4 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-text-muted)]">
+                  GP
+                </th>
+                {categories.map((cat) => (
+                  <th
+                    key={cat}
+                    className="px-4 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-text-muted)]"
+                  >
+                    {cat}
+                  </th>
+                ))}
+                <th className="px-4 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-accent)]">
+                  Total Pts
+                </th>
+                <th className="px-6 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-text-muted)]">
+                  +/−
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {sortedRows.map((row) => {
+                const catMap = new Map(
+                  row.categories.map((c) => [c.categoryId, c.points])
+                );
 
-              return (
-                <tr key={row.teamId}>
-                  <td className="px-2 py-1 border-t border-slate-800">
-                    <Link to={`/teams/${row.teamId}`} className="hover:underline hover:text-blue-500 transition-colors">
-                      {row.teamName}
-                    </Link>
-                  </td>
-                  <td className="px-2 py-1 text-center border-t border-slate-800">
-                    {row.gamesPlayed}
-                  </td>
-                  {categories.map((cat) => (
-                    <td
-                      key={cat}
-                      className="px-2 py-1 text-center border-t border-slate-800"
-                    >
-                      {formatNumber(catMap.get(cat) ?? 0, 1)}
+                return (
+                  <tr key={row.teamId} className="hover:bg-white/5 transition-colors duration-150">
+                    <td className="px-6 py-4">
+                      <Link 
+                        to={`/teams/${row.teamId}`} 
+                        className="font-bold text-[var(--fbst-text-primary)] hover:text-[var(--fbst-accent)] transition-colors"
+                      >
+                        {row.teamName}
+                      </Link>
                     </td>
-                  ))}
-                  <td className="px-2 py-1 text-center border-t border-slate-800 font-semibold">
-                    {formatNumber(row.totalPoints, 1)}
-                  </td>
-                  <td className="px-2 py-1 text-center border-t border-slate-800">
-                    {formatSigned(row.totalPointsDelta, 1)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    <td className="px-4 py-4 text-center font-medium text-[var(--fbst-text-secondary)]">
+                      {row.gamesPlayed}
+                    </td>
+                    {categories.map((cat) => (
+                      <td
+                        key={cat}
+                        className="px-4 py-4 text-center font-medium text-[var(--fbst-text-primary)] tabular-nums"
+                      >
+                        {formatNumber(catMap.get(cat) ?? 0, 1)}
+                      </td>
+                    ))}
+                    <td className="px-4 py-4 text-center font-black text-[var(--fbst-accent)] tabular-nums">
+                      {formatNumber(row.totalPoints, 1)}
+                    </td>
+                    <td className="px-6 py-4 text-center font-bold tabular-nums">
+                      <span className={row.totalPointsDelta >= 0 ? "text-emerald-400" : "text-rose-400"}>
+                        {formatSigned(row.totalPointsDelta, 1)}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
 };
-
-/**
- * CATEGORY PERIOD TABLE
- * One table per category, sorted by points desc
- */
 
 export const CategoryPeriodTable: React.FC<CategoryPeriodTableProps> = ({
   periodId,
@@ -263,49 +268,57 @@ export const CategoryPeriodTable: React.FC<CategoryPeriodTableProps> = ({
   const sortedRows = [...rows].sort((a, b) => b.points - a.points);
 
   return (
-    <div className="mt-6">
-      <h3 className="text-md font-semibold mb-2">
-        {categoryId} – Period {periodId}
+    <div className="mt-8">
+      <h3 className="text-sm font-bold uppercase tracking-widest text-[var(--fbst-text-muted)] mb-4 flex items-center gap-2">
+        <span className="w-1.5 h-4 bg-[var(--fbst-text-muted)] opacity-50 rounded-full"></span>
+        {categoryId} – {periodId}
       </h3>
-      <div className="overflow-x-auto">
-        <table className="min-w-full border-collapse text-sm">
-          <thead>
-            <tr>
-              <th className="px-2 py-1 text-left border-b border-slate-700">
-                Team
-              </th>
-              <th className="px-2 py-1 text-center border-b border-slate-700">
-                Stat
-              </th>
-              <th className="px-2 py-1 text-center border-b border-slate-700">
-                Points
-              </th>
-              <th className="px-2 py-1 text-center border-b border-slate-700">
-                +/−
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedRows.map((row) => (
-              <tr key={row.teamId}>
-                <td className="px-2 py-1 border-t border-slate-800">
-                  <Link to={`/teams/${row.teamId}`} className="hover:underline hover:text-blue-500 transition-colors">
-                    {row.teamName}
-                  </Link>
-                </td>
-                <td className="px-2 py-1 text-center border-t border-slate-800">
-                  {formatStatForCategory(categoryId, row.periodStat)}
-                </td>
-                <td className="px-2 py-1 text-center border-t border-slate-800 font-semibold">
-                  {formatNumber(row.points, 1)}
-                </td>
-                <td className="px-2 py-1 text-center border-t border-slate-800">
-                  {formatSigned(row.pointsDelta, 1)}
-                </td>
+      <div className="overflow-hidden rounded-3xl liquid-glass border border-white/5">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="bg-white/5 border-b border-white/10">
+                <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-text-muted)]">
+                  Team
+                </th>
+                <th className="px-6 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-text-muted)]">
+                  Stat
+                </th>
+                <th className="px-6 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-accent)]">
+                  Points
+                </th>
+                <th className="px-6 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-text-muted)]">
+                  +/−
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {sortedRows.map((row) => (
+                <tr key={row.teamId} className="hover:bg-white/5 transition-colors duration-150">
+                  <td className="px-6 py-4">
+                    <Link 
+                      to={`/teams/${row.teamId}`} 
+                      className="font-bold text-[var(--fbst-text-primary)] hover:text-[var(--fbst-accent)] transition-colors"
+                    >
+                      {row.teamName}
+                    </Link>
+                  </td>
+                  <td className="px-6 py-4 text-center font-medium text-[var(--fbst-text-primary)] tabular-nums">
+                    {formatStatForCategory(categoryId, row.periodStat)}
+                  </td>
+                  <td className="px-6 py-4 text-center font-black text-[var(--fbst-accent)] tabular-nums">
+                    {formatNumber(row.points, 1)}
+                  </td>
+                  <td className="px-6 py-4 text-center font-bold tabular-nums">
+                    <span className={row.pointsDelta >= 0 ? "text-emerald-400" : "text-rose-400"}>
+                      {formatSigned(row.pointsDelta, 1)}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -326,51 +339,59 @@ export const SeasonTable: React.FC<SeasonTableProps> = ({
 
   return (
     <div>
-      <h2 className="text-lg font-semibold mb-2">Season Standings</h2>
-      <div className="overflow-x-auto">
-        <table className="min-w-full border-collapse text-sm">
-          <thead>
-            <tr>
-              <th className="px-2 py-1 text-left border-b border-slate-700">
-                Team
-              </th>
-              {periods.map((p) => (
-                <th
-                  key={p.periodId}
-                  className="px-2 py-1 text-center border-b border-slate-700"
-                  title={p.meetingDate}
-                >
-                  {p.label}
+      <h2 className="text-xl font-black tracking-tight text-[var(--fbst-text-heading)] mb-4 flex items-center gap-3">
+        <span className="w-2 h-8 bg-[var(--fbst-accent)] rounded-full"></span>
+        Season Standings
+      </h2>
+      <div className="overflow-hidden rounded-3xl liquid-glass border border-white/10 shadow-xl">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="bg-white/5 border-b border-white/10">
+                <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-text-muted)]">
+                  Team
                 </th>
-              ))}
-              <th className="px-2 py-1 text-center border-b border-slate-700">
-                Season Total
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedRows.map((row) => (
-              <tr key={row.teamId}>
-                <td className="px-2 py-1 border-t border-slate-800">
-                  <Link to={`/teams/${row.teamId}`} className="hover:underline hover:text-blue-500 transition-colors">
-                    {row.teamName}
-                  </Link>
-                </td>
                 {periods.map((p) => (
-                  <td
+                  <th
                     key={p.periodId}
-                    className="px-2 py-1 text-center border-t border-slate-800"
+                    className="px-4 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-text-muted)]"
+                    title={p.meetingDate}
                   >
-                    {formatNumber(row.periodPoints[p.periodId] ?? 0, 1)}
-                  </td>
+                    {p.label}
+                  </th>
                 ))}
-                <td className="px-2 py-1 text-center border-t border-slate-800 font-semibold">
-                  {formatNumber(row.seasonTotalPoints, 1)}
-                </td>
+                <th className="px-6 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-accent)]">
+                  Season Total
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {sortedRows.map((row) => (
+                <tr key={row.teamId} className="hover:bg-white/5 transition-colors duration-150">
+                  <td className="px-6 py-4">
+                    <Link 
+                      to={`/teams/${row.teamId}`} 
+                      className="font-bold text-[var(--fbst-text-primary)] hover:text-[var(--fbst-accent)] transition-colors"
+                    >
+                      {row.teamName}
+                    </Link>
+                  </td>
+                  {periods.map((p) => (
+                    <td
+                      key={p.periodId}
+                      className="px-4 py-4 text-center font-medium text-[var(--fbst-text-primary)] tabular-nums"
+                    >
+                      {formatNumber(row.periodPoints[p.periodId] ?? 0, 1)}
+                    </td>
+                  ))}
+                  <td className="px-6 py-4 text-center font-black text-[var(--fbst-accent)] tabular-nums">
+                    {formatNumber(row.seasonTotalPoints, 1)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

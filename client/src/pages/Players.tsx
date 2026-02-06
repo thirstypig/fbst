@@ -270,99 +270,102 @@ export default function Players() {
        </div>
 
        {/* Results Table */}
-       <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-[var(--fbst-table-border)]">
-           <table className="w-full text-sm text-left border-collapse">
-               <thead className="sticky top-0 bg-[var(--fbst-surface-primary)] border-b border-[var(--fbst-table-border)] shadow-sm z-10">
-                    <tr>
-                        <Th label="Player" sKey="name" w="pl-4 text-left" />
-                        
-                        {viewGroup === 'hitters' ? (
-                            <>
-                                 <Th label="R" sKey="R" w="text-center" />
-                                 <Th label="HR" sKey="HR" w="text-center" />
-                                 <Th label="RBI" sKey="RBI" w="text-center" />
-                                 <Th label="SB" sKey="SB" w="text-center" />
-                                 <Th label="AVG" sKey="AVG" w="text-center" />
-                            </>
-                        ) : (
-                            <>
-                                 <Th label="W" sKey="W" w="text-center" />
-                                 <Th label="SV" sKey="SV" w="text-center" />
-                                 <Th label="K" sKey="K" w="text-center" />
-                                 <Th label="ERA" sKey="ERA" w="text-center" />
-                                 <Th label="WHIP" sKey="WHIP" w="text-center" />
-                            </>
-                        )}
-                        
-                        <Th label="Fantasy Team" sKey="fantasy" w="pr-4 text-center" />
-                    </tr>
-               </thead>
-               <tbody className="divide-y divide-[var(--fbst-table-border)]">
-                   {filteredPlayers.map(p => {
-                       const isExpanded = expandedId === p.row_id;
-                       const isTaken = !!p.ogba_team_code || !!p.team;
-                       const teamName = p.ogba_team_code ? (OGBA_TEAM_NAMES[p.ogba_team_code] || p.ogba_team_code) : (p.team ? 'Taken' : '-');
-
-                       return (
-                           <React.Fragment key={p.row_id}>
-                               <tr 
-                                   className={`cursor-pointer hover:bg-[var(--fbst-table-row-hover)] transition-colors ${isExpanded ? 'bg-[var(--fbst-table-row-alt-bg)]' : ''}`}
-                                   onClick={() => toggleExpand(p.row_id)}
-                               >
-                                   <td className="pl-4 py-2">
-                                       <div className="font-semibold text-[var(--fbst-text-primary)] text-base">{p.mlb_full_name || p.player_name}</div>
-                                       <div className="text-xs text-[var(--fbst-text-muted)] flex gap-2">
-                                           <span className="font-bold bg-[var(--fbst-surface-secondary)] px-1 rounded">{getPrimaryPosition(p.positions) || (p.is_pitcher ? 'P' : 'UT')}</span>
-                                           <span>{p.mlb_team || 'FA'}</span>
-                                       </div>
-                                   </td>
-                                   {/* <td className="text-center py-2 text-[var(--fbst-text-muted)]">{p.age || '-'}</td> */}{/* Age removed pending type update */}
-
-                                   {viewGroup === 'hitters' ? (
-                                        <>
-                                            <td className="text-center py-2">{p.R}</td>
-                                            <td className="text-center py-2">{p.HR}</td>
-                                            <td className="text-center py-2">{p.RBI}</td>
-                                            <td className="text-center py-2">{p.SB}</td>
-                                            <td className="text-center py-2">{typeof p.AVG === 'number' ? fmtRate(p.AVG) : '-'}</td>
-                                        </>
-                                   ) : (
-                                        <>
-                                            <td className="text-center py-2">{p.W}</td>
-                                            <td className="text-center py-2">{p.SV}</td>
-                                            <td className="text-center py-2">{p.K}</td>
-                                            <td className="text-center py-2">{p.ERA ? Number(p.ERA).toFixed(2) : '-'}</td>
-                                            <td className="text-center py-2">{p.WHIP ? Number(p.WHIP).toFixed(2) : '-'}</td>
-                                        </>
-                                   )}
-
-                                   <td className="pr-4 py-2 text-center font-medium text-[var(--fbst-accent-primary)]">
-                                       {isTaken && (
-                                           <span className="bg-[var(--fbst-surface-secondary)] px-2 py-0.5 rounded text-xs">
-                                               {teamName}
-                                           </span>
+       <div className="flex-1 overflow-auto px-4 pb-8">
+           <div className="rounded-3xl liquid-glass border border-white/10 shadow-xl overflow-hidden">
+               <div className="overflow-x-auto">
+                   <table className="w-full text-sm text-left border-collapse">
+                       <thead>
+                            <tr className="bg-white/5 border-b border-white/10">
+                                <Th label="Player" sKey="name" w="pl-6 text-left" />
+                                
+                                {viewGroup === 'hitters' ? (
+                                    <>
+                                         <Th label="R" sKey="R" w="text-center" />
+                                         <Th label="HR" sKey="HR" w="text-center" />
+                                         <Th label="RBI" sKey="RBI" w="text-center" />
+                                         <Th label="SB" sKey="SB" w="text-center" />
+                                         <Th label="AVG" sKey="AVG" w="text-center" />
+                                    </>
+                                ) : (
+                                    <>
+                                         <Th label="W" sKey="W" w="text-center" />
+                                         <Th label="SV" sKey="SV" w="text-center" />
+                                         <Th label="K" sKey="K" w="text-center" />
+                                         <Th label="ERA" sKey="ERA" w="text-center" />
+                                         <Th label="WHIP" sKey="WHIP" w="text-center" />
+                                    </>
+                                )}
+                                
+                                <Th label="Fantasy Team" sKey="fantasy" w="pr-6 text-center" />
+                            </tr>
+                       </thead>
+                       <tbody className="divide-y divide-white/5">
+                           {filteredPlayers.map(p => {
+                               const isExpanded = expandedId === p.row_id;
+                               const isTaken = !!p.ogba_team_code || !!p.team;
+                               const teamName = p.ogba_team_code ? (OGBA_TEAM_NAMES[p.ogba_team_code] || p.ogba_team_code) : (p.team ? 'Taken' : '-');
+        
+                               return (
+                                   <React.Fragment key={p.row_id}>
+                                       <tr 
+                                           className={`cursor-pointer hover:bg-white/5 transition-colors ${isExpanded ? 'bg-white/10' : ''}`}
+                                           onClick={() => toggleExpand(p.row_id)}
+                                       >
+                                           <td className="pl-6 py-4">
+                                               <div className="font-bold text-[var(--fbst-text-primary)] text-base leading-tight">{p.mlb_full_name || p.player_name}</div>
+                                               <div className="text-[10px] uppercase tracking-wider font-bold text-[var(--fbst-text-muted)] flex gap-2 mt-1">
+                                                   <span className="bg-white/10 px-1.5 py-0.5 rounded">{getPrimaryPosition(p.positions) || (p.is_pitcher ? 'P' : 'UT')}</span>
+                                                   <span className="opacity-70">{p.mlb_team || 'FA'}</span>
+                                               </div>
+                                           </td>
+        
+                                           {viewGroup === 'hitters' ? (
+                                                <>
+                                                    <td className="text-center py-4 font-medium">{p.R}</td>
+                                                    <td className="text-center py-4 font-medium">{p.HR}</td>
+                                                    <td className="text-center py-4 font-medium">{p.RBI}</td>
+                                                    <td className="text-center py-4 font-medium">{p.SB}</td>
+                                                    <td className="text-center py-4 font-medium tabular-nums">{typeof p.AVG === 'number' ? fmtRate(p.AVG) : '-'}</td>
+                                                </>
+                                           ) : (
+                                                <>
+                                                    <td className="text-center py-4 font-medium">{p.W}</td>
+                                                    <td className="text-center py-4 font-medium">{p.SV}</td>
+                                                    <td className="text-center py-4 font-medium">{p.K}</td>
+                                                    <td className="text-center py-4 font-medium tabular-nums">{p.ERA ? Number(p.ERA).toFixed(2) : '-'}</td>
+                                                    <td className="text-center py-4 font-medium tabular-nums">{p.WHIP ? Number(p.WHIP).toFixed(2) : '-'}</td>
+                                                </>
+                                           )}
+        
+                                           <td className="pr-6 py-4 text-center">
+                                               {isTaken && (
+                                                   <span className="bg-[var(--fbst-accent)]/10 text-[var(--fbst-accent)] px-3 py-1 rounded-full text-xs font-bold ring-1 ring-[var(--fbst-accent)]/30">
+                                                       {teamName}
+                                                   </span>
+                                               )}
+                                               {!isTaken && <span className="text-[var(--fbst-text-muted)] text-xs font-medium italic opacity-60">Available</span>}
+                                           </td>
+                                       </tr>
+                                       
+                                       {isExpanded && (
+                                           <PlayerExpandedRow
+                                               player={p}
+                                               isTaken={isTaken}
+                                               ownerName={teamName}
+                                               colSpan={9}
+                                           />
                                        )}
-                                       {!isTaken && <span className="text-[var(--fbst-text-muted)] opacity-50">Free Agent</span>}
-                                   </td>
-                               </tr>
-                               
-                               {isExpanded && (
-                                   <PlayerExpandedRow
-                                       player={p}
-                                       isTaken={isTaken}
-                                       ownerName={teamName}
-                                       colSpan={9}
-                                   />
-                               )}
-                           </React.Fragment>
-                       );
-                   })}
-               </tbody>
-           </table>
+                                   </React.Fragment>
+                               );
+                           })}
+                       </tbody>
+                   </table>
+               </div>
+           </div>
            
            {filteredPlayers.length === 0 && (
-                <div className="p-12 text-center text-[var(--fbst-text-muted)] italic">
-                    No players found matching your filters.
+                <div className="p-20 text-center">
+                    <div className="text-[var(--fbst-text-muted)] text-lg font-medium italic opacity-50">No players found matching your filters.</div>
                 </div>
             )}
        </div>

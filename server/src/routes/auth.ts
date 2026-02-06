@@ -30,6 +30,7 @@ function adminEmailSet(): Set<string> {
 }
 
 function oauthClient(): OAuth2Client {
+  console.log("[AUTH] Using Redirect URI:", GOOGLE_REDIRECT_URI);
   return new OAuth2Client({
     clientId: GOOGLE_CLIENT_ID(),
     clientSecret: GOOGLE_CLIENT_SECRET(),
