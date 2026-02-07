@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { getTransactions, TransactionEvent, getPlayerSeasonStats, getLeagues, getLeague, PlayerSeasonStat, getSeasonStandings } from "../api";
 import AddDropTab from "../components/AddDropTab";
 import PageHeader from "../components/ui/PageHeader";
+import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from "../components/ui/ThemedTable";
 
   /* ... existing imports */
 
@@ -123,44 +124,44 @@ export default function TransactionsPage() {
   if (loading) return <div className="p-10 text-slate-400">Loading transactions center...</div>;
 
   return (
-    <div className="px-10 py-8 text-slate-100 min-h-screen">
-       <div className="w-full">
+    <div className="relative min-h-full">
+       <div className="mb-10">
            <PageHeader 
              title="Transactions Center" 
              subtitle="Manage moves, waivers, and review history."
              rightElement={
                   <div className="flex items-center gap-4">
                       {/* Team Selector for Testing/Admin */}
-                      <div className="flex items-center gap-2">
-                          <label className="text-sm text-slate-400">Acting As:</label>
-                          <select 
-                              value={selectedTeamId || ''}
-                              onChange={(e) => setSelectedTeamId(Number(e.target.value))}
-                              className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm"
-                          >
-                              {teams.map(t => (
-                                  <option key={t.id} value={t.id}>{t.name}</option>
-                              ))}
-                          </select>
-                      </div>
+                                  <div className="flex items-center gap-2">
+                                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)]">Acting As:</label>
+                                      <select 
+                                          value={selectedTeamId || ''}
+                                          onChange={(e) => setSelectedTeamId(Number(e.target.value))}
+                                          className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs font-black text-white outline-none focus:border-[var(--fbst-accent)] transition-all"
+                                      >
+                                          {teams.map(t => (
+                                              <option key={t.id} value={t.id} className="text-black">{t.name}</option>
+                                          ))}
+                                      </select>
+                                  </div>
 
-                      {/* Tabs */}
-                      <div className="flex bg-slate-900/50 p-1 rounded-lg border border-slate-800">
+                      {/* Navigation Hub */}
+                      <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10 backdrop-blur-md">
                            <button 
                               onClick={() => setActiveTab('add_drop')}
-                              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'add_drop' ? 'bg-[var(--fbst-primary)] text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                              className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'add_drop' ? 'bg-[var(--fbst-accent)] text-white shadow-lg shadow-red-500/20' : 'text-[var(--fbst-text-muted)] hover:text-[var(--fbst-text-primary)]'}`}
                            >
                                Add / Drop
                            </button>
                            <button 
                               onClick={() => setActiveTab('waivers')}
-                              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'waivers' ? 'bg-[var(--fbst-primary)] text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                              className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === "waivers" ? "bg-[var(--fbst-accent)] text-white shadow-lg shadow-red-500/20" : "text-[var(--fbst-text-muted)] hover:text-[var(--fbst-text-primary)]"}`}
                            >
-                               Waiver Order
+                               Waivers
                            </button>
                            <button 
                               onClick={() => setActiveTab('history')}
-                              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'history' ? 'bg-[var(--fbst-primary)] text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                              className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'history' ? 'bg-[var(--fbst-accent)] text-white shadow-lg shadow-red-500/20' : 'text-[var(--fbst-text-muted)] hover:text-[var(--fbst-text-primary)]'}`}
                            >
                                History
                            </button>
@@ -173,77 +174,81 @@ export default function TransactionsPage() {
 
       <div className="mt-6">
           {activeTab === 'add_drop' && (
-              <AddDropTab players={players} onClaim={handleClaim} />
+              <div className="liquid-glass rounded-3xl p-1 bg-white/[0.02]">
+                <AddDropTab players={players} onClaim={handleClaim} />
+              </div>
           )}
 
           {activeTab === 'waivers' && (
-              <div className="max-w-xl mx-auto">
-                  <h3 className="text-xl font-semibold mb-4 text-center">Current Waiver Priority</h3>
-                  <div className="bg-slate-900/40 rounded-xl border border-slate-800 overflow-hidden">
+              <div className="max-w-xl mx-auto space-y-6">
+                  <div className="text-center mb-8">
+                    <h3 className="text-2xl font-black uppercase tracking-tighter text-[var(--fbst-text-heading)] mb-2">Current Waiver Priority</h3>
+                    <p className="text-xs text-[var(--fbst-text-muted)] uppercase tracking-widest font-bold">Reverse Standings Logic</p>
+                  </div>
+                  
+                  <div className="liquid-glass rounded-3xl overflow-hidden border border-white/10">
                       {sortedWaiverOrder.map((t, idx) => (
-                          <div key={t.id} className="flex items-center justify-between p-4 border-b border-slate-800 last:border-0 hover:bg-slate-800/40">
-                               <div className="flex items-center gap-4">
-                                  <span className="text-2xl font-bold text-slate-500 w-8">{idx + 1}</span>
+                          <div key={t.id} className="flex items-center justify-between p-6 border-b border-white/5 last:border-0 hover:bg-white/[0.03] transition-colors group">
+                               <div className="flex items-center gap-6">
+                                  <span className="text-3xl font-black text-[var(--fbst-text-muted)] opacity-20 w-8 tabular-nums group-hover:opacity-100 transition-opacity">{idx + 1}</span>
                                   <div>
-                                      <div className="font-bold text-white">{t.name}</div>
-                                      <div className="text-xs text-slate-500">{t.owner || 'No Owner'}</div>
+                                      <div className="font-black text-lg text-[var(--fbst-text-primary)] tracking-tight">{t.name}</div>
+                                      <div className="text-[10px] text-[var(--fbst-text-muted)] font-bold uppercase tracking-widest mt-0.5">{t.owner || 'No Owner'}</div>
                                   </div>
                               </div>
                               <div className="text-right">
-                                  <div className="text-xs font-mono text-slate-400">
-                                      Rank: {t.rank === 999 ? 'N/A' : t.rank}
+                                  <div className="text-xs font-mono font-black text-[var(--fbst-accent)]">
+                                      RANK {t.rank === 999 ? '—' : t.rank}
                                   </div>
-                                  <div className="text-[10px] text-slate-600">
-                                      Points: {t.points}
+                                  <div className="text-[10px] font-mono text-[var(--fbst-text-muted)] mt-1 tracking-tighter uppercase font-bold">
+                                      {t.points.toFixed(1)} PTS
                                   </div>
                               </div>
                           </div>
                       ))}
                   </div>
-                  <p className="text-center text-xs text-slate-500 mt-4">
+                  <p className="text-center text-[10px] font-bold text-[var(--fbst-text-muted)] uppercase tracking-[0.2em] mt-8 bg-white/5 p-4 rounded-2xl border border-white/10">
                       Priority is determined by reverse standings. Claims process nightly.
                   </p>
               </div>
           )}
 
           {activeTab === 'history' && (
-              <div className="overflow-x-auto rounded-lg border border-slate-800">
-                <table className="min-w-full border-collapse text-sm">
-                  <thead className="bg-slate-900 shadow-sm">
-                    <tr>
-                      <th className="px-4 py-3 text-left border-b border-slate-700 font-medium text-slate-400">Date</th>
-                      <th className="px-4 py-3 text-left border-b border-slate-700 font-medium text-slate-400">Team</th>
-                      <th className="px-4 py-3 text-left border-b border-slate-700 font-medium text-slate-400">Player</th>
-                      <th className="px-4 py-3 text-left border-b border-slate-700 font-medium text-slate-400">Transaction</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800 bg-slate-900/40">
+              <ThemedTable>
+                  <ThemedThead>
+                    <ThemedTr>
+                      <ThemedTh>Date</ThemedTh>
+                      <ThemedTh>Team</ThemedTh>
+                      <ThemedTh>Player</ThemedTh>
+                      <ThemedTh>Transaction</ThemedTh>
+                    </ThemedTr>
+                  </ThemedThead>
+                  <tbody>
                     {transactions.map((tx) => (
-                      <tr key={tx.id} className="hover:bg-slate-800/40 transition-colors">
-                        <td className="px-4 py-2 whitespace-nowrap text-slate-300">
+                      <ThemedTr key={tx.id} className="group">
+                        <ThemedTd className="whitespace-nowrap text-xs font-mono font-bold text-[var(--fbst-text-secondary)]">
                           {tx.effDate ? new Date(tx.effDate).toLocaleDateString() : tx.effDateRaw}
-                        </td>
-                        <td className="px-4 py-2 text-slate-300 font-medium">
+                        </ThemedTd>
+                        <ThemedTd className="font-black text-[var(--fbst-text-primary)] tracking-tight">
                           {tx.team?.name || tx.ogbaTeamName}
-                        </td>
-                        <td className="px-4 py-2 text-slate-300">
+                        </ThemedTd>
+                        <ThemedTd className="font-bold text-[var(--fbst-text-secondary)]">
                           {tx.player?.name || tx.playerAliasRaw}
-                        </td>
-                        <td className="px-4 py-2 text-slate-400 italic">
+                        </ThemedTd>
+                        <ThemedTd className="text-xs font-bold text-[var(--fbst-text-muted)] uppercase tracking-widest group-hover:text-[var(--fbst-accent)] transition-colors">
                           {tx.transactionRaw}
-                        </td>
-                      </tr>
+                        </ThemedTd>
+                      </ThemedTr>
                     ))}
                     {transactions.length === 0 && (
-                      <tr>
-                        <td colSpan={4} className="px-4 py-10 text-center text-slate-500">
-                          No transactions found.
-                        </td>
-                      </tr>
+                      <ThemedTr>
+                        <ThemedTd colSpan={4} className="py-20 text-center text-xs font-black text-[var(--fbst-text-muted)] uppercase tracking-[0.2em]">
+                          No records found in the transaction log.
+                        </ThemedTd>
+                      </ThemedTr>
                     )}
                   </tbody>
-                </table>
-              </div>
+              </ThemedTable>
           )}
       </div>
     </div>

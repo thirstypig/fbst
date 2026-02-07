@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { getPrimaryPosition } from "../lib/baseballUtils";
 import { fmtRate } from "../api/base";
+import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from "./ui/ThemedTable";
 
 /**
  * SHARED TYPES
@@ -182,78 +183,66 @@ export const PeriodSummaryTable: React.FC<PeriodSummaryTableProps> = ({
   const sortedRows = [...rows].sort((a, b) => b.totalPoints - a.totalPoints);
 
   return (
-    <div className="mb-8">
-      <h2 className="text-xl font-black tracking-tight text-[var(--fbst-text-heading)] mb-4 flex items-center gap-3">
-        <span className="w-2 h-8 bg-[var(--fbst-accent)] rounded-full"></span>
-        Period Summary – {periodId}
+    <div className="mb-12">
+      <h2 className="text-2xl font-black tracking-tight text-[var(--fbst-text-heading)] mb-6 flex items-center gap-4 uppercase">
+        <span className="w-1.5 h-6 bg-[var(--fbst-accent)] rounded-full"></span>
+        Aggregated Summary – {periodId}
       </h2>
       <div className="overflow-hidden rounded-3xl liquid-glass border border-white/10 shadow-xl">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="bg-white/5 border-b border-white/10">
-                <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-text-muted)]">
-                  Team
-                </th>
-                <th className="px-4 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-text-muted)]">
-                  GP
-                </th>
-                {categories.map((cat) => (
-                  <th
-                    key={cat}
-                    className="px-4 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-text-muted)]"
-                  >
-                    {cat}
-                  </th>
-                ))}
-                <th className="px-4 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-accent)]">
-                  Total Pts
-                </th>
-                <th className="px-6 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-text-muted)]">
-                  +/−
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {sortedRows.map((row) => {
-                const catMap = new Map(
-                  row.categories.map((c) => [c.categoryId, c.points])
-                );
+      <ThemedTable>
+        <ThemedThead>
+          <ThemedTr>
+            <ThemedTh className="px-8 py-5">Entity</ThemedTh>
+            <ThemedTh align="center">GP</ThemedTh>
+            {categories.map((cat) => (
+              <ThemedTh key={cat} align="center">{cat}</ThemedTh>
+            ))}
+            <ThemedTh align="center" className="text-[var(--fbst-accent)]">Yield</ThemedTh>
+            <ThemedTh align="center" className="px-8 py-5">Delta</ThemedTh>
+          </ThemedTr>
+        </ThemedThead>
+        <tbody className="divide-y divide-white/5">
+          {sortedRows.map((row) => {
+            const catMap = new Map(
+              row.categories.map((c) => [c.categoryId, c.points])
+            );
 
-                return (
-                  <tr key={row.teamId} className="hover:bg-white/5 transition-colors duration-150">
-                    <td className="px-6 py-4">
-                      <Link 
-                        to={`/teams/${row.teamId}`} 
-                        className="font-bold text-[var(--fbst-text-primary)] hover:text-[var(--fbst-accent)] transition-colors"
-                      >
-                        {row.teamName}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-4 text-center font-medium text-[var(--fbst-text-secondary)]">
-                      {row.gamesPlayed}
-                    </td>
-                    {categories.map((cat) => (
-                      <td
-                        key={cat}
-                        className="px-4 py-4 text-center font-medium text-[var(--fbst-text-primary)] tabular-nums"
-                      >
-                        {formatNumber(catMap.get(cat) ?? 0, 1)}
-                      </td>
-                    ))}
-                    <td className="px-4 py-4 text-center font-black text-[var(--fbst-accent)] tabular-nums">
-                      {formatNumber(row.totalPoints, 1)}
-                    </td>
-                    <td className="px-6 py-4 text-center font-bold tabular-nums">
-                      <span className={row.totalPointsDelta >= 0 ? "text-emerald-400" : "text-rose-400"}>
-                        {formatSigned(row.totalPointsDelta, 1)}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+            return (
+              <ThemedTr key={row.teamId} className="group border-none">
+                <ThemedTd className="px-8 py-4">
+                  <Link 
+                    to={`/teams/${row.teamId}`} 
+                    className="font-black text-[var(--fbst-text-primary)] hover:text-[var(--fbst-accent)] transition-all tracking-tight"
+                  >
+                    {row.teamName}
+                  </Link>
+                </ThemedTd>
+                <ThemedTd align="center" className="font-bold text-[var(--fbst-text-muted)] tabular-nums">
+                  {row.gamesPlayed}
+                </ThemedTd>
+                {categories.map((cat) => (
+                  <ThemedTd
+                    key={cat}
+                    align="center"
+                    className="font-bold text-[var(--fbst-text-primary)] tabular-nums opacity-80"
+                  >
+                    {formatNumber(catMap.get(cat) ?? 0, 1)}
+                  </ThemedTd>
+                ))}
+                <ThemedTd align="center" className="font-black text-[var(--fbst-accent)] tabular-nums text-base tracking-tighter">
+                  {formatNumber(row.totalPoints, 1)}
+                </ThemedTd>
+                <ThemedTd align="center" className="px-8 py-4 font-black tabular-nums">
+                  <span className={row.totalPointsDelta >= 0 ? "text-emerald-400" : "text-rose-400"}>
+                    {formatSigned(row.totalPointsDelta, 1)}
+                  </span>
+                </ThemedTd>
+              </ThemedTr>
+            );
+          })}
+        </tbody>
+      </ThemedTable>
         </div>
       </div>
     </div>
@@ -268,56 +257,48 @@ export const CategoryPeriodTable: React.FC<CategoryPeriodTableProps> = ({
   const sortedRows = [...rows].sort((a, b) => b.points - a.points);
 
   return (
-    <div className="mt-8">
-      <h3 className="text-sm font-bold uppercase tracking-widest text-[var(--fbst-text-muted)] mb-4 flex items-center gap-2">
-        <span className="w-1.5 h-4 bg-[var(--fbst-text-muted)] opacity-50 rounded-full"></span>
-        {categoryId} – {periodId}
+    <div className="mt-12">
+      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)] mb-4 flex items-center gap-3">
+        <span className="w-4 h-[1px] bg-[var(--fbst-text-muted)] opacity-30"></span>
+        {categoryId} Metric – {periodId}
       </h3>
       <div className="overflow-hidden rounded-3xl liquid-glass border border-white/5">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="bg-white/5 border-b border-white/10">
-                <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-text-muted)]">
-                  Team
-                </th>
-                <th className="px-6 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-text-muted)]">
-                  Stat
-                </th>
-                <th className="px-6 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-accent)]">
-                  Points
-                </th>
-                <th className="px-6 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-text-muted)]">
-                  +/−
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {sortedRows.map((row) => (
-                <tr key={row.teamId} className="hover:bg-white/5 transition-colors duration-150">
-                  <td className="px-6 py-4">
-                    <Link 
-                      to={`/teams/${row.teamId}`} 
-                      className="font-bold text-[var(--fbst-text-primary)] hover:text-[var(--fbst-accent)] transition-colors"
-                    >
-                      {row.teamName}
-                    </Link>
-                  </td>
-                  <td className="px-6 py-4 text-center font-medium text-[var(--fbst-text-primary)] tabular-nums">
-                    {formatStatForCategory(categoryId, row.periodStat)}
-                  </td>
-                  <td className="px-6 py-4 text-center font-black text-[var(--fbst-accent)] tabular-nums">
-                    {formatNumber(row.points, 1)}
-                  </td>
-                  <td className="px-6 py-4 text-center font-bold tabular-nums">
-                    <span className={row.pointsDelta >= 0 ? "text-emerald-400" : "text-rose-400"}>
-                      {formatSigned(row.pointsDelta, 1)}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <ThemedTable>
+        <ThemedThead>
+          <ThemedTr>
+            <ThemedTh className="px-8 py-4">Entity</ThemedTh>
+            <ThemedTh align="center">Value</ThemedTh>
+            <ThemedTh align="center" className="text-[var(--fbst-accent)]">Points</ThemedTh>
+            <ThemedTh align="center" className="px-8 py-4">Delta</ThemedTh>
+          </ThemedTr>
+        </ThemedThead>
+        <tbody className="divide-y divide-white/5">
+          {sortedRows.map((row) => (
+            <ThemedTr key={row.teamId} className="group border-none">
+              <ThemedTd className="px-8 py-3">
+                <Link 
+                  to={`/teams/${row.teamId}`} 
+                  className="font-black text-[var(--fbst-text-primary)] hover:text-[var(--fbst-accent)] transition-all tracking-tight"
+                >
+                  {row.teamName}
+                </Link>
+              </ThemedTd>
+              <ThemedTd align="center" className="font-bold text-[var(--fbst-text-primary)] tabular-nums opacity-80">
+                {formatStatForCategory(categoryId, row.periodStat)}
+              </ThemedTd>
+              <ThemedTd align="center" className="font-black text-[var(--fbst-accent)] tabular-nums text-base tracking-tighter">
+                {formatNumber(row.points, 1)}
+              </ThemedTd>
+              <ThemedTd align="center" className="px-8 py-3 font-black tabular-nums">
+                <span className={row.pointsDelta >= 0 ? "text-emerald-400" : "text-rose-400"}>
+                  {formatSigned(row.pointsDelta, 1)}
+                </span>
+              </ThemedTd>
+            </ThemedTr>
+          ))}
+        </tbody>
+      </ThemedTable>
         </div>
       </div>
     </div>
@@ -339,30 +320,22 @@ export const SeasonTable: React.FC<SeasonTableProps> = ({
 
   return (
     <div>
-      <h2 className="text-xl font-black tracking-tight text-[var(--fbst-text-heading)] mb-4 flex items-center gap-3">
-        <span className="w-2 h-8 bg-[var(--fbst-accent)] rounded-full"></span>
-        Season Standings
+      <h2 className="text-2xl font-black tracking-tight text-[var(--fbst-text-heading)] mb-6 flex items-center gap-4 uppercase">
+        <span className="w-1.5 h-6 bg-[var(--fbst-accent)] rounded-full"></span>
+        Season Strategic Ledger
       </h2>
       <div className="overflow-hidden rounded-3xl liquid-glass border border-white/10 shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-white/5 border-b border-white/10">
-                <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-text-muted)]">
-                  Team
-                </th>
+              <tr className="bg-white/5 border-b border-white/10 text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)]">
+                <th className="px-8 py-5 text-left">Entity</th>
                 {periods.map((p) => (
-                  <th
-                    key={p.periodId}
-                    className="px-4 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-text-muted)]"
-                    title={p.meetingDate}
-                  >
+                  <th key={p.periodId} className="px-4 py-5 text-center" title={p.meetingDate}>
                     {p.label}
                   </th>
                 ))}
-                <th className="px-6 py-4 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-accent)]">
-                  Season Total
-                </th>
+                <th className="px-8 py-5 text-center text-[var(--fbst-accent)]">Temporal Total</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">

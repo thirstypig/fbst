@@ -104,7 +104,7 @@ export function Th({
     <th
       style={w ? { width: w } : undefined}
       className={[
-        "px-4 py-4 text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-text-muted)]",
+        "px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)] opacity-60",
         alignCls(align),
         className ?? "",
       ].join(" ")}
@@ -126,7 +126,7 @@ export function Td({
   return (
     <td
       className={[
-        "px-4 py-4 align-middle text-[var(--fbst-text-primary)] text-sm",
+        "px-6 py-4 align-middle text-[var(--fbst-text-primary)] text-[13px] font-bold tabular-nums tracking-tight",
         alignCls(align),
         className ?? "",
       ].join(" ")}

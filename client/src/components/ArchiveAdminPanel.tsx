@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useTheme } from '../contexts/ThemeContext';
 
 
 interface ArchiveAdminPanelProps {
@@ -9,7 +8,6 @@ interface ArchiveAdminPanelProps {
 type AdminTab = 'archive' | 'roster';
 
 export default function ArchiveAdminPanel({ year }: ArchiveAdminPanelProps) {
-  const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState<AdminTab>('archive');
   const [selectedYear, setSelectedYear] = useState<number>(year);
   const [file, setFile] = useState<File | null>(null);
@@ -204,55 +202,54 @@ export default function ArchiveAdminPanel({ year }: ArchiveAdminPanelProps) {
   const [showMaintenance, setShowMaintenance] = useState(false);
 
   return (
-    <div className={`p-6 rounded-lg ${theme === 'dark' ? 'bg-slate-800' : 'bg-white shadow'}`}>
+    <div className="bg-white/[0.02] border border-white/10 rounded-3xl overflow-hidden shadow-2xl liquid-glass">
       {/* Tab Navigation */}
-      <div className="flex border-b mb-4">
+      <div className="flex border-b border-white/10 bg-white/5 p-1">
         <button
           onClick={() => setActiveTab('archive')}
-          className={`px-4 py-2 font-medium ${activeTab === 'archive' 
-            ? theme === 'dark' ? 'border-b-2 border-blue-500 text-blue-400' : 'border-b-2 border-blue-500 text-blue-600'
-            : theme === 'dark' ? 'text-slate-400 hover:text-slate-200' : 'text-gray-500 hover:text-gray-700'
+          className={`flex-1 px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all rounded-2xl ${activeTab === 'archive' 
+            ? 'bg-[var(--fbst-accent)] text-white shadow-lg' 
+            : 'text-[var(--fbst-text-muted)] hover:text-white hover:bg-white/5'
           }`}
         >
-          Archive Administration
+          Archive Management System
         </button>
       </div>
 
       {/* Archive Import Tab */}
-      {activeTab === 'archive' && (
-        <>
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-4">
-              <h2 className="text-xl font-bold">Season Management</h2>
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium">Target Year:</label>
+      <div className="p-8">
+          <div className="flex items-center justify-between mb-8 pb-8 border-b border-white/5">
+            <div className="flex items-center gap-8">
+              <h2 className="text-2xl font-black uppercase tracking-tighter text-[var(--fbst-text-heading)]">Registry Control</h2>
+              <div className="flex items-center gap-4 bg-white/5 px-4 py-2 rounded-2xl border border-white/10">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)]">Target Cycle</label>
                 <input 
                   type="number" 
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                  className={`w-24 px-2 py-1 rounded border ${theme === 'dark' ? 'bg-slate-700 border-slate-600' : 'bg-white border-gray-300'}`}
+                  className="w-20 bg-transparent text-sm font-black text-white outline-none"
                 />
               </div>
             </div>
           </div>
       
-      <div className="mb-6">
-        <p className={`mb-2 text-sm ${theme === 'dark' ? 'text-slate-300' : 'text-gray-600'}`}>
-          Select a year above to manage its data. You can import new data from Excel or sync existing records with MLB stats.
+      <div className="mb-10 p-6 rounded-2xl bg-amber-500/[0.03] border border-amber-500/10">
+        <p className="text-xs font-medium text-amber-200/60 leading-relaxed italic">
+          Strategic data reconciliation for the selected cycle. Operation overrides existing ledger entries.
         </p>
       </div>
 
       {/* Admin Actions Table */}
-      <div className="mb-6 overflow-x-auto">
-        <table className={`w-full text-sm ${theme === 'dark' ? 'text-slate-300' : 'text-gray-700'}`}>
+      <div className="mb-10 rounded-2xl border border-white/5 overflow-hidden">
+        <table className="w-full text-xs">
           <thead>
-            <tr className={theme === 'dark' ? 'bg-slate-700' : 'bg-gray-100'}>
-              <th className="px-4 py-2 text-left font-medium">Action</th>
-              <th className="px-4 py-2 text-left font-medium">Description</th>
-              <th className="px-4 py-2 text-center font-medium w-40">Run</th>
+            <tr className="bg-white/5 border-b border-white/5 text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)]">
+              <th className="px-6 py-4 text-left">Protocol</th>
+              <th className="px-6 py-4 text-left">Manifest</th>
+              <th className="px-6 py-4 text-center w-40">Execution</th>
             </tr>
           </thead>
-          <tbody className={theme === 'dark' ? 'divide-y divide-slate-600' : 'divide-y divide-gray-200'}>
+          <tbody className="divide-y divide-white/5">
             <tr>
               <td className="px-4 py-3 font-medium">Import Excel</td>
               <td className="px-4 py-3">
@@ -267,8 +264,8 @@ export default function ArchiveAdminPanel({ year }: ArchiveAdminPanelProps) {
                 </div>
               </td>
               <td className="px-4 py-3 text-center">
-                <button onClick={handleUpload} disabled={!file || uploading} className={`px-4 py-1 rounded-md text-sm font-medium transition-colors ${!file || uploading ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : theme === 'dark' ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
-                  {uploading ? '...' : 'Import'}
+                <button onClick={handleUpload} disabled={!file || uploading} className="px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-[var(--fbst-accent)] text-white hover:brightness-110 disabled:opacity-20 disabled:grayscale transition-all shadow-lg shadow-red-500/10">
+                  {uploading ? 'Processing' : 'Execute'}
                 </button>
               </td>
             </tr>
@@ -276,8 +273,8 @@ export default function ArchiveAdminPanel({ year }: ArchiveAdminPanelProps) {
               <td className="px-4 py-3 font-medium">Sync MLB Data</td>
               <td className="px-4 py-3">Matches players to MLB IDs and fetches latest stats/teams for the entire {selectedYear} season.</td>
               <td className="px-4 py-3 text-center">
-                <button onClick={handleSyncSeason} disabled={uploading} className={`px-4 py-1 rounded-md text-sm font-medium transition-colors ${uploading ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : theme === 'dark' ? 'bg-slate-600 hover:bg-slate-500 text-white' : 'bg-slate-700 hover:bg-slate-800 text-white'}`}>
-                  Run Sync
+                <button onClick={handleSyncSeason} disabled={uploading} className="px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/10 bg-white/5 text-white hover:bg-white/10 disabled:opacity-20 transition-all">
+                  Sync Chain
                 </button>
               </td>
             </tr>
@@ -285,8 +282,8 @@ export default function ArchiveAdminPanel({ year }: ArchiveAdminPanelProps) {
               <td className="px-4 py-3 font-medium">Archive Live Season</td>
               <td className="px-4 py-3">Snapshot current season rosters/stats into the historical archive.</td>
               <td className="px-4 py-3 text-center">
-                <button onClick={handleArchiveSeason} disabled={uploading} className={`px-4 py-1 rounded-md text-sm font-medium transition-colors ${uploading ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : theme === 'dark' ? 'bg-amber-700 hover:bg-amber-600 text-white' : 'bg-amber-600 hover:bg-amber-700 text-white'}`}>
-                  Archive
+                <button onClick={handleArchiveSeason} disabled={uploading} className="px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-amber-500/20 bg-amber-500/5 text-amber-500 hover:bg-amber-500/10 disabled:opacity-20 transition-all">
+                  Commit State
                 </button>
               </td>
             </tr>
@@ -295,21 +292,22 @@ export default function ArchiveAdminPanel({ year }: ArchiveAdminPanelProps) {
       </div>
 
       {/* Maintenance Section */}
-      <div className={`mt-8 border-t pt-4 ${theme === 'dark' ? 'border-slate-700' : 'border-gray-200'}`}>
+      <div className="mt-12 pt-8 border-t border-white/5">
         <button 
           onClick={() => setShowMaintenance(!showMaintenance)}
-          className={`flex items-center gap-2 text-sm font-medium ${theme === 'dark' ? 'text-slate-400 hover:text-slate-200' : 'text-gray-500 hover:text-gray-700'}`}
+          className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)] hover:text-white transition-all"
         >
-          <span>{showMaintenance ? '▼' : '▶'} Advanced Maintenance</span>
+          <span className={`w-6 h-6 rounded-lg flex items-center justify-center bg-white/5 border border-white/10 transition-transform ${showMaintenance ? 'rotate-90' : ''}`}>▶</span>
+          Maintenance Operations
         </button>
         
         {showMaintenance && (
-          <div className="mt-4 flex flex-wrap gap-4">
-            <button onClick={() => handleAutoMatch(true)} disabled={uploading} className={`px-3 py-1.5 rounded border text-xs font-medium transition-colors ${theme === 'dark' ? 'border-slate-600 hover:bg-slate-700 text-slate-300' : 'border-gray-300 hover:bg-gray-50 text-gray-600'}`}>
-              Global Auto-Match (All Years)
+          <div className="mt-8 flex flex-wrap gap-4">
+            <button onClick={() => handleAutoMatch(true)} disabled={uploading} className="px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/10 bg-white/5 text-white hover:bg-white/10 disabled:opacity-20 transition-all">
+              Global Auto-Match
             </button>
-            <button onClick={handleRecalculateAll} disabled={uploading} className={`px-3 py-1.5 rounded border text-xs font-medium transition-colors ${theme === 'dark' ? 'border-slate-600 hover:bg-slate-700 text-slate-300' : 'border-gray-300 hover:bg-gray-50 text-gray-600'}`}>
-              Global Recalculate (All Years)
+            <button onClick={handleRecalculateAll} disabled={uploading} className="px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/10 bg-white/5 text-white hover:bg-white/10 disabled:opacity-20 transition-all">
+              Global Recalculate
             </button>
           </div>
         )}
@@ -317,23 +315,23 @@ export default function ArchiveAdminPanel({ year }: ArchiveAdminPanelProps) {
 
       {/* Logs / Output */}
       {(logs.length > 0 || error) && (
-        <div className={`mt-6 p-4 rounded text-sm font-mono max-h-60 overflow-y-auto ${
-          theme === 'dark' ? 'bg-black/40 text-blue-300' : 'bg-gray-900 text-blue-200'
-        }`}>
-          <div className="flex justify-between items-center mb-2 border-b border-blue-900 pb-1">
-            <span className="text-xs uppercase font-bold tracking-wider opacity-60">System Logs</span>
-            <button onClick={() => setLogs([])} className="text-[10px] hover:text-white uppercase">Clear</button>
+        <div className="mt-10 p-6 rounded-3xl text-sm font-mono max-h-80 overflow-y-auto bg-black/40 border border-white/10 text-emerald-400 backdrop-blur-xl">
+          <div className="flex justify-between items-center mb-4 border-b border-emerald-500/20 pb-4">
+            <span className="text-[10px] uppercase font-black tracking-widest text-emerald-500">Kernel: Mission Logs</span>
+            <button onClick={() => setLogs([])} className="text-[10px] font-black hover:text-white uppercase tracking-widest transition-all">Flush Buffer</button>
           </div>
-          {logs.map((log, i) => (
-            <div key={i} className="mb-0.5">{log}</div>
-          ))}
-          {error && <div className="text-red-400 mt-2 font-bold">{error}</div>}
+          <div className="space-y-1">
+            {logs.map((log, i) => (
+              <div key={i} className="flex gap-4">
+                <span className="opacity-20 text-[10px] font-black">[{i.toString().padStart(3, '0')}]</span>
+                <span className="text-xs">{log}</span>
+              </div>
+            ))}
+          </div>
+          {error && <div className="text-rose-400 mt-6 font-black p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 uppercase text-xs">Error Vector: {error}</div>}
         </div>
       )}
-        </>
-      )}
-
-
+      </div>
     </div>
   );
 }

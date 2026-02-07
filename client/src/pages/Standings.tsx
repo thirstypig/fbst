@@ -142,62 +142,69 @@ const Standings = () => {
 
 
   return (
-    <div className="p-4 space-y-8">
-      <div className="flex items-center justify-between">
-        <PageHeader title={viewMode === 'season' ? "Season Standings" : `Period ${selectedPeriod} Standings`} />
-        
-        <div className="flex gap-2 bg-gray-100 dark:bg-slate-800 p-1 rounded-lg">
-            <button
-                onClick={() => setViewMode('season')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${viewMode === 'season' ? 'bg-white dark:bg-slate-600 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
-            >
-                Season
-            </button>
-            <button
-                onClick={() => setViewMode('period')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${viewMode === 'period' ? 'bg-white dark:bg-slate-600 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
-            >
-                Period
-            </button>
-        </div>
-      </div>
+    <div className="flex flex-col min-h-screen bg-[var(--fbst-surface-primary)] text-[var(--fbst-text-primary)]">
+      <PageHeader 
+        title="Standings Central" 
+        subtitle={viewMode === 'season' ? "Grand Total Registry: All-Time Aggregated Scores" : `Tactical Analysis: Period ${selectedPeriod} Snapshot`}
+        rightElement={
+          <div className="flex gap-1 bg-white/5 p-1 rounded-xl border border-white/10 backdrop-blur-md">
+              <button
+                  onClick={() => setViewMode('season')}
+                  className={`px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'season' ? 'bg-[var(--fbst-accent)] text-white shadow-lg shadow-red-500/10' : 'text-[var(--fbst-text-muted)] hover:text-white'}`}
+              >
+                  Season
+              </button>
+              <button
+                  onClick={() => setViewMode('period')}
+                  className={`px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'period' ? 'bg-[var(--fbst-accent)] text-white shadow-lg shadow-red-500/10' : 'text-[var(--fbst-text-muted)] hover:text-white'}`}
+              >
+                  Period
+              </button>
+          </div>
+        }
+      />
       
+      <div className="max-w-7xl mx-auto w-full px-6 py-8">
       {viewMode === 'period' && (
-        <div className="flex gap-2 items-center mb-4">
-            <label className="text-sm font-medium">Select Period:</label>
+        <div className="flex gap-4 items-center mb-10 liquid-glass p-6 rounded-3xl bg-white/[0.02] border border-white/10">
+            <label className="text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)]">Chronology: Select Period</label>
             <select 
                 value={selectedPeriod || ''} 
                 onChange={e => setSelectedPeriod(Number(e.target.value))}
-                className="border rounded px-2 py-1"
+                className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs font-bold text-white outline-none focus:border-[var(--fbst-accent)] transition-all"
             >
                 {periods.map(p => (
-                    <option key={p.id} value={p.periodNumber}>Period {p.periodNumber}</option>
+                    <option key={p.id} value={p.periodNumber}>Deployment Cycle {p.periodNumber}</option>
                 ))}
             </select>
         </div>
       )}
 
       {loading ? (
-        <div className="text-center py-8 text-gray-500">Loading data...</div>
+        <div className="text-center py-20 text-[var(--fbst-text-muted)] font-black uppercase tracking-widest opacity-30 animate-pulse">Synchronizing Data...</div>
       ) : (
         <>
-            <PeriodSummaryTable
-                periodId={viewMode === 'season' ? "Season" : `P${selectedPeriod}`}
-                rows={summaryRows}
-                categories={categories}
-            />
-
-            {/* Only show detailed category tables? Or maybe toggle them? For now show all */}
-             {categories.map((cat) => (
-                <CategoryPeriodTable
-                key={cat}
-                periodId={viewMode === 'season' ? "Season" : `P${selectedPeriod}`}
-                categoryId={cat}
-                rows={categoryRows[cat] || []} // We will populate this next text
+            <div className="space-y-12">
+                <PeriodSummaryTable
+                    periodId={viewMode === 'season' ? "Season" : `P${selectedPeriod}`}
+                    rows={summaryRows}
+                    categories={categories}
                 />
-            ))}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                     {categories.map((cat) => (
+                        <CategoryPeriodTable
+                            key={cat}
+                            periodId={viewMode === 'season' ? "Season" : `P${selectedPeriod}`}
+                            categoryId={cat}
+                            rows={categoryRows[cat] || []}
+                        />
+                    ))}
+                </div>
+            </div>
         </>
       )}
+      </div>
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PlayerSeasonStat } from '../../api';
 import PlayerExpandedRow from './PlayerExpandedRow';
+import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from "../ui/ThemedTable";
 
 interface Team {
   id: number;
@@ -13,6 +14,19 @@ interface Team {
   isMe?: boolean;
 }
 
+interface RosterEntry {
+  id: number;
+  playerId: number;
+  mlbId?: number;
+  name?: string;
+  price: number;
+  assignedPosition?: string | null;
+  posList?: string;
+  posPrimary?: string;
+  player?: { posList?: string; posPrimary?: string };
+  stat?: PlayerSeasonStat;
+}
+
 interface TeamListTabProps {
   teams?: Team[];
   players?: PlayerSeasonStat[];
@@ -20,14 +34,9 @@ interface TeamListTabProps {
 
 export default function TeamListTab({ teams = [], players = [] }: TeamListTabProps) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [detailedRoster, setDetailedRoster] = useState<any[] | null>(null);
+  const [detailedRoster, setDetailedRoster] = useState<RosterEntry[] | null>(null);
   const [loadingIds, setLoadingIds] = useState<Set<number>>(new Set());
   const [expandedPlayerId, setExpandedPlayerId] = useState<number | null>(null);
-
-  // Styles matching Archive Page
-  const HITTER_COLOR = 'text-blue-600 dark:text-blue-400';
-  const PITCHER_COLOR = 'text-purple-600 dark:text-purple-400';
-  const KEEPER_SLOT_COLOR = 'text-amber-600 dark:text-amber-500 bg-amber-500/10 border-amber-500/20';
 
   // Fetch detailed roster when expanding
   useEffect(() => {
@@ -48,9 +57,9 @@ export default function TeamListTab({ teams = [], players = [] }: TeamListTabPro
         } catch (err) {
             console.error(err);
         } finally {
-            setLoadingIds(prev => {
+            setLoadingIds((prev: Set<number>) => {
                 const next = new Set(prev);
-                next.delete(expandedId);
+                next.delete(expandedId!);
                 return next;
             });
         }
@@ -60,9 +69,9 @@ export default function TeamListTab({ teams = [], players = [] }: TeamListTabPro
 
   const handlePositionSwap = async (teamId: number, rosterId: number, newPos: string) => {
       // Optimistic update
-      setDetailedRoster(prev => {
+      setDetailedRoster((prev: RosterEntry[] | null) => {
           if (!prev) return prev;
-          return prev.map(r => {
+          return prev.map((r: RosterEntry) => {
               if (r.id === rosterId) {
                   return { ...r, assignedPosition: newPos };
               }
@@ -104,124 +113,121 @@ export default function TeamListTab({ teams = [], players = [] }: TeamListTabPro
   };
 
   return (
-    <div className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-[var(--fbst-table-border)]">
-        <div className="divide-y divide-[var(--fbst-table-border)]">
-            {teams.map((team, idx) => {
+    <div className="h-full overflow-y-auto scrollbar-hide">
+        <div className="divide-y divide-white/5">
+            {teams.map((team: Team, idx: number) => {
                 const isExpanded = expandedId === team.id;
                 const isLoading = loadingIds.has(team.id);
                 
-                // Use detailed roster if available for this team, otherwise fallback to props (which might be stale)
                 const rosterSource = (isExpanded && detailedRoster) ? detailedRoster : (team.roster || []);
                 
-                const roster = rosterSource.map((rItem: any) => {
+                const roster = rosterSource.map((rItem: RosterEntry) => {
                    return {
                        ...rItem,
-                       stat: players.find(p => String(p.mlb_id) == String(rItem.playerId)) 
+                       stat: players.find((p: PlayerSeasonStat) => String(p.mlb_id) == String(rItem.playerId)) 
                    };
                 });
                 
                 return (
-                    <div key={team.id} className={`bg-[var(--fbst-table-row-bg)] ${team.isMe ? 'bg-[var(--fbst-accent-warning)]/5' : ''}`}>
+                    <div key={team.id} className={`${team.isMe ? 'bg-white/5' : ''}`}>
                         <div 
-                            className="px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-[var(--fbst-table-row-hover)]"
+                            className="px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-white/5 transition-all"
                             onClick={() => setExpandedId(isExpanded ? null : team.id)}
                         >
-                            <div className="flex items-center gap-3">
-                                <span className="text-[var(--fbst-text-muted)] font-mono text-xs w-4">{idx + 1}</span>
+                            <div className="flex items-center gap-4">
+                                <span className="text-[var(--fbst-text-muted)] font-black text-[10px] w-6 opacity-30">{String(idx + 1).padStart(2, '0')}</span>
                                 <div className="flex flex-col">
-                                    <span className={`font-semibold ${team.isMe ? 'text-[var(--fbst-accent-primary)]' : 'text-[var(--fbst-text-primary)]'}`}>
+                                    <span className={`font-black tracking-tight ${team.isMe ? 'text-[var(--fbst-accent)]' : 'text-[var(--fbst-text-primary)]'}`}>
                                         {team.name}
                                     </span>
-                                    <span className="text-xs text-[var(--fbst-text-muted)]">{team.rosterCount} / 26 players</span>
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] opacity-50">
+                                        {team.rosterCount} / 26 Capacity
+                                    </span>
                                 </div>
                             </div>
                             
-                            <div className="flex items-center gap-4 text-right">
+                            <div className="flex items-center gap-8 text-right">
                                 <div className="flex flex-col">
-                                    <span className="text-xs text-[var(--fbst-text-muted)] uppercase">Budget</span>
-                                    <span className="font-bold text-[var(--fbst-text-primary)]">${team.budget}</span>
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] opacity-50">Budget</span>
+                                    <span className="font-black text-[var(--fbst-text-primary)] tracking-tight">${team.budget}</span>
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="text-xs text-[var(--fbst-text-muted)] uppercase">Max</span>
-                                    <span className="font-bold text-[var(--fbst-accent-success)]">${team.maxBid}</span>
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] opacity-50">Max Bid</span>
+                                    <span className="font-black text-[var(--fbst-accent)] tracking-tight">${team.maxBid}</span>
                                 </div>
-                                <div className={`text-[var(--fbst-text-muted)] transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▼</div>
+                                <div className={`text-[var(--fbst-text-muted)] transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                                </div>
                             </div>
                         </div>
 
                         {isExpanded && (
-                            <div className="bg-[var(--fbst-surface-primary)] border-t border-[var(--fbst-table-border)]">
+                            <div className="bg-black/20 border-t border-white/5 animate-in fade-in slide-in-from-top-2 duration-300">
                                 {isLoading ? (
-                                    <div className="px-4 py-6 text-center text-[var(--fbst-text-muted)] italic text-xs">
-                                        Loading roster...
+                                    <div className="px-6 py-12 text-center text-[var(--fbst-text-muted)] text-[10px] font-black uppercase tracking-[0.2em] animate-pulse">
+                                        Synchronizing Roster Data...
                                     </div>
                                 ) : (
-                                    <table className="w-full text-sm text-left">
-                                        <thead className="bg-[var(--fbst-surface-secondary)] text-[var(--fbst-text-muted)] text-xs uppercase font-semibold">
-                                            <tr>
-                                                <th className="px-4 py-2 w-12">Pos</th>
-                                                <th className="px-2 py-2">Player</th>
-                                                <th className="px-4 py-2 text-right">Salary</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-[var(--fbst-table-border)]">
-                                            {roster.map((entry: any) => {
+                                    <ThemedTable>
+                                        <ThemedThead>
+                                            <ThemedTr>
+                                                <ThemedTh className="w-16">Sector</ThemedTh>
+                                                <ThemedTh>Agent</ThemedTh>
+                                                <ThemedTh align="right" className="pr-6">Salary</ThemedTh>
+                                            </ThemedTr>
+                                        </ThemedThead>
+                                        <tbody className="divide-y divide-white/5">
+                                            {roster.map((entry: RosterEntry) => {
                                                 const mlbId = entry.mlbId || entry.playerId; 
                                                 const name = entry.name || `Player #${entry.playerId}`;
                                                 
-                                                const stat = players.find(p => String(p.mlb_id) == String(mlbId));
+                                                const stat = players.find((p: PlayerSeasonStat) => String(p.mlb_id) == String(mlbId));
                                                 const displayName = stat?.mlb_full_name || stat?.player_name || name;
                                                 const displayPos = entry.assignedPosition || stat?.positions || 'BN';
                                                 
-                                                // Construct a synthetic player object if stat is missing, for the expanded view
-                                                const playerObj = stat || {
-                                                    mlb_id: mlbId,
+                                                const playerObj = stat || ({
+                                                    row_id: String(mlbId),
+                                                    mlb_id: String(mlbId),
                                                     player_name: name,
                                                     mlb_full_name: name,
                                                     positions: displayPos,
-                                                    is_pitcher: displayPos === 'P' || (stat ? (stat as any).is_pitcher : false)
-                                                } as PlayerSeasonStat;
+                                                    is_pitcher: displayPos === 'P'
+                                                } as unknown as PlayerSeasonStat);
 
                                                 const isRowExpanded = expandedPlayerId === entry.id;
-                                                const isPitcher = stat?.is_pitcher;
-                                                const nameColor = isPitcher ? PITCHER_COLOR : HITTER_COLOR;
+                                                const isPitcher = playerObj.is_pitcher;
 
                                                 return (
                                                     <React.Fragment key={entry.id}>
-                                                        <tr 
-                                                            className={`hover:bg-[var(--fbst-table-row-hover)] cursor-pointer ${isRowExpanded ? 'bg-[var(--fbst-table-row-alt-bg)]' : ''}`}
+                                                        <ThemedTr 
+                                                            className={`cursor-pointer ${isRowExpanded ? 'bg-white/5' : ''}`}
                                                             onClick={() => setExpandedPlayerId(isRowExpanded ? null : entry.id)}
                                                         >
-                                                            <td className="px-4 py-1.5 font-bold text-[var(--fbst-text-muted)] cursor-pointer hover:bg-white/5 relative group/pos" onClick={(e) => e.stopPropagation()}>
-                                                                <div className="relative">
-                                                                    <select 
-                                                                        className="appearance-none bg-transparent border-none outline-none cursor-pointer underline decoration-dotted underline-offset-2 hover:text-[var(--fbst-text-primary)]"
-                                                                        value={displayPos}
-                                                                        onChange={(e) => handlePositionSwap(team.id, entry.id, e.target.value)}
-                                                                    >
-                                                                        {(() => {
-                                                                            const rawList = entry.posList || entry.posPrimary || entry.player?.posList || entry.player?.posPrimary || stat?.positions || 'BN';
-                                                                            // Merge DB list and live stat list to be safe
-                                                                            const statList = stat?.positions || '';
-                                                                            const combined = [rawList, statList].join(',');
-                                                                            
-                                                                            const opts = combined.split(',').map((s: string) => s.trim()).filter(Boolean);
-                                                                            const distinct = Array.from(new Set([...opts, 'BN', 'UTIL', 'P'])); 
-                                                                            
-                                                                            return distinct.map(p => (
-                                                                                <option key={p} value={p} className="text-black">{p}</option>
-                                                                            ));
-                                                                        })()}
-                                                                    </select>
-                                                                </div>
-                                                            </td>
-                                                            <td className={`px-2 py-1.5 font-medium ${nameColor}`}>
+                                                            <ThemedTd className="py-2 text-[10px] font-black font-mono">
+                                                              <div onClick={(e) => e.stopPropagation()}>
+                                                                <select 
+                                                                    className="appearance-none bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20 cursor-pointer hover:bg-emerald-500/20 transition-all outline-none"
+                                                                    value={displayPos}
+                                                                    onChange={(e) => handlePositionSwap(team.id, entry.id, e.target.value)}
+                                                                >
+                                                                    {(() => {
+                                                                        const rawList = entry.posList || entry.posPrimary || entry.player?.posList || entry.player?.posPrimary || stat?.positions || 'BN';
+                                                                        const statList = stat?.positions || '';
+                                                                        const combined = [rawList, statList].join(',');
+                                                                        const opts = combined.split(',').map((s: string) => s.trim()).filter(Boolean);
+                                                                        const distinct = Array.from(new Set([...opts, 'BN', 'UTIL', 'P'])); 
+                                                                        return distinct.map(p => <option key={p} value={p} className="text-black">{p}</option>);
+                                                                    })()}
+                                                                </select>
+                                                              </div>
+                                                            </ThemedTd>
+                                                            <ThemedTd className={`py-2 font-black tracking-tight ${isPitcher ? 'text-purple-400' : 'text-blue-400'}`}>
                                                                 {displayName}
-                                                            </td>
-                                                            <td className="px-4 py-1.5 text-right font-mono text-[var(--fbst-accent-success)]">
+                                                            </ThemedTd>
+                                                            <ThemedTd align="right" className="py-2 pr-6 font-mono font-black text-[var(--fbst-accent)]">
                                                                 ${entry.price}
-                                                            </td>
-                                                        </tr>
+                                                            </ThemedTd>
+                                                        </ThemedTr>
                                                         {isRowExpanded && (
                                                             <PlayerExpandedRow 
                                                                 player={playerObj} 
@@ -235,14 +241,14 @@ export default function TeamListTab({ teams = [], players = [] }: TeamListTabPro
                                             })}
                                             {/* Dummy Keepers */}
                                             {Array.from({ length: Math.max(0, 4 - roster.length) }).map((_, i) => (
-                                                 <tr key={`keeper-dummy-${i}`} className={`border-b border-[var(--fbst-table-border)] ${KEEPER_SLOT_COLOR} border-dashed opacity-70`}>
-                                                    <td className="px-4 py-1.5 font-bold text-amber-500/50 italic text-xs">K</td>
-                                                    <td className="px-2 py-1.5 font-medium text-amber-500/70 italic text-xs">Keeper Slot {roster.length + i + 1}</td>
-                                                    <td className="px-4 py-1.5 text-right font-mono text-amber-500/50">$-</td>
-                                                 </tr>
+                                                 <ThemedTr key={`keeper-dummy-${i}`} className="opacity-30">
+                                                    <ThemedTd className="py-2 font-black font-mono text-[10px] italic">K</ThemedTd>
+                                                    <ThemedTd className="py-2 font-black italic text-[10px] uppercase tracking-widest">Keeper Slot {roster.length + i + 1}</ThemedTd>
+                                                    <ThemedTd align="right" className="py-2 pr-6 font-mono font-black opacity-30">$-</ThemedTd>
+                                                 </ThemedTr>
                                             ))}
                                         </tbody>
-                                    </table>
+                                    </ThemedTable>
                                 )}
                             </div>
                         )}

@@ -4,6 +4,8 @@ import PlayerExpandedRow from '../components/auction/PlayerExpandedRow';
 import { POS_ORDER, getPrimaryPosition } from '../lib/baseballUtils';
 import { OGBA_TEAM_NAMES } from '../lib/ogbaTeams';
 import PageHeader from '../components/ui/PageHeader';
+import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from '../components/ui/ThemedTable';
+import { getMlbTeamAbbr } from '../lib/playerDisplay';
 
 export default function Players() {
   const [loading, setLoading] = useState(true);
@@ -11,8 +13,8 @@ export default function Players() {
   
   // View State
   const [viewGroup, setViewGroup] = useState<'hitters' | 'pitchers'>('hitters');
-  const [viewMode, setViewMode] = useState<'all' | 'remaining'>('all'); // Filter available
-  const [statsMode, setStatsMode] = useState<string>('season'); // 'season' | 'period-1' ... | 'period-current'
+  const [viewMode, setViewMode] = useState<'all' | 'remaining'>('all'); 
+  const [statsMode, setStatsMode] = useState<string>('season'); 
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const [periodStats, setPeriodStats] = useState<PeriodStatRow[]>([]);
@@ -39,11 +41,10 @@ export default function Players() {
         setPlayers(p);
         setPeriodStats(per);
         
-        // Extract unique periods
         const pSet = new Set(per.map(x => x.periodId).filter(n => typeof n === 'number'));
-        setPeriods(Array.from(pSet).sort((a,b) => b-a)); // Descending
+        setPeriods(Array.from(pSet).sort((a,b) => b-a)); 
 
-      } catch (e) {
+      } catch (e: any) {
         console.error(e);
       } finally {
         setLoading(false);
@@ -51,27 +52,20 @@ export default function Players() {
     })();
   }, []);
 
-  // Derived Options
   const uniqueMLBTeams = useMemo(() => {
     const teams = new Set(players.map(p => p.mlb_team || 'FA'));
     return ['ALL', ...Array.from(teams).sort()];
   }, [players]);
 
   const uniqueFantasyTeams = useMemo(() => {
-    // Only use current active teams (keys in OGBA_TEAM_NAMES that are 3 chars and present in data?)
-    // Actually simplicity: just get all codes from players
     const codes = new Set(players.map(p => p.ogba_team_code).filter(Boolean));
     return ['ALL', ...Array.from(codes).sort()];
   }, [players]);
 
   const uniquePositions = POS_ORDER;
 
-  // Filter & Sort
   const filteredPlayers = useMemo(() => {
      const baseList = players;
-
-     // If statsMode is NOT season, we need to map period stats or merge them?
-     // Efficient approach: Create a map of Period Stats for the selected period.
      
      let statMap: Map<string, PeriodStatRow> | null = null;
      if (statsMode !== 'season') {
@@ -84,18 +78,10 @@ export default function Players() {
          });
      }
 
-     // Filter
      const res = baseList.filter(p => {
-        // ... metadata filters match
-        
-        // Group
         if (viewGroup === 'hitters' && p.is_pitcher) return false;
         if (viewGroup === 'pitchers' && !p.is_pitcher) return false;
-
-        // Mode
         if (viewMode === 'remaining' && (p.ogba_team_code || p.team)) return false;
-
-        // Search
         if (searchQuery && !p.player_name?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
         if (filterTeam !== 'ALL' && (p.mlb_team || 'FA') !== filterTeam) return false;
         if (filterFantasyTeam !== 'ALL' && (p.ogba_team_code || 'FA') !== filterFantasyTeam) return false;
@@ -107,16 +93,11 @@ export default function Players() {
         return true;
      });
 
-     // Attach stats if period mode
-     // We return a wrapper or modifies object? Modifying might be risky for memo.
-     // Let's map to a display object.
      const displayList = res.map(p => {
          if (statsMode === 'season') return p;
          const s = statMap?.get(String(p.mlb_id));
-         // Merge stats.
          return {
              ...p,
-             // Overwrite stats with explicit number conversion to satisfy type and ReactNode
              R: Number(s?.R ?? 0),
              HR: Number(s?.HR ?? 0),
              RBI: Number(s?.RBI ?? 0),
@@ -130,8 +111,6 @@ export default function Players() {
          } as PlayerSeasonStat;
      });
 
-
-     // Sort
      return displayList.sort((a, b) => {
          let valA: string | number = 0; 
          let valB: string | number = 0;
@@ -145,7 +124,6 @@ export default function Players() {
              valB = b.ogba_team_code || 'ZZZ';
              return sortDesc ? valB.toString().localeCompare(valA.toString()) : valA.toString().localeCompare(valB.toString());
          } else {
-             // Stat sort
              // @ts-expect-error key access
              valA = Number(a[sortKey] ?? -999);
              // @ts-expect-error key access
@@ -156,202 +134,239 @@ export default function Players() {
   }, [players, periodStats, periods, statsMode, viewGroup, viewMode, searchQuery, filterTeam, filterFantasyTeam, filterPos, sortKey, sortDesc]);
 
 
-  const handleHeaderClick = (key: string) => {
-      if (sortKey === key) {
-          setSortDesc(!sortDesc);
-      } else {
-          setSortKey(key);
-          setSortDesc(true); // Default desc for stats
-      }
-  };
-
-  const Th = ({ label, sKey, w }: { label: string, sKey: string, w?: string }) => (
-      <th 
-        className={`px-2 py-2 font-semibold cursor-pointer select-none hover:text-[var(--fbst-text-primary)] transition-colors ${sortKey === sKey ? 'text-[var(--fbst-accent-primary)]' : 'text-[var(--fbst-text-muted)]'} ${w || 'text-left'}`}
-        onClick={() => handleHeaderClick(sKey)}
-      >
-          <div className={`flex items-center gap-1 ${w?.includes('text-center') ? 'justify-center' : (w?.includes('text-right') ? 'justify-end' : '')}`}>
-            {label} 
-            {sortKey === sKey && (sortDesc ? '▼' : '▲')}
-          </div>
-      </th>
-  );
-
   const toggleExpand = (id: string) => {
     setExpandedId(prev => (prev === id ? null : id));
   };
 
-  if (loading) return <div className="p-8 text-center text-[var(--fbst-text-muted)]">Loading players...</div>;
+  if (loading) return <div className="p-8 text-center text-[var(--fbst-text-muted)]">Loading personnel intelligence...</div>;
 
   return (
-    <div className="h-full flex flex-col bg-[var(--fbst-surface-primary)]">
+    <div className="h-full flex flex-col bg-[var(--fbst-surface-primary)] scrollbar-hide">
        {/* Page Header */}
        <PageHeader 
-         title="Players" 
-         subtitle="Browse, sort, and filter all MLB players and their current fantasy status."
+         title="Personnel Registry" 
+         subtitle="Synthesized intelligence on all MLB assets and their current strategic alignment."
        />
 
        {/* Filters Header */}
-       <div className="p-4 border-b border-[var(--fbst-table-border)] flex flex-wrap items-center gap-4 bg-[var(--fbst-surface-elevated)] z-10 sticky top-0 shadow-sm">
-          
-           {/* Hitter/Pitcher Toggle */}
-           <div className="flex bg-[var(--fbst-surface-secondary)] rounded-lg p-1 border border-[var(--fbst-table-border)]">
-               <button 
-                   onClick={() => setViewGroup('hitters')}
-                   className={`px-4 py-1.5 text-sm font-bold rounded flex-1 transition-all ${viewGroup === 'hitters' ? 'bg-[var(--fbst-surface-elevated)] text-[var(--fbst-text-primary)] shadow-sm' : 'text-[var(--fbst-text-muted)] hover:text-[var(--fbst-text-secondary)]'}`}
-               >
-                   Hitters
-               </button>
-               <button 
-                   onClick={() => setViewGroup('pitchers')}
-                   className={`px-4 py-1.5 text-sm font-bold rounded flex-1 transition-all ${viewGroup === 'pitchers' ? 'bg-[var(--fbst-surface-elevated)] text-[var(--fbst-text-primary)] shadow-sm' : 'text-[var(--fbst-text-muted)] hover:text-[var(--fbst-text-secondary)]'}`}
-               >
-                   Pitchers
-               </button>
-           </div>
+       <div className="px-6 py-4 flex flex-wrap items-center gap-6 sticky top-0 z-50">
+          <div className="w-full liquid-glass rounded-3xl p-6 border border-white/10 flex flex-wrap items-center gap-6 bg-white/[0.02] backdrop-blur-2xl shadow-2xl">
+              
+              {/* Type Toggle */}
+              <div className="flex bg-white/5 rounded-2xl p-1 border border-white/10">
+                  <button 
+                      onClick={() => setViewGroup('hitters')}
+                      className={`px-6 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${viewGroup === 'hitters' ? 'bg-[var(--fbst-accent)] text-white shadow-lg shadow-red-500/10' : 'text-[var(--fbst-text-muted)] hover:text-white'}`}
+                  >
+                      Hitters
+                  </button>
+                  <button 
+                      onClick={() => setViewGroup('pitchers')}
+                      className={`px-6 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${viewGroup === 'pitchers' ? 'bg-[var(--fbst-accent)] text-white shadow-lg shadow-red-500/10' : 'text-[var(--fbst-text-muted)] hover:text-white'}`}
+                  >
+                      Pitchers
+                  </button>
+              </div>
 
-           {/* Search */}
-           <input 
-                type="text" 
-                placeholder="Search players..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-48 px-3 py-1.5 rounded-lg bg-[var(--fbst-input-bg)] border border-[var(--fbst-input-border)] text-[var(--fbst-input-text)] text-sm focus:outline-none focus:border-[var(--fbst-input-border-focus)]"
-           />
+              {/* Search */}
+              <div className="relative group">
+                  <input 
+                       type="text" 
+                       placeholder="Scan player ID..." 
+                       value={searchQuery}
+                       onChange={(e) => setSearchQuery(e.target.value)}
+                       className="w-56 px-5 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-white text-xs font-bold outline-none focus:border-[var(--fbst-accent)] transition-all placeholder:text-white/20"
+                  />
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] opacity-20 group-focus-within:opacity-50 transition-opacity">🔍</div>
+              </div>
 
-           {/* Filters */}
-            <select 
-                value={viewMode}
-                onChange={(e) => setViewMode(e.target.value as 'all' | 'remaining')}
-                className="px-2 py-1.5 text-sm rounded border border-[var(--fbst-table-border)] bg-[var(--fbst-surface-secondary)] text-[var(--fbst-text-primary)]"
-            >
-                <option value="all">All Players</option>
-                <option value="remaining">Available Only</option>
-            </select>
+              {/* Filters */}
+              <div className="flex flex-wrap items-center gap-3">
+                  <select 
+                      value={viewMode}
+                      onChange={(e) => setViewMode(e.target.value as 'all' | 'remaining')}
+                      className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white outline-none focus:border-[var(--fbst-accent)] transition-all"
+                  >
+                      <option value="all" className="bg-[#0c0c0c]">All Personnel</option>
+                      <option value="remaining" className="bg-[#0c0c0c]">Unassigned Assets</option>
+                  </select>
 
-            <select 
-                value={statsMode}
-                onChange={(e) => setStatsMode(e.target.value)}
-                className="px-2 py-1.5 text-sm rounded border border-[var(--fbst-table-border)] bg-[var(--fbst-surface-secondary)] text-[var(--fbst-text-primary)]"
-            >
-                <option value="season">Season (YTD)</option>
-                {/* <option value="period-current">Current Period (Up to Date)</option> */}
-                {periods.map(p => (
-                     <option key={p} value={`period-${p}`}>Period {p}</option>
-                ))}
-            </select>
+                  <select 
+                      value={statsMode}
+                      onChange={(e) => setStatsMode(e.target.value)}
+                      className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white outline-none focus:border-[var(--fbst-accent)] transition-all"
+                  >
+                      <option value="season" className="bg-[#0c0c0c]">Cycle: Season</option>
+                      {periods.map(p => (
+                           <option key={p} value={`period-${p}`} className="bg-[#0c0c0c]">Deployment {p}</option>
+                      ))}
+                  </select>
 
-            <select 
-                value={filterTeam}
-                onChange={(e) => setFilterTeam(e.target.value)}
-                className="px-2 py-1.5 text-sm rounded border border-[var(--fbst-table-border)] bg-[var(--fbst-surface-secondary)] text-[var(--fbst-text-primary)]"
-            >
-                <option value="ALL">All MLB Teams</option>
-                {uniqueMLBTeams.filter(t => t!=='ALL').map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
+                  <select 
+                      value={filterTeam}
+                      onChange={(e) => setFilterTeam(e.target.value)}
+                      className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white outline-none focus:border-[var(--fbst-accent)] transition-all"
+                  >
+                      <option value="ALL" className="bg-[#0c0c0c]">Sector: All MLB</option>
+                      {uniqueMLBTeams.filter(t => t!=='ALL').map(t => <option key={t} value={t} className="bg-[#0c0c0c]">{t}</option>)}
+                  </select>
 
-            <select 
-                value={filterFantasyTeam}
-                onChange={(e) => setFilterFantasyTeam(e.target.value)}
-                className="px-2 py-1.5 text-sm rounded border border-[var(--fbst-table-border)] bg-[var(--fbst-surface-secondary)] text-[var(--fbst-text-primary)]"
-            >
-                <option value="ALL">All Fantasy Teams</option>
-                {uniqueFantasyTeams.filter(t => t!=='ALL').map(t => <option key={t} value={t as string}>{OGBA_TEAM_NAMES[t as string] || t}</option>)}
-            </select>
+                  <select 
+                      value={filterFantasyTeam}
+                      onChange={(e) => setFilterFantasyTeam(e.target.value)}
+                      className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white outline-none focus:border-[var(--fbst-accent)] transition-all"
+                  >
+                      <option value="ALL" className="bg-[#0c0c0c]">Organization: All</option>
+                      {uniqueFantasyTeams.filter(t => t!=='ALL').map(t => <option key={t} value={t as string} className="bg-[#0c0c0c]">{OGBA_TEAM_NAMES[t as string] || t}</option>)}
+                  </select>
 
-            <select 
-                value={filterPos}
-                onChange={(e) => setFilterPos(e.target.value)}
-                className="px-2 py-1.5 text-sm rounded border border-[var(--fbst-table-border)] bg-[var(--fbst-surface-secondary)] text-[var(--fbst-text-primary)]"
-            >
-                <option value="ALL">Position</option>
-                {uniquePositions.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
+                  <select 
+                      value={filterPos}
+                      onChange={(e) => setFilterPos(e.target.value)}
+                      className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white outline-none focus:border-[var(--fbst-accent)] transition-all"
+                  >
+                      <option value="ALL" className="bg-[#0c0c0c]">Role: Any</option>
+                      {uniquePositions.map(p => <option key={p} value={p} className="bg-[#0c0c0c]">{p}</option>)}
+                  </select>
+              </div>
+          </div>
        </div>
 
        {/* Results Table */}
-       <div className="flex-1 overflow-auto px-4 pb-8">
-           <div className="rounded-3xl liquid-glass border border-white/10 shadow-xl overflow-hidden">
+       <div className="flex-1 overflow-auto px-6 pb-12">
+           <div className="rounded-[32px] liquid-glass border border-white/10 shadow-2xl overflow-hidden bg-white/[0.01] backdrop-blur-xl">
                <div className="overflow-x-auto">
-                   <table className="w-full text-sm text-left border-collapse">
-                       <thead>
-                            <tr className="bg-white/5 border-b border-white/10">
-                                <Th label="Player" sKey="name" w="pl-6 text-left" />
+                   <ThemedTable>
+                       <ThemedThead>
+                            <ThemedTr>
+                                <ThemedTh className="pl-8" onClick={() => {
+                                    if (sortKey === 'name') setSortDesc(!sortDesc);
+                                    else { setSortKey('name'); setSortDesc(false); }
+                                }}>
+                                    Identity {sortKey === 'name' && (sortDesc ? '▼' : '▲')}
+                                </ThemedTh>
                                 
                                 {viewGroup === 'hitters' ? (
                                     <>
-                                         <Th label="R" sKey="R" w="text-center" />
-                                         <Th label="HR" sKey="HR" w="text-center" />
-                                         <Th label="RBI" sKey="RBI" w="text-center" />
-                                         <Th label="SB" sKey="SB" w="text-center" />
-                                         <Th label="AVG" sKey="AVG" w="text-center" />
+                                         <ThemedTh align="center" onClick={() => {
+                                             if (sortKey === 'R') setSortDesc(!sortDesc);
+                                             else { setSortKey('R'); setSortDesc(true); }
+                                         }}>R {sortKey === 'R' && (sortDesc ? '▼' : '▲')}</ThemedTh>
+                                         <ThemedTh align="center" onClick={() => {
+                                             if (sortKey === 'HR') setSortDesc(!sortDesc);
+                                             else { setSortKey('HR'); setSortDesc(true); }
+                                         }}>HR {sortKey === 'HR' && (sortDesc ? '▼' : '▲')}</ThemedTh>
+                                         <ThemedTh align="center" onClick={() => {
+                                             if (sortKey === 'RBI') setSortDesc(!sortDesc);
+                                             else { setSortKey('RBI'); setSortDesc(true); }
+                                         }}>RBI {sortKey === 'RBI' && (sortDesc ? '▼' : '▲')}</ThemedTh>
+                                         <ThemedTh align="center" onClick={() => {
+                                             if (sortKey === 'SB') setSortDesc(!sortDesc);
+                                             else { setSortKey('SB'); setSortDesc(true); }
+                                         }}>SB {sortKey === 'SB' && (sortDesc ? '▼' : '▲')}</ThemedTh>
+                                         <ThemedTh align="center" onClick={() => {
+                                             if (sortKey === 'AVG') setSortDesc(!sortDesc);
+                                             else { setSortKey('AVG'); setSortDesc(true); }
+                                         }}>AVG {sortKey === 'AVG' && (sortDesc ? '▼' : '▲')}</ThemedTh>
                                     </>
                                 ) : (
                                     <>
-                                         <Th label="W" sKey="W" w="text-center" />
-                                         <Th label="SV" sKey="SV" w="text-center" />
-                                         <Th label="K" sKey="K" w="text-center" />
-                                         <Th label="ERA" sKey="ERA" w="text-center" />
-                                         <Th label="WHIP" sKey="WHIP" w="text-center" />
+                                         <ThemedTh align="center" onClick={() => {
+                                             if (sortKey === 'W') setSortDesc(!sortDesc);
+                                             else { setSortKey('W'); setSortDesc(true); }
+                                         }}>W {sortKey === 'W' && (sortDesc ? '▼' : '▲')}</ThemedTh>
+                                         <ThemedTh align="center" onClick={() => {
+                                             if (sortKey === 'SV') setSortDesc(!sortDesc);
+                                             else { setSortKey('SV'); setSortDesc(true); }
+                                         }}>SV {sortKey === 'SV' && (sortDesc ? '▼' : '▲')}</ThemedTh>
+                                         <ThemedTh align="center" onClick={() => {
+                                             if (sortKey === 'K') setSortDesc(!sortDesc);
+                                             else { setSortKey('K'); setSortDesc(true); }
+                                         }}>K {sortKey === 'K' && (sortDesc ? '▼' : '▲')}</ThemedTh>
+                                         <ThemedTh align="center" onClick={() => {
+                                             if (sortKey === 'ERA') setSortDesc(!sortDesc);
+                                             else { setSortKey('ERA'); setSortDesc(true); }
+                                         }}>ERA {sortKey === 'ERA' && (sortDesc ? '▼' : '▲')}</ThemedTh>
+                                         <ThemedTh align="center" onClick={() => {
+                                             if (sortKey === 'WHIP') setSortDesc(!sortDesc);
+                                             else { setSortKey('WHIP'); setSortDesc(true); }
+                                         }}>WHIP {sortKey === 'WHIP' && (sortDesc ? '▼' : '▲')}</ThemedTh>
                                     </>
                                 )}
                                 
-                                <Th label="Fantasy Team" sKey="fantasy" w="pr-6 text-center" />
-                            </tr>
-                       </thead>
+                                <ThemedTh align="center" className="pr-8" onClick={() => {
+                                    if (sortKey === 'fantasy') setSortDesc(!sortDesc);
+                                    else { setSortKey('fantasy'); setSortDesc(false); }
+                                }}>Deployment {sortKey === 'fantasy' && (sortDesc ? '▼' : '▲')}</ThemedTh>
+                            </ThemedTr>
+                       </ThemedThead>
                        <tbody className="divide-y divide-white/5">
-                           {filteredPlayers.map(p => {
+                           {filteredPlayers.map((p: PlayerSeasonStat) => {
                                const isExpanded = expandedId === p.row_id;
                                const isTaken = !!p.ogba_team_code || !!p.team;
-                               const teamName = p.ogba_team_code ? (OGBA_TEAM_NAMES[p.ogba_team_code] || p.ogba_team_code) : (p.team ? 'Taken' : '-');
+                               const teamLabel = p.ogba_team_code ? (OGBA_TEAM_NAMES[p.ogba_team_code] || p.ogba_team_code) : (p.team ? 'Taken' : '-');
+                               const mlbTeam = getMlbTeamAbbr(p);
+                               const pos = getPrimaryPosition(p.positions) || (p.is_pitcher ? 'P' : 'UT');
         
                                return (
                                    <React.Fragment key={p.row_id}>
-                                       <tr 
-                                           className={`cursor-pointer hover:bg-white/5 transition-colors ${isExpanded ? 'bg-white/10' : ''}`}
+                                       <ThemedTr 
+                                           className={`group cursor-pointer ${isExpanded ? 'bg-white/10' : ''}`}
                                            onClick={() => toggleExpand(p.row_id)}
                                        >
-                                           <td className="pl-6 py-4">
-                                               <div className="font-bold text-[var(--fbst-text-primary)] text-base leading-tight">{p.mlb_full_name || p.player_name}</div>
-                                               <div className="text-[10px] uppercase tracking-wider font-bold text-[var(--fbst-text-muted)] flex gap-2 mt-1">
-                                                   <span className="bg-white/10 px-1.5 py-0.5 rounded">{getPrimaryPosition(p.positions) || (p.is_pitcher ? 'P' : 'UT')}</span>
-                                                   <span className="opacity-70">{p.mlb_team || 'FA'}</span>
+                                           <ThemedTd className="pl-8 py-5">
+                                               <div className="flex flex-col">
+                                                   <span className="font-black text-[var(--fbst-text-primary)] text-lg tracking-tighter group-hover:text-[var(--fbst-accent)] transition-colors">
+                                                       {p.mlb_full_name || p.player_name}
+                                                   </span>
+                                                   <div className="flex items-center gap-2 mt-1">
+                                                       <span className="text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] opacity-60">
+                                                           {pos}
+                                                       </span>
+                                                       <span className="w-1 h-1 rounded-full bg-white/20"></span>
+                                                       <span className="text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] opacity-60">
+                                                           {mlbTeam || 'FA'}
+                                                       </span>
+                                                   </div>
                                                </div>
-                                           </td>
+                                           </ThemedTd>
         
                                            {viewGroup === 'hitters' ? (
                                                 <>
-                                                    <td className="text-center py-4 font-medium">{p.R}</td>
-                                                    <td className="text-center py-4 font-medium">{p.HR}</td>
-                                                    <td className="text-center py-4 font-medium">{p.RBI}</td>
-                                                    <td className="text-center py-4 font-medium">{p.SB}</td>
-                                                    <td className="text-center py-4 font-medium tabular-nums">{typeof p.AVG === 'number' ? fmtRate(p.AVG) : '-'}</td>
+                                                    <ThemedTd align="center" className="font-bold tabular-nums">{p.R}</ThemedTd>
+                                                    <ThemedTd align="center" className="font-bold tabular-nums">{p.HR}</ThemedTd>
+                                                    <ThemedTd align="center" className="font-bold tabular-nums">{p.RBI}</ThemedTd>
+                                                    <ThemedTd align="center" className="font-bold tabular-nums">{p.SB}</ThemedTd>
+                                                    <ThemedTd align="center" className="font-black tabular-nums text-[var(--fbst-accent)] opacity-80">{typeof p.AVG === 'number' ? fmtRate(p.AVG) : '- '}</ThemedTd>
                                                 </>
                                            ) : (
                                                 <>
-                                                    <td className="text-center py-4 font-medium">{p.W}</td>
-                                                    <td className="text-center py-4 font-medium">{p.SV}</td>
-                                                    <td className="text-center py-4 font-medium">{p.K}</td>
-                                                    <td className="text-center py-4 font-medium tabular-nums">{p.ERA ? Number(p.ERA).toFixed(2) : '-'}</td>
-                                                    <td className="text-center py-4 font-medium tabular-nums">{p.WHIP ? Number(p.WHIP).toFixed(2) : '-'}</td>
+                                                    <ThemedTd align="center" className="font-bold tabular-nums">{p.W}</ThemedTd>
+                                                    <ThemedTd align="center" className="font-bold tabular-nums">{p.SV}</ThemedTd>
+                                                    <ThemedTd align="center" className="font-bold tabular-nums">{p.K}</ThemedTd>
+                                                    <ThemedTd align="center" className="font-black tabular-nums text-sky-400 opacity-80">{p.ERA ? Number(p.ERA).toFixed(2) : '- '}</ThemedTd>
+                                                    <ThemedTd align="center" className="font-black tabular-nums text-purple-400 opacity-80">{p.WHIP ? Number(p.WHIP).toFixed(2) : '- '}</ThemedTd>
                                                 </>
                                            )}
         
-                                           <td className="pr-6 py-4 text-center">
-                                               {isTaken && (
-                                                   <span className="bg-[var(--fbst-accent)]/10 text-[var(--fbst-accent)] px-3 py-1 rounded-full text-xs font-bold ring-1 ring-[var(--fbst-accent)]/30">
-                                                       {teamName}
-                                                   </span>
+                                           <ThemedTd align="center" className="pr-8 py-5">
+                                               {isTaken ? (
+                                                   <div className="inline-flex items-center px-4 py-1.5 rounded-2xl bg-[var(--fbst-accent)]/5 border border-[var(--fbst-accent)]/20 text-[var(--fbst-accent)] text-[10px] font-black uppercase tracking-widest shadow-xl shadow-red-500/5">
+                                                       {teamLabel}
+                                                   </div>
+                                               ) : (
+                                                   <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)] opacity-20">
+                                                       Available
+                                                   </div>
                                                )}
-                                               {!isTaken && <span className="text-[var(--fbst-text-muted)] text-xs font-medium italic opacity-60">Available</span>}
-                                           </td>
-                                       </tr>
+                                           </ThemedTd>
+                                       </ThemedTr>
                                        
                                        {isExpanded && (
                                            <PlayerExpandedRow
                                                player={p}
                                                isTaken={isTaken}
-                                               ownerName={teamName}
+                                               ownerName={teamLabel}
                                                colSpan={9}
                                            />
                                        )}
@@ -359,13 +374,13 @@ export default function Players() {
                                );
                            })}
                        </tbody>
-                   </table>
+                   </ThemedTable>
                </div>
            </div>
            
            {filteredPlayers.length === 0 && (
                 <div className="p-20 text-center">
-                    <div className="text-[var(--fbst-text-muted)] text-lg font-medium italic opacity-50">No players found matching your filters.</div>
+                    <div className="text-[var(--fbst-text-muted)] text-lg font-medium italic opacity-50">No personnel found matching your filters.</div>
                 </div>
             )}
        </div>

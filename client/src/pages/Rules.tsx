@@ -189,25 +189,25 @@ export default function Rules() {
   if(error) return <div className="p-8 text-center text-red-400">Error: {error}</div>;
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-8">
-       <div className="flex items-center justify-between mb-8">
+    <div className="max-w-5xl mx-auto px-6 py-12">
+       <div className="flex items-center justify-between mb-12">
            <div>
-               <h1 className="text-3xl font-bold" style={{ color: 'var(--fbst-text-heading)' }}>League Rules</h1>
-               <p className="text-slate-400 mt-1">{isLocked ? "🔒 Rules are locked for the season" : "Configure league settings"}</p>
+               <h1 className="text-4xl font-black tracking-tight text-[var(--fbst-text-heading)]">Internal Protocols</h1>
+               <p className="text-[var(--fbst-text-muted)] mt-2 font-medium">{isLocked ? "🔒 Strategic configurations are terminal for the current cycle." : "Modify active league parameters and governance rules."}</p>
            </div>
            
            {canEdit && !isLocked && (
                <div className="flex gap-3">
                    {editMode ? (
-                       <>
-                           <button onClick={() => { setEditMode(false); setPendingChanges({}); }} className="px-4 py-2 rounded-lg bg-slate-700 text-white hover:bg-slate-600">Cancel</button>
-                           <button onClick={handleSave} disabled={saving} className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-500 font-semibold shadow-lg shadow-green-900/20">
-                               {saving ? "Saving..." : "Save Changes"}
+                       <div className="flex gap-4">
+                           <button onClick={() => { setEditMode(false); setPendingChanges({}); }} className="px-6 py-2.5 rounded-2xl bg-white/5 text-[var(--fbst-text-primary)] hover:bg-white/10 transition-all font-black uppercase text-[10px] tracking-widest">Abort</button>
+                           <button onClick={handleSave} disabled={saving} className="px-6 py-2.5 rounded-2xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all font-black uppercase text-[10px] tracking-widest shadow-lg shadow-emerald-500/5">
+                               {saving ? "Syncing..." : "Commit Changes"}
                            </button>
-                       </>
+                       </div>
                    ) : (
-                       <button onClick={() => setEditMode(true)} className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-500 font-semibold shadow-lg shadow-blue-900/20">
-                           Edit Rules
+                       <button onClick={() => setEditMode(true)} className="px-8 py-3 rounded-2xl bg-[var(--fbst-accent)] text-white font-black uppercase text-[10px] tracking-widest shadow-xl shadow-red-500/20 hover:scale-[1.02] transition-all">
+                           Initialize Edit
                        </button>
                    )}
                </div>
@@ -220,21 +220,21 @@ export default function Rules() {
                if(!catRules) return null;
 
                return (
-                   <section key={cat} className="bg-slate-900/50 border border-white/10 rounded-2xl overflow-hidden">
-                       <div className="bg-white/5 px-6 py-4 flex items-center gap-3 border-b border-white/5">
+                   <section key={cat} className="liquid-glass border border-white/10 rounded-[32px] overflow-hidden shadow-2xl bg-white/[0.02] backdrop-blur-xl">
+                       <div className="bg-white/5 px-8 py-6 flex items-center gap-4 border-b border-white/10">
                             {CATEGORY_ICONS[cat] ? (
                                 <img 
                                     src={CATEGORY_ICONS[cat]} 
                                     alt={cat} 
-                                    className="w-6 h-6 dark:invert" 
+                                    className="w-8 h-8 opacity-80" 
                                     style={{ filter: 'var(--fbst-icon-filter)' }} 
                                 />
                             ) : (
                                 <span className="text-2xl">📄</span>
                             )}
-                           <h2 className="text-xl font-semibold capitalize" style={{ color: 'var(--fbst-text-heading)' }}>{cat.replace('_', ' ')}</h2>
+                           <h2 className="text-xl font-black tracking-tight text-[var(--fbst-text-heading)] capitalize">{cat.replace('_', ' ')} Registry</h2>
                        </div>
-                       <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                       <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
                            {catRules.map(rule => {
                                const config = RULE_CONFIGS[rule.key] || { type: 'text' };
                                
@@ -248,8 +248,8 @@ export default function Rules() {
                                const isEditing = editMode && !isLocked;
 
                                return (
-                                   <div key={rule.id} className="space-y-1">
-                                       <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">{rule.label}</label>
+                                   <div key={rule.id} className="space-y-2">
+                                       <label className="block text-[10px] font-black text-[var(--fbst-text-muted)] uppercase tracking-[0.2em] opacity-60 ml-1">{rule.label}</label>
                                        <div>
                                            {RenderInput(rule, val, config, isEditing, (v) => handleChange(rule.id, v))}
                                        </div>
@@ -272,17 +272,22 @@ function RenderInput(rule: LeagueRule, val: string, config: RuleConfig, editing:
         if (config.type === 'checkbox_list' || config.type === 'json_object_counts') {
             try {
                 const obj = JSON.parse(val);
-                if (Array.isArray(obj)) return <div className="text-white text-sm">{obj.join(", ")}</div>;
+                if (Array.isArray(obj)) return <div className="text-[var(--fbst-text-primary)] text-sm font-bold flex flex-wrap gap-2">{obj.map(item => (
+                    <span key={item} className="bg-white/5 px-2.5 py-1 rounded-lg border border-white/5">{item}</span>
+                ))}</div>;
                 return (
-                    <div className="flex flex-wrap gap-2 text-sm text-white">
+                    <div className="flex flex-wrap gap-2">
                         {Object.entries(obj).map(([k, v]) => (
-                            <span key={k} className="bg-white/10 px-2 py-1 rounded">{k}: {String(v)}</span>
+                            <span key={k} className="bg-white/5 px-3 py-1.5 rounded-xl border border-white/5 text-xs font-black tracking-tight text-[var(--fbst-text-primary)]">
+                                <span className="text-[var(--fbst-text-muted)] opacity-40 uppercase text-[9px] tracking-widest mr-2">{k}</span>
+                                {String(v)}
+                            </span>
                         ))}
                     </div>
                 );
-            } catch { return <span className="text-white">{val}</span>; }
+            } catch { return <span className="text-[var(--fbst-text-primary)] font-bold">{val}</span>; }
         }
-        return <div className="text-lg font-medium text-white">{val}{config.suffix}</div>;
+        return <div className="text-xl font-black text-[var(--fbst-text-primary)] tracking-tight">{val}<span className="text-[var(--fbst-accent)] ml-1 opacity-60">{config.suffix}</span></div>;
     }
 
     // Edit inputs

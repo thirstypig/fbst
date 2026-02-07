@@ -22,7 +22,7 @@ interface ThemedTheadProps {
 
 export function ThemedThead({ children, className = '' }: ThemedTheadProps) {
   return (
-    <thead className={`bg-white/5 border-b border-white/10 ${className}`}>
+    <thead className={`bg-[var(--fbst-table-header-bg)] border-b border-[var(--fbst-table-border)] ${className}`}>
       {children}
     </thead>
   );
@@ -32,9 +32,11 @@ interface ThemedThProps {
   children: React.ReactNode;
   className?: string;
   align?: 'left' | 'center' | 'right';
+  onClick?: () => void;
+  title?: string;
 }
 
-export function ThemedTh({ children, className = '', align = 'left' }: ThemedThProps) {
+export function ThemedTh({ children, className = '', align = 'left', onClick, title }: ThemedThProps) {
   const alignClass = {
     left: 'text-left',
     center: 'text-center',
@@ -42,7 +44,11 @@ export function ThemedTh({ children, className = '', align = 'left' }: ThemedThP
   }[align];
   
   return (
-    <th className={`px-4 py-4 ${alignClass} text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-text-muted)] ${className}`}>
+    <th 
+      onClick={onClick}
+      title={title}
+      className={`px-4 py-4 ${alignClass} text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] ${className}`}
+    >
       {children}
     </th>
   );
@@ -52,11 +58,15 @@ interface ThemedTrProps {
   children: React.ReactNode;
   className?: string;
   isOdd?: boolean;
+  onClick?: () => void;
 }
 
-export function ThemedTr({ children, className = '' }: ThemedTrProps) {
+export function ThemedTr({ children, className = '', onClick }: ThemedTrProps) {
   return (
-    <tr className={`border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors duration-150 ${className}`}>
+    <tr 
+      onClick={onClick}
+      className={`border-b border-[var(--fbst-table-border)] last:border-0 hover:bg-[var(--fbst-table-row-hover)] transition-colors duration-150 ${className}`}
+    >
       {children}
     </tr>
   );

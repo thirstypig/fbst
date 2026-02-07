@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { getPrimaryPosition } from '../lib/baseballUtils';
 import { PlayerSeasonStat, fmtRate } from '../api';
+import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from "./ui/ThemedTable";
 
 interface AddDropTabProps {
     players: PlayerSeasonStat[];
@@ -17,26 +18,26 @@ export default function AddDropTab({ players, onClaim }: AddDropTabProps) {
     const [sortDesc, setSortDesc] = useState(false);
 
     const availablePlayers = useMemo(() => {
-        return players.filter(p => !p.ogba_team_code && !p.team);
+        return players.filter((p: PlayerSeasonStat) => !p.ogba_team_code && !p.team);
     }, [players]);
 
     const filtered = useMemo(() => {
         let res = availablePlayers;
         
         // Group Filter
-        if (viewGroup === 'hitters') res = res.filter(p => !p.is_pitcher);
-        else res = res.filter(p => p.is_pitcher);
+        if (viewGroup === 'hitters') res = res.filter((p: PlayerSeasonStat) => !p.is_pitcher);
+        else res = res.filter((p: PlayerSeasonStat) => p.is_pitcher);
 
         if (search) {
             const q = search.toLowerCase();
-            res = res.filter(p => (p.player_name || '').toLowerCase().includes(q) || (p.mlb_team || '').toLowerCase().includes(q));
+            res = res.filter((p: PlayerSeasonStat) => (p.player_name || '').toLowerCase().includes(q) || (p.mlb_team || '').toLowerCase().includes(q));
         }
         if (posFilter !== 'ALL') {
-             res = res.filter(p => (p.positions || '').includes(posFilter));
+             res = res.filter((p: PlayerSeasonStat) => (p.positions || '').includes(posFilter));
         }
         
         // Sort
-        return res.sort((a, b) => {
+        return [...res].sort((a: PlayerSeasonStat, b: PlayerSeasonStat) => {
              let valA: string | number = '';
              let valB: string | number = '';
 
@@ -68,8 +69,7 @@ export default function AddDropTab({ players, onClaim }: AddDropTabProps) {
 
     const uniquePositions = useMemo(() => {
         const s = new Set<string>();
-        // Only show positions relevant to current viewGroup could be better, but ALL is fine
-        players.forEach(p => {
+        players.forEach((p: PlayerSeasonStat) => {
             if(p.positions) p.positions.split(',').forEach((pos: string) => s.add(pos.trim()));
         });
         return Array.from(s).sort();
@@ -83,124 +83,118 @@ export default function AddDropTab({ players, onClaim }: AddDropTabProps) {
         }
     };
 
-    const Th = ({ label, k, w }: { label: string, k: SortKey, w?: string }) => (
-        <th 
-            className={`px-4 py-2 font-medium text-slate-400 cursor-pointer hover:text-white transition-colors ${w || 'text-left'} ${sortKey === k ? 'text-blue-400' : ''}`}
-            onClick={() => handleSort(k)}
-        >
-            <div className={`flex items-center gap-1 ${w?.includes('right') ? 'justify-end' : ''}`}>
-                {label}
-                {sortKey === k && (sortDesc ? '▼' : '▲')}
-            </div>
-        </th>
-    );
-
     return (
-        <div className="space-y-4">
-            <div className="flex flex-wrap gap-4 mb-4 items-center">
+        <div className="space-y-6">
+            <div className="flex flex-wrap gap-4 mb-2 items-center">
                 {/* Toggle */}
-                <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-800">
+                <div className="flex bg-white/5 rounded-2xl p-1 border border-white/10 backdrop-blur-md">
                     <button 
                         onClick={() => { setViewGroup('hitters'); setSortKey('name'); }}
-                        className={`px-3 py-1 text-xs font-bold rounded transition-colors ${viewGroup === 'hitters' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                        className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewGroup === 'hitters' ? 'bg-[var(--fbst-accent)] text-white shadow-lg' : 'text-[var(--fbst-text-muted)] hover:text-white hover:bg-white/5'}`}
                     >
-                        Hitters
+                        Strike Force
                     </button>
                     <button 
                          onClick={() => { setViewGroup('pitchers'); setSortKey('name'); }}
-                         className={`px-3 py-1 text-xs font-bold rounded transition-colors ${viewGroup === 'pitchers' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                         className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewGroup === 'pitchers' ? 'bg-[var(--fbst-accent)] text-white shadow-lg' : 'text-[var(--fbst-text-muted)] hover:text-white hover:bg-white/5'}`}
                     >
-                        Pitchers
+                        Defense Core
                     </button>
                 </div>
 
-                <input 
-                    className="flex-1 min-w-[200px] rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
-                    placeholder="Search Free Agents..."
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                />
+                <div className="relative flex-1 min-w-[240px]">
+                    <input 
+                        className="w-full rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm text-white outline-none focus:border-[var(--fbst-accent)] transition-all font-bold placeholder:opacity-30"
+                        placeholder="Search Unrestricted Agents..."
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                    />
+                </div>
                 
                 <select 
-                     className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-white/20"
+                     className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm text-white outline-none focus:border-[var(--fbst-accent)] transition-all font-bold cursor-pointer"
                      value={posFilter}
                      onChange={e => setPosFilter(e.target.value)}
                 >
-                    <option value="ALL">All Positions</option>
-                    {uniquePositions.map(p => <option key={p} value={p}>{p}</option>)}
+                    <option value="ALL" className="text-black">All Sectors</option>
+                    {uniquePositions.map(p => <option key={p} value={p} className="text-black">{p}</option>)}
                 </select>
             </div>
 
-            <div className="overflow-x-auto rounded-lg border border-slate-800">
-                <table className="min-w-full border-collapse text-sm">
-                    <thead className="bg-slate-900 shadow-sm whitespace-nowrap">
-                        <tr>
-                            <Th label="Player" k="name" />
-                            <Th label="Team" k="mlb_team" />
-                            <Th label="Pos" k="pos" />
-                            
-                            {viewGroup === 'hitters' ? (
-                                <>
-                                    <Th label="R" k="R" w="text-center" />
-                                    <Th label="HR" k="HR" w="text-center" />
-                                    <Th label="RBI" k="RBI" w="text-center" />
-                                    <Th label="SB" k="SB" w="text-center" />
-                                    <Th label="AVG" k="AVG" w="text-center" />
-                                </>
-                            ) : (
-                                <>
-                                    <Th label="W" k="W" w="text-center" />
-                                    <Th label="SV" k="SV" w="text-center" />
-                                    <Th label="K" k="K" w="text-center" />
-                                    <Th label="ERA" k="ERA" w="text-center" />
-                                    <Th label="WHIP" k="WHIP" w="text-center" />
-                                </>
-                            )}
-                            
-                            <th className="px-4 py-2 text-center font-medium text-slate-400">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800 bg-slate-900/40">
-                         {filtered.map(p => (
-                             <tr key={`${p.mlb_id}-${viewGroup}`} className="hover:bg-slate-800/40 transition-colors">
-                                 <td className="px-4 py-2 text-slate-300 font-bold whitespace-nowrap">{p.player_name}</td>
-                                 <td className="px-4 py-2 text-slate-400">{p.mlb_team}</td>
-                                 <td className="px-4 py-2 text-slate-400 font-mono text-xs">{getPrimaryPosition?.(p.positions) || p.positions}</td>
-                                 
-                                 {viewGroup === 'hitters' ? (
-                                     <>
-                                         <td className="px-4 py-2 text-slate-400 text-center">{p.R}</td>
-                                         <td className="px-4 py-2 text-slate-400 text-center">{p.HR}</td>
-                                         <td className="px-4 py-2 text-slate-400 text-center">{p.RBI}</td>
-                                         <td className="px-4 py-2 text-slate-400 text-center">{p.SB}</td>
-                                         <td className="px-4 py-2 text-slate-400 text-center">{fmtRate(Number(p.AVG || 0))}</td>
-                                     </>
-                                 ) : (
-                                     <>
-                                         <td className="px-4 py-2 text-slate-400 text-center">{p.W}</td>
-                                         <td className="px-4 py-2 text-slate-400 text-center">{p.SV}</td>
-                                         <td className="px-4 py-2 text-slate-400 text-center">{p.K}</td>
-                                         <td className="px-4 py-2 text-slate-400 text-center">{Number(p.ERA || 0).toFixed(2)}</td>
-                                         <td className="px-4 py-2 text-slate-400 text-center">{Number(p.WHIP || 0).toFixed(2)}</td>
-                                     </>
-                                 )}
+            <ThemedTable>
+                <ThemedThead>
+                    <ThemedTr>
+                        <ThemedTh onClick={() => handleSort('name')} className="cursor-pointer hover:text-[var(--fbst-text-primary)]">
+                           <div className="flex items-center gap-1">Player {sortKey === 'name' && (sortDesc ? '▼' : '▲')}</div>
+                        </ThemedTh>
+                        <ThemedTh onClick={() => handleSort('mlb_team')} className="cursor-pointer hover:text-[var(--fbst-text-primary)]">
+                           <div className="flex items-center gap-1">Team {sortKey === 'mlb_team' && (sortDesc ? '▼' : '▲')}</div>
+                        </ThemedTh>
+                        <ThemedTh onClick={() => handleSort('pos')} className="cursor-pointer hover:text-[var(--fbst-text-primary)]">
+                           <div className="flex items-center gap-1">Sector {sortKey === 'pos' && (sortDesc ? '▼' : '▲')}</div>
+                        </ThemedTh>
+                        
+                        {viewGroup === 'hitters' ? (
+                            <>
+                                <ThemedTh align="center" onClick={() => handleSort('R')} className="cursor-pointer hover:text-[var(--fbst-text-primary)]">R</ThemedTh>
+                                <ThemedTh align="center" onClick={() => handleSort('HR')} className="cursor-pointer hover:text-[var(--fbst-text-primary)]">HR</ThemedTh>
+                                <ThemedTh align="center" onClick={() => handleSort('RBI')} className="cursor-pointer hover:text-[var(--fbst-text-primary)]">RBI</ThemedTh>
+                                <ThemedTh align="center" onClick={() => handleSort('SB')} className="cursor-pointer hover:text-[var(--fbst-text-primary)]">SB</ThemedTh>
+                                <ThemedTh align="center" onClick={() => handleSort('AVG')} className="cursor-pointer hover:text-[var(--fbst-text-primary)]">AVG</ThemedTh>
+                            </>
+                        ) : (
+                            <>
+                                <ThemedTh align="center" onClick={() => handleSort('W')} className="cursor-pointer hover:text-[var(--fbst-text-primary)]">W</ThemedTh>
+                                <ThemedTh align="center" onClick={() => handleSort('SV')} className="cursor-pointer hover:text-[var(--fbst-text-primary)]">SV</ThemedTh>
+                                <ThemedTh align="center" onClick={() => handleSort('K')} className="cursor-pointer hover:text-[var(--fbst-text-primary)]">K</ThemedTh>
+                                <ThemedTh align="center" onClick={() => handleSort('ERA')} className="cursor-pointer hover:text-[var(--fbst-text-primary)]">ERA</ThemedTh>
+                                <ThemedTh align="center" onClick={() => handleSort('WHIP')} className="cursor-pointer hover:text-[var(--fbst-text-primary)]">WHIP</ThemedTh>
+                            </>
+                        )}
+                        
+                        <ThemedTh align="center">Action</ThemedTh>
+                    </ThemedTr>
+                </ThemedThead>
+                <tbody className="divide-y divide-white/5">
+                     {filtered.map(p => (
+                         <ThemedTr key={`${p.mlb_id}-${viewGroup}`}>
+                             <ThemedTd className="font-black text-[var(--fbst-text-primary)] tracking-tight whitespace-nowrap">{p.player_name}</ThemedTd>
+                             <ThemedTd className="font-bold text-[var(--fbst-text-muted)]">{p.mlb_team}</ThemedTd>
+                             <ThemedTd className="font-black text-[var(--fbst-text-secondary)] font-mono text-[10px] uppercase tracking-widest bg-white/5 py-1 px-2 rounded-lg inline-block my-3 ml-4">{getPrimaryPosition?.(p.positions) || p.positions}</ThemedTd>
+                             
+                             {viewGroup === 'hitters' ? (
+                                 <>
+                                     <ThemedTd align="center" className="font-mono">{p.R}</ThemedTd>
+                                     <ThemedTd align="center" className="font-mono">{p.HR}</ThemedTd>
+                                     <ThemedTd align="center" className="font-mono">{p.RBI}</ThemedTd>
+                                     <ThemedTd align="center" className="font-mono">{p.SB}</ThemedTd>
+                                     <ThemedTd align="center" className="font-mono">{fmtRate(Number(p.AVG || 0))}</ThemedTd>
+                                 </>
+                             ) : (
+                                 <>
+                                     <ThemedTd align="center" className="font-mono">{p.W}</ThemedTd>
+                                     <ThemedTd align="center" className="font-mono">{p.SV}</ThemedTd>
+                                     <ThemedTd align="center" className="font-mono">{p.K}</ThemedTd>
+                                     <ThemedTd align="center" className="font-mono">{Number(p.ERA || 0).toFixed(2)}</ThemedTd>
+                                     <ThemedTd align="center" className="font-mono">{Number(p.WHIP || 0).toFixed(2)}</ThemedTd>
+                                 </>
+                             )}
 
-                                 <td className="px-4 py-2 text-center">
-                                     <button 
-                                         onClick={() => onClaim(p)}
-                                         className="px-3 py-1 bg-green-600/20 hover:bg-green-600/40 text-green-400 border border-green-600/50 rounded text-xs font-bold uppercase transition-colors"
-                                     >
-                                         Claim
-                                     </button>
-                                 </td>
-                             </tr>
-                         ))}
-                         {filtered.length === 0 && (
-                             <tr><td colSpan={9} className="p-8 text-center text-slate-500">No players found</td></tr>
-                         )}
-                    </tbody>
-                </table>
-            </div>
+                             <ThemedTd align="center">
+                                 <button 
+                                     onClick={() => onClaim(p)}
+                                     className="px-4 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                                 >
+                                     Secure
+                                 </button>
+                             </ThemedTd>
+                         </ThemedTr>
+                     ))}
+                     {filtered.length === 0 && (
+                         <ThemedTr><ThemedTd colSpan={9} className="py-20 text-center text-xs font-black text-[var(--fbst-text-muted)] uppercase tracking-[0.2em]">Zero velocity players found</ThemedTd></ThemedTr>
+                     )}
+                </tbody>
+            </ThemedTable>
         </div>
     );
 }

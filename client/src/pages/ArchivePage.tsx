@@ -14,6 +14,7 @@ import {
   PeriodSummaryTable, TeamPeriodSummaryRow, 
   CategoryPeriodTable, CategoryPeriodRow 
 } from '../components/StatsTables';
+import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from '../components/ui/ThemedTable';
 
 interface PlayerStat {
   id: number;
@@ -454,11 +455,11 @@ export default function ArchivePage() {
   };
 
   return (
-    <div className="flex-1 min-h-screen">
-      <main className="max-w-6xl mx-auto px-6 py-12">
+    <div className="flex-1 min-h-screen bg-[var(--fbst-surface-primary)] text-[var(--fbst-text-primary)]">
+      <main className="max-w-7xl mx-auto px-6 py-12">
         <PageHeader 
           title="Historical Archive" 
-          subtitle="Explore the legacy of the FSBT. Browse past season standings, draft results, and performance records."
+          subtitle="Registry of FSBT Legacies: Investigative performance logs and recruitment historicals."
         />
 
         {error && (
@@ -469,45 +470,45 @@ export default function ArchivePage() {
         )}
 
         {/* TOP SELECTORS */}
-        <div className="mb-12 flex flex-wrap gap-4 items-center">
-            <div className="flex items-center gap-3 liquid-glass p-1.5 rounded-2xl border border-white/10 pr-4">
-              <div className="bg-white/5 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)]">Year</div>
+        <div className="mb-12 flex flex-wrap gap-6 items-center">
+            <div className="flex items-center gap-3 liquid-glass p-1.5 rounded-2xl border border-white/10 pr-6 bg-white/[0.02]">
+              <div className="bg-white/5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)]">Temporal Cycle</div>
               <select
                 value={selectedYear || ''}
                 onChange={(e) => setSelectedYear(Number(e.target.value))}
                 className="bg-transparent text-sm text-[var(--fbst-text-primary)] outline-none font-bold cursor-pointer hover:text-[var(--fbst-accent)] transition-colors"
               >
-                <option value="" className="bg-slate-900 border-none">Select Year...</option>
+                <option value="" className="bg-[#0c0c0c] border-none">Select Year...</option>
                 {seasons.map((s) => {
                   const year = typeof s === 'number' ? s : s.year;
                   return (
-                    <option key={year} value={year} className="bg-slate-900 border-none">{year}</option>
+                    <option key={year} value={year} className="bg-[#0c0c0c] border-none">{year}</option>
                   );
                 })}
               </select>
             </div>
 
-            <div className="flex items-center gap-3 liquid-glass p-1.5 rounded-2xl border border-white/10 pr-4">
-              <div className="bg-white/5 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)]">Interval</div>
+            <div className="flex items-center gap-3 liquid-glass p-1.5 rounded-2xl border border-white/10 pr-6 bg-white/[0.02]">
+              <div className="bg-white/5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)]">Data Interval</div>
               <select
                 value={selectedPeriod || ''}
                 onChange={(e) => setSelectedPeriod(Number(e.target.value))}
                 disabled={!selectedYear}
-                className="bg-transparent text-sm text-[var(--fbst-text-primary)] outline-none font-bold cursor-pointer hover:text-[var(--fbst-accent)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="bg-transparent text-sm text-[var(--fbst-text-primary)] outline-none font-bold cursor-pointer hover:text-[var(--fbst-accent)] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                <option value="0" className="bg-slate-900 border-none">Full Season (Matrix)</option>
+                <option value="0" className="bg-[#0c0c0c] border-none">Unified Season (Matrix)</option>
                 {periods.map((p) => {
                   const formatDate = (dateStr: string | null) => {
                     if (!dateStr) return '';
                     const d = new Date(dateStr);
                     return `${d.getMonth() + 1}/${d.getDate()}`;
                   };
-                  const startLabel = p.periodNumber === 1 ? 'Draft' : formatDate(p.startDate);
+                  const startLabel = p.periodNumber === 1 ? 'Phase 0' : formatDate(p.startDate);
                   const endLabel = formatDate(p.endDate);
-                  const dateRange = startLabel && endLabel ? ` (${startLabel} - ${endLabel})` : '';
+                  const dateRange = startLabel && endLabel ? ` [${startLabel} → ${endLabel}]` : '';
                   return (
-                    <option key={p.id} value={p.periodNumber} className="bg-slate-900 border-none">
-                      Period {p.periodNumber}{dateRange}
+                    <option key={p.id} value={p.periodNumber} className="bg-[#0c0c0c] border-none">
+                      Interval {p.periodNumber}{dateRange}
                     </option>
                   );
                 })}
@@ -531,47 +532,47 @@ export default function ArchivePage() {
 
         {/* NAVIGATION TABS */}
         {selectedYear && (
-          <div className="mb-12 flex gap-2 liquid-glass p-1.5 rounded-3xl border border-white/10 shadow-xl w-fit">
+          <div className="mb-12 flex gap-1 liquid-glass p-1 rounded-2xl border border-white/10 shadow-xl w-fit bg-white/5 backdrop-blur-xl">
             <button
               onClick={() => setActiveTab('standings')}
-              className={`px-6 py-3 text-xs font-black uppercase tracking-widest rounded-2xl transition-all ${
+              className={`px-8 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${
                 activeTab === 'standings'
-                  ? 'bg-[var(--fbst-accent)] text-white shadow-xl scale-105'
-                  : 'text-[var(--fbst-text-muted)] hover:text-[var(--fbst-text-primary)] hover:bg-white/5'
+                  ? 'bg-[var(--fbst-accent)] text-white shadow-xl scale-[1.02]'
+                  : 'text-[var(--fbst-text-muted)] hover:text-white hover:bg-white/5'
               }`}
             >
-              Standings
+              Aggregated Standings
             </button>
             <button
               onClick={() => setActiveTab('stats')}
-              className={`px-6 py-3 text-xs font-black uppercase tracking-widest rounded-2xl transition-all ${
+              className={`px-8 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${
                 activeTab === 'stats'
-                  ? 'bg-[var(--fbst-accent)] text-white shadow-xl scale-105'
-                  : 'text-[var(--fbst-text-muted)] hover:text-[var(--fbst-text-primary)] hover:bg-white/5'
+                  ? 'bg-[var(--fbst-accent)] text-white shadow-xl scale-[1.02]'
+                  : 'text-[var(--fbst-text-muted)] hover:text-white hover:bg-white/5'
               }`}
             >
-              Period Stats
+              Performance Metrics
             </button>
             <button
               onClick={() => setActiveTab('draft')}
-              className={`px-6 py-3 text-xs font-black uppercase tracking-widest rounded-2xl transition-all ${
+              className={`px-8 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${
                 activeTab === 'draft'
-                  ? 'bg-[var(--fbst-accent)] text-white shadow-xl scale-105'
-                  : 'text-[var(--fbst-text-muted)] hover:text-[var(--fbst-text-primary)] hover:bg-white/5'
+                  ? 'bg-[var(--fbst-accent)] text-white shadow-xl scale-[1.02]'
+                  : 'text-[var(--fbst-text-muted)] hover:text-white hover:bg-white/5'
               }`}
             >
-              Auction Draft
+              Draft Reclamation
             </button>
             {canEdit && (
               <button
                 onClick={() => setActiveTab('admin')}
-                className={`px-6 py-3 text-xs font-black uppercase tracking-widest rounded-2xl transition-all ${
+                className={`px-8 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${
                   activeTab === 'admin'
-                    ? 'bg-amber-500 text-white shadow-xl scale-105'
+                    ? 'bg-amber-500 text-white shadow-xl scale-[1.02]'
                     : 'text-amber-500/60 hover:text-amber-500 hover:bg-amber-500/5'
                 }`}
               >
-                Admin
+                Orchestration
               </button>
             )}
           </div>
@@ -590,16 +591,24 @@ export default function ArchivePage() {
                        <span className="text-amber-500">📝</span>
                        <h3 className="text-sm font-black uppercase tracking-widest text-amber-500">Capital Reallocations</h3>
                     </div>
-                    <div className="p-6 space-y-4">
-                      {draftTrades.map((trade, i) => (
-                        <div key={i} className="flex items-center justify-between text-sm group">
-                          <div className="flex items-center gap-3">
-                             <div className="bg-white/5 px-2 py-1 rounded-lg text-[10px] font-black tabular-nums text-[var(--fbst-text-muted)]">${trade.amount}</div>
-                             <div className="text-[var(--fbst-text-primary)] font-bold">{trade.fromTeamCode} → {trade.toTeamCode}</div>
-                             {trade.note && <div className="text-[var(--fbst-text-muted)] text-xs italic opacity-40 group-hover:opacity-100 transition-opacity">"{trade.note}"</div>}
-                          </div>
-                        </div>
-                      ))}
+                    <div className="p-6">
+                      <ThemedTable>
+                        <tbody className="divide-y divide-white/5">
+                          {draftTrades.map((trade, i) => (
+                            <ThemedTr key={i} className="group border-none hover:bg-white/5 transition-all">
+                                <ThemedTd className="py-2.5">
+                                    <div className="flex items-center gap-3">
+                                        <div className="bg-white/5 px-3 py-1 rounded-xl text-[10px] font-black tabular-nums text-[var(--fbst-accent)] border border-white/5">${trade.amount}</div>
+                                        <div className="text-[var(--fbst-text-primary)] font-black tracking-tight">{trade.fromTeamCode} <span className="text-[var(--fbst-text-muted)] opacity-30">→</span> {trade.toTeamCode}</div>
+                                    </div>
+                                </ThemedTd>
+                                <ThemedTd className="py-2.5 text-right">
+                                    {trade.note && <div className="text-[var(--fbst-text-muted)] text-[10px] font-black uppercase tracking-widest opacity-40 group-hover:opacity-100 transition-opacity">"{trade.note}"</div>}
+                                </ThemedTd>
+                            </ThemedTr>
+                          ))}
+                        </tbody>
+                      </ThemedTable>
                     </div>
                   </div>
                 ) : (
@@ -690,38 +699,38 @@ export default function ArchivePage() {
                           {hitters.length > 0 && (
                             <div className="border-b border-white/5">
                               <div className="px-8 py-3 bg-blue-500/5 text-[10px] font-black uppercase tracking-[0.2em] text-blue-400">Batting Roster</div>
-                              <table className="w-full text-xs">
-                                <thead>
-                                  <tr className="bg-white/5 text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)]">
-                                    <th className="px-8 py-3 text-left">Identity</th>
-                                    <th className="px-4 py-3 text-center w-12">Pos</th>
-                                    <th className="px-4 py-3 text-center w-12">Org</th>
-                                    <th className="px-8 py-3 text-right w-20">Value</th>
-                                  </tr>
-                                </thead>
+                              <ThemedTable>
+                                <ThemedThead>
+                                  <ThemedTr>
+                                    <ThemedTh className="px-8 py-3">Identity</ThemedTh>
+                                    <ThemedTh align="center" className="w-12">Sector</ThemedTh>
+                                    <ThemedTh align="center" className="w-12">Org</ThemedTh>
+                                    <ThemedTh align="right" className="px-8 py-3 w-20">Value</ThemedTh>
+                                  </ThemedTr>
+                                </ThemedThead>
                                 <tbody className="divide-y divide-white/5">
                                   {hitters.map((p, i) => {
                                     const isKeeper = p.isKeeper || yearKeepers.some((k: string) => 
                                       p.playerName === k || p.fullName === k || p.fullName.includes(k)
                                     );
                                     return (
-                                      <tr key={i} className={`hover:bg-white/5 transition-colors ${isKeeper ? 'bg-amber-500/5' : ''}`}>
-                                        <td className="px-8 py-3 font-bold">
+                                      <ThemedTr key={i} className={isKeeper ? 'bg-amber-500/5' : ''}>
+                                        <ThemedTd className="px-8 py-3 font-black tracking-tight">
                                           <div className="flex items-center gap-3">
                                             <span className="text-blue-400">{p.fullName}</span>
                                             {isKeeper && (
-                                              <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[8px] font-black uppercase">K</span>
+                                              <span className="px-1.5 py-0.5 rounded-lg bg-amber-500 text-white text-[8px] font-black uppercase shadow-lg shadow-amber-500/20">K</span>
                                             )}
                                           </div>
-                                        </td>
-                                        <td className="px-4 py-3 text-center text-[var(--fbst-text-muted)] font-black uppercase">{p.position}</td>
-                                        <td className="px-4 py-3 text-center text-[var(--fbst-text-muted)] opacity-60">{p.mlbTeam || 'FA'}</td>
-                                        <td className="px-8 py-3 text-right font-black text-emerald-400 tabular-nums">${p.draftDollars}</td>
-                                      </tr>
+                                        </ThemedTd>
+                                        <ThemedTd align="center" className="text-[var(--fbst-text-muted)] font-mono font-black">{p.position}</ThemedTd>
+                                        <ThemedTd align="center" className="text-[var(--fbst-text-muted)] opacity-60 font-black">{p.mlbTeam || 'FA'}</ThemedTd>
+                                        <ThemedTd align="right" className="px-8 py-3 font-black text-emerald-400 tabular-nums text-base tracking-tighter">${p.draftDollars}</ThemedTd>
+                                      </ThemedTr>
                                     );
                                   })}
                                 </tbody>
-                              </table>
+                              </ThemedTable>
                             </div>
                           )}
 
@@ -829,27 +838,29 @@ export default function ArchivePage() {
               ) : periodResults.length === 0 ? (
                 <div className="text-center py-20 text-[var(--fbst-text-muted)] italic opacity-40">Zero velocity data available.</div>
               ) : (
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-white/5 border-b border-white/10">
-                      <th className="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] min-w-[240px]">Franchise</th>
+                <ThemedTable>
+                  <ThemedThead>
+                    <ThemedTr>
+                      <ThemedTh className="px-8 py-5 min-w-[240px]">Franchise</ThemedTh>
                       {periodResults.map(p => (
-                        <th 
+                        <ThemedTh 
                           key={p.periodNumber} 
                           onClick={() => handleSort(p.periodNumber)}
-                          className="px-4 py-4 text-center text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] cursor-pointer hover:bg-white/10 transition-colors"
+                          align="center"
+                          className="px-4 py-5 cursor-pointer"
                         >
-                          <div className="flex items-center justify-center gap-1">
-                            P{p.periodNumber}
+                          <div className="flex items-center justify-center gap-2">
+                            Interval {p.periodNumber}
                             {sortConfig.key === p.periodNumber && (
                               <span className="text-[var(--fbst-accent)]">{sortConfig.direction === 'desc' ? '▼' : '▲'}</span>
                             )}
                           </div>
-                        </th>
+                        </ThemedTh>
                       ))}
-                      <th 
+                      <ThemedTh 
                         onClick={() => handleSort('final')}
-                        className="px-8 py-4 text-center text-[10px] font-black uppercase tracking-widest text-[var(--fbst-accent)] cursor-pointer hover:bg-[var(--fbst-accent)]/10 transition-colors bg-[var(--fbst-accent)]/5"
+                        align="center"
+                        className="px-8 py-5 text-[var(--fbst-accent)] cursor-pointer bg-[var(--fbst-accent)]/5"
                       >
                         <div className="flex items-center justify-center gap-1">
                           RESULT
@@ -857,9 +868,9 @@ export default function ArchivePage() {
                             <span>{sortConfig.direction === 'desc' ? '▼' : '▲'}</span>
                           )}
                         </div>
-                      </th>
-                    </tr>
-                  </thead>
+                      </ThemedTh>
+                    </ThemedTr>
+                  </ThemedThead>
                   <tbody className="divide-y divide-white/5">
                     {Object.keys(OGBA_TEAM_NAMES)
                       .sort((a, b) => {
@@ -880,28 +891,28 @@ export default function ArchivePage() {
                           ?.find((s: any) => s.teamCode === teamCode)?.totalScore || 0;
 
                         return (
-                          <tr key={teamCode} className="hover:bg-white/5 transition-colors group">
-                            <td className="px-8 py-4 font-bold text-[var(--fbst-text-primary)]">
+                          <ThemedTr key={teamCode} className="group border-none">
+                            <ThemedTd className="px-8 py-4 font-black tracking-tight text-[var(--fbst-text-primary)]">
                               {OGBA_TEAM_NAMES[teamCode] || teamCode}
-                            </td>
+                            </ThemedTd>
                             {periodResults.map(p => {
                               const standing = p.standings?.find((s: any) => s.teamCode === teamCode);
                               const maxScore = Math.max(...p.standings.map((s: any) => s.totalScore));
                               const isWinner = standing && standing.totalScore === maxScore;
                               return (
-                                <td key={p.periodNumber} className={`px-4 py-4 text-center tabular-nums transition-colors ${isWinner ? 'font-black text-amber-400 bg-amber-500/5' : 'text-[var(--fbst-text-muted)]'}`}>
+                                <ThemedTd key={p.periodNumber} align="center" className={`px-4 py-4 tabular-nums ${isWinner ? 'font-black text-amber-400 bg-amber-500/5' : 'text-[var(--fbst-text-muted)] font-medium'}`}>
                                   {standing ? standing.totalScore.toFixed(1) : '-'}
-                                </td>
+                                </ThemedTd>
                               );
                             })}
-                            <td className="px-8 py-4 text-center font-black text-[var(--fbst-accent)] bg-[var(--fbst-accent)]/5 tabular-nums">
+                            <ThemedTd align="center" className="px-8 py-4 font-black text-[var(--fbst-accent)] bg-[var(--fbst-accent)]/5 tabular-nums text-base tracking-tighter">
                               {finalScore.toFixed(1)}
-                            </td>
-                          </tr>
+                            </ThemedTd>
+                          </ThemedTr>
                         );
                       })}
                   </tbody>
-                </table>
+                </ThemedTable>
               )}
             </div>
             <div className="px-8 py-4 bg-white/5 border-t border-white/10 text-[10px] font-bold uppercase tracking-widest text-[var(--fbst-text-muted)] opacity-60">
@@ -958,41 +969,41 @@ export default function ArchivePage() {
                             <div className="rounded-2xl border border-white/5 overflow-hidden">
                               <div className="px-6 py-3 bg-blue-500/5 text-[10px] font-black uppercase tracking-[0.2em] text-blue-400 border-b border-white/5">Batting Stats</div>
                               <div className="overflow-x-auto">
-                                <table className="w-full text-xs text-left">
-                                  <thead>
-                                    <tr className="bg-white/5 text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] border-b border-white/10">
-                                      <th className="px-6 py-4">Identity</th>
-                                      <th className="px-4 py-4 text-center">Pos</th>
-                                      <th className="px-4 py-4 text-center">Org</th>
-                                      <th className="px-4 py-4 text-right">R</th>
-                                      <th className="px-4 py-4 text-right">HR</th>
-                                      <th className="px-4 py-4 text-right">RBI</th>
-                                      <th className="px-4 py-4 text-right">SB</th>
-                                      <th className="px-4 py-4 text-right">AVG</th>
-                                      <th className="px-6 py-4 text-right text-sky-400">GS</th>
-                                    </tr>
-                                  </thead>
+                                <ThemedTable>
+                                  <ThemedThead>
+                                    <ThemedTr>
+                                      <ThemedTh className="px-6 py-4">Identity</ThemedTh>
+                                      <ThemedTh align="center">Sector</ThemedTh>
+                                      <ThemedTh align="center">Org</ThemedTh>
+                                      <ThemedTh align="right">R</ThemedTh>
+                                      <ThemedTh align="right">HR</ThemedTh>
+                                      <ThemedTh align="right">RBI</ThemedTh>
+                                      <ThemedTh align="right">SB</ThemedTh>
+                                      <ThemedTh align="right">AVG</ThemedTh>
+                                      <ThemedTh align="right" className="px-6 py-4 text-sky-400">GS</ThemedTh>
+                                    </ThemedTr>
+                                  </ThemedThead>
                                   <tbody className="divide-y divide-white/5">
                                     {hitters.map((p) => (
-                                      <tr key={p.id} onClick={() => setEditingStat(p)} className="cursor-pointer hover:bg-white/5 transition-colors group">
-                                        <td className="px-6 py-3 font-bold">
+                                      <ThemedTr key={p.id} onClick={() => setEditingStat(p)} className="cursor-pointer group">
+                                        <ThemedTd className="px-6 py-3 font-black tracking-tight">
                                           <div className="flex items-center gap-2">
                                             <span className="text-[var(--fbst-text-primary)] group-hover:text-[var(--fbst-accent)] transition-colors">{p.displayName || p.fullName || p.playerName}</span>
                                             {!p.mlbId && <span className="text-amber-500 text-[8px]" title="Missing MLB ID">⚠️</span>}
                                           </div>
-                                        </td>
-                                        <td className="px-4 py-3 text-center text-[var(--fbst-text-muted)] font-black uppercase">{p.position || '—'}</td>
-                                        <td className="px-4 py-3 text-center text-[var(--fbst-text-muted)] opacity-60">{p.mlbTeam || '—'}</td>
-                                        <td className="px-4 py-3 text-right tabular-nums">{p.R ?? '0'}</td>
-                                        <td className="px-4 py-3 text-right tabular-nums">{p.HR ?? '0'}</td>
-                                        <td className="px-4 py-3 text-right tabular-nums">{p.RBI ?? '0'}</td>
-                                        <td className="px-4 py-3 text-right tabular-nums">{p.SB ?? '0'}</td>
-                                        <td className="px-4 py-3 text-right tabular-nums">{p.AVG !== undefined ? fmtRate(p.AVG) : '.000'}</td>
-                                        <td className="px-6 py-3 text-right tabular-nums font-black text-sky-400 opacity-60 group-hover:opacity-100 transition-opacity">{p.GS ?? '0'}</td>
-                                      </tr>
+                                        </ThemedTd>
+                                        <ThemedTd align="center" className="text-[var(--fbst-text-muted)] font-black uppercase opacity-60">{p.position || '—'}</ThemedTd>
+                                        <ThemedTd align="center" className="text-[var(--fbst-text-muted)] opacity-40 font-black">{p.mlbTeam || '—'}</ThemedTd>
+                                        <ThemedTd align="right" className="tabular-nums font-black">{p.R ?? '0'}</ThemedTd>
+                                        <ThemedTd align="right" className="tabular-nums font-black">{p.HR ?? '0'}</ThemedTd>
+                                        <ThemedTd align="right" className="tabular-nums font-black">{p.RBI ?? '0'}</ThemedTd>
+                                        <ThemedTd align="right" className="tabular-nums font-black">{p.SB ?? '0'}</ThemedTd>
+                                        <ThemedTd align="right" className="tabular-nums font-black">{p.AVG !== undefined ? fmtRate(p.AVG) : '.000'}</ThemedTd>
+                                        <ThemedTd align="right" className="px-6 py-3 tabular-nums font-black text-sky-400 opacity-60 group-hover:opacity-100 transition-opacity">{p.GS ?? '0'}</ThemedTd>
+                                      </ThemedTr>
                                     ))}
                                   </tbody>
-                                </table>
+                                </ThemedTable>
                               </div>
                             </div>
                           )}
@@ -1001,41 +1012,41 @@ export default function ArchivePage() {
                             <div className="rounded-2xl border border-white/5 overflow-hidden">
                               <div className="px-6 py-3 bg-purple-500/5 text-[10px] font-black uppercase tracking-[0.2em] text-purple-400 border-b border-white/5">Pitching Stats</div>
                               <div className="overflow-x-auto">
-                                <table className="w-full text-xs text-left">
-                                  <thead>
-                                    <tr className="bg-white/5 text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] border-b border-white/10">
-                                      <th className="px-6 py-4">Identity</th>
-                                      <th className="px-4 py-4 text-center">Pos</th>
-                                      <th className="px-4 py-4 text-center">Org</th>
-                                      <th className="px-4 py-4 text-right">W</th>
-                                      <th className="px-4 py-4 text-right">SV</th>
-                                      <th className="px-4 py-4 text-right">K</th>
-                                      <th className="px-4 py-4 text-right">ERA</th>
-                                      <th className="px-4 py-4 text-right">WHIP</th>
-                                      <th className="px-6 py-4 text-right text-purple-400">SO</th>
-                                    </tr>
-                                  </thead>
+                                <ThemedTable>
+                                  <ThemedThead>
+                                    <ThemedTr>
+                                      <ThemedTh className="px-6 py-4">Identity</ThemedTh>
+                                      <ThemedTh align="center">Sector</ThemedTh>
+                                      <ThemedTh align="center">Org</ThemedTh>
+                                      <ThemedTh align="right">W</ThemedTh>
+                                      <ThemedTh align="right">SV</ThemedTh>
+                                      <ThemedTh align="right">K</ThemedTh>
+                                      <ThemedTh align="right">ERA</ThemedTh>
+                                      <ThemedTh align="right">WHIP</ThemedTh>
+                                      <ThemedTh align="right" className="px-6 py-4 text-purple-400">SO</ThemedTh>
+                                    </ThemedTr>
+                                  </ThemedThead>
                                   <tbody className="divide-y divide-white/5">
                                     {pitchers.map((p) => (
-                                      <tr key={p.id} onClick={() => setEditingStat(p)} className="cursor-pointer hover:bg-white/5 transition-colors group">
-                                        <td className="px-6 py-3 font-bold">
+                                      <ThemedTr key={p.id} onClick={() => setEditingStat(p)} className="cursor-pointer group">
+                                        <ThemedTd className="px-6 py-3 font-black tracking-tight">
                                           <div className="flex items-center gap-2">
                                             <span className="text-[var(--fbst-text-primary)] group-hover:text-[var(--fbst-accent)] transition-colors">{p.displayName || p.fullName || p.playerName}</span>
                                             {!p.mlbId && <span className="text-amber-500 text-[8px]" title="Missing MLB ID">⚠️</span>}
                                           </div>
-                                        </td>
-                                        <td className="px-4 py-3 text-center text-[var(--fbst-text-muted)] font-black uppercase">{p.position || 'P'}</td>
-                                        <td className="px-4 py-3 text-center text-[var(--fbst-text-muted)] opacity-60">{p.mlbTeam || '—'}</td>
-                                        <td className="px-4 py-3 text-right tabular-nums">{p.W ?? '0'}</td>
-                                        <td className="px-4 py-3 text-right tabular-nums">{p.SV ?? '0'}</td>
-                                        <td className="px-4 py-3 text-right tabular-nums">{p.K ?? '0'}</td>
-                                        <td className="px-4 py-3 text-right tabular-nums">{p.ERA?.toFixed(2) ?? '0.00'}</td>
-                                        <td className="px-4 py-3 text-right tabular-nums">{p.WHIP?.toFixed(2) ?? '0.00'}</td>
-                                        <td className="px-6 py-3 text-right tabular-nums font-black text-purple-400 opacity-60 group-hover:opacity-100 transition-opacity">{p.SO ?? '0'}</td>
-                                      </tr>
+                                        </ThemedTd>
+                                        <ThemedTd align="center" className="text-[var(--fbst-text-muted)] font-black uppercase opacity-60">{p.position || 'P'}</ThemedTd>
+                                        <ThemedTd align="center" className="text-[var(--fbst-text-muted)] opacity-40 font-black">{p.mlbTeam || '—'}</ThemedTd>
+                                        <ThemedTd align="right" className="tabular-nums font-black">{p.W ?? '0'}</ThemedTd>
+                                        <ThemedTd align="right" className="tabular-nums font-black">{p.SV ?? '0'}</ThemedTd>
+                                        <ThemedTd align="right" className="tabular-nums font-black">{p.K ?? '0'}</ThemedTd>
+                                        <ThemedTd align="right" className="tabular-nums font-black">{p.ERA?.toFixed(2) ?? '0.00'}</ThemedTd>
+                                        <ThemedTd align="right" className="tabular-nums font-black">{p.WHIP?.toFixed(2) ?? '0.00'}</ThemedTd>
+                                        <ThemedTd align="right" className="px-6 py-3 tabular-nums font-black text-purple-400 opacity-60 group-hover:opacity-100 transition-opacity">{p.SO ?? '0'}</ThemedTd>
+                                      </ThemedTr>
                                     ))}
                                   </tbody>
-                                </table>
+                                </ThemedTable>
                               </div>
                             </div>
                           )}

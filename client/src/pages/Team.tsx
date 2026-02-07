@@ -7,7 +7,6 @@ import TeamRosterManager from "../components/TeamRosterManager";
 
 import { getOgbaTeamName } from "../lib/ogbaTeams";
 import { isPitcher, normalizePosition, formatAvg, getMlbTeamAbbr } from "../lib/playerDisplay";
-import { classNames } from "../lib/classNames";
 import { TableCard, Table, THead, Tr, Th, Td } from "../components/ui/TableCard";
 
 function normCode(v: any): string {
@@ -183,26 +182,26 @@ export default function Team() {
   const pitchers = useMemo(() => players.filter((p) => isPitcher(p)), [players]);
 
   return (
-    <div className="flex-1 min-h-screen bg-slate-950 text-slate-50">
-      <main className="max-w-6xl mx-auto px-6 py-10">
-        <header className="mb-6 text-center relative">
-          <h1 className="text-3xl font-semibold tracking-tight">{teamName}</h1>
-          <div className="mt-2 text-sm text-slate-400">
-            Hitters: {hitters.length} · Pitchers: {pitchers.length}
+    <div className="flex-1 min-h-screen bg-[var(--fbst-surface-primary)] text-[var(--fbst-text-primary)]">
+      <main className="max-w-7xl mx-auto px-6 py-12">
+        <header className="mb-10 text-center relative">
+          <h1 className="text-5xl font-black uppercase tracking-tighter text-[var(--fbst-text-heading)] mb-4">{teamName}</h1>
+          <div className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--fbst-text-muted)] opacity-60">
+            Current Deployment: {hitters.length} Hitters • {pitchers.length} Pitchers
           </div>
           
-          <div className="mt-3 flex justify-center gap-4">
-             <Link className="text-sm text-sky-300 hover:text-sky-200" to="/season">
-               ← Back to Season
+          <div className="mt-8 flex justify-center gap-6">
+             <Link className="text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] hover:text-white transition-all flex items-center gap-2" to="/season">
+               <span className="opacity-40">←</span> Registry
              </Link>
              
              {/* Manage Button - Only show if DB data loaded */}
              {dbTeamId && (
                  <button 
                     onClick={() => setIsManaging(true)}
-                    className="text-sm bg-sky-600 hover:bg-sky-500 text-white px-3 py-1 rounded transition-colors flex items-center gap-1"
+                    className="text-[10px] bg-[var(--fbst-accent)] hover:brightness-110 text-white px-5 py-2.5 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-red-500/20 transition-all flex items-center gap-2"
                  >
-                    <span>⚡ Manage Lineup</span>
+                    <span>⚡ Mobilize Roster</span>
                  </button>
              )}
           </div>
@@ -214,25 +213,23 @@ export default function Team() {
           </div>
         )}
 
-        <div className="mb-6 flex justify-center">
-          <div className="inline-flex rounded-full bg-white/5 p-1 border border-white/10">
+        <div className="mb-10 flex justify-center">
+          <div className="inline-flex rounded-2xl bg-white/5 p-1 border border-white/10 backdrop-blur-md">
             <Link
               to="#hitters"
-              className={classNames(
-                "rounded-full px-4 py-2 text-sm transition",
-                activeTab === "hitters" ? "bg-sky-600/80 text-white" : "text-white/70 hover:bg-white/10"
-              )}
+              className={`rounded-xl px-6 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all ${
+                activeTab === "hitters" ? "bg-[var(--fbst-accent)] text-white shadow-lg shadow-red-500/10" : "text-[var(--fbst-text-muted)] hover:text-white"
+              }`}
             >
-              Hitters
+              Aggression: Hitters
             </Link>
             <Link
               to="#pitchers"
-              className={classNames(
-                "rounded-full px-4 py-2 text-sm transition",
-                activeTab === "pitchers" ? "bg-sky-600/80 text-white" : "text-white/70 hover:bg-white/10"
-              )}
+              className={`rounded-xl px-6 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all ${
+                activeTab === "pitchers" ? "bg-[var(--fbst-accent)] text-white shadow-lg shadow-red-500/10" : "text-[var(--fbst-text-muted)] hover:text-white"
+              }`}
             >
-              Pitchers
+              Control: Pitchers
             </Link>
           </div>
         </div>
@@ -278,7 +275,7 @@ export default function Team() {
                       </td>
                     </tr>
                   ) : (
-                    hitters.map((p: any, idx: number) => {
+                    hitters.map((p: any) => {
                       const key = rowKey(p);
                       const tm = getMlbTeamAbbr(p);
                       const elig = posEligible(p);
@@ -297,10 +294,7 @@ export default function Team() {
                       return (
                         <Tr
                           key={key}
-                          className={[
-                            "border-t border-slate-800/70 cursor-pointer hover:bg-white/5",
-                            idx % 2 === 0 ? "bg-slate-950" : "bg-slate-950/60",
-                          ].join(" ")}
+                          className="border-t border-white/5 cursor-pointer hover:bg-white/5 transition-all"
                           onClick={() => setSelected(p)}
                           title="Click for player details"
                         >
@@ -393,7 +387,7 @@ export default function Team() {
                       </td>
                     </tr>
                   ) : (
-                    pitchers.map((p: any, idx: number) => {
+                    pitchers.map((p: any) => {
                       const key = rowKey(p);
                       const tm = getMlbTeamAbbr(p);
                       const elig = posEligible(p) || "P";
@@ -404,10 +398,7 @@ export default function Team() {
                       return (
                         <Tr
                           key={key}
-                          className={[
-                            "border-t border-slate-800/70 cursor-pointer hover:bg-white/5",
-                            idx % 2 === 0 ? "bg-slate-950" : "bg-slate-950/60",
-                          ].join(" ")}
+                          className="border-t border-white/5 cursor-pointer hover:bg-white/5 transition-all"
                           onClick={() => setSelected(p)}
                           title="Click for player details"
                         >
@@ -454,18 +445,18 @@ export default function Team() {
 
         {/* Roster Manager Modal */}
         {isManaging && (
-             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-                 <div className="w-full max-w-7xl h-[90vh] bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl overflow-hidden flex flex-col">
-                     <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900">
-                         <h2 className="text-xl font-bold text-white">Manage Lineup</h2>
+             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4">
+                 <div className="w-full max-w-7xl h-[90vh] bg-[#0c0c0c] rounded-3xl border border-white/10 shadow-2xl overflow-hidden flex flex-col liquid-glass">
+                     <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
+                         <h2 className="text-xl font-black uppercase tracking-tighter text-[var(--fbst-text-heading)]">Orchestrator: Roster Mobilization</h2>
                          <button 
                             onClick={() => { setIsManaging(false); window.location.reload(); }}
-                            className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors"
+                            className="p-2 hover:bg-white/10 rounded-full text-[var(--fbst-text-muted)] hover:text-white transition-all"
                          >
                             ✕
                          </button>
                      </div>
-                     <div className="flex-1 overflow-hidden p-6 bg-slate-950/50">
+                     <div className="flex-1 overflow-hidden p-8 bg-black/20">
                          <TeamRosterManager 
                             teamId={dbTeamId || 0}
                             roster={currentRoster} 

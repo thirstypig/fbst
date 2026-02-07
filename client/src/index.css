@@ -118,14 +118,12 @@ body {
     --fbst-accent-hover: #ff1a1a;
 
     /* Surfaces */
-    --fbst-surface-primary: #f8fafc;
-    --fbst-surface-elevated: var(--glass-bg);
-
-    /* Text */
-    --fbst-text-primary: #0f172a;
-    --fbst-text-secondary: #475569;
-    --fbst-text-muted: #94a3b8;
     --fbst-text-heading: #e11d48;
+
+    /* Tables */
+    --fbst-table-header-bg: rgba(0, 0, 0, 0.03);
+    --fbst-table-border: rgba(0, 0, 0, 0.08);
+    --fbst-table-row-hover: rgba(0, 0, 0, 0.03);
   }
 
   .dark {
@@ -138,14 +136,12 @@ body {
     --fbst-accent-hover: #f43f5e;
 
     /* Surfaces */
-    --fbst-surface-primary: #020617;
-    --fbst-surface-elevated: var(--glass-bg);
-
-    /* Text */
-    --fbst-text-primary: #f1f5f9;
-    --fbst-text-secondary: #94a3b8;
-    --fbst-text-muted: #64748b;
     --fbst-text-heading: #fb7185;
+
+    /* Tables */
+    --fbst-table-header-bg: rgba(255, 255, 255, 0.05);
+    --fbst-table-border: rgba(255, 255, 255, 0.1);
+    --fbst-table-row-hover: rgba(255, 255, 255, 0.03);
   }
 
   .liquid-glass {
@@ -154,6 +150,7 @@ body {
     -webkit-backdrop-filter: var(--glass-blur);
     border: 1px solid var(--glass-border);
     box-shadow: var(--glass-shadow);
+    transition: background 0.3s ease, border-color 0.3s ease;
   }
 
   /* Global Animated Background */
@@ -211,11 +208,3 @@ body {
   }
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-}
