@@ -12,10 +12,9 @@ import { getArchiveSeasons, getArchivePeriods } from '../api';
 import { OGBA_TEAM_NAMES } from '../lib/ogbaTeams';
 
 // Hitting + pitching categories
-const categories: CategoryId[] = [
-  "R", "HR", "RBI", "SB", "AVG",
-  "W", "SV", "K", "ERA", "WHIP",
-];
+const hittingCats: CategoryId[] = ["R", "HR", "RBI", "SB", "AVG"];
+const pitchingCats: CategoryId[] = ["W", "SV", "K", "ERA", "WHIP"];
+const categories: CategoryId[] = [...hittingCats, ...pitchingCats];
 
 const Standings = () => {
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
@@ -191,15 +190,40 @@ const Standings = () => {
                     categories={categories}
                 />
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                     {categories.map((cat) => (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                  <div className="space-y-8">
+                    <h3 className="text-xl font-black uppercase tracking-[0.2em] text-blue-400/80 mb-6 flex items-center gap-4">
+                      <span className="w-12 h-[1px] bg-blue-400/30"></span>
+                      Hitting Division
+                    </h3>
+                    <div className="grid grid-cols-1 gap-8">
+                      {hittingCats.map((cat) => (
                         <CategoryPeriodTable
                             key={cat}
                             periodId={viewMode === 'season' ? "Season" : `P${selectedPeriod}`}
                             categoryId={cat}
                             rows={categoryRows[cat] || []}
                         />
-                    ))}
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-8">
+                    <h3 className="text-xl font-black uppercase tracking-[0.2em] text-purple-400/80 mb-6 flex items-center gap-4">
+                      <span className="w-12 h-[1px] bg-purple-400/30"></span>
+                      Pitching Division
+                    </h3>
+                    <div className="grid grid-cols-1 gap-8">
+                      {pitchingCats.map((cat) => (
+                        <CategoryPeriodTable
+                            key={cat}
+                            periodId={viewMode === 'season' ? "Season" : `P${selectedPeriod}`}
+                            categoryId={cat}
+                            rows={categoryRows[cat] || []}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 </div>
             </div>
         </>

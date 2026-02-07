@@ -28,17 +28,24 @@ export function TradesPage() {
 
   useEffect(() => {
     if(user) loadAllTrades();
-  }, [user]);
+  }, [user, loadAllTrades]);
 
   async function loadAllTrades() {
+    const leagueIdStr = user?.memberships?.[0]?.leagueId;
+    if (!leagueIdStr) {
+      setLoading(false);
+      return;
+    }
+    const leagueId = Number(leagueIdStr);
+
     setLoading(true);
     try {
       // Load my trades
-      const myRes = await getTrades();
+      const myRes = await getTrades(leagueId, "my");
       setMyTrades(myRes.trades || []);
       
       // Load league-wide trades
-      const leagueRes = await getTrades("all");
+      const leagueRes = await getTrades(leagueId, "all");
       setLeagueTrades(leagueRes.trades || []);
       
       setError(null);

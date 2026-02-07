@@ -327,7 +327,6 @@ export default function Period() {
 
                         <td className="px-6 py-4">
                           <div className="text-sm font-bold text-[var(--fbst-text-primary)]">{r.teamName}</div>
-                          <div className="text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] mt-1 opacity-60">{r.teamCode}</div>
                         </td>
 
                         {STANDINGS_KEYS.map((k) => (
@@ -431,7 +430,6 @@ function CategoryCard({ cat }: { cat: PeriodCategoryStandingTable }) {
                   <td className="px-6 py-3 font-bold text-[var(--fbst-text-muted)] opacity-50 tabular-nums">{r.rank ?? idx + 1}</td>
                   <td className="px-6 py-3">
                     <div className="font-bold text-[var(--fbst-text-primary)]">{name}</div>
-                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] mt-0.5 opacity-60">{code}</div>
                   </td>
                   <td className="px-6 py-3 text-center font-medium text-[var(--fbst-text-primary)] tabular-nums">{fmtValue(r.value)}</td>
                   <td className="px-6 py-3 text-right font-black text-[var(--fbst-accent)] tabular-nums">{fmt1(r.points)}</td>

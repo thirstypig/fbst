@@ -599,7 +599,7 @@ export default function ArchivePage() {
                                 <ThemedTd className="py-2.5">
                                     <div className="flex items-center gap-3">
                                         <div className="bg-white/5 px-3 py-1 rounded-xl text-[10px] font-black tabular-nums text-[var(--fbst-accent)] border border-white/5">${trade.amount}</div>
-                                        <div className="text-[var(--fbst-text-primary)] font-black tracking-tight">{trade.fromTeamCode} <span className="text-[var(--fbst-text-muted)] opacity-30">→</span> {trade.toTeamCode}</div>
+                                        <div className="text-[var(--fbst-text-primary)] font-black tracking-tight">{trade.fromTeamName} <span className="text-[var(--fbst-text-muted)] opacity-30">→</span> {trade.toTeamName}</div>
                                     </div>
                                 </ThemedTd>
                                 <ThemedTd className="py-2.5 text-right">
@@ -686,7 +686,7 @@ export default function ArchivePage() {
                           </div>
                           <div>
                             <div className="font-black text-lg tracking-tight text-[var(--fbst-text-heading)]">{OGBA_TEAM_NAMES[teamCode] || teamCode}</div>
-                            <div className="text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] opacity-60">{teamCode} • {teamPlayers.length} Nodes</div>
+                            <div className="text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] opacity-60">{teamPlayers.length} Nodes</div>
                           </div>
                         </div>
                         <div className="text-xl font-black text-emerald-400 tabular-nums">${totalSpent}</div>
@@ -723,7 +723,6 @@ export default function ArchivePage() {
                                             )}
                                           </div>
                                         </ThemedTd>
-                                        <ThemedTd align="center" className="text-[var(--fbst-text-muted)] font-mono font-black">{p.position}</ThemedTd>
                                         <ThemedTd align="center" className="text-[var(--fbst-text-muted)] opacity-60 font-black">{p.mlbTeam || 'FA'}</ThemedTd>
                                         <ThemedTd align="right" className="px-8 py-3 font-black text-emerald-400 tabular-nums text-base tracking-tighter">${p.draftDollars}</ThemedTd>
                                       </ThemedTr>
@@ -762,7 +761,6 @@ export default function ArchivePage() {
                                             )}
                                           </div>
                                         </td>
-                                        <td className="px-4 py-3 text-center text-[var(--fbst-text-muted)] font-black uppercase">{p.position}</td>
                                         <td className="px-4 py-3 text-center text-[var(--fbst-text-muted)] opacity-60">{p.mlbTeam || 'FA'}</td>
                                         <td className="px-8 py-3 text-right font-black text-emerald-400 tabular-nums">${p.draftDollars}</td>
                                       </tr>

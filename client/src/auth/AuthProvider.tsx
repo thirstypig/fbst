@@ -8,10 +8,6 @@ type User = {
   name?: string | null;
   avatarUrl?: string | null;
   isAdmin: boolean;
-};
-
-type MeResponse = {
-  user: User | null;
   memberships: Array<{
     leagueId: string;
     role: "COMMISSIONER" | "OWNER" | "VIEWER";
@@ -23,6 +19,10 @@ type MeResponse = {
       seasonYear?: number | null;
     };
   }>;
+};
+
+type MeResponse = {
+  user: User | null;
 };
 
 type AuthCtx = {
@@ -46,11 +46,11 @@ async function fetchMe(): Promise<MeResponse> {
   const res = await fetch(`${API_BASE}/auth/me`, { credentials: "include" });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error || "Failed to load /auth/me");
-  return { user: data?.user ?? null, memberships: [] };
+  return { user: data?.user ?? null };
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [me, setMe] = useState<MeResponse>({ user: null, memberships: [] });
+  const [me, setMe] = useState<MeResponse>({ user: null });
   const [loading, setLoading] = useState(true);
 
   async function refresh() {
@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await fetch(`${API_BASE}/auth/logout`, { method: "POST", credentials: "include" });
     } finally {
-      setMe({ user: null, memberships: [] });
+      setMe({ user: null });
     }
   }
 
@@ -79,7 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const data = await fetchMe();
         if (mounted) setMe(data);
       } catch {
-        if (mounted) setMe({ user: null, memberships: [] });
+        if (mounted) setMe({ user: null });
       } finally {
         if (mounted) setLoading(false);
       }
@@ -101,10 +101,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logout,
       isAdmin,
       isCommissioner: (leagueId: string) =>
-        isAdmin || me.memberships.some((m) => m.leagueId === leagueId && m.role === "COMMISSIONER"),
+        isAdmin || (me.user?.memberships || []).some((m) => String(m.leagueId) === String(leagueId) && m.role === "COMMISSIONER"),
       isOwner: (leagueId: string) =>
         isAdmin ||
-        me.memberships.some((m) => m.leagueId === leagueId && (m.role === "OWNER" || m.role === "COMMISSIONER")),
+        (me.user?.memberships || []).some((m) => String(m.leagueId) === String(leagueId) && (m.role === "OWNER" || m.role === "COMMISSIONER")),
     }),
     [me, loading, isAdmin]
   );

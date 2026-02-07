@@ -15,8 +15,8 @@ export interface TradeProposal {
   acceptingTeam: { id: number; name: string; code: string; ownerUserId: number; };
 }
 
-export async function getTrades(view: "all" | "my" = "my"): Promise<{ trades: TradeProposal[] }> {
-    return fetchJsonApi(`${API_BASE}/trades?view=${view}`);
+export async function getTrades(leagueId: number, view: "all" | "my" = "my"): Promise<{ trades: TradeProposal[] }> {
+    return fetchJsonApi(`${API_BASE}/trades?leagueId=${leagueId}&view=${view}`);
 }
 
 export async function proposeTrade(payload: { proposingTeamId: number; acceptingTeamId: number; items: any[] }): Promise<any> {
