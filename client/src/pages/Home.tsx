@@ -77,9 +77,19 @@ export default function Home() {
   if (!user) {
     return (
       <>
-        <div className="px-10 py-8 text-center text-slate-100">
-          <h1 className="text-3xl font-semibold">Welcome to FBST</h1>
-          <p className="mt-4 text-slate-400">Please <Link to="/login" className="text-sky-400 hover:underline">log in</Link> to view your team.</p>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="lg-welcome-card max-w-lg">
+            <h1 className="lg-welcome-title">Welcome to FBST</h1>
+            <p className="lg-welcome-subtitle">
+              Advanced auction tools and deep historical analytics for your fantasy baseball league.
+            </p>
+            <Link 
+              to="/login" 
+              className="lg-button lg-button-primary"
+            >
+              Sign In to Continue
+            </Link>
+          </div>
         </div>
         <BuildInfoPanel />
       </>

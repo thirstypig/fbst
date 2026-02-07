@@ -152,12 +152,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           }
         }}
         className={[
-          "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors",
-          active 
-            ? theme === 'dark' ? "bg-white/10 text-white" : "bg-blue-100 text-blue-900"
-            : theme === 'dark' ? "text-white/70 hover:bg-white/5 hover:text-white" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900",
+          "lg-sidebar-item",
+          active && "active",
           !sidebarOpen && "justify-center"
-        ].join(" ")}
+        ].filter(Boolean).join(" ")}
         title={!sidebarOpen ? item.label : undefined}
       >
         <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -197,7 +195,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, [isResizing]);
 
   return (
-    <div className={`min-h-screen ${theme === 'dark' ? 'bg-slate-950 text-slate-50' : 'bg-gray-50 text-gray-900'}`}>
+    <div className="min-h-screen">
       <div className="flex">
         {/* Mobile Overlay */}
         {sidebarOpen && sidebarVisible && (
@@ -211,8 +209,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <aside 
             className={`
               fixed lg:sticky top-0 h-screen z-50
-              shrink-0 border-r transition-all duration-75 relative group
-              ${theme === 'dark' ? 'bg-slate-950 border-white/10' : 'bg-white border-gray-200'}
+              shrink-0 transition-all duration-75 relative group
+              lg-sidebar
               ${!sidebarVisible ? 'w-0 overflow-hidden border-none' : ''}
               ${!sidebarOpen && sidebarVisible ? 'lg:w-16 -translate-x-full lg:translate-x-0' : ''}
             `}
@@ -286,9 +284,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 return (
                   <div key={section.title}>
                     {sidebarOpen && (
-                      <div className={`mb-2 text-xs font-medium uppercase tracking-wider ${
-                        theme === 'dark' ? 'text-white/40' : 'text-gray-400'
-                      }`}>
+                      <div className="lg-sidebar-section-label">
                         {section.title}
                       </div>
                     )}

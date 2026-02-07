@@ -11,8 +11,8 @@ function alignCls(a: Align) {
 
 /**
  * TableCard
- * - One consistent shell for all tables (Season / Players / Team)
- * - Exports small primitives so you stop re-inventing <th>/<td> styling per page.
+ * - Consistent shell for all tables using liquid glass design
+ * - Exports small primitives for consistent th/td styling
  */
 export function TableCard({
   children,
@@ -51,7 +51,7 @@ export function THead({
   className?: string;
 }) {
   return (
-    <thead className={["bg-white/5 border-b border-white/10", className ?? ""].join(" ")}>
+    <thead className={["bg-[var(--lg-table-header-bg)] border-b border-[var(--lg-table-border)]", className ?? ""].join(" ")}>
       {children}
     </thead>
   );
@@ -80,7 +80,7 @@ export function Tr({
 }) {
   return (
     <tr 
-      className={["hover:bg-white/5 transition-colors duration-150 border-b border-white/5 last:border-0", className ?? ""].join(" ")} 
+      className={["hover:bg-[var(--lg-table-row-hover)] transition-colors duration-150 border-b border-[var(--lg-table-border)] last:border-0", className ?? ""].join(" ")} 
       onClick={onClick} 
       title={title}
     >
@@ -104,7 +104,7 @@ export function Th({
     <th
       style={w ? { width: w } : undefined}
       className={[
-        "px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)] opacity-60",
+        "px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--lg-text-muted)]",
         alignCls(align),
         className ?? "",
       ].join(" ")}
@@ -126,7 +126,7 @@ export function Td({
   return (
     <td
       className={[
-        "px-6 py-4 align-middle text-[var(--fbst-text-primary)] text-[13px] font-bold tabular-nums tracking-tight",
+        "px-6 py-4 align-middle text-[var(--lg-text-primary)] text-[13px] font-bold tabular-nums tracking-tight",
         alignCls(align),
         className ?? "",
       ].join(" ")}
