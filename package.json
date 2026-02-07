@@ -9,7 +9,7 @@
     "dev": "cd client && pnpm dev",
     "build": "pnpm install && cd client && pnpm install && pnpm build && cd ../server && pnpm install && cd .. && pnpm exec prisma generate --schema ./prisma/schema.prisma",
     "server": "cd server && pnpm start",
-    "start": "cd server && pnpm start",
+    "start": "pnpm exec prisma generate --schema ./prisma/schema.prisma && cd server && pnpm start",
     "preview": "cd client && pnpm preview",
     "lint": "cd client && pnpm lint",
     "prisma:migrate": "cd server && pnpm exec prisma migrate dev",
