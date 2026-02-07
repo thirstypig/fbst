@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "npx tsx src/index.ts",
-    "dev": "npx tsx --watch src/index.ts",
-    "seed": "npx tsx src/seed.ts",
-    "db:push": "npx prisma db push --schema ../prisma/schema.prisma --accept-data-loss"
+    "start": "pnpm exec tsx src/index.ts",
+    "dev": "pnpm exec tsx --watch src/index.ts",
+    "seed": "pnpm exec tsx src/seed.ts",
+    "db:push": "pnpm exec prisma db push --schema ../prisma/schema.prisma --accept-data-loss"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
