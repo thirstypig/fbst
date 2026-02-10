@@ -192,7 +192,10 @@ async function main() {
     }
   };
 
-  if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+  const isDev = process.env.NODE_ENV === "development";
+  const hasCerts = fs.existsSync(keyPath) && fs.existsSync(certPath);
+
+  if (isDev && hasCerts) {
     const options = {
       key: fs.readFileSync(keyPath),
       cert: fs.readFileSync(certPath),
