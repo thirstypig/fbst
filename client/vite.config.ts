@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { execSync } from "child_process";
+import { fileURLToPath } from "url";
 
 let commitHash = "unknown";
 try {
@@ -10,6 +11,11 @@ try {
 }
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+    },
+  },
   define: {
     __COMMIT_HASH__: JSON.stringify(commitHash),
     __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
@@ -17,7 +23,11 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      "/api": "http://127.0.0.1:4000",
+      "/api": {
+        target: "https://localhost:4000",
+        secure: false,
+        changeOrigin: true,
+      },
     },
   },
 });

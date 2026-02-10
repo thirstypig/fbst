@@ -40,41 +40,47 @@ export default function EditTeamNameModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
-        <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-100">
-          Edit Team Name ({teamCode})
-        </h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[4px] p-4 animate-in fade-in duration-200">
+      <div 
+        className="relative w-full max-w-md rounded-[var(--lg-radius-2xl)] bg-[var(--lg-glass-bg)] backdrop-blur-[var(--lg-glass-blur)] border border-[var(--lg-glass-border)] shadow-[var(--lg-glass-shadow)] p-8 animate-in zoom-in-95 duration-200"
+      >
+        <div className="mb-6">
+          <h3 className="text-2xl font-black tracking-tighter text-[var(--lg-text-heading)]">
+            Franchise Rebranding
+          </h3>
+          <p className="text-[10px] font-black uppercase tracking-widest text-[var(--lg-text-muted)] mt-1 opacity-60">Updating Identity: {teamCode}</p>
+        </div>
         
         <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Team Name
+          <div className="mb-8">
+            <label className="block text-[10px] font-black uppercase tracking-widest text-[var(--lg-text-muted)] mb-2">
+              New Franchise Designation
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              className="lg-input w-full"
               autoFocus
+              placeholder="Enter team name..."
             />
           </div>
 
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-4">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded dark:text-gray-300 dark:hover:bg-gray-700"
+              className="lg-button-secondary px-6 py-2"
               disabled={saving}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+              className="lg-button-primary px-8 py-2"
               disabled={saving || !name.trim()}
             >
-              {saving ? 'Saving...' : 'Save'}
+              {saving ? 'Processing...' : 'Save Changes'}
             </button>
           </div>
         </form>

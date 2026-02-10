@@ -91,6 +91,7 @@ import draftIcon from '../assets/icons/draft.svg';
 import ilIcon from '../assets/icons/il.svg';
 import bonusesIcon from '../assets/icons/bonuses.svg';
 import payoutsIcon from '../assets/icons/payouts.svg';
+import { Button } from "../components/ui/button";
 
 const CATEGORY_ORDER = ["overview", "roster", "scoring", "draft", "il", "bonuses", "payouts"];
 const CATEGORY_ICONS: Record<string, string> = {
@@ -140,8 +141,8 @@ export default function Rules() {
             
             setRules(rulesData.rules || []);
             setGrouped(rulesData.grouped || {});
-        } catch(e: any) {
-            setError(e.message || "Error loading rules");
+        } catch(e: unknown) {
+            setError(e instanceof Error ? e.message : "Error loading rules");
         } finally {
             setLoading(false);
         }
@@ -169,7 +170,7 @@ export default function Rules() {
           setRules(updatedRules);
           
           // Re-group
-          const newGrouped = updatedRules.reduce((acc: any, r) => {
+          const newGrouped = updatedRules.reduce((acc: Record<string, LeagueRule[]>, r) => {
               if(!acc[r.category]) acc[r.category] = [];
               acc[r.category].push(r);
               return acc;
@@ -178,8 +179,8 @@ export default function Rules() {
           
           setPendingChanges({});
           setEditMode(false);
-      } catch(e: any) {
-          alert(e.message);
+      } catch(e: unknown) {
+          alert(e instanceof Error ? e.message : "Failed to save");
       } finally {
           setSaving(false);
       }
@@ -191,26 +192,26 @@ export default function Rules() {
   return (
     <div className="max-w-5xl mx-auto px-6 py-12">
        <div className="flex items-center justify-between mb-12">
-           <div>
-               <h1 className="text-4xl font-black tracking-tight text-[var(--fbst-text-heading)]">Internal Protocols</h1>
-               <p className="text-[var(--fbst-text-muted)] mt-2 font-medium">{isLocked ? "🔒 Strategic configurations are terminal for the current cycle." : "Modify active league parameters and governance rules."}</p>
-           </div>
+            <div>
+                <h1 className="text-4xl font-black tracking-tight text-[var(--lg-text-heading)]">Internal Protocols</h1>
+                <p className="text-[var(--lg-text-muted)] mt-2 font-medium">{isLocked ? "🔒 Strategic configurations are terminal for the current cycle." : "Modify active league parameters and governance rules."}</p>
+            </div>
            
            {canEdit && !isLocked && (
-               <div className="flex gap-3">
-                   {editMode ? (
-                       <div className="flex gap-4">
-                           <button onClick={() => { setEditMode(false); setPendingChanges({}); }} className="px-6 py-2.5 rounded-2xl bg-white/5 text-[var(--fbst-text-primary)] hover:bg-white/10 transition-all font-black uppercase text-[10px] tracking-widest">Abort</button>
-                           <button onClick={handleSave} disabled={saving} className="px-6 py-2.5 rounded-2xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all font-black uppercase text-[10px] tracking-widest shadow-lg shadow-emerald-500/5">
-                               {saving ? "Syncing..." : "Commit Changes"}
-                           </button>
-                       </div>
-                   ) : (
-                       <button onClick={() => setEditMode(true)} className="px-8 py-3 rounded-2xl bg-[var(--fbst-accent)] text-white font-black uppercase text-[10px] tracking-widest shadow-xl shadow-red-500/20 hover:scale-[1.02] transition-all">
-                           Initialize Edit
-                       </button>
-                   )}
-               </div>
+                <div className="flex gap-3">
+                    {editMode ? (
+                        <div className="flex gap-4">
+                            <Button variant="outline" size="sm" onClick={() => { setEditMode(false); setPendingChanges({}); }}>Abort</Button>
+                            <Button variant="emerald" size="sm" onClick={handleSave} disabled={saving}>
+                                {saving ? "Syncing..." : "Commit Changes"}
+                            </Button>
+                        </div>
+                    ) : (
+                        <Button variant="default" onClick={() => setEditMode(true)}>
+                            Initialize Edit
+                        </Button>
+                    )}
+                </div>
            )}
        </div>
 
@@ -220,20 +221,20 @@ export default function Rules() {
                if(!catRules) return null;
 
                return (
-                   <section key={cat} className="liquid-glass border border-white/10 rounded-[32px] overflow-hidden shadow-2xl bg-white/[0.02] backdrop-blur-xl">
-                       <div className="bg-white/5 px-8 py-6 flex items-center gap-4 border-b border-white/10">
-                            {CATEGORY_ICONS[cat] ? (
-                                <img 
-                                    src={CATEGORY_ICONS[cat]} 
-                                    alt={cat} 
-                                    className="w-8 h-8 opacity-80" 
-                                    style={{ filter: 'var(--fbst-icon-filter)' }} 
-                                />
-                            ) : (
-                                <span className="text-2xl">📄</span>
-                            )}
-                           <h2 className="text-xl font-black tracking-tight text-[var(--fbst-text-heading)] capitalize">{cat.replace('_', ' ')} Registry</h2>
-                       </div>
+                    <section key={cat} className="lg-card p-0 overflow-hidden relative">
+                        <div className="bg-[var(--lg-table-header-bg)] px-8 py-6 flex items-center gap-4 border-b border-[var(--lg-glass-border)]">
+                             {CATEGORY_ICONS[cat] ? (
+                                 <img 
+                                     src={CATEGORY_ICONS[cat]} 
+                                     alt={cat} 
+                                     className="w-8 h-8 opacity-80" 
+                                     style={{ filter: 'brightness(0) invert(1) opacity(0.6)' }} 
+                                 />
+                             ) : (
+                                 <span className="text-2xl">📄</span>
+                             )}
+                            <h2 className="text-xl font-black tracking-tight text-[var(--lg-text-heading)] capitalize">{cat.replace('_', ' ')} Registry</h2>
+                        </div>
                        <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
                            {catRules.map(rule => {
                                const config = RULE_CONFIGS[rule.key] || { type: 'text' };
@@ -247,9 +248,9 @@ export default function Rules() {
                                const val = pendingChanges[rule.id] ?? rule.value;
                                const isEditing = editMode && !isLocked;
 
-                               return (
-                                   <div key={rule.id} className="space-y-2">
-                                       <label className="block text-[10px] font-black text-[var(--fbst-text-muted)] uppercase tracking-[0.2em] opacity-60 ml-1">{rule.label}</label>
+                                return (
+                                    <div key={rule.id} className="space-y-2">
+                                        <label className="block text-[10px] font-black text-[var(--lg-text-muted)] uppercase tracking-[0.2em] opacity-60 ml-1">{rule.label}</label>
                                        <div>
                                            {RenderInput(rule, val, config, isEditing, (v) => handleChange(rule.id, v))}
                                        </div>
@@ -272,22 +273,22 @@ function RenderInput(rule: LeagueRule, val: string, config: RuleConfig, editing:
         if (config.type === 'checkbox_list' || config.type === 'json_object_counts') {
             try {
                 const obj = JSON.parse(val);
-                if (Array.isArray(obj)) return <div className="text-[var(--fbst-text-primary)] text-sm font-bold flex flex-wrap gap-2">{obj.map(item => (
+                if (Array.isArray(obj)) return <div className="text-[var(--lg-text-primary)] text-sm font-bold flex flex-wrap gap-2">{obj.map(item => (
                     <span key={item} className="bg-white/5 px-2.5 py-1 rounded-lg border border-white/5">{item}</span>
                 ))}</div>;
                 return (
                     <div className="flex flex-wrap gap-2">
                         {Object.entries(obj).map(([k, v]) => (
-                            <span key={k} className="bg-white/5 px-3 py-1.5 rounded-xl border border-white/5 text-xs font-black tracking-tight text-[var(--fbst-text-primary)]">
-                                <span className="text-[var(--fbst-text-muted)] opacity-40 uppercase text-[9px] tracking-widest mr-2">{k}</span>
+                            <span key={k} className="bg-white/5 px-3 py-1.5 rounded-xl border border-white/5 text-xs font-black tracking-tight text-[var(--lg-text-primary)]">
+                                <span className="text-[var(--lg-text-muted)] opacity-40 uppercase text-[9px] tracking-widest mr-2">{k}</span>
                                 {String(v)}
                             </span>
                         ))}
                     </div>
                 );
-            } catch { return <span className="text-[var(--fbst-text-primary)] font-bold">{val}</span>; }
+            } catch { return <span className="text-[var(--lg-text-primary)] font-bold">{val}</span>; }
         }
-        return <div className="text-xl font-black text-[var(--fbst-text-primary)] tracking-tight">{val}<span className="text-[var(--fbst-accent)] ml-1 opacity-60">{config.suffix}</span></div>;
+        return <div className="text-xl font-black text-[var(--lg-text-primary)] tracking-tight">{val}<span className="text-[var(--lg-accent)] ml-1 opacity-60">{config.suffix}</span></div>;
     }
 
     // Edit inputs
@@ -296,7 +297,7 @@ function RenderInput(rule: LeagueRule, val: string, config: RuleConfig, editing:
             <select 
                 value={val} 
                 onChange={e => onChange(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500"
+                className="w-full bg-[var(--lg-glass-bg)] border border-[var(--lg-glass-border)] rounded-lg px-3 py-2 text-[var(--lg-text-primary)] outline-none focus:border-[var(--lg-accent)]"
             >
                 {config.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
             </select>
@@ -313,9 +314,9 @@ function RenderInput(rule: LeagueRule, val: string, config: RuleConfig, editing:
                     step={config.step ?? 1} 
                     value={val} 
                     onChange={e => onChange(e.target.value)}
-                    className="flex-1 accent-blue-500 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+                    className="flex-1 accent-[var(--lg-accent)] h-2 bg-white/10 rounded-lg appearance-none cursor-pointer"
                 />
-                <span className="w-8 text-right font-mono text-white">{val}</span>
+                <span className="w-8 text-right font-mono text-[var(--lg-text-primary)]">{val}</span>
             </div>
         );
     }
@@ -329,16 +330,16 @@ function RenderInput(rule: LeagueRule, val: string, config: RuleConfig, editing:
                     max={config.max}
                     value={val}
                     onChange={e => onChange(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500 pr-8"
+                    className="w-full bg-[var(--lg-glass-bg)] border border-[var(--lg-glass-border)] rounded-lg px-3 py-2 text-[var(--lg-text-primary)] outline-none focus:border-[var(--lg-accent)] pr-8"
                 />
-                {config.suffix && <span className="absolute right-3 top-2 text-slate-500">{config.suffix}</span>}
+                {config.suffix && <span className="absolute right-3 top-2 text-[var(--lg-text-muted)] opacity-40">{config.suffix}</span>}
             </div>
         );
     }
 
     if (config.type === 'checkbox_list') {
         let current: string[] = [];
-        try { current = JSON.parse(val); } catch {}
+        try { current = JSON.parse(val); } catch (e) { /* ignore parse error */ }
         if (!Array.isArray(current)) current = [];
 
         const toggle = (item: string) => {
@@ -354,8 +355,8 @@ function RenderInput(rule: LeagueRule, val: string, config: RuleConfig, editing:
                         onClick={() => toggle(opt)}
                         className={`px-3 py-1 rounded text-xs font-semibold border transition-colors ${
                             current.includes(opt) 
-                                ? "bg-blue-600 border-blue-500 text-white" 
-                                : "bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500"
+                                ? "bg-[var(--lg-accent)] border-[var(--lg-accent)] text-white" 
+                                : "bg-[var(--lg-glass-bg)] border-[var(--lg-glass-border)] text-[var(--lg-text-muted)] hover:border-[var(--lg-accent)]"
                         }`}
                     >
                         {opt}
@@ -367,7 +368,7 @@ function RenderInput(rule: LeagueRule, val: string, config: RuleConfig, editing:
 
     if (config.type === 'json_object_counts') {
         let current: Record<string, number> = {};
-        try { current = JSON.parse(val); } catch {}
+        try { current = JSON.parse(val); } catch (e) { /* ignore parse error */ }
         
         const updateCount = (key: string, count: number) => {
             const next = { ...current, [key]: count };
@@ -378,14 +379,14 @@ function RenderInput(rule: LeagueRule, val: string, config: RuleConfig, editing:
         return (
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                 {config.listOptions?.map(opt => (
-                    <div key={opt} className="bg-slate-800 p-2 rounded border border-slate-700 flex flex-col items-center">
-                        <span className="text-xs text-slate-400 font-bold mb-1">{opt}</span>
+                    <div key={opt} className="bg-[var(--lg-glass-bg)] p-2 rounded border border-[var(--lg-glass-border)] flex flex-col items-center">
+                        <span className="text-xs text-[var(--lg-text-muted)] font-bold mb-1">{opt}</span>
                         <input 
                             type="number" 
                             min="0" 
                             value={current[opt] || 0} 
                             onChange={e => updateCount(opt, Number(e.target.value))}
-                            className="w-full bg-slate-900 text-center text-white text-sm rounded py-1 border border-slate-700 focus:border-blue-500"
+                            className="w-full bg-black/20 text-center text-[var(--lg-text-primary)] text-sm rounded py-1 border border-[var(--lg-glass-border-subtle)] focus:border-[var(--lg-accent)]"
                         />
                     </div>
                 ))}
@@ -399,7 +400,7 @@ function RenderInput(rule: LeagueRule, val: string, config: RuleConfig, editing:
             type="text" 
             value={val} 
             onChange={e => onChange(e.target.value)}
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-blue-500"
+            className="w-full bg-[var(--lg-glass-bg)] border border-[var(--lg-glass-border)] rounded-lg px-3 py-2 text-[var(--lg-text-primary)] outline-none focus:border-[var(--lg-accent)]"
         />
     );
 }

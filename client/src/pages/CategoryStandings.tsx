@@ -2,6 +2,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { getPeriodStandings, fmtRate } from "../api";
 import PageHeader from "../components/ui/PageHeader";
+import { ThemedTable, ThemedThead, ThemedTr, ThemedTh, ThemedTd } from "../components/ui/ThemedTable";
+import { Input } from "../components/ui/Input";
 
 // Categories used in PeriodStandingsResponse points/stats
 type CategoryId = "R" | "HR" | "RBI" | "SB" | "AVG" | "W" | "S" | "K" | "ERA" | "WHIP";
@@ -63,13 +65,15 @@ export default function CategoryStandings() {
         const resp = await getPeriodStandings(periodId);
         if (!alive) return;
         setRows((resp?.rows ?? []) as UiRow[]);
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (!alive) return;
-        setErr(e?.message || String(e));
+        const errMsg = e instanceof Error ? e.message : String(e);
+        setErr(errMsg);
         setRows([]);
       } finally {
-        if (!alive) return;
-        setLoading(false);
+        if (alive) {
+          setLoading(false);
+        }
       }
     })();
     return () => {
@@ -85,21 +89,22 @@ export default function CategoryStandings() {
   }, [rows]);
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-6 py-8">
-      <div className="mb-5">
+    <div className="mx-auto w-full max-w-6xl px-6 py-12">
+      <div className="mb-10">
         <PageHeader 
-          title="Category Standings" 
-          subtitle="Period points by category (roto style)." 
+          title="Category Performance Matrix" 
+          subtitle="Real-time points distribution across all statistical vectors for the active cycle." 
           rightElement={
-             <div className="flex items-center gap-2 bg-white/5 p-2 rounded-lg">
-                <div className="text-sm text-white/70">Period</div>
-                <input
-                  className="w-20 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
-                  value={String(periodId)}
-                  onChange={(e) => setPeriodId(Number(e.target.value) || 1)}
-                  inputMode="numeric"
-                />
-             </div>
+              <div className="flex items-center gap-4">
+                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--lg-text-muted)] opacity-60">Cycle Index</span>
+                 <Input
+                   type="number"
+                   className="w-24 h-10 px-3 text-sm text-[var(--lg-text-primary)] font-black"
+                   value={String(periodId)}
+                   onChange={(e) => setPeriodId(Number(e.target.value) || 1)}
+                   inputMode="numeric"
+                 />
+              </div>
           }
         />
       </div>
@@ -107,71 +112,64 @@ export default function CategoryStandings() {
 
 
       {err ? (
-        <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-          {err}
+        <div className="mb-8 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-6 py-4 text-sm font-medium text-rose-300 flex items-center gap-3">
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+          System Error: {err}
         </div>
       ) : null}
 
-      <div className="rounded-2xl border border-white/10 bg-white/5">
-        <div className="border-b border-white/10 px-5 py-3 text-sm font-semibold text-white/90">
-          {loading ? "Loading…" : `Teams: ${sorted.length}`}
+      <div className="lg-card overflow-hidden">
+        <div className="bg-white/5 border-b border-white/10 px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--lg-text-muted)] opacity-60">
+          {loading ? "Synchronizing Asset Data..." : `Tactical Units: ${sorted.length}`}
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-[980px] w-full border-separate border-spacing-0 text-sm">
-            <thead className="text-xs text-white/60">
-              <tr>
-                <th className="border-b border-white/10 px-3 py-2 text-left">Team</th>
-                {CATS.map((c) => (
-                  <th key={c.id} className="border-b border-white/10 px-3 py-2 text-center">
-                    {c.label}
-                  </th>
-                ))}
-                <th className="border-b border-white/10 px-3 py-2 text-center">Total</th>
-              </tr>
-            </thead>
-
-            <tbody className="text-white/90">
-              {sorted.map((r, idx) => {
-                const name = r.teamName ?? r.team ?? `Team ${idx + 1}`;
-                const key = String(r.teamId ?? name ?? idx);
-                return (
-                  <tr key={key} className="border-t border-white/10">
-                    <td className="border-b border-white/10 px-3 py-2 text-left font-medium">{name}</td>
-
-                    {CATS.map((c) => {
-                      const stat = r.stats?.[c.id] ?? 0;
-                      const pts = r.points?.[c.id] ?? 0;
-                      return (
-                        <td key={c.id} className="border-b border-white/10 px-3 py-2 text-center">
-                          <div className="tabular-nums">{fmtStat(c.id, stat)}</div>
-                          <div className="text-[11px] text-white/50 tabular-nums">{fmtPts(pts)}</div>
-                        </td>
-                      );
-                    })}
-
-                    <td className="border-b border-white/10 px-3 py-2 text-center font-semibold tabular-nums">
-                      {fmtPts(r.totalPoints ?? 0)}
-                    </td>
-                  </tr>
-                );
-              })}
-
-              {!loading && sorted.length === 0 ? (
-                <tr>
-                  <td colSpan={CATS.length + 2} className="px-3 py-6 text-center text-sm text-white/60">
-                    No rows.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="px-5 py-3 text-xs text-white/50">
-          Each cell shows: stat (top) and roto points (bottom).
-        </div>
-      </div>
+      <ThemedTable bare>
+        <ThemedThead>
+          <ThemedTr>
+            <ThemedTh className="px-8 py-5">Franchise</ThemedTh>
+            {CATS.map((c) => (
+              <ThemedTh key={c.id} align="center">
+                {c.label}
+              </ThemedTh>
+            ))}
+            <ThemedTh align="center" className="text-[var(--lg-accent)] px-8">Aggregate</ThemedTh>
+          </ThemedTr>
+        </ThemedThead>
+        <tbody className="divide-y divide-white/[0.03]">
+          {sorted.map((r, idx) => {
+            const name = r.teamName ?? r.team ?? `Franchise ${idx + 1}`;
+            return (
+              <ThemedTr key={idx} className="hover:bg-white/[0.02]">
+                <ThemedTd className="px-8 py-4 font-black text-[var(--lg-text-heading)] tracking-tighter text-base">{name}</ThemedTd>
+                {CATS.map((c) => {
+                  const stat = r.stats?.[c.id] ?? 0;
+                  const pts = r.points?.[c.id] ?? 0;
+                  return (
+                    <ThemedTd key={c.id} align="center" className="py-4">
+                      <div className="font-black text-[var(--lg-text-primary)] text-sm tabular-nums brightness-110">{fmtStat(c.id, stat)}</div>
+                      <div className="text-[10px] font-black text-[var(--lg-text-muted)] opacity-40 tabular-nums uppercase tracking-widest mt-0.5">{fmtPts(pts)}</div>
+                    </ThemedTd>
+                  );
+                })}
+                <ThemedTd align="center" className="px-8 py-4 font-black text-[var(--lg-accent)] text-lg tabular-nums tracking-tighter">
+                  {fmtPts(r.totalPoints ?? 0)}
+                </ThemedTd>
+              </ThemedTr>
+            );
+          })}
+          {!loading && sorted.length === 0 && (
+            <ThemedTr>
+              <ThemedTd colSpan={CATS.length + 2} align="center" className="py-16 text-[var(--lg-text-muted)] italic font-medium opacity-40">
+                Data sequence empty.
+              </ThemedTd>
+            </ThemedTr>
+          )}
+        </tbody>
+      </ThemedTable>
+    </div>
+    <div className="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--lg-text-muted)] opacity-30 mt-4 text-center">
+      Matrix Key: Primary Stat (Top) | Unit Yield (Bottom)
+    </div>
     </div>
   );
 }

@@ -2,6 +2,7 @@
 import "dotenv/config";
 import { prisma } from "./db/prisma.js";
 import express from "express";
+import https from "https";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import fs from "fs";
@@ -61,7 +62,9 @@ async function main() {
     try {
       // Check DB connection
       await prisma.$queryRaw`SELECT 1`;
-      res.json({ status: "ok", db: "connected", timestamp: Date.now() });
+      res.json({ 
+        debug: "V3_LOGGING_ACTIVE" 
+      });
     } catch (error) {
             console.error("Health check failed:", error);
       res.status(503).json({ status: "error", db: "disconnected", timestamp: Date.now(), error: String(error) });
@@ -69,7 +72,13 @@ async function main() {
   });
 
   // Routes
-  app.use("/api", authRouter);
+  const logFile = path.resolve(process.cwd(), "server_debug.log");
+  app.use((req, res, next) => {
+    const msg = `[${new Date().toISOString()}] ${req.method} ${req.url}\n`;
+    fs.appendFileSync(logFile, msg);
+    next();
+  });
+  app.use("/api/auth", authRouter);
   app.use("/api", publicRouter);
   app.use("/api", leaguesRouter);
   app.use("/api", adminRouter);
@@ -151,8 +160,14 @@ async function main() {
      }
   });
 
-  const server = app.listen(PORT, "0.0.0.0", () => {
-    logger.info({ port: PORT }, '🔥 FBST server listening on 0.0.0.0');
+  // Determine if we should use HTTPS locally
+  let server;
+  const keyPath = path.resolve(process.cwd(), "certs", "key.pem");
+  const certPath = path.resolve(process.cwd(), "certs", "cert.pem");
+
+  const onListen = () => {
+    const protocol = fs.existsSync(keyPath) ? "HTTPS" : "HTTP";
+    logger.info({ port: PORT, protocol }, `🔥 FBST server listening on 0.0.0.0 (${protocol})`);
     
     // Auth Config Check
     const cid = process.env.GOOGLE_CLIENT_ID || "";
@@ -175,7 +190,17 @@ async function main() {
     if (!hasClientId || !hasClientSecret) {
       logger.warn({}, "⚠️  GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET is missing. Login will fail.");
     }
-  });
+  };
+
+  if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+    const options = {
+      key: fs.readFileSync(keyPath),
+      cert: fs.readFileSync(certPath),
+    };
+    server = https.createServer(options, app).listen(PORT, "0.0.0.0", onListen);
+  } else {
+    server = app.listen(PORT, "0.0.0.0", onListen);
+  }
 
   server.on("error", (err: any) => {
     if (err?.code === "EADDRINUSE") {

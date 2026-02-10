@@ -1,9 +1,9 @@
-// client/src/pages/SeasonStandings.tsx
 import {
   SeasonTable,
   PeriodMeta,
   TeamSeasonRow,
 } from "@/components/StatsTables";
+import PageHeader from "@/components/ui/PageHeader";
 
 // 2025 OGBA meeting periods pulled from the Excel workbook
 const PERIODS_2025: PeriodMeta[] = [
@@ -129,14 +129,31 @@ const SEASON_ROWS_2025: TeamSeasonRow[] = [
 
 const SeasonStandings = () => {
   return (
-    <div className="p-4 space-y-4">
-      <h1 className="text-xl font-bold mb-2">Season Standings – 2025</h1>
-      <p className="text-sm text-gray-700">
-        Cumulative roto points by meeting date. Values already include ties
-        and half-points exactly as scored in the 2025 sheet.
-      </p>
+    <div className="mx-auto w-full max-w-6xl px-6 py-12">
+      <div className="mb-10">
+        <PageHeader 
+          title="Historical Season Standings" 
+          subtitle="Cumulative performance metrics for the 2025 archival cycle." 
+        />
+      </div>
 
-      <SeasonTable periods={PERIODS_2025} rows={SEASON_ROWS_2025} />
+      <div className="lg-card p-10">
+        <div className="mb-8">
+          <h2 className="text-2xl font-black tracking-tighter text-[var(--lg-text-heading)] uppercase">2025 OGBA Matrix</h2>
+          <p className="text-sm text-[var(--lg-text-secondary)] mt-2 opacity-60 leading-relaxed">
+            Cumulative roto points by meeting date. Values already include ties
+            and half-points exactly as scored in the 2025 sheet.
+          </p>
+        </div>
+
+        <SeasonTable periods={PERIODS_2025} rows={SEASON_ROWS_2025} />
+      </div>
+
+      <div className="mt-8 text-center">
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--lg-text-muted)] opacity-30">
+          Source: Official 2025 Tactical Ledger
+        </p>
+      </div>
     </div>
   );
 };

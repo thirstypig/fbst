@@ -70,8 +70,20 @@ async function fetchPeopleTeamAbbrBatch(
 }
 
 export function defaultCachePath(): string {
-  // stored alongside your data files
-  return path.join(__dirname, "mlb_team_cache.json");
+  // Try default location first
+  const primaryPath = path.join(__dirname, "mlb_team_cache.json");
+  
+  try {
+    // Check if we can write here
+    const testFile = path.join(__dirname, ".write_test");
+    fs.writeFileSync(testFile, "test");
+    fs.unlinkSync(testFile);
+    return primaryPath;
+  } catch (e) {
+    // If not writable, use /tmp (common across systems)
+    console.warn(`[mlb_team_cache] Primary data directory is not writable. Using fallback /tmp/mlb_team_cache.json`);
+    return "/tmp/mlb_team_cache.json";
+  }
 }
 
 export function loadTeamCache(cachePath = defaultCachePath()): Map<string, string> {
@@ -87,17 +99,22 @@ export function loadTeamCache(cachePath = defaultCachePath()): Map<string, strin
       if (id) m.set(id, abbr);
     }
     return m;
-  } catch {
+  } catch (err: any) {
+    console.warn(`[mlb_team_cache] Load failed (${err.message}). Defaulting to empty map.`);
     return new Map();
   }
 }
 
 export function saveTeamCache(map: Map<string, string>, cachePath = defaultCachePath()) {
-  const obj: CacheFile = {
-    createdAt: new Date().toISOString(),
-    map: Object.fromEntries(map.entries()),
-  };
-  fs.writeFileSync(cachePath, JSON.stringify(obj, null, 2), "utf-8");
+  try {
+    const obj: CacheFile = {
+      createdAt: new Date().toISOString(),
+      map: Object.fromEntries(map.entries()),
+    };
+    fs.writeFileSync(cachePath, JSON.stringify(obj, null, 2), "utf-8");
+  } catch (err: any) {
+    console.error(`[mlb_team_cache] Save failed to ${cachePath}: ${err.message}`);
+  }
 }
 
 /**

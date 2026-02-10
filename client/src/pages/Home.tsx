@@ -7,15 +7,36 @@ import { TableCard, Table, THead, Tr, Th, Td } from "../components/ui/TableCard"
 import PageHeader from "../components/ui/PageHeader";
 import { formatAvg } from "../lib/playerDisplay";
 
-function num(v: any) {
+function num(v: string | number | null | undefined): number {
   return Number(v) || 0;
 }
 
+interface Player {
+  mlbId: number;
+  name: string;
+  posPrimary: string;
+}
+
+interface RosterEntry {
+  id: number;
+  teamId: number;
+  player: Player;
+  stat?: PlayerSeasonStat;
+}
+
+interface Team {
+  id: number;
+  name: string;
+  code?: string;
+  ownerUserId?: number;
+  ownerships?: Array<{ userId: number }>;
+}
+
 export default function Home() {
-  const { user } = useAuth();
-  const [activeLeagueId, setActiveLeagueId] = useState<number | null>(null);
-  const [myTeam, setMyTeam] = useState<any>(null);
-  const [roster, setRoster] = useState<any[]>([]);
+  const { user, loading: authLoading } = useAuth();
+
+  const [myTeam, setMyTeam] = useState<Team | null>(null);
+  const [roster, setRoster] = useState<RosterEntry[]>([]);
   const [stats, setStats] = useState<PlayerSeasonStat[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -27,13 +48,10 @@ export default function Home() {
        try {
          setLoading(true);
          
-         // 1. Get active league
          const leaguesRes = await fetch('/api/public/leagues').then(r => r.json());
          const lid = leaguesRes.leagues?.[0]?.id;
          if (!lid) return;
-         if (mounted) setActiveLeagueId(lid);
 
-         // 2. Get my team (check both legacy ownerUserId and new ownerships)
          const leagueRes = await fetch(`/api/leagues/${lid}`).then(r => r.json());
          const teams = leagueRes.league?.teams || [];
          const uid = Number(user.id);
@@ -43,14 +61,11 @@ export default function Home() {
          
          if (mine && mounted) {
             setMyTeam(mine);
-            
-            // 3. Get roster
             const rostersRes = await fetch(`/api/leagues/${lid}/rosters`).then(r => r.json());
-            const myRoster = (rostersRes.rosters || []).filter((r: any) => r.teamId === mine.id);
+            const myRoster = (rostersRes.rosters || []).filter((r: { teamId: number }) => r.teamId === mine.id);
             if (mounted) setRoster(myRoster);
 
-            // 4. Get stats
-            const statsData = await getPlayerSeasonStats(); // YTD Season Stats
+            const statsData = await getPlayerSeasonStats(); 
             if (mounted) setStats(statsData || []);
          }
 
@@ -63,163 +78,162 @@ export default function Home() {
     return () => { mounted = false; };
   }, [user]);
 
-  // Join roster with stats
-  const rosterWithStats = useMemo(() => {
-      return roster.map(r => {
-          const stat = stats.find(s => s.mlb_id == r.player.mlbId); // loose equality for string/num
-          return { ...r, stat };
-      });
-  }, [roster, stats]);
+   const rosterWithStats = useMemo(() => {
+       return roster.map(r => {
+           const stat = stats.find(s => Number(s.mlb_id) === r.player.mlbId); 
+           return { ...r, stat };
+       });
+   }, [roster, stats]);
 
   const hitters = rosterWithStats.filter(r => r.player.posPrimary !== 'P' && r.player.posPrimary !== 'RP' && r.player.posPrimary !== 'SP');
   const pitchers = rosterWithStats.filter(r => r.player.posPrimary === 'P' || r.player.posPrimary === 'RP' || r.player.posPrimary === 'SP');
 
-  if (!user) {
-    return (
-      <>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="lg-welcome-card max-w-lg">
-            <h1 className="lg-welcome-title">Welcome to FBST</h1>
-            <p className="lg-welcome-subtitle">
-              Advanced auction tools and deep historical analytics for your fantasy baseball league.
-            </p>
-            <Link 
-              to="/login" 
-              className="lg-button lg-button-primary"
-            >
-              Sign In to Continue
-            </Link>
-          </div>
-        </div>
-        <BuildInfoPanel />
-      </>
-    );
+  if (!user && !authLoading) {
+    return null; // Should be handled by App.tsx routing Landing
   }
 
+  if (!user) return null; // Fallback during loading
+
   return (
-    <div className="relative min-h-full">
-      <div className="mb-10">
+    <div className="relative min-h-full bg-[var(--lg-bg-page)] p-6 scrollbar-hide">
+      <div className="mb-12 animate-in fade-in slide-in-from-top-4 duration-500">
         <PageHeader 
-          title="Season Dashboard" 
-          subtitle={<span>Welcome back, <span className="text-[var(--fbst-text-heading)] font-black uppercase tracking-tighter">{user.name || user.email}</span>. Your roster is synchronized.</span>}
+          title="Tactical Dashboard" 
+          subtitle={<span>Welcome, Strategic Agent <span className="text-[var(--lg-accent)] font-black uppercase tracking-tighter">{user.name || user.email}</span>. Personnel synchronization complete.</span>}
         />
       </div>
 
       {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="text-sm font-bold uppercase tracking-widest text-[var(--fbst-text-muted)] animate-pulse">Synchronizing Data...</div>
+          <div className="flex flex-col items-center justify-center py-32 text-[var(--lg-text-muted)] animate-pulse">
+            <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+            <div className="text-[10px] font-black uppercase tracking-[0.2em]">Synchronizing Assets...</div>
           </div>
       ) : !myTeam ? (
-          <div className="liquid-glass rounded-3xl p-12 text-center">
-             <div className="text-xl font-bold text-[var(--fbst-text-primary)] mb-2">Neutral Territory</div>
-             <p className="text-sm text-[var(--fbst-text-secondary)] mb-6">You are not associated with a team in the active league.</p>
-             <Link to="/leagues" className="px-6 py-3 text-sm font-bold text-white bg-[var(--fbst-accent)] rounded-2xl shadow-lg shadow-red-500/30 hover:scale-105 active:scale-95 transition-all">
-               Browse Leagues
+          <div className="lg-card p-16 text-center max-w-2xl mx-auto shadow-2xl animate-in fade-in zoom-in-95 duration-700">
+             <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-8 border border-white/10 text-4xl">🏳️</div>
+             <h2 className="text-3xl font-black tracking-tighter text-[var(--lg-text-heading)] mb-4">Unassigned Identity</h2>
+             <p className="text-sm font-medium text-[var(--lg-text-secondary)] mb-10 leading-relaxed opacity-60">You are currently in neutral territory. Link to an active franchise to begin tactical operations.</p>
+             <Link to="/leagues" className="lg-button lg-button-primary px-10 py-3 shadow-2xl shadow-blue-500/20">
+               Browse Sector Leagues
              </Link>
           </div>
       ) : (
-          <div className="space-y-10">
-             <div className="liquid-glass rounded-3xl p-8 border-b-8 border-[var(--fbst-accent)]">
-                 <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="space-y-12 animate-in fade-in slide-in-from-bottom-6 duration-700">
+             <div className="lg-card p-0 overflow-hidden border-b-8 border-[var(--lg-accent)] shadow-2xl bg-white/[0.01]">
+                 <div className="p-10 flex flex-col md:flex-row md:items-center justify-between gap-10 bg-white/5">
                      <div>
-                        <div className="text-[10px] uppercase tracking-widest font-black text-[var(--fbst-text-muted)] mb-1">Active Franchise</div>
-                        <h2 className="text-4xl font-black tracking-tighter text-[var(--fbst-text-heading)]">{myTeam.name}</h2>
-                        <div className="text-xs font-mono text-[var(--fbst-text-secondary)] mt-1 opacity-60">ID: {myTeam.code || myTeam.id}</div>
+                        <div className="text-[10px] uppercase tracking-[0.3em] font-black text-[var(--lg-text-muted)] mb-3 opacity-60">Operations Unit</div>
+                        <h2 className="text-5xl font-black tracking-tighter text-[var(--lg-text-heading)] leading-none">{myTeam.name}</h2>
+                        <div className="mt-4 flex items-center gap-3">
+                           <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2.5 py-1 rounded-md">Status: Active</span>
+                           <span className="text-[10px] font-mono text-[var(--lg-text-muted)] opacity-40">REF_ID: {myTeam.code || myTeam.id}</span>
+                        </div>
                      </div>
                      <div className="flex items-center">
-                       <Link to="/players" className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-white bg-[var(--fbst-accent)] rounded-xl hover:scale-105 transition-all">
-                         Market Access (Auction)
+                       <Link to="/players" className="lg-button lg-button-primary px-8 py-3 shadow-xl shadow-blue-500/20 group">
+                         Personnel Market <span className="ml-2 group-hover:translate-x-1 transition-transform">→</span>
                        </Link>
                      </div>
                  </div>
 
-                 <div className="grid grid-cols-1 gap-10">
+                 <div className="p-10 grid grid-cols-1 gap-14">
                    {/* Hitters */}
                    <div>
-                     <div className="flex items-center gap-3 mb-4">
-                       <span className="w-2 h-8 bg-blue-500 rounded-full"></span>
-                       <h3 className="text-lg font-black uppercase tracking-tight text-[var(--fbst-text-primary)]">Hitting Corps <span className="text-[var(--fbst-text-muted)] font-medium text-sm ml-2">YTD Distribution</span></h3>
+                     <div className="flex items-center gap-4 mb-8">
+                        <div className="w-1.5 h-6 bg-blue-500 rounded-full shadow-lg shadow-blue-500/20"></div>
+                        <h3 className="text-2xl font-black uppercase tracking-tighter text-[var(--lg-text-heading)]">Hitting Corps <span className="text-[var(--lg-text-muted)] font-medium text-xs ml-3 uppercase tracking-widest opacity-40">Asset Distribution</span></h3>
                      </div>
+                     <div className="lg-card p-0 overflow-hidden bg-black/20">
                      <TableCard>
                      <Table>
                         <THead>
-                            <Tr>
-                                <Th align="left">Pos</Th>
-                                <Th align="left">Asset</Th>
-                                <Th align="center">AB</Th>
-                                <Th align="center">H</Th>
+                            <tr className="bg-white/5 border-b border-white/[0.05] text-[10px] font-black uppercase tracking-[0.2em] text-[var(--lg-text-muted)]">
+                                <Th align="left">Role</Th>
+                                <Th align="left">Asset Identity</Th>
+                                <Th align="center">R</Th>
                                 <Th align="center">HR</Th>
                                 <Th align="center">RBI</Th>
                                 <Th align="center">SB</Th>
                                 <Th align="center">AVG</Th>
-                            </Tr>
+                                <Th align="center">AB</Th>
+                            </tr>
                         </THead>
-                        <tbody>
-                            {hitters.length === 0 && <tr><td colSpan={8} className="p-10 text-center text-xs font-bold text-[var(--fbst-text-muted)] uppercase tracking-widest">No active hitter assets</td></tr>}
+                        <tbody className="divide-y divide-white/[0.03]">
+                            {hitters.length === 0 && <tr className="bg-transparent"><td colSpan={8} className="p-16 text-center text-xs font-black text-[var(--lg-text-muted)] uppercase tracking-[0.3em] opacity-30">No active assets in hitting corps</td></tr>}
                             {hitters.map(r => {
-                                const s = r.stat || {};
+                                const s = (r.stat || {}) as PlayerSeasonStat;
                                 return (
-                                    <Tr key={r.id}>
-                                        <Td className="font-mono text-[10px] font-bold text-[var(--fbst-text-muted)]">{r.player.posPrimary}</Td>
-                                        <Td className="font-bold">{r.player.name}</Td>
-                                        <Td align="center" className="tabular-nums font-mono opacity-60">{num(s.AB)}</Td>
-                                        <Td align="center" className="tabular-nums font-mono opacity-60">{num(s.H)}</Td>
+                                    <Tr key={r.id} className="hover:bg-white/[0.02]">
+                                        <Td className="py-4">
+                                          <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 bg-blue-400/10 border border-blue-400/20 px-2 py-0.5 rounded-md">
+                                            {r.player.posPrimary}
+                                          </span>
+                                        </Td>
+                                        <Td className="font-black text-[var(--lg-text-primary)] text-sm tracking-tight">{r.player.name}</Td>
+                                        <Td align="center" className="tabular-nums font-bold">{num(s.R)}</Td>
                                         <Td align="center" className="tabular-nums font-bold text-blue-500">{num(s.HR)}</Td>
                                         <Td align="center" className="tabular-nums font-bold">{num(s.RBI)}</Td>
                                         <Td align="center" className="tabular-nums font-bold text-emerald-500">{num(s.SB)}</Td>
-                                        <Td align="center" className="tabular-nums font-black">{formatAvg(s.AVG || 0)}</Td>
+                                        <Td align="center" className="tabular-nums font-black text-[var(--lg-accent)] text-base tracking-tighter">{formatAvg(s.AVG || 0)}</Td>
+                                        <Td align="center" className="tabular-nums font-medium text-[var(--lg-text-muted)] opacity-40">{num(s.AB)}</Td>
                                     </Tr>
                                 );
                             })}
                         </tbody>
                      </Table>
                      </TableCard>
+                     </div>
                    </div>
 
                    {/* Pitchers */}
                    <div>
-                     <div className="flex items-center gap-3 mb-4">
-                       <span className="w-2 h-8 bg-emerald-500 rounded-full"></span>
-                       <h3 className="text-lg font-black uppercase tracking-tight text-[var(--fbst-text-primary)]">Pitching Rotation <span className="text-[var(--fbst-text-muted)] font-medium text-sm ml-2">Control Matrix</span></h3>
+                     <div className="flex items-center gap-4 mb-8">
+                        <div className="w-1.5 h-6 bg-purple-500 rounded-full shadow-lg shadow-purple-500/20"></div>
+                        <h3 className="text-2xl font-black uppercase tracking-tighter text-[var(--lg-text-heading)]">Pitching Rotation <span className="text-[var(--lg-text-muted)] font-medium text-xs ml-3 uppercase tracking-widest opacity-40">Kinematic Matrix</span></h3>
                      </div>
+                     <div className="lg-card p-0 overflow-hidden bg-black/20">
                      <TableCard>
                      <Table>
                         <THead>
-                            <Tr>
-                                <Th align="left">Pos</Th>
-                                <Th align="left">Asset</Th>
+                            <tr className="bg-white/5 border-b border-white/[0.05] text-[10px] font-black uppercase tracking-[0.2em] text-[var(--lg-text-muted)]">
+                                <Th align="left">Role</Th>
+                                <Th align="left">Asset Identity</Th>
                                 <Th align="center">W</Th>
                                 <Th align="center">SV</Th>
                                 <Th align="center">K</Th>
                                 <Th align="center">ERA</Th>
                                 <Th align="center">WHIP</Th>
-                            </Tr>
+                            </tr>
                         </THead>
-                        <tbody>
-                            {pitchers.length === 0 && <tr><td colSpan={7} className="p-10 text-center text-xs font-bold text-[var(--fbst-text-muted)] uppercase tracking-widest">No active pitching assets</td></tr>}
+                        <tbody className="divide-y divide-white/[0.03]">
+                            {pitchers.length === 0 && <tr className="bg-transparent"><td colSpan={7} className="p-16 text-center text-xs font-black text-[var(--lg-text-muted)] uppercase tracking-[0.3em] opacity-30">No active assets in rotation</td></tr>}
                             {pitchers.map(r => {
-                                const s = r.stat || {};
+                                const s = (r.stat || {}) as PlayerSeasonStat;
                                 return (
-                                    <Tr key={r.id}>
-                                        <Td className="font-mono text-[10px] font-bold text-[var(--fbst-text-muted)]">{r.player.posPrimary}</Td>
-                                        <Td className="font-bold">{r.player.name}</Td>
+                                    <Tr key={r.id} className="hover:bg-white/[0.02]">
+                                        <Td className="py-4">
+                                          <span className="text-[10px] font-black uppercase tracking-widest text-purple-400 bg-purple-400/10 border border-purple-400/20 px-2 py-0.5 rounded-md">
+                                            {r.player.posPrimary}
+                                          </span>
+                                        </Td>
+                                        <Td className="font-black text-[var(--lg-text-primary)] text-sm tracking-tight">{r.player.name}</Td>
                                         <Td align="center" className="tabular-nums font-bold text-emerald-500">{num(s.W)}</Td>
                                         <Td align="center" className="tabular-nums font-bold text-amber-500">{num(s.SV)}</Td>
                                         <Td align="center" className="tabular-nums font-bold text-blue-500">{num(s.K)}</Td>
-                                        <Td align="center" className="tabular-nums font-black">{s.ERA?.toFixed(2) || '—'}</Td>
-                                        <Td align="center" className="tabular-nums font-black">{s.WHIP?.toFixed(2) || '—'}</Td>
+                                        <Td align="center" className="tabular-nums font-black text-blue-400 text-base tracking-tighter">{s.ERA !== undefined ? Number(s.ERA).toFixed(2) : '—'}</Td>
+                                        <Td align="center" className="tabular-nums font-black text-purple-400 text-base tracking-tighter">{s.WHIP !== undefined ? Number(s.WHIP).toFixed(2) : '—'}</Td>
                                     </Tr>
                                 );
                             })}
                         </tbody>
                      </Table>
                      </TableCard>
+                     </div>
                    </div>
                  </div>
-             </div>
+              </div>
           </div>
       )}
-      {/* Authenticated content ends */}
       <BuildInfoPanel />
     </div>
   );
@@ -228,8 +242,8 @@ export default function Home() {
 function BuildInfoPanel() {
   return (
     <div className="fixed bottom-4 right-6 pointer-events-none z-50">
-      <div className="text-[10px] font-mono font-medium text-[var(--fbst-text-muted)] opacity-30 select-none">
-        {__COMMIT_HASH__}
+      <div className="text-[9px] font-black uppercase tracking-[0.5em] text-[var(--lg-text-muted)] opacity-20 select-none">
+        PROTOCOL_V2.5 // {__COMMIT_HASH__}
       </div>
     </div>
   );

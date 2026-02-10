@@ -129,8 +129,6 @@ const refreshTeams = async (leagueId: number) => {
       budget: remaining,
       rosterCount: count,
       spotsLeft: spots,
-      rosterCount: count,
-      spotsLeft: spots,
       maxBid: calculateMaxBid(remaining, spots),
       roster: t.rosters.map(r => ({
           id: r.id,
@@ -153,10 +151,15 @@ const refreshTeams = async (leagueId: number) => {
 
 // GET /api/auction/state
 router.get("/state", (req, res) => {
-  // Auto-resolve check on read? 
-  // For now, client handles expiry visualization, 
-  // server checks expiry on new bid attempts.
-  res.json(STATE);
+  try {
+    res.json(STATE);
+  } catch (e: any) {
+    res.status(500).json({ 
+      error: "Failed to fetch state", 
+      message: e.message, 
+      stack: e.stack 
+    });
+  }
 });
 
 // POST /api/auction/init
@@ -175,7 +178,13 @@ router.post("/init", async (req, res) => {
 
     res.json(STATE);
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error("Auction /init error:", e);
+    res.status(500).json({ 
+      error: "Failed to initialize auction", 
+      message: e.message, 
+      stack: e.stack,
+      env: { hasDbUrl: !!process.env.DATABASE_URL }
+    });
   }
 });
 

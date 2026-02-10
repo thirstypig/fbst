@@ -1,9 +1,9 @@
 
-import React, { useEffect, useState, useRef } from 'react';
-import { PlayerSeasonStat } from '../../api';
-import { Settings, Play, Pause, RotateCcw, MonitorStop, Users } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Users, MonitorStop, Pause, Play, RotateCcw } from 'lucide-react';
 import { ClientAuctionState } from '../../hooks/useAuctionState';
 import NominationQueue from './NominationQueue';
+import { Button } from '../ui/button';
 
 interface Team {
   id: number;
@@ -24,8 +24,6 @@ interface AuctionStageProps {
     onResume?: () => void;
     onReset?: () => void;
 }
-
-// ... (mapNominationToStat remains same)
 
 export default function AuctionStage({ serverState, myTeamId, onBid, onFinish, onPause, onResume, onReset }: AuctionStageProps) {
   
@@ -50,52 +48,45 @@ export default function AuctionStage({ serverState, myTeamId, onBid, onFinish, o
         setTimeLeft(diff);
 
         if (diff <= 0) {
-            // Timer expired, trigger finish
-            // We use a small timeout to avoid double-triggers or race conditions with render
-             // Only trigger if we are "running" (checked above)
             onFinish();
         }
     };
 
-    checkTime(); // Initial check
-    
+    checkTime(); 
     const interval = setInterval(checkTime, 200);
-
     return () => clearInterval(interval);
-  }, [nomination?.endTime, nomination?.status, onFinish]);
+  }, [nomination, onFinish]);
 
 
   if (!nomination) {
       // Waiting State
-      // Find up next
       const queueIds = serverState?.queue || [];
       const queueIndex = serverState?.queueIndex || 0;
-      
-      // We can map queue IDs to full team objects
       const rotationTeams = queueIds.slice(queueIndex, queueIndex + 5).map(qid => teams.find(t => t.id === qid)).filter(Boolean) as Team[];
-      // If wrapping around logic needed, can do later.
 
       return (
-          <div className="h-full flex flex-col items-center justify-center p-8 liquid-glass rounded-3xl relative overflow-hidden bg-white/[0.02] border border-white/10">
-               <Users size={200} className="absolute -bottom-10 -right-10 opacity-[0.02] rotate-12" />
+          <div className="h-full flex flex-col items-center justify-center p-12 lg-card relative overflow-hidden bg-white/[0.01]">
+               <Users size={300} className="absolute -bottom-20 -right-20 text-[var(--lg-accent)] opacity-[0.03] rotate-12" />
 
                <div className="flex flex-col items-center text-center z-10">
-                  <MonitorStop size={48} className="mb-6 text-[var(--fbst-text-muted)] opacity-30" />
-                  <h3 className="text-3xl font-black uppercase tracking-tighter text-[var(--fbst-text-heading)] mb-2">Awaiting Nomination</h3>
-                  <p className="text-sm max-w-xs text-[var(--fbst-text-muted)] mb-10 font-bold uppercase tracking-widest leading-relaxed">
+                  <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-8 border border-white/10 shadow-2xl">
+                    <MonitorStop size={32} className="text-[var(--lg-text-muted)] opacity-40" />
+                  </div>
+                  <h3 className="text-4xl font-black uppercase tracking-tighter text-[var(--lg-text-heading)] mb-3">Awaiting Nomination</h3>
+                  <p className="text-xs max-w-xs text-[var(--lg-text-muted)] mb-12 font-black uppercase tracking-[0.2em] leading-relaxed opacity-60">
                      {myTeamId && rotationTeams[0]?.id === myTeamId ? 
-                        <span className="text-[var(--fbst-accent)] animate-pulse">It's your turn. Select a player to begin.</span> : 
+                        <span className="text-[var(--lg-accent)] animate-pulse">It's your turn. Select a player to begin.</span> : 
                         "The room is open. Stand by for the next nominee."}
                   </p>
                   
                   {rotationTeams.length > 0 && (
                       <div className="w-full max-w-md">
-                          <NominationQueue 
-                                teams={teams} 
-                                queue={queueIds} 
-                                queueIndex={queueIndex} 
-                                myTeamId={myTeamId} 
-                          />
+                           <NominationQueue 
+                                 teams={teams} 
+                                 queue={queueIds} 
+                                 queueIndex={queueIndex} 
+                                 myTeamId={myTeamId} 
+                           />
                       </div>
                   )}
                </div>
@@ -108,8 +99,6 @@ export default function AuctionStage({ serverState, myTeamId, onBid, onFinish, o
   const highBidderTeam = teams.find(t => t.id === nomination.highBidderTeamId);
   const myTeam = teams.find(t => t.id === myTeamId);
 
-  // Derive "Min Raise" logic
-  // Typically $1 raise
   const minRaise = currentBid + 1;
   const jumpRaise = currentBid + 5;
   const canAffordMin = myTeam ? myTeam.maxBid >= minRaise : false;
@@ -119,126 +108,143 @@ export default function AuctionStage({ serverState, myTeamId, onBid, onFinish, o
   return (
     <div className="flex flex-col h-full gap-8">
         {/* Nominee Card */}
-        <div className="liquid-glass rounded-3xl overflow-hidden flex flex-col md:flex-row relative bg-white/[0.02] border border-white/10 shadow-2xl">
+        <div className="lg-card p-0 overflow-hidden flex flex-col md:flex-row relative bg-white/[0.01] animate-in fade-in slide-in-from-top-4 duration-500">
             
             {/* Player Image */}
-            <div className="w-full md:w-1/3 bg-black/40 border-r border-white/5 relative flex items-center justify-center min-h-[220px]">
+            <div className="w-full md:w-1/3 bg-black/40 border-r border-[var(--lg-glass-border)] relative flex items-center justify-center min-h-[260px] group">
                  <img 
                     src={`https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_426,q_auto:best/v1/people/${nomination.playerId}/headshot/67/current`}
                     alt={nomination.playerName}
-                    className="object-cover h-full w-full opacity-90 transition-opacity"
+                    className="object-cover h-full w-full opacity-80 group-hover:opacity-100 transition-opacity duration-500"
                     onError={(e) => (e.currentTarget.src = 'https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_426,q_auto:best/v1/people/generic/headshot/67/current')}
                  />
-                 <div className="absolute top-4 left-4 bg-[var(--fbst-accent)] text-white px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg">
+                 <div className="absolute top-4 left-4 bg-[var(--lg-accent)] text-white px-4 py-2 rounded-[var(--lg-radius-lg)] text-[11px] font-black uppercase tracking-widest shadow-2xl">
                     {nomination.positions || (nomination.isPitcher ? 'P' : 'UT')}
                  </div>
             </div>
 
             {/* Info & Timer */}
             <div className="flex-1 flex flex-col">
-                <div className="p-6 border-b border-white/5 flex justify-between items-start">
+                <div className="p-8 border-b border-[var(--lg-glass-border)] flex justify-between items-start bg-white/5">
                     <div>
-                        <h2 className="text-3xl font-black text-[var(--fbst-text-heading)] leading-none tracking-tighter mb-2">{nomination.playerName}</h2>
-                        <div className="text-[10px] font-black text-[var(--fbst-text-muted)] uppercase tracking-widest flex items-center gap-2">
+                        <h2 className="text-4xl font-black text-[var(--lg-text-heading)] leading-none tracking-tighter mb-3">{nomination.playerName}</h2>
+                        <div className="text-[11px] font-black text-[var(--lg-text-muted)] uppercase tracking-[0.2em] flex items-center gap-2 opacity-60">
                              {nomination.playerTeam}
                         </div>
                     </div>
                     
                     {/* Timer Display */}
                     <div className="flex flex-col items-end">
-                        <div className={`text-6xl font-mono font-black tabular-nums tracking-tighter transition-all ${
-                            isCriticalTime ? 'text-[var(--fbst-accent)] animate-pulse scale-110 origin-right' : 'text-[var(--fbst-text-primary)] opacity-80'
+                        <div className={`text-7xl font-black tabular-nums tracking-tighter transition-all duration-300 ${
+                            isCriticalTime ? 'text-[var(--lg-error)] animate-pulse scale-110 origin-right' : 'text-[var(--lg-text-primary)]'
                         }`}>
                             {timeLeft}
                         </div>
-                        {nomination.status === 'paused' && <div className="text-[var(--fbst-accent)] font-black uppercase text-[10px] tracking-widest mt-1">SYSTEM PAUSED</div>}
+                        {nomination.status === 'paused' && <div className="text-[var(--lg-warning)] font-black uppercase text-[10px] tracking-widest mt-2 border border-[var(--lg-warning)]/20 bg-[var(--lg-warning)]/10 px-2 py-0.5 rounded-md">SYSTEM PAUSED</div>}
                     </div>
                 </div>
 
-                <div className="p-6 bg-white/[0.02] flex-1 flex flex-col justify-center">
-                   <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)] mb-4 flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-[var(--fbst-accent)] animate-pulse" /> Live Analysis Active
+                <div className="p-8 bg-white/[0.02] flex-1 flex flex-col justify-center">
+                   <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--lg-text-muted)] mb-5 flex items-center gap-3">
+                      <span className={`w-2 h-2 rounded-full animate-pulse ${isCriticalTime ? 'bg-[var(--lg-error)]' : 'bg-[var(--lg-accent)]'}`} /> 
+                      Live Auction Stream Active
                    </div>
-                   <p className="text-xs font-bold text-[var(--fbst-text-muted)] uppercase tracking-wider leading-relaxed">
-                      Detailed projections and value analysis are available in the war room panel.
+                   <p className="text-sm font-bold text-[var(--lg-text-secondary)] uppercase tracking-wider leading-relaxed opacity-60">
+                      Real-time valuation engine initialized. Detailed projections available in the performance module.
                    </p>
                 </div>
             </div>
         </div>
 
-        {/* Admin Controls (Commissioner) */}
-        <div className="flex gap-2 justify-end px-4 pb-2">
+        {/* Commissioner Actions */}
+        <div className="flex gap-4 justify-end">
             {nomination.status === 'running' && (
-                <button 
+                <Button 
+                    variant="amber"
                     onClick={() => onPause && onPause()}
-                    className="flex items-center gap-1 text-xs font-bold text-yellow-500 hover:text-yellow-400 bg-yellow-950/30 px-2 py-1 rounded border border-yellow-900/50"
                 >
-                    <Pause size={12} /> PAUSE
-                </button>
+                    <Pause size={14} /> PAUSE AUCTION
+                </Button>
             )}
              {nomination.status === 'paused' && (
-                <button 
+                <Button 
+                    variant="emerald"
                     onClick={() => onResume && onResume()}
-                    className="flex items-center gap-1 text-xs font-bold text-green-500 hover:text-green-400 bg-green-950/30 px-2 py-1 rounded border border-green-900/50"
                 >
-                    <Play size={12} /> RESUME
-                </button>
+                    <Play size={14} /> RESUME AUCTION
+                </Button>
             )}
-             {/* Reset Button (Use with Caution) */}
-             <button 
+             <Button 
+                variant="red"
                 onClick={() => {
-                    if (window.confirm('Reset the entire auction? This clears all wins.')) {
+                    if (window.confirm('Reset auction? This clears ALL records.')) {
                         onReset && onReset();
                     }
                 }}
-                className="flex items-center gap-1 text-xs font-bold text-red-500 hover:text-red-400 bg-red-950/30 px-2 py-1 rounded border border-red-900/50"
             >
-                <RotateCcw size={12} /> RESET
-            </button>
+                <RotateCcw size={14} /> RESET OPS
+            </Button>
         </div>
 
-        {/* Bidding Controls */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Current Status */}
-            <div className={`liquid-glass rounded-3xl p-8 border flex flex-col justify-between shadow-xl relative overflow-hidden transition-all duration-500 ${isHighBidder ? 'bg-emerald-500/[0.05] border-emerald-500/30 ring-1 ring-emerald-500/20' : 'bg-white/[0.02] border-white/10'}`}>
-                {isHighBidder && <div className="absolute top-0 right-0 bg-emerald-500 text-white px-4 py-1.5 rounded-bl-2xl text-[10px] font-black uppercase tracking-widest">HIGHEST BIDDER</div>}
+        {/* Bidding Interface */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Current Valuation Status */}
+            <div className={`lg-card p-10 flex flex-col justify-between relative overflow-hidden transition-all duration-500 ${isHighBidder ? 'border-[var(--lg-success)]/40 bg-[var(--lg-success)]/5 ring-1 ring-[var(--lg-success)]/20' : 'bg-white/[0.01]'}`}>
+                {isHighBidder && (
+                  <div className="absolute top-0 right-0 bg-[var(--lg-success)] text-white px-6 py-2 rounded-bl-[var(--lg-radius-2xl)] text-[10px] font-black uppercase tracking-[0.2em] shadow-xl">
+                    Leading Bidder
+                  </div>
+                )}
                 <div>
-                   <div className="text-[10px] font-black text-[var(--fbst-text-muted)] uppercase tracking-[0.2em] mb-4">Live Valuation</div>
-                   <div className="text-7xl font-black text-[var(--fbst-text-primary)] tracking-tighter tabular-nums mb-4 flex items-start">
-                       <span className="text-2xl mt-2 opacity-30">$</span>{currentBid}
+                   <div className="text-[10px] font-black text-[var(--lg-text-muted)] uppercase tracking-[0.2em] mb-6 opacity-60">Live Valuation</div>
+                   <div className="text-8xl font-black text-[var(--lg-text-heading)] tracking-tighter tabular-nums mb-6 flex items-start">
+                       <span className="text-3xl mt-3 opacity-20 mr-1">$</span>{currentBid}
                    </div>
-                   <div className="text-xs font-bold text-[var(--fbst-text-primary)] uppercase tracking-widest flex items-center gap-3">
-                       <span className="text-[var(--fbst-text-muted)] opacity-50">HELD BY:</span> 
-                       <span className={isHighBidder ? 'text-emerald-400' : ''}>
-                          {highBidderTeam?.name || 'INITIAL BID'} {isHighBidder ? '(YOU)' : ''}
-                       </span>
+                   <div className="flex flex-col gap-1">
+                      <div className="text-[10px] font-black text-[var(--lg-text-muted)] uppercase tracking-widest opacity-40">Identity Held By:</div>
+                      <div className={`text-sm font-black uppercase tracking-widest ${isHighBidder ? 'text-[var(--lg-success)]' : 'text-[var(--lg-text-primary)]'}`}>
+                          {highBidderTeam?.name || 'GENESIS BID'} {isHighBidder ? '(YOU)' : ''}
+                      </div>
                    </div>
                 </div>
             </div>
 
-            {/* Actions */}
-            <div className="liquid-glass rounded-3xl p-8 border border-white/10 flex flex-col gap-4 justify-center bg-white/[0.02]">
-                 <div className="grid grid-cols-2 gap-4">
-                     <button 
+            {/* Bidding Actions */}
+            <div className="lg-card p-10 flex flex-col gap-6 justify-center bg-white/[0.01]">
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                     <Button 
                         disabled={!canAffordMin || isHighBidder || nomination.status !== 'running'}
                         onClick={() => onBid(minRaise)}
-                        className="bg-[var(--fbst-accent)] disabled:opacity-20 disabled:grayscale disabled:scale-95 disabled:cursor-not-allowed text-white text-lg font-black uppercase tracking-widest py-6 rounded-2xl shadow-2xl shadow-red-500/30 hover:brightness-110 active:scale-95 transition-all flex flex-col items-center"
+                        variant="default"
+                        size="lg"
+                        className="h-32 flex flex-col items-center justify-center gap-1 shadow-2xl shadow-blue-500/40 relative overflow-hidden group"
                     >
-                        <span>BID ${minRaise}</span>
-                     </button>
-                     <button 
+                         <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60">Increment +$1</span>
+                        <span className="text-3xl font-black tracking-tighter">BID ${minRaise}</span>
+                     </Button>
+                     <Button 
                         disabled={!canAffordJump || isHighBidder || nomination.status !== 'running'}
                         onClick={() => onBid(jumpRaise)}
-                        className="bg-white/5 border border-white/10 disabled:opacity-20 disabled:cursor-not-allowed text-white text-lg font-black uppercase tracking-widest py-6 rounded-2xl hover:bg-white/10 active:scale-95 transition-all flex flex-col items-center"
+                        variant="secondary"
+                        size="lg"
+                        className="h-32 flex flex-col items-center justify-center gap-1 bg-white/5 border-white/10 hover:bg-white/10 transition-all group"
                      >
-                        <span>JUMP ${jumpRaise}</span>
-                     </button>
+                        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--lg-text-muted)] opacity-60">Strategic +$5</span>
+                        <span className="text-3xl font-black tracking-tighter text-[var(--lg-accent)]">JUMP ${jumpRaise}</span>
+                     </Button>
+                 </div>
+                 
+                 <div className="mt-2 text-center">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--lg-text-muted)] opacity-30">
+                       Max Strategic Reserve: <span className="text-[var(--lg-text-primary)] opacity-100">${myTeam?.maxBid || 0}</span>
+                    </p>
                  </div>
             </div>
         </div>
         
-        {/* Nomination Queue (Always Visible) */}
-        <div className="w-full">
+        {/* Nomination Queue Section */}
+        <div className="w-full mt-4 bg-white/[0.01] rounded-[var(--lg-radius-2xl)] border border-white/[0.05] p-1">
             <NominationQueue 
                 teams={teams} 
                 queue={serverState?.queue || []} 
@@ -248,26 +254,4 @@ export default function AuctionStage({ serverState, myTeamId, onBid, onFinish, o
         </div>
     </div>
   );
-}
-
-function BigStat({ label, value }: { label: string, value: string | number | undefined }) {
-    return (
-        <div className="flex flex-col items-center justify-center p-2 bg-[var(--fbst-surface-primary)] rounded-lg border border-[var(--fbst-table-border)]/50 shadow-sm">
-            <div className="text-xs text-[var(--fbst-text-muted)] font-bold uppercase mb-1">{label}</div>
-            <div className="text-2xl font-bold text-[var(--fbst-text-primary)]">
-                {value !== undefined && value !== null ? value : '-'}
-            </div>
-        </div>
-    );
-}
-
-function SmallStat({ label, value }: { label: string, value: string | number | undefined }) {
-    return (
-        <div className="flex flex-col items-center justify-center p-1 opacity-75">
-            <div className="text-[10px] text-[var(--fbst-text-muted)] uppercase">{label}</div>
-            <div className="font-semibold text-[var(--fbst-text-primary)]">
-                {value !== undefined && value !== null ? value : '-'}
-            </div>
-        </div>
-    );
 }

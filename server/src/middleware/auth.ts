@@ -1,8 +1,7 @@
 // server/src/middleware/auth.ts
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { prisma } from "../db/prisma";
-
+import { prisma } from "../db/prisma.js";
 const COOKIE_NAME = "fbst_session";
 
 export type SessionTokenPayload = {

@@ -74,65 +74,59 @@ function deriveMode(p: PlayerSeasonStat): HOrP {
 }
 
 /**
- * Layout tweaks:
- * - slightly tighter modal padding
- * - slightly tighter section padding
- * - table headers centered (except first label column)
- * - table body cells centered (except first label column)
+ * Liquid Glass Styles for Modal
  */
 const overlayCls =
-  "fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3";
+  "fixed inset-0 z-50 bg-black/40 backdrop-blur-[4px] flex items-center justify-center p-4 animate-in fade-in duration-200";
 
 const modalCls =
-  "w-full max-w-4xl rounded-2xl bg-neutral-950 text-neutral-100 shadow-2xl border border-white/10";
+  "w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col bg-[var(--lg-glass-bg)] backdrop-blur-[var(--lg-glass-blur)] rounded-[var(--lg-radius-2xl)] border border-[var(--lg-glass-border)] shadow-[var(--lg-glass-shadow)] animate-in zoom-in-95 duration-200";
 
 const headerCls =
-  "flex items-start justify-between gap-3 px-4 py-3 border-b border-white/10";
+  "flex items-start justify-between gap-4 px-8 py-6 border-b border-[var(--lg-glass-border)] bg-white/5";
 
-const bodyCls = "px-4 py-3";
+const bodyCls = "flex-1 overflow-y-auto px-8 py-6 custom-scrollbar";
 
-const tabWrapCls = "flex gap-2";
+const tabWrapCls = "flex gap-1 bg-white/5 p-1 rounded-[var(--lg-radius-lg)] border border-[var(--lg-glass-border)]";
 const tabBtnBase =
-  "px-3 py-1.5 rounded-lg text-sm border border-white/10 hover:border-white/20";
-const tabBtnActive = "bg-white/10";
+  "px-4 py-1.5 rounded-[var(--lg-radius-md)] text-xs font-bold uppercase tracking-widest transition-all duration-200 transition-all";
+const tabBtnActive = "bg-[var(--lg-accent)] text-white shadow-lg shadow-blue-500/20";
+const tabBtnInactive = "text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] hover:bg-white/5";
 
-const sectionCls = "rounded-2xl border border-white/10 bg-white/5";
-
-// tighter than before
+const sectionCls = "rounded-[var(--lg-radius-xl)] border border-[var(--lg-glass-border)] bg-white/[0.02] overflow-hidden";
 const sectionHeadCls =
-  "px-3 py-2 border-b border-white/10 flex items-center justify-between";
-const sectionTitleCls = "text-sm font-semibold text-neutral-100";
-const sectionBodyCls = "p-2";
+  "px-6 py-4 border-b border-[var(--lg-glass-border)] bg-white/5 flex items-center justify-between";
+const sectionTitleCls = "text-xs font-black uppercase tracking-[0.2em] text-[var(--lg-text-muted)]";
+const sectionBodyCls = "p-0";
 
-// keep compact + legible
-const tableCls = "w-full border-collapse text-xs leading-tight tabular-nums";
+const tableCls = "w-full border-collapse text-xs tabular-nums";
 
-// NEW: header/cell alignment variants
 const thBaseCls =
-  "font-semibold text-neutral-200 border-b border-white/10 px-2 py-1 whitespace-nowrap";
+  "text-[10px] font-black uppercase tracking-widest text-[var(--lg-text-muted)] opacity-70 border-b border-[var(--lg-glass-border)] bg-white/5 px-4 py-3";
 const thLeftCls = `${thBaseCls} text-left`;
 const thCenterCls = `${thBaseCls} text-center`;
 
 const tdBaseCls =
-  "text-neutral-100 border-b border-white/5 px-2 py-1 whitespace-nowrap";
+  "text-[var(--lg-text-primary)] border-b border-white/[0.02] px-4 py-3 font-bold";
 const tdLeftCls = `${tdBaseCls} text-left`;
-const tdCenterCls = `${tdBaseCls} text-center`;
-const tdMutedCls = "text-neutral-300";
+const tdCenterCls = `${tdBaseCls} text-center font-black`;
+const tdMutedCls = "text-[var(--lg-text-muted)]";
 
 function CloseButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="px-3 py-1.5 rounded-lg text-sm border border-white/10 hover:border-white/20"
+      className="p-2 rounded-[var(--lg-radius-lg)] text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] hover:bg-white/10 transition-colors"
       aria-label="Close"
     >
-      Close
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+      </svg>
     </button>
   );
 }
 
 export default function PlayerDetailModal({ player, onClose, open }: Props) {
-  // If open is explicitly passed, use it; otherwise fall back to player being non-null
   const isVisible = open !== undefined ? open : !!player;
   
   const [tab, setTab] = useState<TabId>("stats");
@@ -151,7 +145,6 @@ export default function PlayerDetailModal({ player, onClose, open }: Props) {
     Array<CareerHittingRow | CareerPitchingRow>
   >([]);
 
-  // Reset on player change
   useEffect(() => {
     setTab("stats");
     setErr("");
@@ -193,7 +186,6 @@ export default function PlayerDetailModal({ player, onClose, open }: Props) {
     };
   }, [player, mlbId, mode]);
 
-  // Escape-to-close
   useEffect(() => {
     if (!player) return;
     const onKeyDown = (ev: KeyboardEvent) => {
@@ -220,34 +212,36 @@ export default function PlayerDetailModal({ player, onClose, open }: Props) {
       role="dialog"
       aria-modal="true"
     >
-      <div className={modalCls}>
+      <div className={modalCls} onMouseDown={e => e.stopPropagation()}>
         <div className={headerCls}>
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <h2 className="text-lg font-semibold leading-tight truncate">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <h2 className="text-3xl font-black tracking-tighter text-[var(--lg-text-heading)] leading-none truncate">
                 {title}
               </h2>
-              <span className="text-xs text-neutral-300">{roleLabel}</span>
+              <span className={`px-2 py-0.5 rounded-[var(--lg-radius-sm)] text-[10px] font-black uppercase tracking-widest ${mode === 'pitching' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
+                {roleLabel}
+              </span>
             </div>
 
-            <div className="mt-1 text-xs text-neutral-300 flex flex-wrap gap-x-3 gap-y-1">
-              {pos ? <span>POS: {pos}</span> : null}
-              {ogba ? <span>OGBA: {ogba}</span> : null}
-              {mlbTeam ? <span>MLB: {mlbTeam}</span> : null}
-              {mlbId ? <span className="opacity-80">ID: {mlbId}</span> : null}
+            <div className="mt-3 text-[10px] font-black uppercase tracking-widest text-[var(--lg-text-muted)] flex flex-wrap gap-x-6 gap-y-1">
+              {pos ? <div className="flex gap-2"><span>POS:</span> <span className="text-[var(--lg-text-primary)]">{pos}</span></div> : null}
+              {ogba ? <div className="flex gap-2"><span>OGBA:</span> <span className="text-[var(--lg-text-primary)]">{ogba}</span></div> : null}
+              {mlbTeam ? <div className="flex gap-2"><span>MLB:</span> <span className="text-[var(--lg-text-primary)]">{mlbTeam}</span></div> : null}
+              {mlbId ? <div className="flex gap-2 opacity-60"><span>ID:</span> <span>{mlbId}</span></div> : null}
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-6">
             <div className={tabWrapCls}>
               <button
-                className={`${tabBtnBase} ${tab === "stats" ? tabBtnActive : ""}`}
+                className={`${tabBtnBase} ${tab === "stats" ? tabBtnActive : tabBtnInactive}`}
                 onClick={() => setTab("stats")}
               >
                 Stats
               </button>
               <button
-                className={`${tabBtnBase} ${tab === "profile" ? tabBtnActive : ""}`}
+                className={`${tabBtnBase} ${tab === "profile" ? tabBtnActive : tabBtnInactive}`}
                 onClick={() => setTab("profile")}
               >
                 Profile
@@ -259,67 +253,69 @@ export default function PlayerDetailModal({ player, onClose, open }: Props) {
 
         <div className={bodyCls}>
           {err ? (
-            <div className="mb-3 rounded-xl border border-red-500/30 bg-red-950/30 px-3 py-2 text-sm text-red-200">
-              {err}
+            <div className="lg-alert lg-alert-error mb-6">
+              <div className="font-bold">Error:</div>
+              <div>{err}</div>
             </div>
           ) : null}
 
           {loading ? (
-            <div className="text-sm text-neutral-300">Loading…</div>
+            <div className="flex flex-col items-center justify-center py-20 text-[var(--lg-text-muted)]">
+              <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+              <div className="font-black uppercase tracking-widest text-[10px]">Synchronizing...</div>
+            </div>
           ) : tab === "profile" ? (
             <div className={sectionCls}>
               <div className={sectionHeadCls}>
-                <div className={sectionTitleCls}>Profile</div>
+                <div className={sectionTitleCls}>Personnel Record</div>
               </div>
-              <div className={sectionBodyCls}>
+              <div className="p-8">
                 {profile ? (
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 text-sm">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
                     <div>
-                      <div className="text-xs text-neutral-400">Name</div>
-                      <div className="text-sm">{profile.fullName}</div>
+                      <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--lg-text-muted)] mb-1">Full Identity</div>
+                      <div className="text-sm font-bold text-[var(--lg-text-primary)]">{profile.fullName}</div>
                     </div>
                     <div>
-                      <div className="text-xs text-neutral-400">Team</div>
-                      <div className="text-sm">{profile.currentTeam ?? "—"}</div>
+                      <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--lg-text-muted)] mb-1">Assigned Unit</div>
+                      <div className="text-sm font-bold text-[var(--lg-text-primary)]">{profile.currentTeam ?? "—"}</div>
                     </div>
                     <div>
-                      <div className="text-xs text-neutral-400">Primary</div>
-                      <div className="text-sm">{profile.primaryPosition ?? "—"}</div>
+                      <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--lg-text-muted)] mb-1">Primary Role</div>
+                      <div className="text-sm font-bold text-[var(--lg-text-primary)]">{profile.primaryPosition ?? "—"}</div>
                     </div>
-
                     <div>
-                      <div className="text-xs text-neutral-400">B/T</div>
-                      <div className="text-sm">
+                      <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--lg-text-muted)] mb-1">B/T Spec</div>
+                      <div className="text-sm font-bold text-[var(--lg-text-primary)]">
                         {(profile.bats ?? "—")}/{(profile.throws ?? "—")}
                       </div>
                     </div>
                     <div>
-                      <div className="text-xs text-neutral-400">HT/WT</div>
-                      <div className="text-sm">
+                      <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--lg-text-muted)] mb-1">HT/WT Specs</div>
+                      <div className="text-sm font-bold text-[var(--lg-text-primary)]">
                         {(profile.height ?? "—")} / {(profile.weight ?? "—")}
                       </div>
                     </div>
                     <div>
-                      <div className="text-xs text-neutral-400">Born</div>
-                      <div className="text-sm">{profile.birthDate ?? "—"}</div>
+                      <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--lg-text-muted)] mb-1">Origin Date</div>
+                      <div className="text-sm font-bold text-[var(--lg-text-primary)]">{profile.birthDate ?? "—"}</div>
                     </div>
-
                     <div>
-                      <div className="text-xs text-neutral-400">Debut</div>
-                      <div className="text-sm">{profile.mlbDebutDate ?? "—"}</div>
+                      <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--lg-text-muted)] mb-1">Field Entry</div>
+                      <div className="text-sm font-bold text-[var(--lg-text-primary)]">{profile.mlbDebutDate ?? "—"}</div>
                     </div>
                   </div>
                 ) : (
-                  <div className="text-sm text-neutral-300">No profile data.</div>
+                  <div className="text-sm text-[var(--lg-text-muted)] italic">No personnel profile data found in registry.</div>
                 )}
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-3">
+            <div className="grid grid-cols-1 gap-8">
               {/* Recent */}
               <div className={sectionCls}>
                 <div className={sectionHeadCls}>
-                  <div className={sectionTitleCls}>Recent (7 / 14 / 21 days) + YTD</div>
+                  <div className={sectionTitleCls}>Short-Term Velocity <span className="text-[var(--lg-accent)] opacity-40 mx-2">|</span> 7 / 14 / 21 Days + YTD</div>
                 </div>
                 <div className={sectionBodyCls}>
                   {recentRows.length ? (
@@ -333,7 +329,7 @@ export default function PlayerDetailModal({ player, onClose, open }: Props) {
                       tdMutedCls={tdMutedCls}
                     />
                   ) : (
-                    <div className="text-sm text-neutral-300">No recent rows.</div>
+                    <div className="p-8 text-sm text-[var(--lg-text-muted)] italic">No recent performance logs located.</div>
                   )}
                 </div>
               </div>
@@ -341,7 +337,7 @@ export default function PlayerDetailModal({ player, onClose, open }: Props) {
               {/* Career */}
               <div className={sectionCls}>
                 <div className={sectionHeadCls}>
-                  <div className={sectionTitleCls}>Career (fantasy columns)</div>
+                  <div className={sectionTitleCls}>Historical Log <span className="text-[var(--lg-accent)] opacity-40 mx-2">|</span> Career Metrics</div>
                 </div>
                 <div className={sectionBodyCls}>
                   {careerRows.length ? (
@@ -355,15 +351,20 @@ export default function PlayerDetailModal({ player, onClose, open }: Props) {
                       tdMutedCls={tdMutedCls}
                     />
                   ) : (
-                    <div className="text-sm text-neutral-300">No career rows.</div>
+                    <div className="p-8 text-sm text-[var(--lg-text-muted)] italic">No historical career records found.</div>
                   )}
                 </div>
               </div>
             </div>
           )}
-
-          <div className="mt-3 text-[11px] text-neutral-400">
-            Tip: press <span className="text-neutral-200">Esc</span> to close.
+        </div>
+        
+        <div className="px-8 py-4 border-t border-[var(--lg-glass-border)] bg-black/20 flex items-center justify-between">
+           <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--lg-text-muted)] opacity-40">
+            Press <span className="text-[var(--lg-text-primary)]">ESC</span> to eject
+          </div>
+          <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--lg-text-muted)] opacity-40">
+            FBST Protocol v2.5
           </div>
         </div>
       </div>
@@ -391,69 +392,71 @@ function RecentTable({
   if (mode === "hitting") {
     const r = rows as RecentHittingRow[];
     return (
-      <table className={tableCls}>
-        <thead>
-          <tr>
-            {/* Label column */}
-            <th className={thLeftCls}></th>
-            <th className={thCenterCls}>AB</th>
-            <th className={thCenterCls}>H</th>
-            <th className={thCenterCls}>R</th>
-            <th className={thCenterCls}>HR</th>
-            <th className={thCenterCls}>RBI</th>
-            <th className={thCenterCls}>SB</th>
-            <th className={thCenterCls}>AVG</th>
-          </tr>
-        </thead>
-        <tbody>
-          {r.map((x) => (
-            <tr key={x.label}>
-              <td className={`${tdLeftCls} ${tdMutedCls}`}>{x.label}</td>
-              <td className={tdCenterCls}>{toNum(x.AB)}</td>
-              <td className={tdCenterCls}>{toNum(x.H)}</td>
-              <td className={tdCenterCls}>{toNum(x.R)}</td>
-              <td className={tdCenterCls}>{toNum(x.HR)}</td>
-              <td className={tdCenterCls}>{toNum(x.RBI)}</td>
-              <td className={tdCenterCls}>{toNum(x.SB)}</td>
-              <td className={tdCenterCls}>
-                {x.AVG ?? fmt3(toNum(x.H) / Math.max(1, toNum(x.AB)))}
-              </td>
+      <div className="overflow-x-auto">
+        <table className={tableCls}>
+          <thead>
+            <tr>
+              <th className={thLeftCls}>Cycle</th>
+              <th className={thCenterCls}>AB</th>
+              <th className={thCenterCls}>H</th>
+              <th className={thCenterCls}>R</th>
+              <th className={thCenterCls}>HR</th>
+              <th className={thCenterCls}>RBI</th>
+              <th className={thCenterCls}>SB</th>
+              <th className={thCenterCls}>AVG</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {r.map((x) => (
+              <tr key={x.label} className="hover:bg-white/5 transition-colors">
+                <td className={`${tdLeftCls} ${tdMutedCls} uppercase text-[10px] tracking-widest`}>{x.label}</td>
+                <td className={tdCenterCls}>{toNum(x.AB)}</td>
+                <td className={tdCenterCls}>{toNum(x.H)}</td>
+                <td className={tdCenterCls}>{toNum(x.R)}</td>
+                <td className={tdCenterCls}>{toNum(x.HR)}</td>
+                <td className={tdCenterCls}>{toNum(x.RBI)}</td>
+                <td className={tdCenterCls}>{toNum(x.SB)}</td>
+                <td className={tdCenterCls}>
+                  {x.AVG ?? fmt3(toNum(x.H) / Math.max(1, toNum(x.AB)))}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     );
   }
 
   const p = rows as RecentPitchingRow[];
   return (
-    <table className={tableCls}>
-      <thead>
-        <tr>
-          {/* Label column */}
-          <th className={thLeftCls}></th>
-          <th className={thCenterCls}>IP</th>
-          <th className={thCenterCls}>W</th>
-          <th className={thCenterCls}>SV</th>
-          <th className={thCenterCls}>K</th>
-          <th className={thCenterCls}>ERA</th>
-          <th className={thCenterCls}>WHIP</th>
-        </tr>
-      </thead>
-      <tbody>
-        {p.map((x) => (
-          <tr key={x.label}>
-            <td className={`${tdLeftCls} ${tdMutedCls}`}>{x.label}</td>
-            <td className={tdCenterCls}>{x.IP ?? 0}</td>
-            <td className={tdCenterCls}>{toNum(x.W)}</td>
-            <td className={tdCenterCls}>{toNum(x.SV)}</td>
-            <td className={tdCenterCls}>{toNum(x.K)}</td>
-            <td className={tdCenterCls}>{x.ERA ?? fmt2(0)}</td>
-            <td className={tdCenterCls}>{x.WHIP ?? fmt2(0)}</td>
+    <div className="overflow-x-auto">
+      <table className={tableCls}>
+        <thead>
+          <tr>
+            <th className={thLeftCls}>Cycle</th>
+            <th className={thCenterCls}>IP</th>
+            <th className={thCenterCls}>W</th>
+            <th className={thCenterCls}>SV</th>
+            <th className={thCenterCls}>K</th>
+            <th className={thCenterCls}>ERA</th>
+            <th className={thCenterCls}>WHIP</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {p.map((x) => (
+            <tr key={x.label} className="hover:bg-white/5 transition-colors">
+              <td className={`${tdLeftCls} ${tdMutedCls} uppercase text-[10px] tracking-widest`}>{x.label}</td>
+              <td className={tdCenterCls}>{x.IP ?? 0}</td>
+              <td className={tdCenterCls}>{toNum(x.W)}</td>
+              <td className={tdCenterCls}>{toNum(x.SV)}</td>
+              <td className={tdCenterCls}>{toNum(x.K)}</td>
+              <td className={tdCenterCls}>{x.ERA ?? fmt2(0)}</td>
+              <td className={tdCenterCls}>{x.WHIP ?? fmt2(0)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -477,73 +480,73 @@ function CareerTable({
   if (mode === "hitting") {
     const r = rows as CareerHittingRow[];
     return (
-      <table className={tableCls}>
-        <thead>
-          <tr>
-            <th className={thCenterCls}>YR</th>
-            <th className={thLeftCls}>TM</th>
-            <th className={thCenterCls}>R</th>
-            <th className={thCenterCls}>HR</th>
-            <th className={thCenterCls}>RBI</th>
-            <th className={thCenterCls}>SB</th>
-            <th className={thCenterCls}>AVG</th>
-          </tr>
-        </thead>
-        <tbody>
-          {r.map((x) => (
-            <tr key={`${x.year}-${x.tm}`}>
-              <td className={`${tdCenterCls} ${tdMutedCls}`}>{x.year}</td>
-              <td className={`${tdLeftCls} ${tdMutedCls}`}>{x.tm || "—"}</td>
-              <td className={tdCenterCls}>{toNum(x.R)}</td>
-              <td className={tdCenterCls}>{toNum(x.HR)}</td>
-              <td className={tdCenterCls}>{toNum(x.RBI)}</td>
-              <td className={tdCenterCls}>{toNum(x.SB)}</td>
-              <td className={tdCenterCls}>
-                {x.AVG ?? fmt3(toNum(x.H) / Math.max(1, toNum(x.AB)))}
-              </td>
+      <div className="overflow-x-auto">
+        <table className={tableCls}>
+          <thead>
+            <tr>
+              <th className={thCenterCls}>YR</th>
+              <th className={thLeftCls}>TM</th>
+              <th className={thCenterCls}>R</th>
+              <th className={thCenterCls}>HR</th>
+              <th className={thCenterCls}>RBI</th>
+              <th className={thCenterCls}>SB</th>
+              <th className={thCenterCls}>AVG</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {r.map((x) => (
+              <tr key={`${x.year}-${x.tm}`} className="hover:bg-white/5 transition-colors">
+                <td className={`${tdCenterCls} ${tdMutedCls}`}>{x.year}</td>
+                <td className={`${tdLeftCls} ${tdMutedCls}`}>{x.tm || "—"}</td>
+                <td className={tdCenterCls}>{toNum(x.R)}</td>
+                <td className={tdCenterCls}>{toNum(x.HR)}</td>
+                <td className={tdCenterCls}>{toNum(x.RBI)}</td>
+                <td className={tdCenterCls}>{toNum(x.SB)}</td>
+                <td className={tdCenterCls}>
+                  {x.AVG ?? fmt3(toNum(x.H) / Math.max(1, toNum(x.AB)))}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     );
   }
 
   const p = rows as CareerPitchingRow[];
   return (
-    <table className={tableCls}>
-      <thead>
-        <tr>
-          <th className={thCenterCls}>YR</th>
-          <th className={thLeftCls}>TM</th>
-          <th className={thCenterCls}>W</th>
-          <th className={thCenterCls}>SV</th>
-          <th className={thCenterCls}>K</th>
-          <th className={thCenterCls}>ERA</th>
-          <th className={thCenterCls}>WHIP</th>
-        </tr>
-      </thead>
-      <tbody>
-        {p.map((x) => {
-          // keep parsing for future; not currently displayed
-          const _ip = parseIp((x as any).IP);
-          void _ip;
+    <div className="overflow-x-auto">
+      <table className={tableCls}>
+        <thead>
+          <tr>
+            <th className={thCenterCls}>YR</th>
+            <th className={thLeftCls}>TM</th>
+            <th className={thCenterCls}>W</th>
+            <th className={thCenterCls}>SV</th>
+            <th className={thCenterCls}>K</th>
+            <th className={thCenterCls}>ERA</th>
+            <th className={thCenterCls}>WHIP</th>
+          </tr>
+        </thead>
+        <tbody>
+          {p.map((x) => {
+            const era = norm((x as any).ERA) ? String((x as any).ERA) : fmt2(0);
+            const whip = norm((x as any).WHIP) ? String((x as any).WHIP) : fmt2(0);
 
-          const era = norm((x as any).ERA) ? String((x as any).ERA) : fmt2(0);
-          const whip = norm((x as any).WHIP) ? String((x as any).WHIP) : fmt2(0);
-
-          return (
-            <tr key={`${x.year}-${x.tm}`}>
-              <td className={`${tdCenterCls} ${tdMutedCls}`}>{x.year}</td>
-              <td className={`${tdLeftCls} ${tdMutedCls}`}>{x.tm || "—"}</td>
-              <td className={tdCenterCls}>{toNum(x.W)}</td>
-              <td className={tdCenterCls}>{toNum(x.SV)}</td>
-              <td className={tdCenterCls}>{toNum((x as any).SO)}</td>
-              <td className={tdCenterCls}>{era}</td>
-              <td className={tdCenterCls}>{whip}</td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+            return (
+              <tr key={`${x.year}-${x.tm}`} className="hover:bg-white/5 transition-colors">
+                <td className={`${tdCenterCls} ${tdMutedCls}`}>{x.year}</td>
+                <td className={`${tdLeftCls} ${tdMutedCls}`}>{x.tm || "—"}</td>
+                <td className={tdCenterCls}>{toNum(x.W)}</td>
+                <td className={tdCenterCls}>{toNum(x.SV)}</td>
+                <td className={tdCenterCls}>{toNum((x as any).SO)}</td>
+                <td className={tdCenterCls}>{era}</td>
+                <td className={tdCenterCls}>{whip}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }

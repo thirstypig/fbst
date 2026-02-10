@@ -62,12 +62,18 @@ enum ClaimStatus {
 // ======================
 
 model User {
-  id        Int     @id @default(autoincrement())
-  email     String  @unique
-  name      String?
-  avatarUrl String?
-  googleSub String  @unique
-  isAdmin   Boolean @default(false)
+  id           Int     @id @default(autoincrement())
+  email        String  @unique
+  name         String?
+  avatarUrl    String?
+  googleSub    String? @unique
+  yahooSub     String? @unique
+  passwordHash String?
+
+  resetToken        String?   @unique
+  resetTokenExpires DateTime?
+
+  isAdmin Boolean @default(false)
 
   memberships    LeagueMembership[]
   ownedTeams     Team[]             @relation("TeamOwner")

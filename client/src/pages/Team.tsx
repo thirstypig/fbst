@@ -8,6 +8,7 @@ import TeamRosterManager from "../components/TeamRosterManager";
 import { getOgbaTeamName } from "../lib/ogbaTeams";
 import { isPitcher, normalizePosition, formatAvg, getMlbTeamAbbr } from "../lib/playerDisplay";
 import { TableCard, Table, THead, Tr, Th, Td } from "../components/ui/TableCard";
+import { Button } from "../components/ui/button";
 
 function normCode(v: any): string {
   return String(v ?? "").trim().toUpperCase();
@@ -182,27 +183,28 @@ export default function Team() {
   const pitchers = useMemo(() => players.filter((p) => isPitcher(p)), [players]);
 
   return (
-    <div className="flex-1 min-h-screen bg-[var(--fbst-surface-primary)] text-[var(--fbst-text-primary)]">
+    <div className="flex-1 min-h-screen bg-[var(--lg-bg)] text-[var(--lg-text-primary)]">
       <main className="max-w-7xl mx-auto px-6 py-12">
         <header className="mb-10 text-center relative">
-          <h1 className="text-5xl font-black uppercase tracking-tighter text-[var(--fbst-text-heading)] mb-4">{teamName}</h1>
-          <div className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--fbst-text-muted)] opacity-60">
+          <h1 className="text-5xl font-black uppercase tracking-tighter text-[var(--lg-text-heading)] mb-4">{teamName}</h1>
+          <div className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--lg-text-muted)] opacity-60">
             Current Deployment: {hitters.length} Hitters • {pitchers.length} Pitchers
           </div>
           
           <div className="mt-8 flex justify-center gap-6">
-             <Link className="text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] hover:text-white transition-all flex items-center gap-2" to="/season">
-               <span className="opacity-40">←</span> Registry
+             <Link to="/season">
+               <Button variant="ghost" size="sm">
+                 <span className="opacity-40 ml-[-4px] mr-2">←</span> Registry
+               </Button>
              </Link>
              
              {/* Manage Button - Only show if DB data loaded */}
              {dbTeamId && (
-                 <button 
+                 <Button 
                     onClick={() => setIsManaging(true)}
-                    className="text-[10px] bg-[var(--fbst-accent)] hover:brightness-110 text-white px-5 py-2.5 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-red-500/20 transition-all flex items-center gap-2"
                  >
                     <span>⚡ Mobilize Roster</span>
-                 </button>
+                 </Button>
              )}
           </div>
         </header>
@@ -214,22 +216,22 @@ export default function Team() {
         )}
 
         <div className="mb-10 flex justify-center">
-          <div className="inline-flex rounded-2xl bg-white/5 p-1 border border-white/10 backdrop-blur-md">
-            <Link
-              to="#hitters"
-              className={`rounded-xl px-6 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all ${
-                activeTab === "hitters" ? "bg-[var(--fbst-accent)] text-white shadow-lg shadow-red-500/10" : "text-[var(--fbst-text-muted)] hover:text-white"
-              }`}
-            >
-              Aggression: Hitters
+          <div className="lg-card p-1">
+            <Link to="#hitters">
+              <Button
+                variant={activeTab === "hitters" ? "default" : "ghost"}
+                className="px-8"
+              >
+                Aggression: Hitters
+              </Button>
             </Link>
-            <Link
-              to="#pitchers"
-              className={`rounded-xl px-6 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all ${
-                activeTab === "pitchers" ? "bg-[var(--fbst-accent)] text-white shadow-lg shadow-red-500/10" : "text-[var(--fbst-text-muted)] hover:text-white"
-              }`}
-            >
-              Control: Pitchers
+            <Link to="#pitchers">
+              <Button
+                variant={activeTab === "pitchers" ? "default" : "ghost"}
+                className="px-8"
+              >
+                Control: Pitchers
+              </Button>
             </Link>
           </div>
         </div>
@@ -447,15 +449,16 @@ export default function Team() {
         {isManaging && (
              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4">
                  <div className="w-full max-w-7xl h-[90vh] bg-[#0c0c0c] rounded-3xl border border-white/10 shadow-2xl overflow-hidden flex flex-col liquid-glass">
-                     <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
-                         <h2 className="text-xl font-black uppercase tracking-tighter text-[var(--fbst-text-heading)]">Orchestrator: Roster Mobilization</h2>
-                         <button 
-                            onClick={() => { setIsManaging(false); window.location.reload(); }}
-                            className="p-2 hover:bg-white/10 rounded-full text-[var(--fbst-text-muted)] hover:text-white transition-all"
-                         >
-                            ✕
-                         </button>
-                     </div>
+                      <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
+                          <h2 className="text-xl font-black uppercase tracking-tighter text-[var(--lg-text-heading)]">Orchestrator: Roster Mobilization</h2>
+                          <Button 
+                             onClick={() => { setIsManaging(false); window.location.reload(); }}
+                             variant="ghost"
+                             size="icon"
+                          >
+                             ✕
+                          </Button>
+                      </div>
                      <div className="flex-1 overflow-hidden p-8 bg-black/20">
                          <TeamRosterManager 
                             teamId={dbTeamId || 0}

@@ -7,6 +7,7 @@ import EditPlayerNameModal from '../components/EditPlayerNameModal';
 import EditTeamNameModal from '../components/EditTeamNameModal';
 
 import ArchiveAdminPanel from '../components/ArchiveAdminPanel';
+import { Button } from "../components/ui/button";
 import AIInsightsModal from '../components/AIInsightsModal';
 import PageHeader from '../components/ui/PageHeader';
 import { 
@@ -516,64 +517,49 @@ export default function ArchivePage() {
             </div>
 
             {canEdit && (
-              <button
+              <Button
                 onClick={handleRecalculate}
                 disabled={recalculating || !selectedYear}
-                className={`px-6 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${
-                  recalculating
-                    ? 'bg-white/5 text-[var(--fbst-text-muted)] cursor-not-allowed'
-                    : 'bg-amber-500/10 text-amber-500 border border-amber-500/20 hover:bg-amber-500/20 shadow-lg shadow-amber-500/5'
-                }`}
+                variant="amber"
+                size="sm"
               >
                 {recalculating ? 'Processing...' : '⟳ Sync Registry'}
-              </button>
+              </Button>
             )}
         </div>
 
         {/* NAVIGATION TABS */}
         {selectedYear && (
-          <div className="mb-12 flex gap-1 liquid-glass p-1 rounded-2xl border border-white/10 shadow-xl w-fit bg-white/5 backdrop-blur-xl">
-            <button
+          <div className="mb-12 flex gap-1 lg-card p-1 w-fit">
+            <Button
               onClick={() => setActiveTab('standings')}
-              className={`px-8 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${
-                activeTab === 'standings'
-                  ? 'bg-[var(--fbst-accent)] text-white shadow-xl scale-[1.02]'
-                  : 'text-[var(--fbst-text-muted)] hover:text-white hover:bg-white/5'
-              }`}
+              variant={activeTab === 'standings' ? 'default' : 'ghost'}
+              className="px-8"
             >
               Aggregated Standings
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => setActiveTab('stats')}
-              className={`px-8 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${
-                activeTab === 'stats'
-                  ? 'bg-[var(--fbst-accent)] text-white shadow-xl scale-[1.02]'
-                  : 'text-[var(--fbst-text-muted)] hover:text-white hover:bg-white/5'
-              }`}
+              variant={activeTab === 'stats' ? 'default' : 'ghost'}
+              className="px-8"
             >
               Performance Metrics
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => setActiveTab('draft')}
-              className={`px-8 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${
-                activeTab === 'draft'
-                  ? 'bg-[var(--fbst-accent)] text-white shadow-xl scale-[1.02]'
-                  : 'text-[var(--fbst-text-muted)] hover:text-white hover:bg-white/5'
-              }`}
+              variant={activeTab === 'draft' ? 'default' : 'ghost'}
+              className="px-8"
             >
               Draft Reclamation
-            </button>
+            </Button>
             {canEdit && (
-              <button
+              <Button
                 onClick={() => setActiveTab('admin')}
-                className={`px-8 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${
-                  activeTab === 'admin'
-                    ? 'bg-amber-500 text-white shadow-xl scale-[1.02]'
-                    : 'text-amber-500/60 hover:text-amber-500 hover:bg-amber-500/5'
-                }`}
+                variant={activeTab === 'admin' ? 'amber' : 'ghost'}
+                className={`px-8 ${activeTab !== 'admin' ? 'text-amber-500/60 hover:text-amber-500' : ''}`}
               >
                 Orchestration
-              </button>
+              </Button>
             )}
           </div>
         )}
@@ -592,7 +578,7 @@ export default function ArchivePage() {
                        <h3 className="text-sm font-black uppercase tracking-widest text-amber-500">Capital Reallocations</h3>
                     </div>
                     <div className="p-6">
-                      <ThemedTable>
+                      <ThemedTable bare>
                         <tbody className="divide-y divide-white/5">
                           {draftTrades.map((trade, i) => (
                             <ThemedTr key={i} className="group border-none hover:bg-white/5 transition-all">
@@ -699,7 +685,7 @@ export default function ArchivePage() {
                           {hitters.length > 0 && (
                             <div className="border-b border-white/5">
                               <div className="px-8 py-3 bg-blue-500/5 text-[10px] font-black uppercase tracking-[0.2em] text-blue-400">Batting Roster</div>
-                              <ThemedTable>
+                              <ThemedTable bare>
                                 <ThemedThead>
                                   <ThemedTr>
                                     <ThemedTh className="px-8 py-3">Identity</ThemedTh>
@@ -836,7 +822,7 @@ export default function ArchivePage() {
               ) : periodResults.length === 0 ? (
                 <div className="text-center py-20 text-[var(--fbst-text-muted)] italic opacity-40">Zero velocity data available.</div>
               ) : (
-                <ThemedTable>
+                <ThemedTable bare>
                   <ThemedThead>
                     <ThemedTr>
                       <ThemedTh className="px-8 py-5 min-w-[240px]">Franchise</ThemedTh>
@@ -967,7 +953,7 @@ export default function ArchivePage() {
                             <div className="rounded-2xl border border-white/5 overflow-hidden">
                               <div className="px-6 py-3 bg-blue-500/5 text-[10px] font-black uppercase tracking-[0.2em] text-blue-400 border-b border-white/5">Batting Stats</div>
                               <div className="overflow-x-auto">
-                                <ThemedTable>
+                                <ThemedTable bare>
                                   <ThemedThead>
                                     <ThemedTr>
                                       <ThemedTh className="px-6 py-4">Identity</ThemedTh>
@@ -1010,7 +996,7 @@ export default function ArchivePage() {
                             <div className="rounded-2xl border border-white/5 overflow-hidden">
                               <div className="px-6 py-3 bg-purple-500/5 text-[10px] font-black uppercase tracking-[0.2em] text-purple-400 border-b border-white/5">Pitching Stats</div>
                               <div className="overflow-x-auto">
-                                <ThemedTable>
+                                <ThemedTable bare>
                                   <ThemedThead>
                                     <ThemedTr>
                                       <ThemedTh className="px-6 py-4">Identity</ThemedTh>

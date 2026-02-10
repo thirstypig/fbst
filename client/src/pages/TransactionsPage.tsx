@@ -4,6 +4,7 @@ import { getTransactions, TransactionEvent, getPlayerSeasonStats, getLeagues, ge
 import AddDropTab from "../components/AddDropTab";
 import PageHeader from "../components/ui/PageHeader";
 import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from "../components/ui/ThemedTable";
+import { Button } from "../components/ui/button";
 
   /* ... existing imports */
 
@@ -18,7 +19,6 @@ export default function TransactionsPage() {
   
   // State
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
   const [leagueId, setLeagueId] = useState<number | null>(null);
 
@@ -51,9 +51,8 @@ export default function TransactionsPage() {
             }
         }
 
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(err);
-        setError(err.message || "Failed to load buffer");
       } finally {
         setLoading(false);
       }
@@ -92,9 +91,9 @@ export default function TransactionsPage() {
           alert(`Successfully claimed ${player.player_name}!`);
           window.location.reload(); // Simple refresh to show new state
 
-      } catch (err: any) {
+      } catch (err: unknown) {
           console.error("Claim error:", err);
-          alert(`Error: ${err.message || "Unknown error"}`);
+          alert(`Error: ${err instanceof Error ? err.message : "Unknown error"}`);
       }
   };
 
@@ -133,11 +132,11 @@ export default function TransactionsPage() {
                   <div className="flex items-center gap-4">
                       {/* Team Selector for Testing/Admin */}
                                   <div className="flex items-center gap-2">
-                                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)]">Acting As:</label>
+                                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--lg-text-muted)]">Acting As:</label>
                                       <select 
                                           value={selectedTeamId || ''}
                                           onChange={(e) => setSelectedTeamId(Number(e.target.value))}
-                                          className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs font-black text-white outline-none focus:border-[var(--fbst-accent)] transition-all"
+                                          className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs font-black text-[var(--lg-text-primary)] outline-none focus:border-[var(--lg-accent)] transition-all"
                                       >
                                           {teams.map(t => (
                                               <option key={t.id} value={t.id} className="text-black">{t.name}</option>
@@ -146,25 +145,31 @@ export default function TransactionsPage() {
                                   </div>
 
                       {/* Navigation Hub */}
-                      <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10 backdrop-blur-md">
-                           <button 
+                      <div className="lg-card p-1 flex gap-2">
+                           <Button 
                               onClick={() => setActiveTab('add_drop')}
-                              className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'add_drop' ? 'bg-[var(--fbst-accent)] text-white shadow-lg shadow-red-500/20' : 'text-[var(--fbst-text-muted)] hover:text-[var(--fbst-text-primary)]'}`}
+                              variant={activeTab === 'add_drop' ? 'default' : 'ghost'}
+                              size="sm"
+                              className="px-6"
                            >
                                Add / Drop
-                           </button>
-                           <button 
+                           </Button>
+                           <Button 
                               onClick={() => setActiveTab('waivers')}
-                              className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === "waivers" ? "bg-[var(--fbst-accent)] text-white shadow-lg shadow-red-500/20" : "text-[var(--fbst-text-muted)] hover:text-[var(--fbst-text-primary)]"}`}
+                              variant={activeTab === 'waivers' ? 'default' : 'ghost'}
+                              size="sm"
+                              className="px-6"
                            >
                                Waivers
-                           </button>
-                           <button 
+                           </Button>
+                           <Button 
                               onClick={() => setActiveTab('history')}
-                              className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'history' ? 'bg-[var(--fbst-accent)] text-white shadow-lg shadow-red-500/20' : 'text-[var(--fbst-text-muted)] hover:text-[var(--fbst-text-primary)]'}`}
+                              variant={activeTab === 'history' ? 'default' : 'ghost'}
+                              size="sm"
+                              className="px-6"
                            >
                                History
-                           </button>
+                           </Button>
                       </div>
                   </div>
              }
@@ -181,74 +186,76 @@ export default function TransactionsPage() {
 
           {activeTab === 'waivers' && (
               <div className="max-w-xl mx-auto space-y-6">
-                  <div className="text-center mb-8">
-                    <h3 className="text-2xl font-black uppercase tracking-tighter text-[var(--fbst-text-heading)] mb-2">Current Waiver Priority</h3>
-                    <p className="text-xs text-[var(--fbst-text-muted)] uppercase tracking-widest font-bold">Reverse Standings Logic</p>
+                  <div className="text-center mb-12">
+                    <h3 className="text-4xl font-black uppercase tracking-tighter text-[var(--lg-text-heading)] mb-2">Waiver Priority</h3>
+                    <p className="text-[10px] text-[var(--lg-text-muted)] uppercase tracking-[0.3em] font-black opacity-40">Reverse Standings Algorithm</p>
                   </div>
                   
-                  <div className="liquid-glass rounded-3xl overflow-hidden border border-white/10">
+                  <div className="lg-card p-0 overflow-hidden divide-y divide-white/[0.03]">
                       {sortedWaiverOrder.map((t, idx) => (
-                          <div key={t.id} className="flex items-center justify-between p-6 border-b border-white/5 last:border-0 hover:bg-white/[0.03] transition-colors group">
-                               <div className="flex items-center gap-6">
-                                  <span className="text-3xl font-black text-[var(--fbst-text-muted)] opacity-20 w-8 tabular-nums group-hover:opacity-100 transition-opacity">{idx + 1}</span>
+                          <div key={t.id} className="flex items-center justify-between p-8 hover:bg-white/[0.02] transition-colors group">
+                               <div className="flex items-center gap-8">
+                                  <span className="text-5xl font-black text-[var(--lg-text-muted)] opacity-10 w-12 tabular-nums group-hover:opacity-30 transition-opacity">{idx + 1}</span>
                                   <div>
-                                      <div className="font-black text-lg text-[var(--fbst-text-primary)] tracking-tight">{t.name}</div>
-                                      <div className="text-[10px] text-[var(--fbst-text-muted)] font-bold uppercase tracking-widest mt-0.5">{t.owner || 'No Owner'}</div>
+                                      <div className="font-black text-2xl text-[var(--lg-text-primary)] tracking-tighter">{t.name}</div>
+                                      <div className="text-[10px] text-[var(--lg-text-muted)] font-black uppercase tracking-widest mt-1 opacity-60">{t.owner || 'Personnel Unassigned'}</div>
                                   </div>
                               </div>
                               <div className="text-right">
-                                  <div className="text-xs font-mono font-black text-[var(--fbst-accent)]">
-                                      RANK {t.rank === 999 ? '—' : t.rank}
+                                  <div className="text-xl font-black text-[var(--lg-accent)] tracking-tighter">
+                                      {t.rank === 999 ? '—' : `POS ${t.rank}`}
                                   </div>
-                                  <div className="text-[10px] font-mono text-[var(--fbst-text-muted)] mt-1 tracking-tighter uppercase font-bold">
-                                      {t.points.toFixed(1)} PTS
+                                  <div className="text-[10px] font-black text-[var(--lg-text-muted)] mt-1 tracking-widest uppercase opacity-40">
+                                      {t.points.toFixed(1)} Yield
                                   </div>
                               </div>
                           </div>
                       ))}
                   </div>
-                  <p className="text-center text-[10px] font-bold text-[var(--fbst-text-muted)] uppercase tracking-[0.2em] mt-8 bg-white/5 p-4 rounded-2xl border border-white/10">
-                      Priority is determined by reverse standings. Claims process nightly.
-                  </p>
+                  <div className="text-center text-[10px] font-black text-[var(--lg-text-muted)] uppercase tracking-[0.2em] mt-12 bg-white/5 p-6 rounded-3xl border border-white/10 opacity-60">
+                      Priority is synchronized via reverse standing metrics. Claims execute at designated maintenance windows.
+                  </div>
               </div>
           )}
 
           {activeTab === 'history' && (
-              <ThemedTable>
-                  <ThemedThead>
-                    <ThemedTr>
-                      <ThemedTh>Date</ThemedTh>
-                      <ThemedTh>Team</ThemedTh>
-                      <ThemedTh>Player</ThemedTh>
-                      <ThemedTh>Transaction</ThemedTh>
-                    </ThemedTr>
-                  </ThemedThead>
-                  <tbody>
-                    {transactions.map((tx) => (
-                      <ThemedTr key={tx.id} className="group">
-                        <ThemedTd className="whitespace-nowrap text-xs font-mono font-bold text-[var(--fbst-text-secondary)]">
-                          {tx.effDate ? new Date(tx.effDate).toLocaleDateString() : tx.effDateRaw}
-                        </ThemedTd>
-                        <ThemedTd className="font-black text-[var(--fbst-text-primary)] tracking-tight">
-                          {tx.team?.name || tx.ogbaTeamName}
-                        </ThemedTd>
-                        <ThemedTd className="font-bold text-[var(--fbst-text-secondary)]">
-                          {tx.player?.name || tx.playerAliasRaw}
-                        </ThemedTd>
-                        <ThemedTd className="text-xs font-bold text-[var(--fbst-text-muted)] uppercase tracking-widest group-hover:text-[var(--fbst-accent)] transition-colors">
-                          {tx.transactionRaw}
-                        </ThemedTd>
-                      </ThemedTr>
-                    ))}
-                    {transactions.length === 0 && (
+              <div className="lg-card p-0 overflow-hidden">
+                <ThemedTable bare>
+                    <ThemedThead>
                       <ThemedTr>
-                        <ThemedTd colSpan={4} className="py-20 text-center text-xs font-black text-[var(--fbst-text-muted)] uppercase tracking-[0.2em]">
-                          No records found in the transaction log.
-                        </ThemedTd>
+                        <ThemedTh className="pl-8 py-5">Date</ThemedTh>
+                        <ThemedTh>Franchise</ThemedTh>
+                        <ThemedTh>Personnel</ThemedTh>
+                        <ThemedTh className="pr-8">Classification</ThemedTh>
                       </ThemedTr>
-                    )}
-                  </tbody>
-              </ThemedTable>
+                    </ThemedThead>
+                    <tbody className="divide-y divide-white/[0.03]">
+                      {transactions.map((tx) => (
+                        <ThemedTr key={tx.id} className="group hover:bg-white/[0.02]">
+                          <ThemedTd className="pl-8 py-5 whitespace-nowrap text-[10px] font-black text-[var(--lg-text-muted)] opacity-60">
+                            {tx.effDate ? new Date(tx.effDate).toLocaleDateString() : tx.effDateRaw}
+                          </ThemedTd>
+                          <ThemedTd className="font-black text-[var(--lg-text-primary)] tracking-tight text-lg">
+                            {tx.team?.name || tx.ogbaTeamName}
+                          </ThemedTd>
+                          <ThemedTd className="font-bold text-[var(--lg-text-heading)]">
+                            {tx.player?.name || tx.playerAliasRaw}
+                          </ThemedTd>
+                          <ThemedTd className="pr-8 text-[10px] font-black text-[var(--lg-text-muted)] uppercase tracking-widest group-hover:text-[var(--lg-accent)] transition-colors opacity-40 group-hover:opacity-100">
+                            {tx.transactionRaw}
+                          </ThemedTd>
+                        </ThemedTr>
+                      ))}
+                      {transactions.length === 0 && (
+                        <ThemedTr>
+                          <ThemedTd colSpan={4} className="py-32 text-center text-[10px] font-black text-[var(--lg-text-muted)] uppercase tracking-[0.3em] opacity-40">
+                            No records found in the historical log.
+                          </ThemedTd>
+                        </ThemedTr>
+                      )}
+                    </tbody>
+                </ThemedTable>
+              </div>
           )}
       </div>
     </div>

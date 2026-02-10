@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   getTrades,
   proposeTrade,
@@ -13,8 +13,9 @@ import {
 import { useAuth } from "../auth/AuthProvider";
 import { TradeAssetSelector } from "../components/TradeAssetSelector";
 import TeamRosterView from "../components/TeamRosterView";
-import { Eye } from "lucide-react";
+import { Eye, Plus } from "lucide-react";
 import PageHeader from "../components/ui/PageHeader";
+import { Button } from "../components/ui/button";
 
 export function TradesPage() {
   const { me } = useAuth();
@@ -26,11 +27,7 @@ export function TradesPage() {
   const [activeTab, setActiveTab] = useState<"my" | "league" | "create">("my");
   const [contextTrade, setContextTrade] = useState<TradeProposal | null>(null);
 
-  useEffect(() => {
-    if(user) loadAllTrades();
-  }, [user, loadAllTrades]);
-
-  async function loadAllTrades() {
+  const loadAllTrades = useCallback(async () => {
     const leagueIdStr = user?.memberships?.[0]?.leagueId;
     if (!leagueIdStr) {
       setLoading(false);
@@ -49,14 +46,18 @@ export function TradesPage() {
       setLeagueTrades(leagueRes.trades || []);
       
       setError(null);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to load trades");
       setMyTrades([]);
       setLeagueTrades([]);
     } finally {
       setLoading(false);
     }
-  }
+  }, [user]);
+
+  useEffect(() => {
+    if(user) loadAllTrades();
+  }, [user, loadAllTrades]);
 
   const myActive = myTrades.filter((t) => ["PENDING", "ACCEPTED"].includes(t.status));
   const myHistory = myTrades.filter((t) => !["PENDING", "ACCEPTED"].includes(t.status));
@@ -66,80 +67,86 @@ export function TradesPage() {
   if (error) return <div className="p-4 text-red-500">Error: {error}</div>;
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-6xl mx-auto px-6 py-12 space-y-12">
       <div className="mb-6">
         <PageHeader 
-            title="Trade Center" 
-            subtitle="View current proposals, history, and league trading activity." 
+            title="Trade Negotiation Hub" 
+            subtitle="View current proposals, history, and league trading activity in the liquid market." 
             rightElement={
-                <button
+                <Button
                     onClick={() => setActiveTab("create")}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-semibold transition-colors"
+                    variant="default"
+                    className="px-8 shadow-xl shadow-blue-500/20"
                 >
-                    New Trade
-                </button>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Propose Protocol
+                </Button>
             }
         />
       </div>
 
       {/* Tabs */}
-      <div className="flex space-x-4 border-b border-gray-700">
-        <button
+      <div className="lg-card p-1 inline-flex gap-2">
+        <Button
           onClick={() => setActiveTab("my")}
-          className={`pb-2 px-2 text-sm font-medium transition-colors ${
-            activeTab === "my"
-              ? "border-b-2 border-blue-500 text-blue-400"
-              : "text-gray-400 hover:text-gray-200"
-          }`}
+          variant={activeTab === "my" ? "default" : "ghost"}
+          size="sm"
+          className="px-6"
         >
-          My Trades
-        </button>
-        <button
+          My Proposals
+        </Button>
+        <Button
           onClick={() => setActiveTab("league")}
-          className={`pb-2 px-2 text-sm font-medium transition-colors ${
-            activeTab === "league"
-              ? "border-b-2 border-blue-500 text-blue-400"
-              : "text-gray-400 hover:text-gray-200"
-          }`}
+          variant={activeTab === "league" ? "default" : "ghost"}
+          size="sm"
+          className="px-6"
         >
-          League Activity
-        </button>
+          League Grid
+        </Button>
         {activeTab === "create" && (
-          <button
-            className="pb-2 px-2 text-sm font-medium border-b-2 border-green-500 text-green-400"
+          <Button
+            variant="secondary"
+            size="sm"
+            className="px-6 bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
           >
-            Create Trade
-          </button>
+            Create Proposal
+          </Button>
         )}
       </div>
 
       {/* My Trades Tab */}
       {activeTab === "my" && (
-        <div className="space-y-6">
+        <div className="space-y-16">
           <div>
-            <h2 className="text-lg font-semibold mb-3">Active</h2>
+            <div className="flex items-center gap-4 mb-8">
+                <div className="w-1.5 h-6 bg-emerald-500 rounded-full shadow-lg shadow-emerald-500/20"></div>
+                <h2 className="text-2xl font-black uppercase tracking-tighter text-[var(--lg-text-heading)]">Active Negotiations</h2>
+            </div>
             {myActive.length === 0 && (
-              <div className="p-8 text-center text-gray-500 bg-gray-900 rounded-lg border border-gray-800">
-                No active trade proposals.
+              <div className="lg-card p-16 text-center text-[var(--lg-text-muted)] opacity-40 italic font-medium">
+                No active trade proposals detected in the grid.
               </div>
             )}
-            <div className="grid gap-4">
+            <div className="grid gap-6">
               {myActive.map((t) => (
-                <TradeCard key={t.id} trade={t} onRefresh={loadAllTrades} currentUserId={Number(user?.id)} isAdmin={user?.isAdmin} onViewContext={() => setContextTrade(t)} />
+                <TradeCard key={t.id} trade={t} onRefresh={loadAllTrades} currentUserId={Number(user?.id)} onViewContext={() => setContextTrade(t)} />
               ))}
             </div>
           </div>
           
           <div>
-            <h2 className="text-lg font-semibold mb-3">History</h2>
+            <div className="flex items-center gap-4 mb-8">
+                <div className="w-1.5 h-6 bg-[var(--lg-text-muted)] opacity-20 rounded-full"></div>
+                <h2 className="text-2xl font-black uppercase tracking-tighter text-[var(--lg-text-heading)] opacity-60">Historical Archive</h2>
+            </div>
             {myHistory.length === 0 && (
-              <div className="p-8 text-center text-gray-500 bg-gray-900 rounded-lg border border-gray-800">
-                No trade history.
+              <div className="lg-card p-16 text-center text-[var(--lg-text-muted)] opacity-40 italic font-medium">
+                No archived trade personnel files.
               </div>
             )}
-            <div className="grid gap-4">
+            <div className="grid gap-6">
               {myHistory.map((t) => (
-                <TradeCard key={t.id} trade={t} onRefresh={loadAllTrades} currentUserId={Number(user?.id)} isAdmin={user?.isAdmin} onViewContext={() => setContextTrade(t)} />
+                <TradeCard key={t.id} trade={t} onRefresh={loadAllTrades} currentUserId={Number(user?.id)} onViewContext={() => setContextTrade(t)} />
               ))}
             </div>
           </div>
@@ -148,10 +155,14 @@ export function TradesPage() {
 
       {/* League Activity Tab */}
       {activeTab === "league" && (
-        <div className="grid gap-4">
+        <div className="grid gap-6">
+            <div className="flex items-center gap-4 mb-4">
+                <div className="w-1.5 h-6 bg-blue-500 rounded-full shadow-lg shadow-blue-500/20"></div>
+                <h2 className="text-2xl font-black uppercase tracking-tighter text-[var(--lg-text-heading)]">Global Trade Log</h2>
+            </div>
           {leagueTrades.length === 0 && (
-            <div className="p-8 text-center text-gray-500 bg-gray-900 rounded-lg border border-gray-800">
-              No league trade activity.
+            <div className="lg-card p-16 text-center text-[var(--lg-text-muted)] opacity-40 italic font-medium">
+              No global trade movements detected.
             </div>
           )}
           {leagueTrades.map((t) => (
@@ -195,13 +206,11 @@ function TradeCard({
   trade,
   onRefresh,
   currentUserId,
-  isAdmin,
   onViewContext,
 }: {
   trade: TradeProposal;
   onRefresh: () => void;
   currentUserId?: number;
-  isAdmin?: boolean;
   onViewContext?: () => void;
 }) {
   const isPending = trade.status === "PENDING";
@@ -317,7 +326,7 @@ function LeagueTradeCard({
   isAdmin,
   onViewContext,
 }: {
-  trade: any; // has votes
+  trade: any; // TODO: specify type if possible
   onRefresh: () => void;
   currentUserId?: number;
   isAdmin?: boolean;
@@ -452,7 +461,6 @@ function LeagueTradeCard({
 function CreateTradeForm({ onCancel, onSuccess }: { onCancel: () => void; onSuccess: () => void }) {
   const { me } = useAuth();
   const user = me?.user;
-  const [leagues, setLeagues] = useState<any[]>([]);
   const [selectedPartnerId, setSelectedPartnerId] = useState<number | null>(null);
   const [myTeam, setMyTeam] = useState<any>(null);
   const [partners, setPartners] = useState<any[]>([]);
@@ -463,8 +471,6 @@ function CreateTradeForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
   useEffect(() => {
     getLeagues().then(async (res) => {
       if (res.leagues.length > 0) {
-        setLeagues(res.leagues);
-        
         for (const ls of res.leagues) {
           try {
              const detail = await getLeague(ls.id);

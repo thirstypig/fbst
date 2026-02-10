@@ -3,11 +3,19 @@ import React from 'react';
 interface ThemedTableProps {
   children: React.ReactNode;
   className?: string;
+  /** Set to true if this table is already inside a liquid-glass container */
+  bare?: boolean;
 }
 
-export function ThemedTable({ children, className = '' }: ThemedTableProps) {
+/**
+ * ThemedTable - Standard table wrapper using liquid glass design tokens
+ * 
+ * By default, includes liquid-glass styling. Set `bare={true}` if the table
+ * is already inside a liquid-glass container to avoid double backgrounds.
+ */
+export function ThemedTable({ children, className = '', bare = false }: ThemedTableProps) {
   return (
-    <div className={`overflow-x-auto rounded-3xl liquid-glass ${className}`}>
+    <div className={`overflow-x-auto ${bare ? '' : 'rounded-3xl liquid-glass'} ${className}`}>
       <table className="min-w-full text-sm">
         {children}
       </table>
@@ -22,7 +30,7 @@ interface ThemedTheadProps {
 
 export function ThemedThead({ children, className = '' }: ThemedTheadProps) {
   return (
-    <thead className={`bg-[var(--fbst-table-header-bg)] border-b border-[var(--fbst-table-border)] ${className}`}>
+    <thead className={`bg-[var(--lg-table-header-bg)] border-b border-[var(--lg-table-border)] ${className}`}>
       {children}
     </thead>
   );
@@ -47,7 +55,7 @@ export function ThemedTh({ children, className = '', align = 'left', onClick, ti
     <th 
       onClick={onClick}
       title={title}
-      className={`px-4 py-4 ${alignClass} text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] ${className}`}
+      className={`px-4 py-4 ${alignClass} text-[10px] font-black uppercase tracking-widest text-[var(--lg-text-muted)] ${onClick ? 'cursor-pointer hover:text-[var(--lg-accent)]' : ''} ${className}`}
     >
       {children}
     </th>
@@ -65,7 +73,7 @@ export function ThemedTr({ children, className = '', onClick }: ThemedTrProps) {
   return (
     <tr 
       onClick={onClick}
-      className={`border-b border-[var(--fbst-table-border)] last:border-0 hover:bg-[var(--fbst-table-row-hover)] transition-colors duration-150 ${className}`}
+      className={`border-b border-[var(--lg-table-border)] last:border-0 hover:bg-[var(--lg-table-row-hover)] transition-colors duration-150 ${onClick ? 'cursor-pointer' : ''} ${className}`}
     >
       {children}
     </tr>
@@ -89,7 +97,7 @@ export function ThemedTd({ children, className = '', align = 'left', colSpan }: 
   return (
     <td 
       colSpan={colSpan}
-      className={`px-4 py-4 ${alignClass} text-sm text-[var(--fbst-text-primary)] ${className}`}
+      className={`px-4 py-4 ${alignClass} text-sm text-[var(--lg-text-primary)] ${className}`}
     >
       {children}
     </td>

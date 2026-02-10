@@ -5,6 +5,8 @@ import { OGBA_TEAM_NAMES } from "../lib/ogbaTeams";
 import { useTheme } from "../contexts/ThemeContext";
 import PageHeader from "../components/ui/PageHeader";
 import { PeriodSummaryTable, CategoryPeriodTable, TeamPeriodSummaryRow, CategoryPeriodRow } from "../components/StatsTables";
+import { Button } from "../components/ui/button";
+import { ThemedTable, ThemedThead, ThemedTr, ThemedTh, ThemedTd } from "../components/ui/ThemedTable";
 
 type SeasonStandingsApiRow = {
   teamId: number;
@@ -32,16 +34,16 @@ type NormalizedSeasonRow = {
 };
 
 
-function toNum(v: any): number {
+function toNum(v: unknown): number {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 }
 
-function sumNums(arr: any[]): number {
-  return (arr ?? []).reduce((sum, v) => sum + toNum(v), 0);
+function sumNums(arr: unknown[]): number {
+  return (arr ?? []).reduce((sum: number, v: unknown) => sum + toNum(v), 0);
 }
 
-function normName(s: any): string {
+function normName(s: unknown): string {
   return String(s ?? "").trim().toLowerCase();
 }
 
@@ -175,25 +177,29 @@ const SeasonPage: React.FC = () => {
 
 
   return (
-    <div className="flex-1 min-h-screen">
+    <div className="flex-1 min-h-screen bg-[var(--lg-bg)]">
       <main className="max-w-6xl mx-auto px-6 py-12">
         <PageHeader 
           title={viewMode === 'season' ? "Season Standings" : `Period ${selectedPeriodId} Standings`}
           subtitle="Roto points distribution for the full season or specific periods. Higher totals indicate stronger performance across categories."
           rightElement={
-             <div className="flex gap-2 liquid-glass p-1 rounded-2xl border border-white/10 shadow-lg">
-                <button
+             <div className="lg-card p-1">
+                <Button
                     onClick={() => setViewMode('season')}
-                    className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${viewMode === 'season' ? 'bg-[var(--fbst-accent)] text-white shadow-lg' : 'text-[var(--fbst-text-muted)] hover:text-[var(--fbst-text-primary)]'}`}
+                    variant={viewMode === 'season' ? 'default' : 'ghost'}
+                    size="sm"
+                    className="px-6"
                 >
                     Season
-                </button>
-                <button
+                </Button>
+                <Button
                     onClick={() => setViewMode('period')}
-                    className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${viewMode === 'period' ? 'bg-[var(--fbst-accent)] text-white shadow-lg' : 'text-[var(--fbst-text-muted)] hover:text-[var(--fbst-text-primary)]'}`}
+                    variant={viewMode === 'period' ? 'default' : 'ghost'}
+                    size="sm"
+                    className="px-6"
                 >
                     Period
-                </button>
+                </Button>
             </div>
           }
         />
@@ -206,95 +212,97 @@ const SeasonPage: React.FC = () => {
         )}
 
         {viewMode === 'season' ? (
-          <div className="overflow-hidden rounded-3xl liquid-glass border border-white/10 shadow-2xl">
-            <div className="bg-white/5 border-b border-white/10 px-8 py-6 flex items-center justify-between">
+          <div className="mt-8">
+            <div className="mb-6 flex items-center justify-between px-2">
                <div>
-                  <h2 className="text-xl font-black tracking-tight text-[var(--fbst-text-heading)]">Point Matrix</h2>
-                  <div className="mt-1 text-sm font-medium text-[var(--fbst-text-muted)]">Cumulative results across all completed periods.</div>
+                  <h2 className="text-2xl font-black tracking-tight text-[var(--lg-text-heading)]">Point Matrix</h2>
+                  <div className="mt-1 text-sm font-medium text-[var(--lg-text-muted)] opacity-60">Cumulative results across all completed periods.</div>
                </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-sm">
-                <thead>
-                  <tr className="bg-white/5 border-b border-white/10">
-                    <th className="px-6 py-4 text-left w-16 text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)]">#</th>
-                    <th className="px-6 py-4 text-left text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)]">Franchise</th>
+            <ThemedTable>
+                <ThemedThead>
+                  <ThemedTr>
+                    <ThemedTh align="center" className="w-16">#</ThemedTh>
+                    <ThemedTh>Franchise</ThemedTh>
                     
                     {periodIds.map((pid) => (
-                      <th key={pid} className="px-4 py-4 text-center text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] min-w-[80px]">
+                      <ThemedTh key={pid} align="center" className="min-w-[80px]">
                         P{pid}
-                      </th>
+                      </ThemedTh>
                     ))}
 
-                    <th className="px-6 py-4 text-center text-[10px] font-black uppercase tracking-widest text-[var(--fbst-accent)] min-w-[120px]">
+                    <ThemedTh align="center" className="text-[var(--lg-accent)] min-w-[120px]">
                       TOTAL
-                    </th>
-                    <th className="px-6 py-4 text-right pr-8 text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)]">Link</th>
-                  </tr>
-                </thead>
+                    </ThemedTh>
+                    <ThemedTh align="right" className="pr-8">Link</ThemedTh>
+                  </ThemedTr>
+                </ThemedThead>
 
                 <tbody className="divide-y divide-white/5">
                   {loading ? (
-                    <tr>
-                      <td colSpan={periodIds.length + 4} className="px-6 py-20 text-center text-[var(--fbst-text-muted)] italic font-medium animate-pulse">
+                    <ThemedTr>
+                      <ThemedTd colSpan={periodIds.length + 4} align="center" className="py-20 text-[var(--lg-text-muted)] italic font-medium animate-pulse">
                         Synchronizing season dataset...
-                      </td>
-                    </tr>
+                      </ThemedTd>
+                    </ThemedTr>
                   ) : rows.length === 0 ? (
-                    <tr>
-                      <td colSpan={periodIds.length + 4} className="px-6 py-20 text-center text-[var(--fbst-text-muted)] italic font-medium">
+                    <ThemedTr>
+                      <ThemedTd colSpan={periodIds.length + 4} align="center" className="py-20 text-[var(--lg-text-muted)] italic font-medium">
                         No season records available.
-                      </td>
-                    </tr>
+                      </ThemedTd>
+                    </ThemedTr>
                   ) : (
                     sortedRows.map((row, idx) => (
-                      <tr key={row.teamId} className="hover:bg-white/5 transition-colors duration-150 group">
-                        <td className="px-6 py-4 text-xs font-bold text-[var(--fbst-text-muted)] opacity-50 tabular-nums">{idx + 1}</td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm font-bold text-[var(--fbst-text-primary)]">{row.teamName}</div>
-                          <div className="text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] mt-1 opacity-60">{row.teamCode || '-'}</div>
-                        </td>
+                      <ThemedTr key={row.teamId} className="group">
+                        <ThemedTd align="center" className="text-xs font-bold text-[var(--lg-text-muted)] opacity-50 tabular-nums">{idx + 1}</ThemedTd>
+                        <ThemedTd>
+                          <div className="text-sm font-bold text-[var(--lg-text-primary)]">{row.teamName}</div>
+                          <div className="text-[10px] font-black uppercase tracking-widest text-[var(--lg-text-muted)] mt-1 opacity-60">{row.teamCode || '-'}</div>
+                        </ThemedTd>
                         
                         {periodIds.map((_pid, pIdx) => (
-                          <td key={pIdx} className="px-4 py-4 text-center font-medium text-[var(--fbst-text-primary)] tabular-nums">
+                          <ThemedTd key={pIdx} align="center" className="font-medium text-[var(--lg-text-primary)] tabular-nums">
                             {Number(row.periodPoints[pIdx] || 0).toFixed(1).replace(/\.0$/, "")}
-                          </td>
+                          </ThemedTd>
                         ))}
 
-                        <td className="px-6 py-4 text-center">
-                          <span className="text-sm font-black text-[var(--fbst-accent)] tabular-nums">{row.totalPoints.toFixed(1).replace(/\.0$/, "")}</span>
-                        </td>
-                        <td className="px-6 py-4 text-right pr-8">
+                        <ThemedTd align="center">
+                          <span className="text-sm font-black text-[var(--lg-accent)] tabular-nums">{row.totalPoints.toFixed(1).replace(/\.0$/, "")}</span>
+                        </ThemedTd>
+                        <ThemedTd align="right" className="pr-8">
                            {row.teamCode ? (
-                              <button
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => navigate(`/teams/${encodeURIComponent(row.teamCode!)}`)}
-                                className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)] hover:text-[var(--fbst-accent)] transition-all opacity-0 group-hover:opacity-100"
+                                className="opacity-0 group-hover:opacity-100"
                               >
                                 View →
-                              </button>
+                              </Button>
                            ) : null}
-                        </td>
-                      </tr>
+                        </ThemedTd>
+                      </ThemedTr>
                     ))
                   )}
                 </tbody>
-              </table>
-            </div>
+            </ThemedTable>
           </div>
         ) : (
           <div className="space-y-12">
-            <div className="flex items-center gap-4 bg-white/5 p-4 rounded-3xl border border-white/10 shadow-lg justify-center">
-               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)]">Focus Period</span>
+            <div className="flex items-center gap-4 lg-card p-4 justify-center">
+               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--lg-text-muted)]">Focus Period</span>
                <div className="flex gap-2">
                  {periodIds.map(pid => (
-                   <button
+                   <Button
                     key={pid}
                     onClick={() => setSelectedPeriodId(pid)}
-                    className={`w-10 h-10 rounded-xl text-xs font-black transition-all border border-white/10 ${selectedPeriodId === pid ? 'bg-[var(--fbst-accent)] text-white shadow-lg' : 'bg-white/5 text-[var(--fbst-text-muted)] hover:bg-white/10'}`}
+                    variant={selectedPeriodId === pid ? "default" : "secondary"}
+                    size="sm"
+                    className="w-10 h-10 p-0"
                    >
                      {pid}
-                   </button>
+                   </Button>
                  ))}
                </div>
             </div>

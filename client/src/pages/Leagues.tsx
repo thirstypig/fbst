@@ -5,14 +5,13 @@ import { Link } from "react-router-dom";
 import { adminCreateLeague, getLeagues, getMe, type LeagueListItem } from "../api";
 
 import PageHeader from "../components/ui/PageHeader";
-
-// ... existing imports
+import { Button } from "../components/ui/button";
 
 
 
 export default function Leagues() {
   const [meLoading, setMeLoading] = useState(true);
-  const [me, setMe] = useState<any>(null);
+  const [me, setMe] = useState<{ email: string; isAdmin: boolean } | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,8 +40,8 @@ export default function Leagues() {
 
       const leaguesResp = await getLeagues();
       setLeagues(leaguesResp.leagues ?? []);
-    } catch (e: any) {
-      setError(e?.message ?? "Failed to load leagues.");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to load leagues.");
     } finally {
       setLoading(false);
       setMeLoading(false);
@@ -81,8 +80,8 @@ export default function Leagues() {
         copyFromLeagueId: copyFromId || undefined,
       });
       await refresh();
-    } catch (err: any) {
-      setError(err?.message ?? "Failed to create league.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to create league.");
     }
   }
 
@@ -92,102 +91,96 @@ export default function Leagues() {
         title="Leagues Hub" 
         subtitle="Select a league to manage or access commissioner tools."
         rightElement={
-             <button
-              className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-black uppercase tracking-widest text-white/80 hover:bg-white/10 transition-all hover:scale-105"
+             <Button
+              variant="outline"
+              size="sm"
               onClick={refresh}
             >
               Sync Data
-            </button>
+            </Button>
         }
       />
 
       <div className="px-10 py-8 mx-auto max-w-5xl w-full">
-        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 liquid-glass">
+        <div className="lg-card p-6">
           {meLoading ? (
-            <div className="text-sm text-[var(--fbst-text-muted)] font-bold uppercase tracking-widest animate-pulse">Loading identity…</div>
+            <div className="text-sm text-[var(--lg-text-muted)] font-bold uppercase tracking-widest animate-pulse">Loading identity…</div>
           ) : !me ? (
-            <div className="text-sm text-[var(--fbst-text-muted)] font-bold uppercase tracking-widest leading-relaxed">
-              Connectivity: <span className="text-red-400">GUEST</span>
+            <div className="text-sm text-[var(--lg-text-muted)] font-bold uppercase tracking-widest leading-relaxed">
+              Connectivity: <span className="text-[var(--lg-error)] font-black">GUEST</span>
               <p className="mt-1 text-[10px] opacity-60">Authorize via the command center to access personal leagues.</p>
             </div>
           ) : (
-            <div className="text-sm text-[var(--fbst-text-muted)] font-black uppercase tracking-widest flex items-center justify-between">
+            <div className="text-sm text-[var(--lg-text-muted)] font-black uppercase tracking-widest flex items-center justify-between">
               <div>
-                Identity: <span className="text-[var(--fbst-text-primary)]">{me.email}</span>
+                Identity: <span className="text-[var(--lg-text-primary)]">{me.email}</span>
               </div>
-              {me.isAdmin ? <span className="rounded-full bg-[var(--fbst-accent)]/20 border border-[var(--fbst-accent)]/30 px-3 py-1 text-[10px] text-[var(--fbst-accent)]">ADMINISTRATOR</span> : null}
+              {me.isAdmin ? <span className="rounded-full bg-[var(--lg-accent)]/20 border border-[var(--lg-accent)]/30 px-3 py-1 text-[10px] text-[var(--lg-accent)]">ADMINISTRATOR</span> : null}
             </div>
           )}
         </div>
 
-        <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <div className="text-lg font-semibold text-white">Available leagues</div>
-            {/* Refresh moved to header */}
+        <div className="mt-8 space-y-4">
+          <div className="flex items-center justify-between px-2">
+            <h2 className="text-2xl font-black tracking-tight text-[var(--lg-text-heading)]">Available Protocols</h2>
           </div>
 
           {!me ? (
-            <div className="py-10 text-center text-sm text-white/60">Sign in to see your leagues.</div>
+            <div className="lg-card py-10 text-center text-sm text-[var(--lg-text-muted)]">Sign in to see your leagues.</div>
           ) : loading ? (
-            <div className="py-6 text-center text-sm text-white/60">Loading…</div>
+            <div className="lg-card py-10 text-center text-sm text-[var(--lg-text-muted)] animate-pulse">Loading matrix…</div>
           ) : error ? (
-            <div className="py-6 text-center text-sm text-red-300">{error}</div>
+            <div className="lg-card py-10 text-center text-sm text-[var(--lg-error)] bg-[var(--lg-error)]/5 border-[var(--lg-error)]/20">{error}</div>
           ) : sorted.length === 0 ? (
-            <div className="py-6 text-center text-sm text-white/60">No leagues found.</div>
+            <div className="lg-card py-10 text-center text-sm text-[var(--lg-text-muted)]">No active records found.</div>
           ) : (
             <div className="space-y-3">
               {sorted.map((l) => {
-                const access = (l as any).access;
+                const access = l.access;
                 const role = access?.type === "MEMBER" ? access.role : null;
-                const isPublicViewer = access?.type === "PUBLIC";
+                const isPublicViewer = access?.type === "PUBLIC_VIEWER";
                 const canCommissioner = role === "COMMISSIONER" || Boolean(me?.isAdmin);
 
                 return (
                   <div
                     key={l.id}
-                    className="flex items-center justify-between rounded-3xl border border-white/10 bg-white/[0.02] liquid-glass px-6 py-5 hover:bg-white/[0.04] transition-all group"
+                    className="flex items-center justify-between lg-card px-6 py-5 group"
                   >
                     <div className="min-w-0">
-                      <div className="text-lg font-black text-[var(--fbst-text-primary)] tracking-tight">
-                        {l.name} <span className="text-[var(--fbst-text-muted)] opacity-50 ml-2 font-bold font-mono">({l.season})</span>
+                      <div className="text-lg font-black text-[var(--lg-text-primary)] tracking-tight">
+                        {l.name} <span className="text-[var(--lg-text-muted)] opacity-50 ml-2 font-bold font-mono">({l.season})</span>
                       </div>
 
-                      <div className="mt-1 text-[10px] uppercase font-black tracking-widest text-[var(--fbst-text-muted)] flex items-center gap-3">
+                      <div className="mt-1 text-[10px] uppercase font-black tracking-widest text-[var(--lg-text-muted)] flex items-center gap-3">
                         <span className="bg-white/5 px-2 py-0.5 rounded-md">{l.draftMode}</span>
                         {role ? (
-                          <span className="text-[var(--fbst-accent)]">ROLE: {role}</span>
+                          <span className="text-[var(--lg-accent)]">ROLE: {role}</span>
                         ) : isPublicViewer ? (
                           <span className="text-sky-400">PUBLIC ACCESS</span>
                         ) : (
-                          <span className="text-red-400">NO ACCESS</span>
+                          <span className="text-[var(--lg-error)]">NO ACCESS</span>
                         )}
                       </div>
                     </div>
 
                     <div className="flex items-center gap-3">
                       {role && (
-                          <Link
-                            to={`/leagues/${l.id}/keepers`}
-                            className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-emerald-400 hover:bg-emerald-500/20 transition-all"
-                          >
-                            Keepers
+                           <Link to={`/leagues/${l.id}/keepers`}>
+                            <Button variant="emerald" size="sm">
+                              Keepers
+                            </Button>
                           </Link>
                       )}
                       {canCommissioner ? (
-                        <Link
-                          to={`/commissioner/${l.id}`}
-                          className="rounded-xl bg-[var(--fbst-accent)] px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white hover:brightness-110 shadow-lg shadow-red-500/20 transition-all"
-                        >
-                          Commissioner
+                        <Link to={`/commissioner/${l.id}`}>
+                          <Button variant="default" size="sm">
+                            Commissioner
+                          </Button>
                         </Link>
                       ) : (
-                        <button
-                          className="cursor-not-allowed rounded-xl bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white/20 border border-white/5"
-                          title="You are not a commissioner for this league."
-                          disabled
-                        >
+                        <Button variant="secondary" size="sm" disabled title="You are not a commissioner for this league.">
                           Commissioner
-                        </button>
+                        </Button>
                       )}
                     </div>
                   </div>
@@ -198,14 +191,14 @@ export default function Leagues() {
         </div>
 
         {isAdminUser ? (
-          <div className="mt-10 rounded-3xl border border-white/10 bg-white/[0.03] p-8 liquid-glass">
-            <div className="mb-6 text-xl font-black uppercase tracking-tighter text-[var(--fbst-text-heading)]">Orchestrator: New League</div>
+          <div className="mt-10 lg-card p-8 bg-[var(--lg-accent)]/5 border-[var(--lg-accent)]/20">
+            <div className="mb-6 text-xl font-black uppercase tracking-tighter text-[var(--lg-text-heading)]">Orchestrator: New League</div>
 
             <form onSubmit={onCreateLeague} className="grid gap-6 md:grid-cols-4">
               <div className="md:col-span-2">
-                <label className="block text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] mb-2">Identifier</label>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-[var(--lg-text-muted)] mb-2">Identifier</label>
                 <input
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-[var(--fbst-accent)] transition-all font-bold"
+                  className="w-full rounded-2xl border border-[var(--lg-glass-border)] bg-[var(--lg-glass-bg)] px-4 py-3 text-sm text-[var(--lg-text-primary)] outline-none focus:border-[var(--lg-accent)] transition-all font-bold"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. OGBA 2025"
@@ -213,9 +206,9 @@ export default function Leagues() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] mb-2">Cycle</label>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-[var(--lg-text-muted)] mb-2">Cycle</label>
                 <input
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-[var(--fbst-accent)] transition-all font-bold font-mono"
+                  className="w-full rounded-2xl border border-[var(--lg-glass-border)] bg-[var(--lg-glass-bg)] px-4 py-3 text-sm text-[var(--lg-text-primary)] outline-none focus:border-[var(--lg-accent)] transition-all font-bold font-mono"
                   value={season}
                   type="number"
                   onChange={(e) => setSeason(Number(e.target.value))}
@@ -223,11 +216,11 @@ export default function Leagues() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] mb-2">Protocol</label>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-[var(--lg-text-muted)] mb-2">Protocol</label>
                 <select
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-[var(--fbst-accent)] transition-all font-bold"
+                  className="w-full rounded-2xl border border-[var(--lg-glass-border)] bg-[var(--lg-glass-bg)] px-4 py-3 text-sm text-[var(--lg-text-primary)] outline-none focus:border-[var(--lg-accent)] transition-all font-bold"
                   value={draftMode}
-                  onChange={(e) => setDraftMode(e.target.value as any)}
+                  onChange={(e) => setDraftMode(e.target.value as "AUCTION" | "DRAFT")}
                 >
                   <option value="AUCTION">AUCTION</option>
                   <option value="DRAFT">DRAFT</option>
@@ -235,9 +228,9 @@ export default function Leagues() {
               </div>
 
               <div className="md:col-span-2">
-                 <label className="block text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] mb-2">Inheritance (Copy From)</label>
+                 <label className="block text-[10px] font-black uppercase tracking-widest text-[var(--lg-text-muted)] mb-2">Inheritance (Copy From)</label>
                  <select 
-                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-[var(--fbst-accent)] transition-all font-bold"
+                    className="w-full rounded-2xl border border-[var(--lg-glass-border)] bg-[var(--lg-glass-bg)] px-4 py-3 text-sm text-[var(--lg-text-primary)] outline-none focus:border-[var(--lg-accent)] transition-all font-bold"
                     onChange={(e) => setCopyFromId(Number(e.target.value) || null)}
                  >
                     <option value="">Start Fresh (Default)</option>
@@ -254,28 +247,28 @@ export default function Leagues() {
                   type="checkbox" 
                   checked={isPublic} 
                   onChange={(e) => setIsPublic(e.target.checked)}
-                  className="w-5 h-5 rounded-lg border-white/10 bg-white/5 text-[var(--fbst-accent)] focus:ring-0"
+                  className="w-5 h-5 rounded-lg border-[var(--lg-glass-border)] bg-[var(--lg-glass-bg)] text-[var(--lg-accent)] focus:ring-0"
                 />
-                <label htmlFor="isPublic" className="text-xs font-black uppercase tracking-widest text-[var(--fbst-text-muted)]">
+                <label htmlFor="isPublic" className="text-xs font-black uppercase tracking-widest text-[var(--lg-text-muted)]">
                   Public Manifest
                 </label>
               </div>
 
               <div className="md:col-span-4 flex justify-end mt-4">
-                <button type="submit" className="rounded-2xl bg-[var(--fbst-accent)] px-8 py-4 text-xs font-black uppercase tracking-widest text-white hover:brightness-110 shadow-xl shadow-red-500/20 transition-all">
+                <Button type="submit">
                   Initialize League
-                </button>
+                </Button>
               </div>
             </form>
           </div>
         ) : null}
 
-        <div className="mt-12 text-center text-[10px] font-black uppercase tracking-[0.3em] text-[var(--fbst-text-muted)] opacity-30">
+        <div className="mt-12 text-center text-[10px] font-black uppercase tracking-[0.3em] text-[var(--lg-text-muted)] opacity-30">
           Baseline workflow: Leagues Hub → Commissioner Command Center
         </div>
-      <div className="mt-10 rounded-3xl border border-white/10 bg-white/[0.03] p-8 liquid-glass">
-          <div className="mb-6 text-xl font-black uppercase tracking-tighter text-[var(--fbst-text-heading)]">Orchestrator: Data Ingestion</div>
-          <div className="text-xs text-[var(--fbst-text-muted)] font-bold uppercase tracking-widest mb-8 leading-relaxed">
+      <div className="mt-10 lg-card p-8">
+          <div className="mb-6 text-xl font-black uppercase tracking-tighter text-[var(--lg-text-heading)]">Orchestrator: Data Ingestion</div>
+          <div className="text-xs text-[var(--lg-text-muted)] font-bold uppercase tracking-widest mb-8 leading-relaxed">
              Import a standardized CSV Manifest to populate league rosters and costs.
              <p className="mt-1 opacity-60">Required Headers: Player, MLB, Team, Cost, Keeper, Pos</p>
           </div>
@@ -288,7 +281,7 @@ export default function Leagues() {
 }
 
 // Subcomponent for CSV Upload
-function CsvUploader({ leagues, onRefresh }: { leagues: any[]; onRefresh: () => void }) {
+function CsvUploader({ leagues, onRefresh }: { leagues: LeagueListItem[]; onRefresh: () => void }) {
   const [leagueId, setLeagueId] = useState<number | "">("");
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -319,8 +312,8 @@ function CsvUploader({ leagues, onRefresh }: { leagues: any[]; onRefresh: () => 
         (document.getElementById("csvInput") as HTMLInputElement).value = "";
         
         onRefresh();
-    } catch (err: any) {
-        setError(err?.message || "Ingestion failed");
+    } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Ingestion failed");
     } finally {
         setLoading(false);
     }
@@ -329,9 +322,9 @@ function CsvUploader({ leagues, onRefresh }: { leagues: any[]; onRefresh: () => 
   return (
     <form onSubmit={handleUpload} className="space-y-6 max-w-xl">
         <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] mb-2">Target League Manifest</label>
+            <label className="block text-[10px] font-black uppercase tracking-widest text-[var(--lg-text-muted)] mb-2">Target League Manifest</label>
             <select 
-                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-[var(--fbst-accent)] transition-all font-bold"
+                className="w-full rounded-2xl border border-[var(--lg-glass-border)] bg-[var(--lg-glass-bg)] px-4 py-3 text-sm text-[var(--lg-text-primary)] outline-none focus:border-[var(--lg-accent)] transition-all font-bold"
                 value={leagueId}
                 onChange={e => setLeagueId(Number(e.target.value) || "")}
                 required
@@ -344,29 +337,29 @@ function CsvUploader({ leagues, onRefresh }: { leagues: any[]; onRefresh: () => 
         </div>
 
         <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] mb-2">Manifest File (CSV)</label>
+            <label className="block text-[10px] font-black uppercase tracking-widest text-[var(--lg-text-muted)] mb-2">Manifest File (CSV)</label>
             <input 
                 id="csvInput"
                 type="file" 
                 accept=".csv"
-                className="block w-full text-xs text-white/70 file:mr-6 file:py-3 file:px-6 file:rounded-2xl file:border-0 file:text-[10px] file:font-black file:uppercase file:tracking-widest file:bg-white/10 file:text-white hover:file:bg-white/20 transition-all cursor-pointer"
+                className="block w-full text-xs text-[var(--lg-text-muted)] file:mr-6 file:py-3 file:px-6 file:rounded-2xl file:border-0 file:text-[10px] file:font-black file:uppercase file:tracking-widest file:bg-white/10 file:text-white hover:file:bg-white/20 transition-all cursor-pointer"
                 onChange={e => setFile(e.target.files?.[0] || null)}
                 required
             />
         </div>
 
         <div className="pt-4">
-          <button 
+          <Button 
               type="submit" 
+              variant="emerald"
               disabled={loading || !leagueId || !file}
-              className="w-full md:w-auto rounded-2xl bg-emerald-500 px-8 py-4 text-xs font-black uppercase tracking-widest text-white hover:brightness-110 shadow-xl shadow-emerald-500/20 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           >
               {loading ? "PROCESSING MANIFEST..." : "UPLOAD MANIFEST"}
-          </button>
+          </Button>
         </div>
 
-        {status && <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest">{status}</div>}
-        {error && <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-widest whitespace-pre-wrap">{error}</div>}
+        {status && <div className="p-4 rounded-2xl bg-[var(--lg-success)]/10 border border-[var(--lg-success)]/20 text-[var(--lg-success)] text-[10px] font-black uppercase tracking-widest">{status}</div>}
+        {error && <div className="p-4 rounded-2xl bg-[var(--lg-error)]/10 border border-[var(--lg-error)]/20 text-[var(--lg-error)] text-[10px] font-black uppercase tracking-widest whitespace-pre-wrap">{error}</div>}
     </form>
   );
 }

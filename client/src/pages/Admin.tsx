@@ -2,13 +2,13 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { getMe } from "../api";
+import { getMe, AuthUser } from "../api";
 
 import PageHeader from "../components/ui/PageHeader";
 
 export default function Admin() {
   const [loading, setLoading] = useState(true);
-  const [me, setMe] = useState<any>(null);
+  const [me, setMe] = useState<AuthUser | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -20,12 +20,14 @@ export default function Admin() {
         const resp = await getMe();
         if (!mounted) return;
         setMe(resp.user);
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (!mounted) return;
-        setError(e?.message ?? "Failed to load /auth/me.");
+        const errMsg = e instanceof Error ? e.message : "Failed to load /auth/me.";
+        setError(errMsg);
       } finally {
-        if (!mounted) return;
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     })();
     return () => {
@@ -34,7 +36,7 @@ export default function Admin() {
   }, []);
 
   return (
-    <div className="flex flex-col h-full bg-[var(--fbst-surface-primary)]">
+    <div className="flex flex-col h-full bg-transparent">
        <PageHeader 
           title="Admin" 
           subtitle="Platform-level administration (not league commissioner tools)."
@@ -42,37 +44,37 @@ export default function Admin() {
        
        <div className="px-10 py-8 mx-auto max-w-4xl w-full">
         {loading ? (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center text-sm text-white/60">
+          <div className="lg-card text-center text-sm text-[var(--lg-text-muted)] opacity-60">
             Loading…
           </div>
         ) : error ? (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center text-sm text-red-300">
+          <div className="lg-card text-center text-sm text-[var(--lg-error)] bg-[var(--lg-error)]/5 border-[var(--lg-error)]/20">
             {error}
           </div>
         ) : !me ? (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center text-sm text-white/70">
+          <div className="lg-card text-center text-sm text-[var(--lg-text-muted)]">
             You are not logged in.
           </div>
         ) : !me.isAdmin ? (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center text-sm text-white/70">
+          <div className="lg-card text-center text-sm text-[var(--lg-text-muted)]">
             Admin access required.
           </div>
         ) : (
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-              <div className="text-lg font-semibold text-white">What “Admin” should own</div>
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-white/70">
+          <div className="space-y-6">
+            <div className="lg-card space-y-4">
+              <div className="text-xl font-black tracking-tight text-[var(--lg-text-heading)]">Platform Governance</div>
+              <ul className="list-disc space-y-3 pl-5 text-sm text-[var(--lg-text-secondary)] leading-relaxed">
                 <li>Global user controls (ban/disable, admin flag).</li>
-                <li>League creation (already available in Leagues UI) + emergency repair tools.</li>
+                <li>League creation + emergency repair tools.</li>
                 <li>Operational tools: logs, data refresh triggers, background job controls.</li>
               </ul>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-              <div className="text-sm text-white/70">
-                For now, do league setup in{" "}
-                <Link to="/leagues" className="text-white underline underline-offset-4">
-                  Leagues
+            <div className="lg-card bg-[var(--lg-accent)]/5 border-[var(--lg-accent)]/20">
+              <div className="text-sm text-[var(--lg-text-primary)] font-medium">
+                Note: Standard league configuration is managed via the{" "}
+                <Link to="/leagues" className="text-[var(--lg-accent)] font-bold underline underline-offset-4 hover:brightness-110">
+                  Leagues Module
                 </Link>
                 .
               </div>

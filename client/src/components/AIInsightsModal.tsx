@@ -45,94 +45,103 @@ export default function AIInsightsModal({ isOpen, onClose, year, teamCode, teamN
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/40 backdrop-blur-[4px] shadow-2xl"
         onClick={onClose}
       />
       
       {/* Modal */}
-      <div className="relative bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden">
+      <div className="relative bg-[var(--lg-glass-bg)] backdrop-blur-[var(--lg-glass-blur)] border border-[var(--lg-glass-border)] rounded-[var(--lg-radius-2xl)] shadow-[var(--lg-glass-shadow)] w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700 bg-gradient-to-r from-blue-600/20 to-purple-600/20">
+        <div className="flex items-center justify-between px-8 py-6 border-b border-[var(--lg-glass-border)] bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-transparent">
           <div>
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+            <h2 className="text-2xl font-black tracking-tighter text-[var(--lg-text-heading)] flex items-center gap-3">
+              <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
               </svg>
-              AI Insights: {teamName}
+              AI Insights <span className="text-[var(--lg-text-muted)] opacity-30 mx-1">/</span> {teamName}
             </h2>
-            <p className="text-sm text-slate-400">{year} Season Analysis</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--lg-text-muted)] mt-1">{year} Season Forensic Analysis</p>
           </div>
           <button 
             onClick={onClose}
-            className="p-2 hover:bg-slate-700 rounded-lg transition-colors text-slate-400 hover:text-white"
+            className="p-2 hover:bg-white/10 rounded-[var(--lg-radius-lg)] transition-colors text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)]"
           >
-            ✕
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
         {/* Analysis Type Buttons */}
-        <div className="flex gap-2 px-6 py-4 bg-slate-800/50">
+        <div className="flex gap-4 px-8 py-5 border-b border-[var(--lg-glass-border)] bg-white/5">
           <button
             onClick={() => fetchAnalysis('trends')}
             disabled={loading}
-            className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex-1 px-4 py-3 rounded-[var(--lg-radius-xl)] text-xs font-black uppercase tracking-widest transition-all duration-300 ${
               analysisType === 'trends' && analysis
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-            } disabled:opacity-50`}
+                ? 'bg-[var(--lg-accent)] text-white shadow-lg shadow-blue-500/20 scale-[1.02]'
+                : 'bg-white/5 text-[var(--lg-text-muted)] border border-white/5 hover:bg-white/10 hover:text-[var(--lg-text-primary)]'
+            } disabled:opacity-50 flex items-center justify-center gap-2`}
           >
             📈 Season Trends
           </button>
           <button
             onClick={() => fetchAnalysis('draft')}
             disabled={loading}
-            className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex-1 px-4 py-3 rounded-[var(--lg-radius-xl)] text-xs font-black uppercase tracking-widest transition-all duration-300 ${
               analysisType === 'draft' && analysis
-                ? 'bg-purple-600 text-white'
-                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-            } disabled:opacity-50`}
+                ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20 scale-[1.02]'
+                : 'bg-white/5 text-[var(--lg-text-muted)] border border-white/5 hover:bg-white/10 hover:text-[var(--lg-text-primary)]'
+            } disabled:opacity-50 flex items-center justify-center gap-2`}
           >
-            💵 Draft Analysis
+            💵 Draft Strategy
           </button>
         </div>
 
         {/* Content Area */}
-        <div className="px-6 py-4 overflow-y-auto max-h-[50vh]">
+        <div className="flex-1 px-8 py-6 overflow-y-auto custom-scrollbar">
           {!loading && !analysis && !error && (
-            <div className="text-center py-12 text-slate-400">
-              <div className="text-4xl mb-3">🧠</div>
-              <p className="text-lg font-medium">Select an analysis type above</p>
-              <p className="text-sm mt-2">AI will analyze {teamName}'s {year} season data</p>
+            <div className="flex flex-col items-center justify-center py-20 text-[var(--lg-text-muted)] text-center">
+              <div className="w-20 h-20 rounded-full bg-blue-500/5 flex items-center justify-center mb-6 border border-blue-500/10">
+                <span className="text-4xl">🧠</span>
+              </div>
+              <p className="text-lg font-black tracking-tight text-[var(--lg-text-primary)]">Select Analysis Module</p>
+              <p className="text-xs font-medium mt-2 max-w-xs opacity-60">Initialize the neural engine to analyze {teamName}'s {year} performance data and draft methodology.</p>
             </div>
           )}
 
           {loading && (
-            <div className="text-center py-12 text-slate-400">
-              <div className="animate-pulse text-4xl mb-3">⚡</div>
-              <p className="text-lg font-medium">Generating AI analysis...</p>
-              <p className="text-sm mt-2">This may take a few seconds</p>
+            <div className="flex flex-col items-center justify-center py-20 text-[var(--lg-text-muted)]">
+               <div className="relative">
+                <div className="w-16 h-16 border-[6px] border-blue-500/10 border-t-blue-500 rounded-full animate-spin"></div>
+                <div className="absolute inset-0 flex items-center justify-center text-2xl animate-pulse">⚡</div>
+              </div>
+              <p className="text-lg font-black tracking-tight text-[var(--lg-text-primary)] mt-6">Crunching Numbers</p>
+              <p className="text-[10px] font-black uppercase tracking-widest mt-2 opacity-50">Synthesizing {analysisType} metrics...</p>
             </div>
           )}
 
           {error && (
-            <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4 text-red-300">
-              <div className="font-medium mb-1">⚠️ Analysis Error</div>
-              <p className="text-sm">{error}</p>
+            <div className="lg-alert lg-alert-error">
+              <div className="flex items-center gap-2 font-black uppercase tracking-widest text-[11px] mb-2">
+                <span className="text-lg">⚠️</span> System Failure
+              </div>
+              <p className="text-sm font-medium">{error}</p>
               {error.includes('API key') && (
-                <p className="text-xs mt-2 text-red-400">
-                  Add <code className="bg-red-900/50 px-1 rounded">GEMINI_API_KEY</code> to your .env file
-                </p>
+                <div className="mt-4 p-3 bg-red-500/10 rounded-[var(--lg-radius-lg)] border border-red-500/20 text-[10px] font-mono opacity-80">
+                  Fatal: GEMINI_API_KEY environment variable undefined.
+                </div>
               )}
             </div>
           )}
 
           {analysis && (
-            <div className="prose prose-invert prose-sm max-w-none">
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               {analysis.split('\n\n').map((paragraph, i) => (
-                <p key={i} className="text-slate-300 leading-relaxed mb-4">
+                <p key={i} className="text-sm font-medium text-[var(--lg-text-primary)] leading-relaxed bg-white/[0.02] p-4 rounded-[var(--lg-radius-lg)] border border-white/[0.05]">
                   {paragraph}
                 </p>
               ))}
@@ -141,14 +150,17 @@ export default function AIInsightsModal({ isOpen, onClose, year, teamCode, teamN
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-slate-700 bg-slate-800/30 text-xs text-slate-500 flex justify-between">
-          <span>Powered by Google Gemini AI</span>
+        <div className="px-8 py-4 border-t border-[var(--lg-glass-border)] bg-black/20 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--lg-text-muted)] flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            Neural Link via Google Gemini
+          </div>
           {analysis && (
             <button 
               onClick={() => navigator.clipboard.writeText(analysis)}
-              className="hover:text-slate-300 transition-colors"
+              className="px-3 py-1 bg-white/5 rounded-[var(--lg-radius-md)] hover:bg-white/10 hover:text-[var(--lg-text-primary)] transition-all flex items-center gap-2"
             >
-              📋 Copy
+              📋 Copy Log
             </button>
           )}
         </div>

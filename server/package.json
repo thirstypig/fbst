@@ -12,7 +12,9 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^6.19.1",
+    "@types/bcryptjs": "^2.4.6",
     "@types/xlsx": "^0.0.35",
+    "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "csv-parse": "^6.1.0",

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { getPrimaryPosition } from "../lib/baseballUtils";
 import { fmtRate } from "../api/base";
 import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from "./ui/ThemedTable";
+import { Badge } from "./ui/Badge";
 
 /**
  * SHARED TYPES
@@ -172,7 +173,6 @@ const formatStatForCategory = (categoryId: string, value: number): string => {
 
 /**
  * PERIOD SUMMARY TABLE
- * Teams × Categories + GP + Total Points + +/- Total
  */
 
 export const PeriodSummaryTable: React.FC<PeriodSummaryTableProps> = ({
@@ -184,57 +184,57 @@ export const PeriodSummaryTable: React.FC<PeriodSummaryTableProps> = ({
 
   return (
     <div className="mb-12">
-      <h2 className="text-2xl font-black tracking-tight text-[var(--fbst-text-heading)] mb-6 flex items-center gap-4 uppercase">
-        <span className="w-1.5 h-6 bg-[var(--fbst-accent)] rounded-full"></span>
+      <h2 className="text-2xl font-black tracking-tighter text-[var(--lg-text-heading)] mb-6 flex items-center gap-4 uppercase">
+        <span className="w-1.5 h-6 bg-[var(--lg-accent)] rounded-full"></span>
         Aggregated Summary – {periodId}
       </h2>
-      <div className="overflow-hidden rounded-3xl liquid-glass border border-white/10 shadow-xl">
+      <div className="lg-card p-0 overflow-hidden bg-white/[0.01]">
         <div className="overflow-x-auto">
-      <ThemedTable>
+      <ThemedTable bare>
         <ThemedThead>
           <ThemedTr>
-            <ThemedTh className="px-8 py-5">Entity</ThemedTh>
+            <ThemedTh className="px-8 py-5">Franchise</ThemedTh>
             <ThemedTh align="center">GP</ThemedTh>
             {categories.map((cat) => (
               <ThemedTh key={cat} align="center">{cat}</ThemedTh>
             ))}
-            <ThemedTh align="center" className="text-[var(--fbst-accent)]">Yield</ThemedTh>
+            <ThemedTh align="center" className="text-[var(--lg-accent)]">Yield</ThemedTh>
             <ThemedTh align="center" className="px-8 py-5">Delta</ThemedTh>
           </ThemedTr>
         </ThemedThead>
-        <tbody className="divide-y divide-white/5">
+        <tbody className="divide-y divide-white/[0.03]">
           {sortedRows.map((row) => {
             const catMap = new Map(
               row.categories.map((c) => [c.categoryId, c.points])
             );
 
             return (
-              <ThemedTr key={row.teamId} className="group border-none">
-                <ThemedTd className="px-8 py-4">
+              <ThemedTr key={row.teamId} className="group hover:bg-white/[0.02] transition-colors">
+                <ThemedTd className="px-8 py-5">
                   <Link 
                     to={`/teams/${row.teamId}`} 
-                    className="font-black text-[var(--fbst-text-primary)] hover:text-[var(--fbst-accent)] transition-all tracking-tight"
+                    className="font-black text-[var(--lg-text-heading)] text-lg hover:text-[var(--lg-accent)] transition-all tracking-tighter"
                   >
                     {row.teamName}
                   </Link>
                 </ThemedTd>
-                <ThemedTd align="center" className="font-bold text-[var(--fbst-text-muted)] tabular-nums">
+                <ThemedTd align="center" className="font-bold text-[var(--lg-text-muted)] tabular-nums opacity-60">
                   {row.gamesPlayed}
                 </ThemedTd>
                 {categories.map((cat) => (
                   <ThemedTd
                     key={cat}
                     align="center"
-                    className="font-bold text-[var(--fbst-text-primary)] tabular-nums opacity-80"
+                    className="font-bold text-[var(--lg-text-primary)] tabular-nums opacity-80"
                   >
                     {formatNumber(catMap.get(cat) ?? 0, 1)}
                   </ThemedTd>
                 ))}
-                <ThemedTd align="center" className="font-black text-[var(--fbst-accent)] tabular-nums text-base tracking-tighter">
+                <ThemedTd align="center" className="font-black text-[var(--lg-accent)] tabular-nums text-xl tracking-tighter">
                   {formatNumber(row.totalPoints, 1)}
                 </ThemedTd>
-                <ThemedTd align="center" className="px-8 py-4 font-black tabular-nums">
-                  <span className={row.totalPointsDelta >= 0 ? "text-emerald-400" : "text-rose-400"}>
+                <ThemedTd align="center" className="px-8 py-5 font-black tabular-nums">
+                  <span className={`text-base ${row.totalPointsDelta >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                     {formatSigned(row.totalPointsDelta, 1)}
                   </span>
                 </ThemedTd>
@@ -257,37 +257,37 @@ export const CategoryPeriodTable: React.FC<CategoryPeriodTableProps> = ({
   const sortedRows = [...rows].sort((a, b) => b.points - a.points);
 
   return (
-    <div className="mt-12">
-      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)] mb-4 flex items-center gap-3">
-        <span className="w-4 h-[1px] bg-[var(--fbst-text-muted)] opacity-30"></span>
+    <div className="mt-8">
+      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--lg-text-muted)] mb-4 flex items-center gap-3 opacity-60">
+        <span className="w-4 h-[1px] bg-[var(--lg-accent)] opacity-40"></span>
         {categoryId} Metric – {periodId}
       </h3>
-      <div className="overflow-hidden rounded-3xl liquid-glass border border-white/5">
+      <div className="lg-card p-0 overflow-hidden bg-white/[0.01]">
         <div className="overflow-x-auto">
-      <ThemedTable>
+      <ThemedTable bare>
         <ThemedThead>
           <ThemedTr>
             <ThemedTh className="px-8 py-4">Entity</ThemedTh>
             <ThemedTh align="center">Value</ThemedTh>
-            <ThemedTh align="center" className="text-[var(--fbst-accent)]">Points</ThemedTh>
+            <ThemedTh align="center" className="text-[var(--lg-accent)]">Points</ThemedTh>
             <ThemedTh align="center" className="px-8 py-4">Delta</ThemedTh>
           </ThemedTr>
         </ThemedThead>
-        <tbody className="divide-y divide-white/5">
+        <tbody className="divide-y divide-white/[0.03]">
           {sortedRows.map((row) => (
-            <ThemedTr key={row.teamId} className="group border-none">
+            <ThemedTr key={row.teamId} className="group hover:bg-white/[0.02] transition-colors">
               <ThemedTd className="px-8 py-3">
                 <Link 
                   to={`/teams/${row.teamId}`} 
-                  className="font-black text-[var(--fbst-text-primary)] hover:text-[var(--fbst-accent)] transition-all tracking-tight"
+                  className="font-black text-[var(--lg-text-heading)] text-base hover:text-[var(--lg-accent)] transition-all tracking-tighter"
                 >
                   {row.teamName}
                 </Link>
               </ThemedTd>
-              <ThemedTd align="center" className="font-bold text-[var(--fbst-text-primary)] tabular-nums opacity-80">
+              <ThemedTd align="center" className="font-bold text-[var(--lg-text-primary)] tabular-nums opacity-80">
                 {formatStatForCategory(categoryId, row.periodStat)}
               </ThemedTd>
-              <ThemedTd align="center" className="font-black text-[var(--fbst-accent)] tabular-nums text-base tracking-tighter">
+              <ThemedTd align="center" className="font-black text-[var(--lg-accent)] tabular-nums text-lg tracking-tighter">
                 {formatNumber(row.points, 1)}
               </ThemedTd>
               <ThemedTd align="center" className="px-8 py-3 font-black tabular-nums">
@@ -307,7 +307,6 @@ export const CategoryPeriodTable: React.FC<CategoryPeriodTableProps> = ({
 
 /**
  * SEASON TABLE
- * Teams × Periods + Season Total
  */
 
 export const SeasonTable: React.FC<SeasonTableProps> = ({
@@ -319,51 +318,52 @@ export const SeasonTable: React.FC<SeasonTableProps> = ({
   );
 
   return (
-    <div>
-      <h2 className="text-2xl font-black tracking-tight text-[var(--fbst-text-heading)] mb-6 flex items-center gap-4 uppercase">
-        <span className="w-1.5 h-6 bg-[var(--fbst-accent)] rounded-full"></span>
+    <div className="mb-12">
+      <h2 className="text-2xl font-black tracking-tighter text-[var(--lg-text-heading)] mb-6 flex items-center gap-4 uppercase">
+        <span className="w-1.5 h-6 bg-[var(--lg-accent)] rounded-full"></span>
         Season Strategic Ledger
       </h2>
-      <div className="overflow-hidden rounded-3xl liquid-glass border border-white/10 shadow-xl">
+      <div className="lg-card p-0 overflow-hidden bg-white/[0.01]">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="bg-white/5 border-b border-white/10 text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)]">
-                <th className="px-8 py-5 text-left">Entity</th>
+          <ThemedTable bare>
+            <ThemedThead>
+              <ThemedTr>
+                <ThemedTh className="px-8 py-5">Franchise</ThemedTh>
                 {periods.map((p) => (
-                  <th key={p.periodId} className="px-4 py-5 text-center" title={p.meetingDate}>
+                  <ThemedTh key={p.periodId} align="center" title={p.meetingDate}>
                     {p.label}
-                  </th>
+                  </ThemedTh>
                 ))}
-                <th className="px-8 py-5 text-center text-[var(--fbst-accent)]">Temporal Total</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
+                <ThemedTh align="center" className="px-8 py-5 text-[var(--lg-accent)] whitespace-nowrap">Temporal Total</ThemedTh>
+              </ThemedTr>
+            </ThemedThead>
+            <tbody className="divide-y divide-white/[0.03]">
               {sortedRows.map((row) => (
-                <tr key={row.teamId} className="hover:bg-white/5 transition-colors duration-150">
-                  <td className="px-6 py-4">
+                <ThemedTr key={row.teamId} className="hover:bg-white/[0.02] transition-colors duration-150">
+                  <ThemedTd className="px-8 py-5">
                     <Link 
                       to={`/teams/${row.teamId}`} 
-                      className="font-bold text-[var(--fbst-text-primary)] hover:text-[var(--fbst-accent)] transition-colors"
+                      className="font-black text-[var(--lg-text-heading)] text-lg hover:text-[var(--lg-accent)] transition-all tracking-tighter"
                     >
                       {row.teamName}
                     </Link>
-                  </td>
+                  </ThemedTd>
                   {periods.map((p) => (
-                    <td
+                    <ThemedTd
                       key={p.periodId}
-                      className="px-4 py-4 text-center font-medium text-[var(--fbst-text-primary)] tabular-nums"
+                      align="center"
+                      className="px-4 py-5 font-bold text-[var(--lg-text-primary)] tabular-nums opacity-80"
                     >
                       {formatNumber(row.periodPoints[p.periodId] ?? 0, 1)}
-                    </td>
+                    </ThemedTd>
                   ))}
-                  <td className="px-6 py-4 text-center font-black text-[var(--fbst-accent)] tabular-nums">
+                  <ThemedTd align="center" className="px-8 py-5 font-black text-[var(--lg-accent)] tabular-nums text-xl tracking-tighter">
                     {formatNumber(row.seasonTotalPoints, 1)}
-                  </td>
-                </tr>
+                  </ThemedTd>
+                </ThemedTr>
               ))}
             </tbody>
-          </table>
+          </ThemedTable>
         </div>
       </div>
     </div>
@@ -371,7 +371,7 @@ export const SeasonTable: React.FC<SeasonTableProps> = ({
 };
 
 /**
- * TEAM SEASON SUMMARY TABLE (bottom of Teams page)
+ * TEAM SEASON SUMMARY TABLE
  */
 
 export const TeamSeasonSummaryTable: React.FC<TeamSeasonSummaryProps> = ({
@@ -383,43 +383,41 @@ export const TeamSeasonSummaryTable: React.FC<TeamSeasonSummaryProps> = ({
   );
 
   return (
-    <div className="mt-6">
-      <h3 className="text-md font-semibold mb-2">
+    <div className="mt-8">
+      <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--lg-text-muted)] mb-5 opacity-60">
         Season Summary – {summary.teamName}
       </h3>
-      <div className="overflow-x-auto">
-        <table className="min-w-full border-collapse text-sm">
-          <thead>
-            <tr>
-              <th className="px-2 py-1 text-left border-b border-slate-700">
-                Period
-              </th>
-              <th className="px-2 py-1 text-center border-b border-slate-700">
-                Points
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {periods.map((p) => (
-              <tr key={p.periodId}>
-                <td className="px-2 py-1 border-t border-slate-800">
-                  {p.label}
-                </td>
-                <td className="px-2 py-1 text-center border-t border-slate-800">
-                  {formatNumber(periodMap.get(p.periodId) ?? 0, 1)}
-                </td>
-              </tr>
-            ))}
-            <tr>
-              <td className="px-2 py-1 border-t border-slate-800 font-semibold">
-                Season Total
-              </td>
-              <td className="px-2 py-1 text-center border-t border-slate-800 font-semibold">
-                {formatNumber(summary.seasonTotalPoints, 1)}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div className="lg-card p-0 overflow-hidden bg-white/[0.01]">
+        <div className="overflow-x-auto">
+          <ThemedTable bare>
+            <ThemedThead>
+              <ThemedTr>
+                <ThemedTh className="px-6 py-4">Deployment Cycle</ThemedTh>
+                <ThemedTh align="center" className="px-6 py-4">Score</ThemedTh>
+              </ThemedTr>
+            </ThemedThead>
+            <tbody className="divide-y divide-white/[0.03]">
+              {periods.map((p) => (
+                <ThemedTr key={p.periodId} className="hover:bg-white/[0.02] transition-colors">
+                  <ThemedTd className="px-6 py-3 font-bold text-[var(--lg-text-secondary)]">
+                    {p.label}
+                  </ThemedTd>
+                  <ThemedTd align="center" className="px-6 py-3 font-black text-[var(--lg-text-primary)] tabular-nums">
+                    {formatNumber(periodMap.get(p.periodId) ?? 0, 1)}
+                  </ThemedTd>
+                </ThemedTr>
+              ))}
+              <ThemedTr className="bg-[var(--lg-accent)]/5">
+                <ThemedTd className="px-6 py-4 font-black uppercase tracking-widest text-[var(--lg-accent)]">
+                  Season Aggregate
+                </ThemedTd>
+                <ThemedTd align="center" className="px-6 py-4 font-black text-[var(--lg-accent)] tabular-nums text-lg tracking-tighter">
+                  {formatNumber(summary.seasonTotalPoints, 1)}
+                </ThemedTd>
+              </ThemedTr>
+            </tbody>
+          </ThemedTable>
+        </div>
       </div>
     </div>
   );
@@ -427,24 +425,14 @@ export const TeamSeasonSummaryTable: React.FC<TeamSeasonSummaryProps> = ({
 
 /**
  * TEAM PERIOD HITTERS TABLE
- * Player, Team, Pos, G, DH, C, 1B, 2B, 3B, SS, OF, R, HR, RBI, SB, AVG, GS
  */
 
 export const TeamPeriodHittersTable: React.FC<TeamPeriodHittersProps> = ({
   periodId,
-  teamId,
   hitters,
 }) => {
   const totals = hitters.reduce(
     (acc, h) => {
-      acc.gDH += h.gDH;
-      acc.gC += h.gC;
-      acc.g1B += h.g1B;
-      acc.g2B += h.g2B;
-      acc.g3B += h.g3B;
-      acc.gSS += h.gSS;
-      acc.gOF += h.gOF;
-
       acc.ab += h.ab;
       acc.runs += h.runs;
       acc.hits += h.hits;
@@ -453,222 +441,67 @@ export const TeamPeriodHittersTable: React.FC<TeamPeriodHittersProps> = ({
       acc.sb += h.sb;
       acc.bb += h.bb;
       acc.gs += h.gs;
-
       return acc;
     },
-    {
-      gDH: 0,
-      gC: 0,
-      g1B: 0,
-      g2B: 0,
-      g3B: 0,
-      gSS: 0,
-      gOF: 0,
-      ab: 0,
-      runs: 0,
-      hits: 0,
-      hr: 0,
-      rbi: 0,
-      sb: 0,
-      bb: 0,
-      gs: 0,
-    }
+    { ab: 0, runs: 0, hits: 0, hr: 0, rbi: 0, sb: 0, bb: 0, gs: 0 }
   );
-
-  const teamGames =
-    totals.gDH +
-    totals.gC +
-    totals.g1B +
-    totals.g2B +
-    totals.g3B +
-    totals.gSS +
-    totals.gOF;
 
   const teamAvg = totals.ab > 0 ? totals.hits / totals.ab : 0;
 
   return (
-    <div className="mt-6">
-      <h3 className="text-md font-semibold mb-2">
-        Hitters – Period {periodId} (Team {teamId})
+    <div className="mt-10">
+      <h3 className="text-xl font-black tracking-tighter text-[var(--lg-text-heading)] mb-5">
+        Hitting Corps – Period {periodId}
       </h3>
-      <div className="overflow-x-auto">
-        <table className="min-w-full border-collapse text-xs">
-          <thead>
-            <tr>
-              <th className="px-1 py-1 text-left border-b border-slate-700">
-                Player
-              </th>
-              <th className="px-1 py-1 text-left border-b border-slate-700">
-                Team
-              </th>
-              <th className="px-1 py-1 text-left border-b border-slate-700">
-                Pos
-              </th>
-
-              <th className="px-1 py-1 text-center border-b border-slate-700">
-                G
-              </th>
-              <th className="px-1 py-1 text-center border-b border-slate-700">
-                DH
-              </th>
-              <th className="px-1 py-1 text-center border-b border-slate-700">
-                C
-              </th>
-              <th className="px-1 py-1 text-center border-b border-slate-700">
-                1B
-              </th>
-              <th className="px-1 py-1 text-center border-b border-slate-700">
-                2B
-              </th>
-              <th className="px-1 py-1 text-center border-b border-slate-700">
-                3B
-              </th>
-              <th className="px-1 py-1 text-center border-b border-slate-700">
-                SS
-              </th>
-              <th className="px-1 py-1 text-center border-b border-slate-700">
-                OF
-              </th>
-
-              <th className="px-1 py-1 text-center border-b border-slate-700">
-                R
-              </th>
-              <th className="px-1 py-1 text-center border-b border-slate-700">
-                HR
-              </th>
-              <th className="px-1 py-1 text-center border-b border-slate-700">
-                RBI
-              </th>
-              <th className="px-1 py-1 text-center border-b border-slate-700">
-                SB
-              </th>
-              <th className="px-1 py-1 text-center border-b border-slate-700">
-                AVG
-              </th>
-              <th className="px-1 py-1 text-center border-b border-slate-700">
-                GS
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {hitters.map((h) => {
-              const gTotal =
-                h.gDH + h.gC + h.g1B + h.g2B + h.g3B + h.gSS + h.gOF;
-
-              return (
-                <tr key={h.playerId}>
-                  <td className="px-1 py-1 border-t border-slate-800">
-                    {h.playerName}
-                  </td>
-                  <td className="px-1 py-1 border-t border-slate-800">
-                    {h.mlbTeam}
-                  </td>
-                  <td className="px-1 py-1 border-t border-slate-800">
-                    {getPrimaryPosition(h.positions.join(", "))}
-                  </td>
-
-                  <td className="px-1 py-1 text-center border-t border-slate-800">
-                    {gTotal}
-                  </td>
-                  <td className="px-1 py-1 text-center border-t border-slate-800">
-                    {h.gDH}
-                  </td>
-                  <td className="px-1 py-1 text-center border-t border-slate-800">
-                    {h.gC}
-                  </td>
-                  <td className="px-1 py-1 text-center border-t border-slate-800">
-                    {h.g1B}
-                  </td>
-                  <td className="px-1 py-1 text-center border-t border-slate-800">
-                    {h.g2B}
-                  </td>
-                  <td className="px-1 py-1 text-center border-t border-slate-800">
-                    {h.g3B}
-                  </td>
-                  <td className="px-1 py-1 text-center border-t border-slate-800">
-                    {h.gSS}
-                  </td>
-                  <td className="px-1 py-1 text-center border-t border-slate-800">
-                    {h.gOF}
-                  </td>
-
-                  <td className="px-1 py-1 text-center border-t border-slate-800">
-                    {h.runs}
-                  </td>
-                  <td className="px-1 py-1 text-center border-t border-slate-800">
-                    {h.hr}
-                  </td>
-                  <td className="px-1 py-1 text-center border-t border-slate-800">
-                    {h.rbi}
-                  </td>
-                  <td className="px-1 py-1 text-center border-t border-slate-800">
-                    {h.sb}
-                  </td>
-                  <td className="px-1 py-1 text-center border-t border-slate-800">
-                    {fmtRate(h.avg)}
-                  </td>
-                  <td className="px-1 py-1 text-center border-t border-slate-800">
-                    {h.gs}
-                  </td>
-                </tr>
-              );
-            })}
-
-            {/* Totals row */}
-            <tr>
-              <td
-                className="px-1 py-1 border-t border-slate-800 font-semibold"
-                colSpan={3}
-              >
-                Totals
-              </td>
-
-              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
-                {teamGames}
-              </td>
-              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
-                {totals.gDH}
-              </td>
-              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
-                {totals.gC}
-              </td>
-              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
-                {totals.g1B}
-              </td>
-              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
-                {totals.g2B}
-              </td>
-              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
-                {totals.g3B}
-              </td>
-              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
-                {totals.gSS}
-              </td>
-              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
-                {totals.gOF}
-              </td>
-
-              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
-                {totals.runs}
-              </td>
-              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
-                {totals.hr}
-              </td>
-              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
-                {totals.rbi}
-              </td>
-              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
-                {totals.sb}
-              </td>
-              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
-                {fmtRate(teamAvg)}
-              </td>
-              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
-                {totals.gs}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div className="lg-card p-0 overflow-hidden bg-white/[0.01]">
+        <div className="overflow-x-auto">
+          <ThemedTable bare>
+            <ThemedThead>
+              <ThemedTr>
+                <ThemedTh className="px-4 py-4">Asset</ThemedTh>
+                <ThemedTh className="px-2 py-4">TM</ThemedTh>
+                <ThemedTh className="px-2 py-4">POS</ThemedTh>
+                <ThemedTh align="center" className="px-2 py-4">R</ThemedTh>
+                <ThemedTh align="center" className="px-2 py-4">HR</ThemedTh>
+                <ThemedTh align="center" className="px-2 py-4">RBI</ThemedTh>
+                <ThemedTh align="center" className="px-2 py-4">SB</ThemedTh>
+                <ThemedTh align="center" className="px-2 py-4">AVG</ThemedTh>
+                <ThemedTh align="center" className="px-2 py-4">AB</ThemedTh>
+                <ThemedTh align="center" className="px-2 py-4">GS</ThemedTh>
+              </ThemedTr>
+            </ThemedThead>
+            <tbody className="divide-y divide-white/[0.03]">
+              {hitters.map((h) => (
+                <ThemedTr key={h.playerId} className="hover:bg-white/[0.02] transition-colors">
+                  <ThemedTd className="px-4 py-3 font-black text-[var(--lg-text-primary)] text-sm tracking-tight">{h.playerName}</ThemedTd>
+                  <ThemedTd className="px-2 py-3 font-bold text-[var(--lg-text-muted)] opacity-60">{h.mlbTeam}</ThemedTd>
+                  <ThemedTd className="px-2 py-3">
+                    <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/20">
+                      {getPrimaryPosition(h.positions.join(", "))}
+                    </Badge>
+                  </ThemedTd>
+                  <ThemedTd align="center" className="px-2 py-3 font-bold text-[var(--lg-text-primary)] tabular-nums">{h.runs}</ThemedTd>
+                  <ThemedTd align="center" className="px-2 py-3 font-bold text-[var(--lg-text-primary)] tabular-nums">{h.hr}</ThemedTd>
+                  <ThemedTd align="center" className="px-2 py-3 font-bold text-[var(--lg-text-primary)] tabular-nums">{h.rbi}</ThemedTd>
+                  <ThemedTd align="center" className="px-2 py-3 font-bold text-[var(--lg-text-primary)] tabular-nums">{h.sb}</ThemedTd>
+                  <ThemedTd align="center" className="px-2 py-3 font-black text-[var(--lg-accent)] text-xs tabular-nums tracking-tighter">{fmtRate(h.avg)}</ThemedTd>
+                  <ThemedTd align="center" className="px-2 py-3 font-medium text-[var(--lg-text-muted)] opacity-40 tabular-nums">{h.ab}</ThemedTd>
+                  <ThemedTd align="center" className="px-2 py-3 font-medium text-[var(--lg-text-muted)] opacity-40 tabular-nums">{h.gs}</ThemedTd>
+                </ThemedTr>
+              ))}
+              <ThemedTr className="bg-white/5 font-black uppercase text-[10px] tracking-widest text-[var(--lg-text-primary)]">
+                <ThemedTd className="px-4 py-4" colSpan={3}>Aggregate Velocity</ThemedTd>
+                <ThemedTd align="center" className="px-2 py-4 tabular-nums">{totals.runs}</ThemedTd>
+                <ThemedTd align="center" className="px-2 py-4 tabular-nums">{totals.hr}</ThemedTd>
+                <ThemedTd align="center" className="px-2 py-4 tabular-nums">{totals.rbi}</ThemedTd>
+                <ThemedTd align="center" className="px-2 py-4 tabular-nums">{totals.sb}</ThemedTd>
+                <ThemedTd align="center" className="px-2 py-4 tabular-nums text-[var(--lg-accent)] text-sm tracking-tighter">{fmtRate(teamAvg)}</ThemedTd>
+                <ThemedTd align="center" className="px-2 py-4 tabular-nums opacity-40">{totals.ab}</ThemedTd>
+                <ThemedTd align="center" className="px-2 py-4 tabular-nums opacity-40">{totals.gs}</ThemedTd>
+              </ThemedTr>
+            </tbody>
+          </ThemedTable>
+        </div>
       </div>
     </div>
   );
@@ -676,164 +509,84 @@ export const TeamPeriodHittersTable: React.FC<TeamPeriodHittersProps> = ({
 
 /**
  * TEAM PERIOD PITCHERS TABLE
- * Player, Team, Role, G, W, S, K, ERA, WHIP, SO
  */
 
 export const TeamPeriodPitchersTable: React.FC<TeamPeriodPitchersProps> = ({
   periodId,
-  teamId,
   pitchers,
 }) => {
   const totals = pitchers.reduce(
     (acc, p) => {
-      acc.g += p.g;
-      acc.gs += p.gs;
-      acc.soShutouts += p.soShutouts;
-
       acc.ip += p.ip;
       acc.h += p.h;
       acc.er += p.er;
       acc.bb += p.bb;
       acc.k += p.k;
       acc.w += p.w;
-      acc.l += p.l;
       acc.sv += p.sv;
-      acc.bs += p.bs;
-
+      acc.soShutouts += p.soShutouts;
       return acc;
     },
-    {
-      g: 0,
-      gs: 0,
-      soShutouts: 0,
-      ip: 0,
-      h: 0,
-      er: 0,
-      bb: 0,
-      k: 0,
-      w: 0,
-      l: 0,
-      sv: 0,
-      bs: 0,
-    }
+    { ip: 0, h: 0, er: 0, bb: 0, k: 0, w: 0, sv: 0, soShutouts: 0 }
   );
 
   const totalERA = totals.ip > 0 ? (9 * totals.er) / totals.ip : 0;
-  const totalWHIP =
-    totals.ip > 0 ? (totals.bb + totals.h) / totals.ip : 0;
+  const totalWHIP = totals.ip > 0 ? (totals.bb + totals.h) / totals.ip : 0;
 
   return (
-    <div className="mt-6">
-      <h3 className="text-md font-semibold mb-2">
-        Pitchers – Period {periodId} (Team {teamId})
+    <div className="mt-10">
+      <h3 className="text-xl font-black tracking-tighter text-[var(--lg-text-heading)] mb-5">
+        Pitching Rotation – Period {periodId}
       </h3>
-      <div className="overflow-x-auto">
-        <table className="min-w-full border-collapse text-xs">
-          <thead>
-            <tr>
-              <th className="px-1 py-1 text-left border-b border-slate-700">
-                Player
-              </th>
-              <th className="px-1 py-1 text-left border-b border-slate-700">
-                Team
-              </th>
-              <th className="px-1 py-1 text-left border-b border-slate-700">
-                Role
-              </th>
-
-              <th className="px-1 py-1 text-center border-b border-slate-700">
-                G
-              </th>
-              <th className="px-1 py-1 text-center border-b border-slate-700">
-                W
-              </th>
-              <th className="px-1 py-1 text-center border-b border-slate-700">
-                S
-              </th>
-              <th className="px-1 py-1 text-center border-b border-slate-700">
-                K
-              </th>
-              <th className="px-1 py-1 text-center border-b border-slate-700">
-                ERA
-              </th>
-              <th className="px-1 py-1 text-center border-b border-slate-700">
-                WHIP
-              </th>
-              <th className="px-1 py-1 text-center border-b border-slate-700">
-                SO
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {pitchers.map((p) => (
-              <tr key={p.playerId}>
-                <td className="px-1 py-1 border-t border-slate-800">
-                  {p.playerName}
-                </td>
-                <td className="px-1 py-1 border-t border-slate-800">
-                  {p.mlbTeam}
-                </td>
-                <td className="px-1 py-1 border-t border-slate-800">
-                  {p.role}
-                </td>
-
-                <td className="px-1 py-1 text-center border-t border-slate-800">
-                  {p.g}
-                </td>
-                <td className="px-1 py-1 text-center border-t border-slate-800">
-                  {p.w}
-                </td>
-                <td className="px-1 py-1 text-center border-t border-slate-800">
-                  {p.sv}
-                </td>
-                <td className="px-1 py-1 text-center border-t border-slate-800">
-                  {p.k}
-                </td>
-                <td className="px-1 py-1 text-center border-t border-slate-800">
-                  {formatNumber(p.era, 2)}
-                </td>
-                <td className="px-1 py-1 text-center border-t border-slate-800">
-                  {formatNumber(p.whip, 2)}
-                </td>
-                <td className="px-1 py-1 text-center border-t border-slate-800">
-                  {p.soShutouts}
-                </td>
-              </tr>
-            ))}
-
-            {/* Totals row */}
-            <tr>
-              <td
-                className="px-1 py-1 border-t border-slate-800 font-semibold"
-                colSpan={3}
-              >
-                Totals
-              </td>
-
-              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
-                {totals.g}
-              </td>
-              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
-                {totals.w}
-              </td>
-              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
-                {totals.sv}
-              </td>
-              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
-                {totals.k}
-              </td>
-              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
-                {formatNumber(totalERA, 2)}
-              </td>
-              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
-                {formatNumber(totalWHIP, 2)}
-              </td>
-              <td className="px-1 py-1 text-center border-t border-slate-800 font-semibold">
-                {totals.soShutouts}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div className="lg-card p-0 overflow-hidden bg-white/[0.01]">
+        <div className="overflow-x-auto">
+          <ThemedTable bare>
+            <ThemedThead>
+              <ThemedTr>
+                <ThemedTh className="px-4 py-4">Asset</ThemedTh>
+                <ThemedTh className="px-2 py-4">TM</ThemedTh>
+                <ThemedTh className="px-2 py-4">ROLE</ThemedTh>
+                <ThemedTh align="center" className="px-2 py-4">W</ThemedTh>
+                <ThemedTh align="center" className="px-2 py-4">S</ThemedTh>
+                <ThemedTh align="center" className="px-2 py-4">K</ThemedTh>
+                <ThemedTh align="center" className="px-2 py-4">ERA</ThemedTh>
+                <ThemedTh align="center" className="px-2 py-4">WHIP</ThemedTh>
+                <ThemedTh align="center" className="px-2 py-4">IP</ThemedTh>
+                <ThemedTh align="center" className="px-2 py-4">SO</ThemedTh>
+              </ThemedTr>
+            </ThemedThead>
+            <tbody className="divide-y divide-white/[0.03]">
+              {pitchers.map((p) => (
+                <ThemedTr key={p.playerId} className="hover:bg-white/[0.02] transition-colors">
+                  <ThemedTd className="px-4 py-3 font-black text-[var(--lg-text-primary)] text-sm tracking-tight">{p.playerName}</ThemedTd>
+                  <ThemedTd className="px-2 py-3 font-bold text-[var(--lg-text-muted)] opacity-60">{p.mlbTeam}</ThemedTd>
+                  <ThemedTd className="px-2 py-3">
+                    <Badge variant="outline" className="bg-purple-500/10 text-purple-400 border-purple-500/20">
+                      {p.role}
+                    </Badge>
+                  </ThemedTd>
+                  <ThemedTd align="center" className="px-2 py-3 font-bold text-[var(--lg-text-primary)] tabular-nums">{p.w}</ThemedTd>
+                  <ThemedTd align="center" className="px-2 py-3 font-bold text-[var(--lg-text-primary)] tabular-nums">{p.sv}</ThemedTd>
+                  <ThemedTd align="center" className="px-2 py-3 font-bold text-[var(--lg-text-primary)] tabular-nums">{p.k}</ThemedTd>
+                  <ThemedTd align="center" className="px-2 py-3 font-black text-blue-400 text-xs tabular-nums tracking-tighter">{formatNumber(p.era, 2)}</ThemedTd>
+                  <ThemedTd align="center" className="px-2 py-3 font-black text-purple-400 text-xs tabular-nums tracking-tighter">{formatNumber(p.whip, 2)}</ThemedTd>
+                  <ThemedTd align="center" className="px-2 py-3 font-medium text-[var(--lg-text-muted)] opacity-40 tabular-nums">{formatNumber(p.ip, 1)}</ThemedTd>
+                  <ThemedTd align="center" className="px-2 py-3 font-medium text-[var(--lg-text-muted)] opacity-40 tabular-nums">{p.soShutouts}</ThemedTd>
+                </ThemedTr>
+              ))}
+              <ThemedTr className="bg-white/5 font-black uppercase text-[10px] tracking-widest text-[var(--lg-text-primary)]">
+                <ThemedTd className="px-4 py-4" colSpan={3}>Aggregate Control</ThemedTd>
+                <ThemedTd align="center" className="px-2 py-4 tabular-nums">{totals.w}</ThemedTd>
+                <ThemedTd align="center" className="px-2 py-4 tabular-nums">{totals.sv}</ThemedTd>
+                <ThemedTd align="center" className="px-2 py-4 tabular-nums">{totals.k}</ThemedTd>
+                <ThemedTd align="center" className="px-2 py-4 tabular-nums text-blue-400 text-sm tracking-tighter">{formatNumber(totalERA, 2)}</ThemedTd>
+                <ThemedTd align="center" className="px-2 py-4 tabular-nums text-purple-400 text-sm tracking-tighter">{formatNumber(totalWHIP, 2)}</ThemedTd>
+                <ThemedTd align="center" className="px-2 py-4 tabular-nums opacity-40">{formatNumber(totals.ip, 1)}</ThemedTd>
+                <ThemedTd align="center" className="px-2 py-4 tabular-nums opacity-40">{totals.soShutouts}</ThemedTd>
+              </ThemedTr>
+            </tbody>
+          </ThemedTable>
+        </div>
       </div>
     </div>
   );

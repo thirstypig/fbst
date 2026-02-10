@@ -3,7 +3,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { API_BASE, getLeagues, getMe, type LeagueListItem, type AuthUser } from "../api";
-import GoogleSignInButton from "./GoogleSignInButton";
 import { useTheme } from "../contexts/ThemeContext";
 
 function isActive(pathname: string, to: string) {
@@ -52,7 +51,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     refreshAuth();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const commissionerLeagueId = useMemo(() => {
@@ -77,52 +75,41 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       'Archive': <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />,
       'Commissioner': <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />,
       'Admin': <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />,
-      'Auction': <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M1槌4 4l2-2 4 4-2 2-4-4zM6 8l2-2 4 4-2 2-4-4z M4 16l2-2 8 8-2 2-8-8z" /> // Approximate Gavel
+      'Auction': <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
     };
-    // Better Gavel path
-    icons['Auction'] = <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11l-4-4m0 0l-2 2m2-2l-2-2m2 2l2 2m-2-2l-4 4-2-2 4-4 4 4-2 2-4-4-2 2 4 4 2 2 4-4 2 2-4 4-2-2 4-4z M6 8l-2 2 4 4 2-2-4-4z" />; 
-    // Wait, let's use a simpler known gavel path or money
-    icons['Auction'] = <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />; // Money Icon fallback
-
     return icons[label] || <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />;
   };
 
-  // Grouped navigation sections
   const NAV_SECTIONS: NavSection[] = [
     {
-      title: "Main",
+      title: "Navigation",
       items: [
         { to: "/", label: "Home", show: true },
         { to: "/guide", label: "Guide", show: true },
-      ],
-    },
-    {
-      title: "Standings",
-      items: [
-        { to: "/period", label: "Period", show: true },
-        { to: "/season", label: "Season", show: true },
-      ],
-    },
-    {
-      title: "Players & Activity",
-      items: [
-        { to: "/players", label: "Players", show: true },
-        { to: "/trades", label: "Trades", show: true },
-        { to: "/transactions", label: "Transactions", show: true },
         { to: "/auction", label: "Auction", show: true },
       ],
     },
     {
-      title: "League",
+      title: "Intelligence",
       items: [
-        { to: "/leagues", label: "Leagues", show: true },
-        { to: "/rules", label: "Rules", show: true },
+        { to: "/period", label: "Period", show: true },
+        { to: "/season", label: "Season", show: true },
+        { to: "/players", label: "Players", show: true },
+      ],
+    },
+    {
+      title: "Logistics",
+      items: [
+        { to: "/trades", label: "Trades", show: true },
+        { to: "/transactions", label: "Transactions", show: true },
         { to: "/archive", label: "Archive", show: true },
       ],
     },
     {
-      title: "Admin",
+      title: "System",
       items: [
+        { to: "/leagues", label: "Leagues", show: true },
+        { to: "/rules", label: "Rules", show: true },
         {
           to: commissionerLeagueId ? `/commissioner/${commissionerLeagueId}` : "/leagues",
           label: "Commissioner",
@@ -151,43 +138,35 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             setSidebarOpen(false);
           }
         }}
-        className={[
-          "lg-sidebar-item",
-          active && "active",
-          !sidebarOpen && "justify-center"
-        ].filter(Boolean).join(" ")}
+        className={`lg-sidebar-item ${active ? 'active' : ''} ${!sidebarOpen ? 'justify-center' : ''}`}
         title={!sidebarOpen ? item.label : undefined}
       >
-        <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className={`w-5 h-5 flex-shrink-0 transition-transform ${active ? 'scale-110' : 'group-hover:scale-110'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           {getNavIcon(item.label)}
         </svg>
-        {sidebarOpen && <span>{item.label}</span>}
+        {sidebarOpen && <span className="truncate">{item.label}</span>}
       </Link>
     );
   };
 
-  // Sidebar Resizing Logic
-  const [sidebarWidth, setSidebarWidth] = useState(200); // reduced from w-64 (256px) to ~200px
+  const [sidebarWidth, setSidebarWidth] = useState(240);
   const [isResizing, setIsResizing] = useState(false);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing) return;
-      const newWidth = Math.max(160, Math.min(400, e.clientX)); // Min 160px, Max 400px
+      const newWidth = Math.max(180, Math.min(400, e.clientX));
       setSidebarWidth(newWidth);
     };
-
     const handleMouseUp = () => {
       setIsResizing(false);
       document.body.style.cursor = 'default';
     };
-
     if (isResizing) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
       document.body.style.cursor = 'col-resize';
     }
-
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
@@ -195,88 +174,68 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, [isResizing]);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-[var(--lg-bg-page)] scrollbar-hide">
       <div className="flex">
-        {/* Mobile Overlay */}
         {sidebarOpen && sidebarVisible && (
           <div 
-            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden animate-in fade-in duration-300"
             onClick={() => setSidebarOpen(false)}
           />
         )}
 
-        {/* Sidebar */}
         <aside 
             className={`
               fixed lg:sticky top-0 h-screen z-50
-              shrink-0 transition-all duration-75 relative group
+              shrink-0 transition-all duration-300 group
               lg-sidebar
-              ${!sidebarVisible ? 'w-0 overflow-hidden border-none' : ''}
-              ${!sidebarOpen && sidebarVisible ? 'lg:w-16 -translate-x-full lg:translate-x-0' : ''}
+              ${!sidebarVisible ? 'w-0 overflow-hidden border-none px-0' : ''}
+              ${!sidebarOpen && sidebarVisible ? 'lg:w-20 -translate-x-full lg:translate-x-0' : ''}
             `}
             style={sidebarOpen && sidebarVisible ? { width: sidebarWidth } : {}}
         >
-            {/* Drag Handle */}
             {sidebarOpen && sidebarVisible && (
                 <div
-                    className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500/50 z-50 transition-colors"
+                    className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[var(--lg-accent)]/50 z-50 transition-colors"
                     onMouseDown={() => setIsResizing(true)}
                 />
             )}
-          <div className="px-5 py-6 h-full flex flex-col min-w-[64px]">
-            {/* Header with toggle and theme */}
-            <div className="mb-6 flex items-center justify-between">
+            
+          <div className="px-4 py-8 h-full flex flex-col min-w-[64px]">
+            <div className={`mb-10 flex items-center justify-between ${!sidebarOpen && 'flex-col gap-6'}`}>
               {sidebarOpen && (
-                <div>
-                  <div className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>FBST</div>
-                  <div className={`text-xs ${theme === 'dark' ? 'text-white/50' : 'text-gray-500'}`}>Fantasy Baseball Stats</div>
-                </div>
+                <Link 
+                  to={me ? "/" : "/login"}
+                  className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-[var(--lg-accent)] flex items-center justify-center text-white font-black text-lg shadow-2xl shadow-blue-500/40 transform -rotate-3 hover:rotate-0 transition-transform duration-500">FB</div>
+                  <div className="flex flex-col">
+                    <span className="text-xl font-black tracking-[0.05em] text-[var(--lg-text-heading)] leading-none uppercase">Protocol</span>
+                    <span className="text-[9px] font-black tracking-[0.3em] text-[var(--lg-text-muted)] opacity-60 uppercase mt-1">Intelligence System</span>
+                  </div>
+                </Link>
               )}
+              
               <div className={`flex items-center gap-1 ${!sidebarOpen && 'flex-col mx-auto'}`}>
-                {/* Theme toggle - moved to header */}
                 <button
                   onClick={toggleTheme}
-                  className={`p-2 rounded-lg transition-colors ${
-                    theme === 'dark' 
-                      ? 'hover:bg-white/10 text-white/70 hover:text-white' 
-                      : 'hover:bg-gray-100 text-gray-500 hover:text-gray-900'
-                  }`}
-                  title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+                  className="p-2 rounded-lg hover:bg-white/5 text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] transition-all"
+                  title="Toggle Display Matrix"
                 >
                   {theme === 'dark' ? '☀️' : '🌙'}
                 </button>
-                {/* Hamburger toggle */}
                 <button
-                  onClick={() => setSidebarOpen(!sidebarOpen)}
-                  className={`p-2 rounded-lg transition-colors ${
-                    theme === 'dark' 
-                      ? 'hover:bg-white/10 text-white' 
-                      : 'hover:bg-gray-100 text-gray-900'
-                  }`}
-                  title={sidebarOpen ? 'Collapse menu' : 'Expand menu'}
+                  onClick={() => setSidebarVisible(false)}
+                  className="p-2 rounded-lg hover:bg-white/5 text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] transition-all"
+                  title="Minimize Sidebar"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
                   </svg>
-                </button>
-                
-                {/* Full Hide Button */}
-                <button
-                   onClick={() => setSidebarVisible(false)}
-                   className={`p-2 rounded-lg transition-colors ${
-                    theme === 'dark' ? 'hover:bg-white/10 text-white/50' : 'hover:bg-gray-100 text-gray-400'
-                   }`}
-                   title="Hide Sidebar"
-                >
-                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                   </svg>
                 </button>
               </div>
             </div>
 
-            {/* Navigation Sections */}
-            <nav className="flex-1 overflow-y-auto space-y-4">
+            <nav className="flex-1 overflow-y-auto custom-scrollbar space-y-6">
               {NAV_SECTIONS.map((section) => {
                 const visibleItems = section.items.filter((item) => item.show);
                 if (visibleItems.length === 0) return null;
@@ -296,45 +255,29 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               })}
             </nav>
 
-            {/* User Profile Footer */}
-            <div className={`mt-4 pt-4 border-t ${theme === 'dark' ? 'border-white/10' : 'border-gray-200'}`}>
+            <div className={`mt-8 pt-8 border-t border-white/5 ${!sidebarOpen && 'flex flex-col items-center'}`}>
               {loading ? (
-                <div className={`text-xs text-center ${theme === 'dark' ? 'text-white/50' : 'text-gray-500'}`}>
-                  Loading…
-                </div>
+                <div className="w-6 h-6 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
               ) : me ? (
-                <div className={`flex items-center gap-2 ${!sidebarOpen && 'flex-col'}`}>
-                  {/* User avatar */}
+                <div className={`flex items-center gap-3 ${!sidebarOpen && 'flex-col'}`}>
                   {me.avatarUrl ? (
-                    <img src={me.avatarUrl} alt={me.name ?? me.email} className="h-8 w-8 rounded-full flex-shrink-0" />
+                    <img src={me.avatarUrl} alt={me.name || 'User'} className="h-10 w-10 rounded-[var(--lg-radius-md)] grayscale hover:grayscale-0 transition-all border border-white/10" />
                   ) : (
-                    <div className={`h-8 w-8 rounded-full flex-shrink-0 ${theme === 'dark' ? 'bg-white/10' : 'bg-gray-200'}`} />
+                    <div className="h-10 w-10 rounded-[var(--lg-radius-md)] bg-white/5 border border-white/10 flex items-center justify-center text-xs font-black text-[var(--lg-text-muted)]">
+                        {me.name?.[0] || 'U'}
+                    </div>
                   )}
                   
                   {sidebarOpen && (
                     <>
-                      {/* User name */}
-                      <div className="leading-tight min-w-0 flex-1">
-                        <div className={`text-[10px] mb-0.5 font-medium ${theme === 'dark' ? 'text-white/40' : 'text-gray-400'}`}>
-                          {new Date().toISOString().split('T')[0]}
-                        </div>
-                        <div className={`text-sm truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                          {me.name ?? me.email}
-                        </div>
-                        {me.isAdmin && (
-                          <div className={`text-xs ${theme === 'dark' ? 'text-white/50' : 'text-gray-500'}`}>Admin</div>
-                        )}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-[var(--lg-text-muted)] opacity-40 mb-0.5">Linked Unit</div>
+                        <div className="text-xs font-black text-[var(--lg-text-primary)] truncate uppercase tracking-tight">{me.name || me.email}</div>
                       </div>
-                      
-                      {/* Small logout button */}
                       <button
                         onClick={onLogout}
-                        className={`p-1.5 rounded-lg transition-colors flex-shrink-0 ${
-                          theme === 'dark' 
-                            ? 'hover:bg-white/10 text-white/50 hover:text-white' 
-                            : 'hover:bg-gray-100 text-gray-400 hover:text-gray-900'
-                        }`}
-                        title="Logout"
+                        className="p-2 rounded-lg hover:bg-rose-500/10 text-[var(--lg-text-muted)] hover:text-rose-400 transition-all"
+                        title="Deactivate Link"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -343,96 +286,71 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     </>
                   )}
                   
-                  {/* Collapsed state: just logout icon */}
                   {!sidebarOpen && (
                     <button
-                      onClick={onLogout}
-                      className={`p-2 rounded-lg transition-colors ${
-                        theme === 'dark' 
-                          ? 'hover:bg-white/10 text-white/70 hover:text-white' 
-                          : 'hover:bg-gray-100 text-gray-500 hover:text-gray-900'
-                      }`}
-                      title="Logout"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                      </svg>
+                        onClick={onLogout}
+                        className="p-2 rounded-lg hover:bg-rose-500/10 text-[var(--lg-text-muted)] hover:text-rose-400 transition-all"
+                        title="Deactivate Link"
+                      >
+                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
                     </button>
                   )}
                 </div>
               ) : (
-                <div className={`${!sidebarOpen && 'flex justify-center'}`}>
-                  {sidebarOpen ? (
-                    <GoogleSignInButton />
-                  ) : (
-                    <button
-                      onClick={() => nav('/login')}
-                      className={`p-2 rounded-lg transition-colors ${
-                        theme === 'dark' 
-                          ? 'hover:bg-white/10 text-white/70 hover:text-white' 
-                          : 'hover:bg-gray-100 text-gray-500 hover:text-gray-900'
-                      }`}
-                      title="Sign in"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                      </svg>
-                    </button>
-                  )}
+                <div className="w-full">
+                  <button
+                    onClick={() => nav('/login')}
+                    className={`
+                      w-full flex items-center gap-2 rounded-xl bg-[var(--lg-accent)] text-white font-semibold transition-all shadow-lg shadow-blue-500/20
+                      ${sidebarOpen ? 'px-4 py-2.5 justify-center' : 'p-2 justify-center'}
+                    `}
+                    title="Initialize Link"
+                  >
+                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                    </svg>
+                    {sidebarOpen && <span>Login</span>}
+                  </button>
                 </div>
               )}
             </div>
           </div>
         </aside>
 
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col min-h-screen">
-          {/* Top header - simplified, mobile only */}
-          <header className={`sticky top-0 z-30 flex items-center justify-between gap-3 border-b px-4 lg:px-6 py-4 lg:hidden ${
-            theme === 'dark' ? 'border-white/10 bg-slate-950' : 'border-gray-200 bg-white'
-          }`}>
-            {/* Mobile hamburger */}
+        <div className="flex-1 flex flex-col min-h-screen transition-all duration-300">
+          <header className={`sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-white/[0.05] px-6 py-5 lg:hidden bg-[var(--lg-bg-page)]/80 backdrop-blur-3xl`}>
             <button
               onClick={() => setSidebarOpen(true)}
-              className={`p-2 rounded-lg ${
-                theme === 'dark' ? 'hover:bg-white/10 text-white' : 'hover:bg-gray-100 text-gray-900'
-              }`}
+              className="lg-button lg-button-secondary p-2.5"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-
-            <div className="flex-1" /> {/* Spacer */}
             
-            {/* Theme toggle for mobile */}
+            <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded bg-[var(--lg-accent)] flex items-center justify-center text-[10px] text-white font-black">FB</div>
+                <span className="text-xs font-black tracking-[0.2em] uppercase text-[var(--lg-text-heading)]">Protocol</span>
+            </div>
+
             <button
               onClick={toggleTheme}
-              className={`p-2 rounded-lg transition-colors ${
-                theme === 'dark' 
-                  ? 'hover:bg-white/10 text-white' 
-                  : 'hover:bg-gray-100 text-gray-900'
-              }`}
-              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+              className="p-2 text-[var(--lg-text-muted)]"
             >
               {theme === 'dark' ? '☀️' : '🌙'}
             </button>
           </header>
 
-          {/* Page content */}
-          <main className="flex-1 p-4 sm:p-6 relative">
-            {/* Restore Sidebar Button (Floating) */}
+          <main className="flex-1 relative animate-in fade-in duration-700">
             {!sidebarVisible && (
               <button
                 onClick={() => setSidebarVisible(true)}
-                className={`fixed top-4 left-4 z-50 p-2 rounded-lg shadow-lg border transition-all ${
-                  theme === 'dark' 
-                    ? 'bg-slate-900 border-white/10 text-white hover:bg-slate-800' 
-                    : 'bg-white border-gray-200 text-gray-900 hover:bg-gray-50'
-                }`}
-                title="Show Sidebar"
+                className="fixed bottom-8 left-8 z-50 p-4 rounded-2xl bg-[var(--lg-accent)] text-white shadow-2xl shadow-blue-500/40 hover:scale-110 active:scale-95 transition-all animate-in slide-in-from-left-4"
+                title="Restore Navigation"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
                 </svg>
               </button>

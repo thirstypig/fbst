@@ -10,15 +10,18 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-[var(--fbst-accent)] text-white shadow-lg shadow-red-500/20 hover:scale-105 active:scale-95 transition-all text-sm font-bold",
+          "bg-[var(--lg-accent)] text-white shadow-lg shadow-blue-500/20 hover:scale-[1.02] active:scale-95 transition-all text-sm font-bold",
         destructive:
-          "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
+          "bg-[var(--lg-error)] text-white shadow-sm hover:brightness-110",
         outline:
-          "liquid-glass border-white/10 hover:bg-white/10 text-[var(--fbst-text-primary)] font-bold",
+          "liquid-glass border-[var(--lg-glass-border)] hover:bg-[var(--lg-glass-bg-hover)] text-[var(--lg-text-primary)] font-bold",
         secondary:
-          "bg-white/5 text-[var(--fbst-text-primary)] border border-white/10 hover:bg-white/10 font-bold",
-        ghost: "hover:bg-white/5 text-[var(--fbst-text-secondary)] hover:text-[var(--fbst-text-primary)] font-medium",
-        link: "text-[var(--fbst-accent)] underline-offset-4 hover:underline",
+          "bg-[var(--lg-glass-bg)] text-[var(--lg-text-primary)] border border-[var(--lg-glass-border)] hover:bg-[var(--lg-glass-bg-hover)] font-bold",
+        ghost: "hover:bg-[var(--lg-glass-bg-hover)] text-[var(--lg-text-secondary)] hover:text-[var(--lg-text-primary)] font-medium",
+        link: "text-[var(--lg-accent)] underline-offset-4 hover:underline",
+        amber: "bg-amber-500/10 text-amber-500 border border-amber-500/20 hover:bg-amber-500/20 font-black tracking-widest uppercase text-[10px]",
+        emerald: "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 hover:bg-emerald-500/20 font-black tracking-widest uppercase text-[10px]",
+        red: "bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 font-black tracking-widest uppercase text-[10px]",
       },
       size: {
         default: "h-11 px-6 py-2 rounded-2xl",
