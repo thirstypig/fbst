@@ -154,7 +154,31 @@ function getYahooRedirectUri(req: any): string {
   return `${protocol}://${host}/api/auth/yahoo/callback`;
 }
 
-router.get("/yahoo/test", (req, res) => res.send("Yahoo route registered"));
+// Dev-only diagnostic: shows computed Yahoo redirect URI and config
+if (process.env.NODE_ENV === "development") {
+  router.get("/yahoo/check", (req, res) => {
+    try {
+      const redirectUri = getYahooRedirectUri(req);
+      const clientId = process.env.YAHOO_CLIENT_ID || "MISSING";
+      return res.json({
+        status: "diagnostic",
+        provider: "Yahoo",
+        instruction: "Ensure the 'computedRedirectUri' below exactly matches the URI in your Yahoo Developer Console.",
+        rules: {
+          protocol: "Yahoo REQUIRES https:// for redirect URIs",
+          localDev: "https://localhost:4000/api/auth/yahoo/callback",
+          production: "https://fbst-api.onrender.com/api/auth/yahoo/callback",
+        },
+        env: process.env.NODE_ENV,
+        computedRedirectUri: redirectUri,
+        clientId: clientId.length > 10 ? `${clientId.substring(0, 10)}...` : clientId,
+        hasClientSecret: !!process.env.YAHOO_CLIENT_SECRET,
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+}
 
 router.get("/yahoo", (req, res) => {
   try {
@@ -225,25 +249,32 @@ router.get("/yahoo/callback", async (req, res) => {
   }
 });
 
-router.get("/google/check", (req, res) => {
-  try {
-    const redirectUri = getRedirectUri(req);
-    const clientId = process.env.GOOGLE_CLIENT_ID || "MISSING";
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET ? "PRESENT (Masked)" : "MISSING";
-    
-    return res.json({
-      status: "diagnostic",
-      instruction: "Ensure the 'Computed Redirect URI' below is added to Google Cloud Console.",
-      env: process.env.NODE_ENV,
-      computedRedirectUri: redirectUri,
-      clientId: clientId.length > 10 ? `${clientId.substring(0, 10)}...` : clientId,
-      hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
-      clientUrl: process.env.CLIENT_URL || "http://localhost:5173"
-    });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
-  }
-});
+// Dev-only diagnostic: shows computed Google redirect URI and config
+if (process.env.NODE_ENV === "development") {
+  router.get("/google/check", (req, res) => {
+    try {
+      const redirectUri = getRedirectUri(req);
+      const clientId = process.env.GOOGLE_CLIENT_ID || "MISSING";
+      return res.json({
+        status: "diagnostic",
+        provider: "Google",
+        instruction: "Ensure the 'computedRedirectUri' below exactly matches the URI in your Google Cloud Console.",
+        rules: {
+          protocol: "Google FORBIDS https://localhost — must use http://localhost",
+          localDev: "http://localhost:5173/api/auth/google/callback",
+          production: "https://fbst-api.onrender.com/api/auth/google/callback",
+        },
+        env: process.env.NODE_ENV,
+        computedRedirectUri: redirectUri,
+        clientId: clientId.length > 10 ? `${clientId.substring(0, 10)}...` : clientId,
+        hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+        clientUrl: process.env.CLIENT_URL || "http://localhost:5173",
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+}
 
 router.get("/google", (req, res) => {
   try {

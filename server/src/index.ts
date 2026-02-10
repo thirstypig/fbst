@@ -169,26 +169,43 @@ async function main() {
     const protocol = fs.existsSync(keyPath) ? "HTTPS" : "HTTP";
     logger.info({ port: PORT, protocol }, `🔥 FBST server listening on 0.0.0.0 (${protocol})`);
     
-    // Auth Config Check
-    const cid = process.env.GOOGLE_CLIENT_ID || "";
-    const hasClientId = cid.length > 0;
-    const hasClientSecret = (process.env.GOOGLE_CLIENT_SECRET || "").length > 0;
-    const maskedClientId = hasClientId 
-      ? `${cid.substring(0, 5)}...${cid.substring(cid.length - 10)}`
-      : "missing";
+    // ── Auth Configuration Validation ──────────────────────────────
+    const nodeEnv = process.env.NODE_ENV || "production";
+
+    // Google
+    const gClientId = process.env.GOOGLE_CLIENT_ID || "";
+    const gHasId = gClientId.length > 0;
+    const gHasSecret = (process.env.GOOGLE_CLIENT_SECRET || "").length > 0;
+    const gRedirect = process.env.GOOGLE_REDIRECT_URI
+      || (nodeEnv === "development" ? "http://localhost:5173/api/auth/google/callback" : "(dynamic from request)");
 
     logger.info(
-      { 
-        hasClientId, 
-        hasClientSecret, 
-        maskedClientId,
-        redirectUri: process.env.GOOGLE_REDIRECT_URI || "default" 
-      },
-      "Auth Configuration Check"
+      { provider: "Google", hasClientId: gHasId, hasClientSecret: gHasSecret, redirectUri: gRedirect },
+      "🔐 Auth Config: Google"
     );
+    if (!gHasId || !gHasSecret) {
+      logger.warn({}, "⚠️  GOOGLE credentials missing — Google login will fail.");
+    }
+    if (nodeEnv === "development" && gRedirect.startsWith("https://localhost")) {
+      logger.warn({ redirectUri: gRedirect }, "⚠️  Google forbids https://localhost! Change to http://localhost.");
+    }
 
-    if (!hasClientId || !hasClientSecret) {
-      logger.warn({}, "⚠️  GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET is missing. Login will fail.");
+    // Yahoo
+    const yClientId = process.env.YAHOO_CLIENT_ID || "";
+    const yHasId = yClientId.length > 0;
+    const yHasSecret = (process.env.YAHOO_CLIENT_SECRET || "").length > 0;
+    const yRedirect = process.env.YAHOO_REDIRECT_URI
+      || (nodeEnv === "development" ? "https://localhost:4000/api/auth/yahoo/callback" : "(dynamic from request)");
+
+    logger.info(
+      { provider: "Yahoo", hasClientId: yHasId, hasClientSecret: yHasSecret, redirectUri: yRedirect },
+      "🔐 Auth Config: Yahoo"
+    );
+    if (!yHasId || !yHasSecret) {
+      logger.warn({}, "⚠️  YAHOO credentials missing — Yahoo login will fail.");
+    }
+    if (nodeEnv === "development" && yRedirect.startsWith("http://localhost")) {
+      logger.warn({ redirectUri: yRedirect }, "⚠️  Yahoo requires https://localhost! Change to https://localhost.");
     }
   };
 
