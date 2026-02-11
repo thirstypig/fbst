@@ -8,6 +8,7 @@
 // Week-over-week (+/-) requires snapshot history; not implemented here.
 
 import React, { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   getPeriodCategoryStandings,
   type PeriodCategoryStandingsResponse,
@@ -222,20 +223,29 @@ export default function Period() {
             </div>
           }
           rightElement={
-            <div className="flex items-center gap-3 liquid-glass p-1.5 rounded-2xl border border-white/10 pr-4">
-              <div className="bg-white/5 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)]">Historical Select</div>
-              <select
-                value={periodId}
-                onChange={(e) => setPeriodId(Number(e.target.value))}
-                className="bg-transparent text-sm text-[var(--fbst-text-primary)] outline-none font-bold cursor-pointer hover:text-[var(--fbst-accent)] transition-colors"
+            <>
+              <div className="flex items-center gap-3 liquid-glass p-1.5 rounded-2xl border border-white/10 pr-4">
+                <div className="bg-white/5 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)]">Historical Select</div>
+                <select
+                  value={periodId}
+                  onChange={(e) => setPeriodId(Number(e.target.value))}
+                  className="bg-transparent text-sm text-[var(--fbst-text-primary)] outline-none font-bold cursor-pointer hover:text-[var(--fbst-accent)] transition-colors"
+                >
+                  {PERIOD_OPTIONS.map((p) => (
+                    <option key={p.id} value={p.id} className="bg-slate-900 border-none">
+                      Period {p.id} ({p.label})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Link 
+                to="/players" 
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-all text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/5 group"
               >
-                {PERIOD_OPTIONS.map((p) => (
-                  <option key={p.id} value={p.id} className="bg-slate-900 border-none">
-                    Period {p.id} ({p.label})
-                  </option>
-                ))}
-              </select>
-            </div>
+                <span>Final Rosters</span>
+                <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+              </Link>
+            </>
           }
         />
 

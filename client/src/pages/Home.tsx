@@ -95,7 +95,7 @@ export default function Home() {
   if (!user) return null; // Fallback during loading
 
   return (
-    <div className="relative min-h-full bg-[var(--lg-bg-page)] p-6 scrollbar-hide">
+    <div className="relative min-h-full p-6 scrollbar-hide">
       <div className="mb-12 animate-in fade-in slide-in-from-top-4 duration-500">
         <PageHeader 
           title="Tactical Dashboard" 

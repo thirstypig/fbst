@@ -368,6 +368,42 @@ export class CommissionerService {
     return this.getTeam(teamId);
   }
 
+  async deleteTeam(leagueId: number, teamId: number) {
+    const team = await prisma.team.findUnique({
+      where: { id: teamId },
+      include: { ownerships: true },
+    });
+
+    if (!team || team.leagueId !== leagueId) {
+      throw new Error("Team not found in this league");
+    }
+
+    // Check if team has any rosters that aren't just keeper placeholders?
+    // Actually, usually deletion is fine if auction hasn't happened or if commissioner is cleaning up.
+    // If it's during a season, we might want to prevent deletion, but let's allow it for now as requested.
+
+    await prisma.$transaction(async (tx) => {
+      // Delete associated data
+      await tx.teamOwnership.deleteMany({ where: { teamId } });
+      await tx.roster.deleteMany({ where: { teamId } });
+      await tx.teamStatsPeriod.deleteMany({ where: { teamId } });
+      await tx.financeLedger.deleteMany({ where: { teamId } });
+      await tx.auctionBid.deleteMany({ where: { teamId } });
+      await tx.waiverClaim.deleteMany({ where: { teamId } });
+      
+      // Release player relations in TransactionEvent if any
+      await tx.transactionEvent.updateMany({
+        where: { teamId },
+        data: { teamId: null }
+      });
+
+      // Finally delete the team
+      await tx.team.delete({ where: { id: teamId } });
+    });
+
+    return { success: true };
+  }
+
   private async getTeam(teamId: number) {
     return prisma.team.findUnique({
       where: { id: teamId },
@@ -537,6 +573,15 @@ export class CommissionerService {
 
       if (lockedRule) {
         throw new Error("Rules are locked for this season");
+      }
+
+      // Check for any active or completed periods (season has started)
+      const activePeriods = await prisma.period.findFirst({
+        where: { status: { in: ["active", "completed"] } }
+      });
+
+      if (activePeriods) {
+        throw new Error("Rules cannot be changed once the season has started.");
       }
 
       const results = await Promise.all(

@@ -30,7 +30,6 @@ export default function Login() {
         throw new Error(data.error || "Login failed");
       }
 
-      // Success - page will likely refresh or navigate due to cookie
       window.location.href = "/";
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -44,23 +43,23 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--lg-bg-page)] flex flex-col items-center justify-center p-6 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.05),transparent_50%),radial-gradient(circle_at_bottom_left,rgba(96,165,250,0.05),transparent_50%)]">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6">
       
       <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-8 duration-700">
         <Link to="/" className="flex items-center gap-3 mb-12 justify-center group">
-          <div className="w-10 h-10 rounded-xl bg-[var(--lg-accent)] flex items-center justify-center text-white font-black text-lg shadow-2xl shadow-blue-500/40 transform group-hover:-rotate-6 transition-transform">FB</div>
+          <div className="w-10 h-10 rounded-xl bg-[var(--lg-accent)] flex items-center justify-center text-white font-black text-sm shadow-2xl shadow-blue-500/40 transform group-hover:-rotate-6 transition-transform">FBST</div>
           <div className="flex flex-col">
-            <span className="text-xl font-black tracking-[0.05em] text-[var(--lg-text-heading)] leading-none uppercase">Protocol</span>
-            <span className="text-[9px] font-black tracking-[0.3em] text-[var(--lg-text-muted)] opacity-60 uppercase mt-1">Intelligence System</span>
+            <span className="text-xl font-black tracking-tight text-[var(--lg-text-heading)] leading-none">FBST</span>
+            <span className="text-[9px] font-bold tracking-widest text-[var(--lg-text-muted)] opacity-60 uppercase mt-0.5">Fantasy Baseball Stat Tool</span>
           </div>
         </Link>
 
         <div className="lg-card p-8 md:p-10 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[var(--lg-accent)] to-transparent opacity-50" />
           
-          <div className="mb-10 text-center">
-            <h2 className="text-3xl font-black tracking-tighter text-[var(--lg-text-heading)] mb-2 uppercase">Access Terminal</h2>
-            <p className="text-sm font-medium text-[var(--lg-text-secondary)] opacity-60">Authorize your tactical link</p>
+          <div className="mb-8 text-center">
+            <h2 className="text-3xl font-black tracking-tight text-[var(--lg-text-heading)] mb-2">Log In</h2>
+            <p className="text-sm font-medium text-[var(--lg-text-secondary)] opacity-60">Sign in to your account</p>
           </div>
 
           <div className="space-y-6">
@@ -79,32 +78,32 @@ export default function Login() {
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-white/5"></div>
               </div>
-              <div className="relative flex justify-center text-[10px] uppercase tracking-[0.2em]">
-                <span className="bg-[#0f172a] px-3 text-[var(--lg-text-muted)] font-black">Or bypass via secure link</span>
+              <div className="relative flex justify-center text-[10px] uppercase tracking-widest">
+                <span className="bg-[var(--lg-card-bg)] px-3 text-[var(--lg-text-muted)] font-bold">Or sign in with email</span>
               </div>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-5">
               <div>
-                <label className="block text-[10px] font-black text-[var(--lg-text-muted)] uppercase tracking-[0.2em] mb-2 ml-1">
-                  Agent ID (Email)
+                <label className="block text-xs font-bold text-[var(--lg-text-muted)] mb-2 ml-1">
+                  Email
                 </label>
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 focus:border-[var(--lg-accent)] focus:ring-1 focus:ring-[var(--lg-accent)] outline-none transition-all placeholder:text-white/10 text-sm font-medium"
-                  placeholder="agent@protocol.fbst"
+                  className="w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 focus:border-[var(--lg-accent)] focus:ring-1 focus:ring-[var(--lg-accent)] outline-none transition-all placeholder:text-white/20 text-sm font-medium"
+                  placeholder="you@example.com"
                 />
               </div>
               <div>
                 <div className="flex items-center justify-between mb-2 ml-1">
-                  <label className="block text-[10px] font-black text-[var(--lg-text-muted)] uppercase tracking-[0.2em]">
-                    Access Key
+                  <label className="block text-xs font-bold text-[var(--lg-text-muted)]">
+                    Password
                   </label>
-                  <Link to="/forgot-password" title="Forgot Password" className="text-[10px] font-black text-[var(--lg-accent)] hover:underline uppercase tracking-widest">
-                    Recovery
+                  <Link to="/forgot-password" title="Forgot Password" className="text-xs font-bold text-[var(--lg-accent)] hover:underline">
+                    Forgot Password?
                   </Link>
                 </div>
                 <div className="relative">
@@ -127,13 +126,13 @@ export default function Login() {
               </div>
 
               {error === 'not_approved' && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm font-medium animate-in fade-in slide-in-from-top-2 duration-300">
-            Access Denied: Your email is not on the strategic approval list.
-          </div>
-        )}
+                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm font-medium animate-in fade-in slide-in-from-top-2 duration-300">
+                  Your email is not approved. Contact your league admin for access.
+                </div>
+              )}
 
-        {error && error !== 'not_approved' && (
-                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-bold animate-in shake-in duration-300">
+              {error && error !== 'not_approved' && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-bold">
                   {error}
                 </div>
               )}
@@ -141,9 +140,9 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full h-12 bg-[var(--lg-accent)] hover:bg-[var(--lg-accent-hover)] text-white font-black uppercase tracking-[0.1em] text-sm rounded-xl transition-all shadow-2xl shadow-blue-500/30 disabled:opacity-50 active:scale-[0.98]"
+                className="w-full h-12 bg-[var(--lg-accent)] hover:bg-[var(--lg-accent-hover)] text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-blue-500/20 disabled:opacity-50 active:scale-[0.98]"
               >
-                {loading ? "Authorizing..." : "Initiate Connection"}
+                {loading ? "Logging in..." : "Log In"}
               </button>
             </form>
 
@@ -151,9 +150,9 @@ export default function Login() {
               <div className="pt-6 border-t border-white/5">
                 <a
                   href="/api/auth/dev-login"
-                  className="flex items-center justify-center gap-2 w-full h-12 px-6 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 text-white font-black text-[10px] uppercase tracking-widest transition-all"
+                  className="flex items-center justify-center gap-2 w-full h-12 px-6 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 text-white font-bold text-xs uppercase tracking-widest transition-all"
                 >
-                  <span className="text-amber-400">⚡</span> Admin Override
+                  <span className="text-amber-400">⚡</span> Dev Login
                 </a>
               </div>
             )}
@@ -161,11 +160,11 @@ export default function Login() {
         </div>
 
         <div className="mt-8 text-center">
-          <p className="text-xs font-medium text-[var(--lg-text-muted)] opacity-60 flex items-center justify-center gap-2">
-            No active units? 
+          <p className="text-sm font-medium text-[var(--lg-text-muted)] opacity-60 flex items-center justify-center gap-2">
+            Don't have an account? 
             <Link 
               to="/signup"
-              className="font-black text-[var(--lg-accent)] hover:text-[var(--lg-accent-hover)] transition-colors uppercase tracking-widest"
+              className="font-bold text-[var(--lg-accent)] hover:text-[var(--lg-accent-hover)] transition-colors"
             >
               Sign Up
             </Link>

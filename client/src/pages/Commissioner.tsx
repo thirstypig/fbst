@@ -5,7 +5,7 @@ import { Link, useParams } from "react-router-dom";
 import { API_BASE, getLeagues, getMe, type LeagueListItem } from "../api";
 import CommissionerRosterTool from "../components/CommissionerRosterTool";
 import CommissionerControls from "../components/CommissionerControls";
-import CommissionerKeeperManager from "../components/CommissionerKeeperManager";
+import KeeperPrepDashboard from "../components/KeeperPrepDashboard";
 import PageHeader from "../components/ui/PageHeader";
 
 type CommissionerUser = {
@@ -33,6 +33,7 @@ type CommissionerTeam = {
   budget?: number | null;
   ownerUserId?: number | null;
   ownerUser?: CommissionerUser | null;
+  ownerships: any[];
 };
 
 type CommissionerLeague = {
@@ -108,6 +109,7 @@ function normalizeOverview(resp: CommissionerOverviewResponse): {
     budget: t.budget ?? null,
     ownerUserId: t.ownerUserId ?? null,
     ownerUser: t.ownerUser ?? null,
+    ownerships: t.ownerships ?? [],
   }));
 
   const memberships: CommissionerMembership[] = (membershipsRaw ?? []).map((m: any) => ({
@@ -336,6 +338,22 @@ export default function Commissioner() {
     }
   }
 
+  async function onDeleteTeam(teamId: number) {
+    if (!window.confirm("Are you sure you want to delete this team? All associated data will be removed.")) {
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await fetchJson(`/commissioner/${lid}/teams/${teamId}`, { method: "DELETE" });
+      await refreshOverviewOnly();
+    } catch (e: any) {
+      alert(e.message || "Failed to delete team.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const league = overview.league;
 
   return (
@@ -517,21 +535,49 @@ export default function Commissioner() {
                       {overview.teams.map((t) => (
                         <div
                           key={t.id}
-                          className="flex items-center justify-between rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2"
+                          className="flex items-center justify-between rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 group"
                         >
                           <div className="min-w-0">
-                            <div className="truncate text-sm text-white">
+                            <div className="truncate text-sm font-bold text-white">
                               {t.name}{" "}
-                              <span className="text-white/50">
+                              <span className="text-white/50 font-normal">
                                 {t.code ? `(${t.code})` : ""}
                                 {t.budget != null ? ` · $${t.budget}` : ""}
                               </span>
                             </div>
-                            <div className="truncate text-xs text-white/50">
-                              Owner: {t.ownerUser?.email || t.owner || "—"}
+                            <div className="mt-1 space-y-1">
+                              {t.ownerships && t.ownerships.length > 0 ? (
+                                t.ownerships.map((o: any) => (
+                                  <div key={o.id} className="flex items-center gap-2 text-xs text-white/60 group/owner">
+                                    <span className="truncate max-w-[150px]">{o.user?.email || `User ${o.userId}`}</span>
+                                    <button
+                                      onClick={() => onRemoveOwner(t.id, o.userId)}
+                                      className="text-red-400 hover:text-red-300 opacity-0 group-hover/owner:opacity-100 transition-opacity"
+                                      title="Remove Owner"
+                                      disabled={busy}
+                                    >
+                                      (Remove)
+                                    </button>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="text-xs text-white/40 italic">No owners assigned</div>
+                              )}
                             </div>
                           </div>
-                          <div className="text-xs text-white/40">id: {t.id}</div>
+                          <div className="flex items-center gap-3">
+                            <div className="text-xs text-white/40">id: {t.id}</div>
+                            <button
+                              onClick={() => onDeleteTeam(t.id)}
+                              className="rounded-lg bg-red-500/10 p-1.5 text-red-500 hover:bg-red-500/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                              title="Delete Team"
+                              disabled={busy}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2M10 11v6M14 11v6"/>
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -681,8 +727,8 @@ export default function Commissioner() {
             {activeTab === 'keepers' && (
                 <div className="space-y-6">
                     <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-                         <h2 className="text-xl font-bold mb-4 text-white">Keeper Management</h2>
-                         <CommissionerKeeperManager leagueId={lid} />
+                         <h2 className="text-xl font-bold mb-4 text-white">Keeper Selection Agent</h2>
+                         <KeeperPrepDashboard leagueId={lid} />
                     </div>
                 </div>
             )}

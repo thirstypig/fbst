@@ -1,6 +1,9 @@
 // server/src/routes/leagues.ts
 import { Router } from "express";
-import { prisma } from "../db/prisma";
+import { prisma } from "../db/prisma.js";
+import { KeeperPrepService } from "../services/keeperPrepService.js";
+
+const keeperPrepService = new KeeperPrepService();
 
 const router = Router();
 
@@ -179,7 +182,10 @@ router.get("/leagues/:id/my-roster", requireAuth, async (req, res) => {
         orderBy: { player: { name: "asc" } }
     });
 
-    return res.json({ team, roster });
+    const isLocked = await keeperPrepService.isKeepersLocked(leagueId);
+    const keeperLimit = await keeperPrepService.getKeeperLimit(leagueId);
+
+    return res.json({ team, roster, isLocked, keeperLimit });
 
   } catch (err: any) {
     console.error("GET /my-roster error:", err);
@@ -227,7 +233,18 @@ router.post("/leagues/:id/my-roster/keepers", requireAuth, async (req, res) => {
         return res.status(400).json({ error: "One or more invalid roster IDs provided." });
     }
 
-    // 3. Update DB
+    // 3. Validation: Lock Status and Keeper Limit
+    const isLocked = await keeperPrepService.isKeepersLocked(leagueId);
+    if (isLocked) {
+        return res.status(403).json({ error: "Keeper selections are locked for this league." });
+    }
+
+    const keeperLimit = await keeperPrepService.getKeeperLimit(leagueId);
+    if (keeperIds.length > keeperLimit) {
+        return res.status(400).json({ error: `You can only select up to ${keeperLimit} keepers.` });
+    }
+
+    // 4. Update DB
     // Transaction: Reset all current keepers for this team, then set new ones
     await prisma.$transaction(async (tx) => {
         // Validation Logic (Budget check) could go here if we enforce hard limits backend-side now.

@@ -118,7 +118,7 @@ const Standings = () => {
 
 
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--lg-bg-page)] scrollbar-hide">
+    <div className="flex flex-col min-h-screen scrollbar-hide">
       <div className="px-6 pt-6">
         <PageHeader 
           title="Standings Central" 

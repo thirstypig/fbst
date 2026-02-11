@@ -21,6 +21,8 @@ export default function KeeperSelection() {
   
   // Local state for selections (Set of Roster IDs)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [isLocked, setIsLocked] = useState(false);
+  const [keeperLimit, setKeeperLimit] = useState(4);
 
   // Load Data
   useEffect(() => {
@@ -30,6 +32,8 @@ export default function KeeperSelection() {
       .then(data => {
         setTeam(data.team);
         setRoster(data.roster || []);
+        setIsLocked(data.isLocked || false);
+        setKeeperLimit(data.keeperLimit || 4);
         
         // Initialize selections based on server state
         const initialKeepers = new Set<number>();
@@ -60,10 +64,16 @@ export default function KeeperSelection() {
 
   // Handlers
   const toggleKeeper = (rosterId: number) => {
+      if (isLocked) return;
+
       const next = new Set(selectedIds);
       if (next.has(rosterId)) {
           next.delete(rosterId);
       } else {
+          if (next.size >= keeperLimit) {
+              alert(`Keeper limit is ${keeperLimit}.`);
+              return;
+          }
           next.add(rosterId);
       }
       setSelectedIds(next);
@@ -98,6 +108,12 @@ export default function KeeperSelection() {
       <div className="flex-1 overflow-y-auto p-4 sm:p-8">
         <div className="mx-auto max-w-4xl space-y-6">
             
+            {isLocked && (
+                <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5 text-center text-amber-200">
+                    <div className="text-lg font-bold">Keepers are Locked</div>
+                    <p className="text-sm opacity-80">The commissioner has locked keeper selections for the upcoming auction. You can no longer modify your team.</p>
+                </div>
+            )}
             {/* Summary Card */}
             <div className="grid grid-cols-3 gap-4 rounded-2xl border border-white/10 bg-white/5 p-6 text-center shadow-xl backdrop-blur-sm">
                 <div>
@@ -109,7 +125,7 @@ export default function KeeperSelection() {
                    <div className={`mt-1 text-2xl font-bold ${totalCost > budget ? "text-red-400" : "text-sky-300"}`}>
                        {fmtMoney(totalCost)}
                    </div>
-                   <div className="text-xs text-white/40">{count} Players</div>
+                   <div className="text-xs text-white/40">{count} / {keeperLimit} Players</div>
                 </div>
                 <div>
                    <div className="text-xs uppercase tracking-wider text-white/50">Available</div>
@@ -148,8 +164,9 @@ export default function KeeperSelection() {
                                       <input 
                                         type="checkbox" 
                                         checked={isSelected} 
+                                        disabled={isLocked}
                                         onChange={() => {}} // handled by row click
-                                        className="h-5 w-5 rounded border-white/20 bg-white/5 text-sky-500 focus:ring-sky-500/50"
+                                        className="h-5 w-5 rounded border-white/20 bg-white/5 text-sky-500 focus:ring-sky-500/50 disabled:opacity-30"
                                       />
                                   </td>
                               </tr>
@@ -167,19 +184,19 @@ export default function KeeperSelection() {
                  <div className="flex items-center justify-between gap-4">
                      <div className="text-sm">
                          <div className="text-white/50">Keeping</div>
-                         <div className="font-bold text-white">{count} for {fmtMoney(totalCost)}</div>
+                         <div className="font-bold text-white">{count} / {keeperLimit} for {fmtMoney(totalCost)}</div>
                      </div>
-                     <button
+                      <button
                         onClick={handleSave}
-                        disabled={remaining < 0 || loading}
+                        disabled={remaining < 0 || loading || isLocked}
                         className={`rounded-xl px-6 py-3 font-semibold text-white shadow-lg transition-all 
-                            ${remaining < 0 
+                            ${(remaining < 0 || isLocked)
                                 ? "cursor-not-allowed bg-red-500/20 text-red-200" 
                                 : "bg-sky-500 hover:bg-sky-400 active:scale-95"
                             }`}
-                     >
-                         Save Keepers
-                     </button>
+                      >
+                         {isLocked ? "Keepers Locked" : "Save Keepers"}
+                      </button>
                  </div>
             </div>
 

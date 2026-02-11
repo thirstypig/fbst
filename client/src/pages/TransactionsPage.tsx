@@ -220,10 +220,11 @@ export default function TransactionsPage() {
 
           {activeTab === 'history' && (
               <div className="lg-card p-0 overflow-hidden">
+                <div className="overflow-x-auto">
                 <ThemedTable bare>
                     <ThemedThead>
                       <ThemedTr>
-                        <ThemedTh className="pl-8 py-5">Date</ThemedTh>
+                        <ThemedTh className="pl-8 py-3">Date</ThemedTh>
                         <ThemedTh>Franchise</ThemedTh>
                         <ThemedTh>Personnel</ThemedTh>
                         <ThemedTh className="pr-8">Classification</ThemedTh>
@@ -232,10 +233,10 @@ export default function TransactionsPage() {
                     <tbody className="divide-y divide-white/[0.03]">
                       {transactions.map((tx) => (
                         <ThemedTr key={tx.id} className="group hover:bg-white/[0.02]">
-                          <ThemedTd className="pl-8 py-5 whitespace-nowrap text-[10px] font-black text-[var(--lg-text-muted)] opacity-60">
+                          <ThemedTd className="pl-8 py-3 whitespace-nowrap text-xs font-bold text-[var(--lg-text-muted)] opacity-60">
                             {tx.effDate ? new Date(tx.effDate).toLocaleDateString() : tx.effDateRaw}
                           </ThemedTd>
-                          <ThemedTd className="font-black text-[var(--lg-text-primary)] tracking-tight text-lg">
+                          <ThemedTd className="font-bold text-[var(--lg-text-primary)] tracking-tight text-sm">
                             {tx.team?.name || tx.ogbaTeamName}
                           </ThemedTd>
                           <ThemedTd className="font-bold text-[var(--lg-text-heading)]">
@@ -255,6 +256,7 @@ export default function TransactionsPage() {
                       )}
                     </tbody>
                 </ThemedTable>
+                </div>
               </div>
           )}
       </div>

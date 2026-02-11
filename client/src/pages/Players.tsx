@@ -146,11 +146,11 @@ export default function Players() {
   );
 
   return (
-    <div className="h-full flex flex-col bg-[var(--lg-bg-page)] scrollbar-hide">
+    <div className="h-full flex flex-col scrollbar-hide">
        {/* Page Header */}
        <div className="px-6 pt-10">
          <PageHeader 
-           title={<span className="lg-heading-1">Personnel Registry</span>}
+           title="Personnel Registry"
            subtitle="Synthesized intelligence on all MLB assets and their current strategic alignment."
          />
        </div>
@@ -246,7 +246,7 @@ export default function Players() {
                    <ThemedTable bare>
                        <ThemedThead>
                             <ThemedTr>
-                                <ThemedTh className="pl-8 py-5" onClick={() => {
+                                <ThemedTh className="pl-8 py-3" onClick={() => {
                                     if (sortKey === 'name') setSortDesc(!sortDesc);
                                     else { setSortKey('name'); setSortDesc(false); }
                                 }}>
@@ -320,22 +320,22 @@ export default function Players() {
                                        <ThemedTr 
                                            className={`group cursor-pointer transition-colors duration-300 ${isExpanded ? 'bg-[var(--lg-accent)]/10' : 'hover:bg-white/[0.02]'}`}
                                            onClick={() => toggleExpand(p.row_id)}
-                                       >
-                                           <ThemedTd className="pl-8 py-5">
-                                               <div className="flex flex-col">
-                                                   <span className="font-black text-[var(--lg-text-heading)] text-xl tracking-tighter group-hover:text-[var(--lg-accent)] transition-colors leading-tight">
-                                                       {p.mlb_full_name || p.player_name}
-                                                   </span>
-                                                   <div className="flex items-center gap-3 mt-1.5">
-                                                       <span className={`px-1.5 py-0.5 rounded-[var(--lg-radius-sm)] text-[9px] font-black uppercase tracking-widest ${p.is_pitcher ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
-                                                           {pos}
-                                                       </span>
-                                                       <span className="text-[10px] font-black uppercase tracking-widest text-[var(--lg-text-muted)] opacity-40">
-                                                           {mlbTeam || 'FA'}
-                                                       </span>
-                                                   </div>
-                                               </div>
-                                           </ThemedTd>
+                        >
+                                            <ThemedTd className="pl-8 py-3">
+                                                <div className="flex flex-col">
+                                                    <span className="font-bold text-[var(--lg-text-primary)] text-base tracking-tight group-hover:text-[var(--lg-accent)] transition-colors leading-tight">
+                                                        {p.mlb_full_name || p.player_name}
+                                                    </span>
+                                                    <div className="flex items-center gap-3 mt-1.5">
+                                                        <span className={`px-1.5 py-0.5 rounded-[var(--lg-radius-sm)] text-[9px] font-black uppercase tracking-widest ${p.is_pitcher ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
+                                                            {pos}
+                                                        </span>
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--lg-text-muted)] opacity-40">
+                                                            {mlbTeam || 'FA'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </ThemedTd>
         
                                            {viewGroup === 'hitters' ? (
                                                 <>

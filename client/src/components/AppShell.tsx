@@ -174,7 +174,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, [isResizing]);
 
   return (
-    <div className="min-h-screen bg-[var(--lg-bg-page)] scrollbar-hide">
+    <div className="min-h-screen scrollbar-hide">
       <div className="flex">
         {sidebarOpen && sidebarVisible && (
           <div 
@@ -207,10 +207,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   to={me ? "/" : "/login"}
                   className="flex items-center gap-3 hover:opacity-80 transition-opacity"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-[var(--lg-accent)] flex items-center justify-center text-white font-black text-lg shadow-2xl shadow-blue-500/40 transform -rotate-3 hover:rotate-0 transition-transform duration-500">FB</div>
+                  <div className="w-10 h-10 rounded-xl bg-[var(--lg-accent)] flex items-center justify-center text-white font-black text-sm shadow-2xl shadow-blue-500/40 transform -rotate-3 hover:rotate-0 transition-transform duration-500">FBST</div>
                   <div className="flex flex-col">
-                    <span className="text-xl font-black tracking-[0.05em] text-[var(--lg-text-heading)] leading-none uppercase">Protocol</span>
-                    <span className="text-[9px] font-black tracking-[0.3em] text-[var(--lg-text-muted)] opacity-60 uppercase mt-1">Intelligence System</span>
+                    <span className="text-xl font-black tracking-tight text-[var(--lg-text-heading)] leading-none">FBST</span>
+                    <span className="text-[9px] font-bold tracking-widest text-[var(--lg-text-muted)] opacity-60 uppercase mt-0.5">Fantasy Baseball Stat Tool</span>
                   </div>
                 </Link>
               )}
@@ -219,7 +219,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 <button
                   onClick={toggleTheme}
                   className="p-2 rounded-lg hover:bg-white/5 text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] transition-all"
-                  title="Toggle Display Matrix"
+                  title="Toggle Theme"
                 >
                   {theme === 'dark' ? '☀️' : '🌙'}
                 </button>

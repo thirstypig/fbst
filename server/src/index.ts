@@ -1,14 +1,17 @@
+import dotenv from "dotenv";
+import path from "path";
 
-import "dotenv/config";
+// Explicitly load .env from the server root
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+
 import { prisma } from "./db/prisma.js";
 import express from "express";
 import https from "https";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import fs from "fs";
-import path from "path";
 
-import { authRouter } from "./routes/auth.js";
+import { authRouter } from "./routes/auth/index.js";
 import { publicRouter } from "./routes/public.js";
 import { leaguesRouter } from "./routes/leagues.js";
 import { adminRouter } from "./routes/admin.js";
@@ -23,6 +26,7 @@ import rulesRouter from "./routes/rules.js";
 import rosterRouter from './routes/roster.js';
 import rosterImportRouter from './routes/rosterImport.js';
 import teamsRouter from "./routes/teams.js";
+import { keeperPrepRouter } from "./routes/keeperPrep.js";
 
 import { attachUser } from "./middleware/auth.js";
 import { toNum, toBool, normCode } from './lib/utils.js';
@@ -31,7 +35,12 @@ import { warmMlbTeamCache } from './lib/mlbApi.js';
 import { logger } from './lib/logger.js';
 import { buildTeamNameMap } from './services/standingsService.js';
 
-const PORT = Number(process.env.PORT || 4000);
+import { validateAuthConfig } from "./auth/shared/utils.js";
+
+const PORT = Number(process.env.PORT || 4001);
+
+// Validate Auth Config on Startup
+validateAuthConfig();
 
 async function main() {
   const app = express();
@@ -72,12 +81,6 @@ async function main() {
   });
 
   // Routes
-  const logFile = path.resolve(process.cwd(), "server_debug.log");
-  app.use((req, res, next) => {
-    const msg = `[${new Date().toISOString()}] ${req.method} ${req.url}\n`;
-    fs.appendFileSync(logFile, msg);
-    next();
-  });
   app.use("/api/auth", authRouter);
   app.use("/api", publicRouter);
   app.use("/api", leaguesRouter);
@@ -93,6 +96,7 @@ async function main() {
   app.use("/api/teams", teamsRouter);
   app.use(rosterRouter);
   app.use('/api/roster', rosterImportRouter);
+  app.use('/api', keeperPrepRouter);
 
 
 
@@ -144,6 +148,17 @@ async function main() {
     res.status(404).json({ error: "API endpoint not found", path: req.originalUrl });
   });
 
+  // --- 4. Global Error Handler ---
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error("Global Error Handler:", err);
+    res.status(500).json({
+      status: "error",
+      error: "Internal Server Error",
+      message: err?.message || String(err),
+      stack: process.env.NODE_ENV === "development" ? err?.stack : undefined,
+    });
+  });
+
   // --- 3. SPA Catch-All (For React Routing) ---
   // If it's not an API route and not a static file, serve index.html
   app.get("*", (req, res) => {
@@ -165,54 +180,51 @@ async function main() {
   const keyPath = path.resolve(process.cwd(), "certs", "key.pem");
   const certPath = path.resolve(process.cwd(), "certs", "cert.pem");
 
-  const onListen = () => {
+  const onListen = async () => {
     const protocol = fs.existsSync(keyPath) ? "HTTPS" : "HTTP";
     logger.info({ port: PORT, protocol }, `🔥 FBST server listening on 0.0.0.0 (${protocol})`);
     
     // ── Auth Configuration Validation ──────────────────────────────
-    const nodeEnv = process.env.NODE_ENV || "production";
+    const { GoogleConfig } = await import("./auth/google/config.js");
+    const { YahooConfig } = await import("./auth/yahoo/config.js");
 
     // Google
-    const gClientId = process.env.GOOGLE_CLIENT_ID || "";
-    const gHasId = gClientId.length > 0;
-    const gHasSecret = (process.env.GOOGLE_CLIENT_SECRET || "").length > 0;
-    const gRedirect = process.env.GOOGLE_REDIRECT_URI
-      || (nodeEnv === "development" ? "http://localhost:5173/api/auth/google/callback" : "(dynamic from request)");
-
     logger.info(
-      { provider: "Google", hasClientId: gHasId, hasClientSecret: gHasSecret, redirectUri: gRedirect },
+      { 
+        provider: "Google", 
+        hasClientId: !!GoogleConfig.clientId, 
+        hasClientSecret: !!GoogleConfig.clientSecret, 
+        redirectUri: GoogleConfig.redirectUri 
+      },
       "🔐 Auth Config: Google"
     );
-    if (!gHasId || !gHasSecret) {
-      logger.warn({}, "⚠️  GOOGLE credentials missing — Google login will fail.");
-    }
-    if (nodeEnv === "development" && gRedirect.startsWith("https://localhost")) {
-      logger.warn({ redirectUri: gRedirect }, "⚠️  Google forbids https://localhost! Change to http://localhost.");
-    }
+    
+    try { GoogleConfig.validate(); } catch (e: any) { logger.warn({}, `⚠️ ${e.message}`); }
 
     // Yahoo
-    const yClientId = process.env.YAHOO_CLIENT_ID || "";
-    const yHasId = yClientId.length > 0;
-    const yHasSecret = (process.env.YAHOO_CLIENT_SECRET || "").length > 0;
-    const yRedirect = process.env.YAHOO_REDIRECT_URI
-      || (nodeEnv === "development" ? "https://localhost:4000/api/auth/yahoo/callback" : "(dynamic from request)");
-
     logger.info(
-      { provider: "Yahoo", hasClientId: yHasId, hasClientSecret: yHasSecret, redirectUri: yRedirect },
+      { 
+        provider: "Yahoo", 
+        hasClientId: !!YahooConfig.clientId, 
+        hasClientSecret: !!YahooConfig.clientSecret, 
+        redirectUri: YahooConfig.redirectUri 
+      },
       "🔐 Auth Config: Yahoo"
     );
-    if (!yHasId || !yHasSecret) {
-      logger.warn({}, "⚠️  YAHOO credentials missing — Yahoo login will fail.");
-    }
-    if (nodeEnv === "development" && yRedirect.startsWith("http://localhost")) {
-      logger.warn({ redirectUri: yRedirect }, "⚠️  Yahoo requires https://localhost! Change to https://localhost.");
-    }
+
+    try { YahooConfig.validate(); } catch (e: any) { logger.warn({}, `⚠️ ${e.message}`); }
+
   };
 
   const isDev = process.env.NODE_ENV === "development";
   const hasCerts = fs.existsSync(keyPath) && fs.existsSync(certPath);
 
-  if (isDev && hasCerts) {
+  // Hardened: Always use HTTP for local development to avoid proxy protocol mismatches, 
+  // unless explicitly running in production where we might need specialized handling.
+  if (isDev) {
+    server = app.listen(PORT, "0.0.0.0", onListen);
+    logger.info({ port: PORT }, "🚀 Local Dev: Forcing HTTP for proxy compatibility.");
+  } else if (hasCerts) {
     const options = {
       key: fs.readFileSync(keyPath),
       cert: fs.readFileSync(certPath),

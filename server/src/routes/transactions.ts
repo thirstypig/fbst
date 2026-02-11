@@ -1,6 +1,6 @@
 // server/src/routes/transactions.ts
 import { Router } from "express";
-import { prisma } from "../db/prisma";
+import { prisma } from "../db/prisma.js";
 import { DataService } from "../services/dataService.js";
 
 const router = Router();

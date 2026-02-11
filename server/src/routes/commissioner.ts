@@ -202,6 +202,25 @@ router.post("/commissioner/:leagueId/teams", requireAuth, requireCommissionerOrA
 });
 
 /**
+ * DELETE /api/commissioner/:leagueId/teams/:teamId
+ * Commissioner can delete a team (cleanup).
+ */
+router.delete("/commissioner/:leagueId/teams/:teamId", requireAuth, requireCommissionerOrAdmin, async (req, res) => {
+  try {
+    const leagueId = Number(req.params.leagueId);
+    const teamId = Number(req.params.teamId);
+
+    if (!Number.isFinite(teamId)) return res.status(400).json({ error: "Invalid teamId" });
+
+    await commissionerService.deleteTeam(leagueId, teamId);
+
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(400).json({ error: String(err?.message || "Delete team failed") });
+  }
+});
+
+/**
  * POST /api/commissioner/:leagueId/members
  * Commissioner can add OWNER/VIEWER. Only admin can add COMMISSIONER.
  * Body: { userId?: number, email?: string, role: "OWNER" | "VIEWER" | "COMMISSIONER" }
