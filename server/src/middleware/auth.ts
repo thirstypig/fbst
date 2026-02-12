@@ -32,54 +32,69 @@ function getJwtSecret(): string {
   return s;
 }
 
-export function setSessionCookie(res: Response, userId: number) {
-  const token = jwt.sign({ userId } satisfies SessionTokenPayload, getJwtSecret(), {
-    expiresIn: "30d",
-  });
+import { supabaseAdmin } from "../lib/supabase.js";
 
-  const isProd = process.env.NODE_ENV === "production";
-
-  res.cookie(COOKIE_NAME, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: isProd,
-    maxAge: 30 * 24 * 60 * 60 * 1000,
-    path: "/",
-  });
-}
-
-export function clearSessionCookie(res: Response) {
-  res.clearCookie(COOKIE_NAME, { path: "/" });
-}
-
-function readToken(req: Request): string | null {
-  const t = (req as any)?.cookies?.[COOKIE_NAME];
-  return typeof t === "string" && t.trim() ? t.trim() : null;
-}
+// ... (keep types)
 
 export async function attachUser(req: Request, _res: Response, next: NextFunction) {
   try {
-    const token = readToken(req);
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      req.user = null;
+      return next();
+    }
+
+    const token = authHeader.replace(/^Bearer\s+/i, "");
     if (!token) {
       req.user = null;
       return next();
     }
 
-    const payload = jwt.verify(token, getJwtSecret()) as SessionTokenPayload;
-    const userId = Number(payload?.userId);
-    if (!Number.isFinite(userId)) {
+    const { data: { user: sbUser }, error } = await supabaseAdmin.auth.getUser(token);
+
+    if (error || !sbUser || !sbUser.email) {
       req.user = null;
       return next();
     }
 
-    const u = await prisma.user.findUnique({
-      where: { id: userId },
+    // Link by email
+    let u = await prisma.user.findUnique({
+      where: { email: sbUser.email },
       select: { id: true, email: true, name: true, avatarUrl: true, isAdmin: true },
     });
 
+    if (!u) {
+      // Auto-create user from Supabase identity
+      const metadata = sbUser.user_metadata || {};
+      const name = metadata.name || metadata.full_name || sbUser.email?.split("@")[0] || "New User";
+      const avatarUrl = metadata.avatar_url || metadata.picture || null;
+      
+      const adminEmails = (process.env.ADMIN_EMAILS || "").split(",").map(e => e.trim().toLowerCase());
+      const isAdmin = sbUser.email ? adminEmails.includes(sbUser.email.toLowerCase()) : false;
+
+      try {
+        u = await prisma.user.create({
+          data: {
+            email: sbUser.email,
+            name,
+            avatarUrl,
+            isAdmin, // Auto-admin if in env list
+          },
+          select: { id: true, email: true, name: true, avatarUrl: true, isAdmin: true },
+        });
+      } catch (e) {
+        // Race condition: user created by another request?
+        u = await prisma.user.findUnique({
+          where: { email: sbUser.email },
+          select: { id: true, email: true, name: true, avatarUrl: true, isAdmin: true },
+        });
+      }
+    }
+
     req.user = u ?? null;
     return next();
-  } catch {
+  } catch (err) {
+    console.error("Auth middleware error:", err);
     req.user = null;
     return next();
   }

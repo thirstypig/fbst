@@ -15,11 +15,22 @@ export const API_BASE: string = (() => {
 
 export const MLB_API_BASE = "https://statsapi.mlb.com/api/v1";
 
+
+import { supabase } from '../lib/supabase';
+
 export async function fetchJsonApi<T>(url: string, init?: RequestInit): Promise<T> {
+  // Get current session token
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+
   const headers: Record<string, string> = { 
     Accept: "application/json", 
     ...init?.headers as Record<string, string> 
   };
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
 
   // Automatically add Content-Type if body is present and not already set
   if (init?.body && !headers["Content-Type"] && !headers["content-type"]) {
@@ -29,7 +40,7 @@ export async function fetchJsonApi<T>(url: string, init?: RequestInit): Promise<
   const res = await fetch(url, {
     ...init,
     headers,
-    credentials: "include",
+    credentials: "omit", // Supabase uses headers, not cookies
   });
 
   const text = await res.text();

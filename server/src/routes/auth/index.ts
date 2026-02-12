@@ -1,31 +1,17 @@
 import { Router } from "express";
-import { googleRouter } from "./google.js";
-import { yahooRouter } from "./yahoo.js";
-import { localRouter } from "./local.js";
-import { GoogleConfig } from "../../auth/google/config.js";
-import { YahooConfig } from "../../auth/yahoo/config.js";
 import { prisma } from "../../db/prisma.js";
 
 const router = Router();
 
-// Mount strategies
-router.use("/google", googleRouter);
-router.use("/yahoo", yahooRouter);
-router.use("/", localRouter); 
-
 // Global Auth Health Check
 router.get("/health", (req, res) => {
-    const googleOk = !!(GoogleConfig.clientId && GoogleConfig.clientSecret && GoogleConfig.redirectUri);
-    const yahooOk = !!(YahooConfig.clientId && YahooConfig.clientSecret && YahooConfig.redirectUri);
-
-    const status = (googleOk && yahooOk) ? "ok" : "degraded";
+    // Supabase auth is handled via middleware/external service
+    // We can check if SUPABASE_URL is set
+    const status = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) ? "ok" : "degraded";
 
     res.json({ 
         status,
-        providers: {
-            google: googleOk ? "configured" : "missing_config",
-            yahoo: yahooOk ? "configured" : "missing_config"
-        },
+        provider: "supabase",
         env: process.env.NODE_ENV
     });
 });

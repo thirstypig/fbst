@@ -1,6 +1,8 @@
 // client/src/auth/AuthProvider.tsx
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { API_BASE } from "../api";
+import { supabase } from "../lib/supabase";
+import { Session } from "@supabase/supabase-js";
 
 type User = {
   id: string;
@@ -27,11 +29,15 @@ type MeResponse = {
 
 type AuthCtx = {
   me: MeResponse;
-  user: User | null; // convenience alias for me.user
+  user: User | null;
+  session: Session | null;
   loading: boolean;
   refresh: () => Promise<void>;
 
-  // kept for compatibility; now it just redirects
+  loginWithGoogle: () => Promise<void>;
+  loginWithYahoo: () => Promise<void>;
+  
+  // Backwards compatibility shim
   loginWithGoogleCredential: (_credential: string) => Promise<void>;
 
   logout: () => Promise<void>;
@@ -43,51 +49,94 @@ type AuthCtx = {
 const Ctx = createContext<AuthCtx | null>(null);
 
 async function fetchMe(): Promise<MeResponse> {
-  const res = await fetch(`${API_BASE}/auth/me`, { credentials: "include" });
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  
+  const headers: HeadersInit = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${API_BASE}/auth/me`, { headers });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error || "Failed to load /auth/me");
   return { user: data?.user ?? null };
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [session, setSession] = useState<Session | null>(null);
   const [me, setMe] = useState<MeResponse>({ user: null });
   const [loading, setLoading] = useState(true);
 
   async function refresh() {
-    const data = await fetchMe();
-    setMe(data);
-  }
-
-  // Redirect-based OAuth (server handles the whole flow + cookie)
-  async function loginWithGoogleCredential(_credential: string) {
-    window.location.href = `${API_BASE}/auth/google`;
-  }
-
-  async function logout() {
     try {
-      await fetch(`${API_BASE}/auth/logout`, { method: "POST", credentials: "include" });
-    } finally {
-      setMe({ user: null });
+      if (!session) {
+        setMe({ user: null });
+        return;
+      }
+      const data = await fetchMe();
+      setMe(data);
+    } catch (e) {
+      console.error("Failed to refresh user profile", e);
     }
   }
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        setLoading(true);
-        const data = await fetchMe();
-        if (mounted) setMe(data);
-      } catch {
-        if (mounted) setMe({ user: null });
-      } finally {
-        if (mounted) setLoading(false);
+    // 1. Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) {
+        fetchMe().then(setMe).finally(() => setLoading(false));
+      } else {
+        setLoading(false);
       }
-    })();
-    return () => {
-      mounted = false;
-    };
+    });
+
+    // 2. Listen for changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session) {
+        // Only fetch if session changed (or use a flag?)
+        // Simple approach: just fetch.
+        setLoading(true);
+        fetchMe().then(setMe).finally(() => setLoading(false));
+      } else {
+        setMe({ user: null });
+        setLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
+
+  async function loginWithGoogle() {
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin,
+      },
+    });
+  }
+
+  async function loginWithYahoo() {
+     await supabase.auth.signInWithOAuth({
+      provider: "yahoo" as any,
+      options: {
+        redirectTo: window.location.origin,
+      },
+    });
+  }
+  
+  async function loginWithGoogleCredential(_c: string) {
+      await loginWithGoogle();
+  }
+
+  async function logout() {
+    await supabase.auth.signOut();
+    // State update handled by onAuthStateChange
+  }
 
   const isAdmin = Boolean(me.user?.isAdmin);
 
@@ -95,8 +144,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       me,
       user: me.user,
+      session,
       loading,
       refresh,
+      loginWithGoogle,
+      loginWithYahoo,
       loginWithGoogleCredential,
       logout,
       isAdmin,
@@ -106,7 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAdmin ||
         (me.user?.memberships || []).some((m) => String(m.leagueId) === String(leagueId) && (m.role === "OWNER" || m.role === "COMMISSIONER")),
     }),
-    [me, loading, isAdmin]
+    [me, session, loading, isAdmin]
   );
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;

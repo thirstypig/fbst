@@ -1,11 +1,16 @@
+// client/src/pages/Login.tsx
 import React, { useState } from "react";
 import GoogleSignInButton from "../components/GoogleSignInButton";
 import { Link, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
+import { useAuth } from "../auth/AuthProvider";
+import { supabase } from "../lib/supabase";
 
 export default function Login() {
   const [searchParams] = useSearchParams();
   const urlError = searchParams.get("error");
+  
+  const { loginWithGoogle, loginWithYahoo } = useAuth();
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,24 +24,21 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Login failed");
-      }
+      if (error) throw error;
 
+      // AuthProvider listens for session change and redirects or updates state
+      // But we are on a route "/" ? 
+      // Supabase Auth change will update session in AuthProvider.
+      // We can redirect manually or wait for effect?
+      // Since Login page usually redirects after success:
       window.location.href = "/";
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("An unknown error occurred");
-      }
+    } catch (err: any) {
+      setError(err.message || "Login failed");
     } finally {
       setLoading(false);
     }
@@ -64,14 +66,15 @@ export default function Login() {
 
           <div className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
-              <GoogleSignInButton label="Google" />
-              <a
-                href="/api/auth/yahoo"
+              <GoogleSignInButton label="Google" onClick={loginWithGoogle} />
+              <button
+                type="button"
+                onClick={loginWithYahoo}
                 className="flex items-center justify-center gap-2 w-full h-11 px-4 rounded-xl bg-[#6001d2]/10 border border-[#6001d2]/20 hover:bg-[#6001d2]/20 hover:border-[#6001d2]/30 text-white font-medium transition-all duration-200"
               >
                 <span className="w-5 h-5 flex items-center justify-center bg-[#6001d2] rounded-full text-[10px] font-bold">Y</span>
                 Yahoo
-              </a>
+              </button>
             </div>
 
             <div className="relative py-2">

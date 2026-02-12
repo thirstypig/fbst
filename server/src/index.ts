@@ -35,12 +35,10 @@ import { warmMlbTeamCache } from './lib/mlbApi.js';
 import { logger } from './lib/logger.js';
 import { buildTeamNameMap } from './services/standingsService.js';
 
-import { validateAuthConfig } from "./auth/shared/utils.js";
+// Validate Auth Config on Startup
+// validateAuthConfig(); // Removed legacy auth validation
 
 const PORT = Number(process.env.PORT || 4001);
-
-// Validate Auth Config on Startup
-validateAuthConfig();
 
 async function main() {
   const app = express();
@@ -185,34 +183,12 @@ async function main() {
     logger.info({ port: PORT, protocol }, `🔥 FBST server listening on 0.0.0.0 (${protocol})`);
     
     // ── Auth Configuration Validation ──────────────────────────────
-    const { GoogleConfig } = await import("./auth/google/config.js");
-    const { YahooConfig } = await import("./auth/yahoo/config.js");
-
-    // Google
-    logger.info(
-      { 
-        provider: "Google", 
-        hasClientId: !!GoogleConfig.clientId, 
-        hasClientSecret: !!GoogleConfig.clientSecret, 
-        redirectUri: GoogleConfig.redirectUri 
-      },
-      "🔐 Auth Config: Google"
-    );
-    
-    try { GoogleConfig.validate(); } catch (e: any) { logger.warn({}, `⚠️ ${e.message}`); }
-
-    // Yahoo
-    logger.info(
-      { 
-        provider: "Yahoo", 
-        hasClientId: !!YahooConfig.clientId, 
-        hasClientSecret: !!YahooConfig.clientSecret, 
-        redirectUri: YahooConfig.redirectUri 
-      },
-      "🔐 Auth Config: Yahoo"
-    );
-
-    try { YahooConfig.validate(); } catch (e: any) { logger.warn({}, `⚠️ ${e.message}`); }
+    // Supabase validation handled by lib/supabase.ts (initially warnings)
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        logger.warn({}, "⚠️ Supabase credentials missing. Auth will fail.");
+    } else {
+        logger.info({}, "✅ Supabase Configured");
+    }
 
   };
 
