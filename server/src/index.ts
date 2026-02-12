@@ -195,11 +195,11 @@ async function main() {
   const isDev = process.env.NODE_ENV === "development";
   const hasCerts = fs.existsSync(keyPath) && fs.existsSync(certPath);
 
-  // Hardened: Always use HTTP for local development to avoid proxy protocol mismatches, 
-  // unless explicitly running in production where we might need specialized handling.
-  if (isDev) {
+  // Hardened: Always use HTTP for local development and Production (Render/Heroku handles SSL termination).
+  // Only use HTTPS if specifically configured via env var or similar, but for now, default to HTTP.
+  if (isDev || process.env.NODE_ENV === "production") {
     server = app.listen(PORT, "0.0.0.0", onListen);
-    logger.info({ port: PORT }, "🚀 Local Dev: Forcing HTTP for proxy compatibility.");
+    logger.info({ port: PORT }, `🚀 Server started on port ${PORT} (HTTP)`);
   } else if (hasCerts) {
     const options = {
       key: fs.readFileSync(keyPath),
