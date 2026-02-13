@@ -4,7 +4,11 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn("⚠️ Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY in client environment.");
+  console.error("❌ CRITICAL: Supabase keys missing in Client!");
+  console.log("VITE_SUPABASE_URL:", supabaseUrl);
+  console.log("VITE_SUPABASE_ANON_KEY:", supabaseAnonKey ? "(Set)" : "(Missing)");
+} else {
+  console.log("✅ Supabase Client Initialized:", supabaseUrl);
 }
 
 export const supabase = createClient(
