@@ -1,206 +1,143 @@
-# FBST · OGBA Fantasy Baseball Stat Tool
+# FBST - Fantasy Baseball Stat Tracker
 
-Simple league tool for OGBA: teams, period/season standings, players (2025 stats), auction values, and (new) transaction imports.
+Fantasy baseball league management tool for the OGBA league. Full-stack monorepo with React client and Express API server, organized by domain feature modules.
 
-Repo structure:
+## Architecture
 
-- `server/` – Node/Express + Prisma + PostgreSQL
-- `client/` – React + Vite front-end
-- `prisma/` – Prisma schema + migrations
-- `docs/` – documentation
-- External sibling repo/folder:
-  - `../fbst-stats-worker/` – Python scripts that produce CSV/JSON inputs
+```
+fbst/
+├── client/                  # React + Vite + TypeScript frontend
+│   └── src/
+│       ├── features/        # 15 domain feature modules
+│       │   ├── auth/        #   Login, signup, password reset
+│       │   ├── leagues/     #   League CRUD, rules
+│       │   ├── teams/       #   Team management, roster views
+│       │   ├── players/     #   Player search, stats
+│       │   ├── roster/      #   Roster grid, controls, import
+│       │   ├── standings/   #   Standings, categories
+│       │   ├── trades/      #   Trade proposals
+│       │   ├── waivers/     #   Waiver claims
+│       │   ├── transactions/#   Transaction history
+│       │   ├── auction/     #   Live auction draft
+│       │   ├── keeper-prep/ #   Keeper selection
+│       │   ├── commissioner/#   Commissioner tools
+│       │   ├── admin/       #   System admin
+│       │   ├── archive/     #   Historical data
+│       │   └── periods/     #   Stat periods, season views
+│       ├── components/      # Shared components (AppShell, NavBar, ui/)
+│       ├── api/             # Shared API infra (base, types, barrel)
+│       ├── auth/            # AuthProvider (Supabase)
+│       └── lib/             # Utilities
+├── server/                  # Express + TypeScript API server
+│   └── src/
+│       ├── features/        # 15 domain feature modules (mirrors client)
+│       ├── middleware/      # Auth middleware
+│       ├── lib/             # Shared infra (supabase, prisma, logger)
+│       └── db/              # Prisma singleton
+├── prisma/                  # Schema + migrations
+└── scripts/                 # Data processing scripts
+```
 
----
+## Tech Stack
 
-## 1) URLs and `/api` convention (important)
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 18, Vite, TypeScript, Tailwind CSS, React Router v6 |
+| Backend | Node.js, Express, TypeScript |
+| Database | PostgreSQL via Prisma ORM |
+| Auth | Supabase (Google/Yahoo OAuth, JWT) |
+| Testing | Vitest, React Testing Library, MSW |
+| Deployment | Render (HTTP, SSL termination at proxy) |
 
-We always:
+## Quick Start
 
-- Expose server routes behind `/api`
-- Point the client at the **base origin**, and append `/api/...` in code
+### Prerequisites
+- Node.js 22.x
+- PostgreSQL database (Neon / Render / local)
 
-### Server routes (current core endpoints)
+### Development
 
-- `GET /api/health`
-- `GET /api/teams`
-- `GET /api/players`
-- `GET /api/auction-values`
-- `GET /api/season-standings`
-- `GET /api/teams/:id/summary`
+```bash
+# Install dependencies
+cd server && npm install && cd ../client && npm install && cd ..
 
-### Client config
+# Set up environment
+cp server/.env.example server/.env
+# Edit server/.env with DATABASE_URL, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 
-`client/src/lib/api.ts`:
+# Database setup
+cd server && npx prisma migrate dev && cd ..
 
-```ts
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000";
-Rules:
+# Start both servers (two terminals)
+npm run server    # Express on :4001
+npm run dev       # Vite on :5173 (proxies /api to :4001)
+```
 
-Never put /api inside VITE_API_BASE_URL
+### Testing
 
-Always append /api/... in code
+```bash
+npm run test          # All tests
+npm run test:server   # Server unit + integration tests
+npm run test:client   # Client unit tests
+```
 
-Examples:
+## API Convention
 
-Local: http://localhost:4000/api/...
+All server routes are behind `/api`. Client uses `VITE_API_BASE_URL` (defaults to `http://localhost:4001`).
 
-Prod: https://<your-api-host>/api/...
+Key endpoints:
+- `GET /api/health` — Health check
+- `GET /api/auth/me` — Current user session
+- `GET /api/leagues` — List leagues
+- `GET /api/teams` — List teams
+- `GET /api/player-season-stats` — Player statistics
+- `POST /api/trades` — Propose trade
+- `POST /api/waivers` — Submit waiver claim
+- `GET /api/auction/state` — Auction state
 
-2) Local development
-2.1 Server
-Prereqs:
+Client config: never put `/api` inside `VITE_API_BASE_URL`. Always append `/api/...` in code.
 
-Node 22.x
+## Data Pipeline (OnRoto Transactions)
 
-A reachable Postgres database (Neon / Render / local Postgres)
+External stat worker (`fbst-stats-worker/`) produces CSV/JSON inputs:
 
-From repo root:
-
-bash
-Copy code
-cd server
-npm install
-npm start
-Prisma / DB setup (recommended workflow)
-From repo root:
-
-bash
-Copy code
-npx prisma format
-npx prisma migrate dev --name init
-npx prisma generate
-If Prisma fails with P1000 Authentication failed, treat it as credentials/URL mismatch. See “Troubleshooting” below.
-
-2.2 Client
-From repo root:
-
-bash
-Copy code
-cd client
-npm install
-Local env (client/.env or client/.env.local):
-
-env
-Copy code
-VITE_API_BASE_URL=http://localhost:4000
-Run:
-
-bash
-Copy code
-npm run dev
-# open http://localhost:5173/
-3) Transactions import pipeline (OnRoto)
-3.1 Generate JSON/CSV using fbst-stats-worker
-In ../fbst-stats-worker:
-
-bash
-Copy code
-cd ~/Documents/Projects/fbst-stats-worker
+```bash
+# Generate transaction data
+cd ../fbst-stats-worker
 source .venv/bin/activate
-
 python parse_onroto_transactions_html.py \
   --season 2025 \
   --infile data/onroto_transactions_2025.html \
   --outcsv ogba_transactions_2025.csv \
   --outjson ogba_transactions_2025.json
-Expected output example:
 
-OK: parsed 466 transactions
-
-ogba_transactions_2025.csv
-
-ogba_transactions_2025.json
-
-3.2 Import JSON into DB (TransactionEvent)
-From the FBST repo, run the importer:
-
-bash
-Copy code
-cd ~/Documents/Projects/fbst/server
-
-LEAGUE_NAME="OGBA" SEASON=2025 INFILE="../../fbst-stats-worker/ogba_transactions_2025.json" \
+# Import into FBST database
+cd ../fbst/server
+LEAGUE_NAME="OGBA" SEASON=2025 INFILE="path/to/transactions.json" \
   npx tsx src/scripts/import_onroto_transactions.ts
-Notes:
+```
 
-LEAGUE_NAME defaults to "OGBA" but also tries "OGBA 2025" as fallback.
+## Deployment (Render)
 
-SEASON defaults to 2025.
+- **Server**: Root `server/`, start `npm start`, env: `DATABASE_URL`, `PORT`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+- **Client**: Root `client/`, build `npm run build`, publish `client/dist`, env: `VITE_API_BASE_URL`
 
-INFILE has common path fallbacks if not provided.
+## Troubleshooting
 
-4) Troubleshooting
-4.1 Prisma: P1000 Authentication failed
-Most common root causes:
+**Prisma P1000**: Re-copy connection string from Neon, replace `DATABASE_URL` in `.env`, re-run `npx prisma migrate dev`.
 
-You copied an old Neon URL (password rotated).
+**`zsh: command not found: python`**: Use `python3` or activate venv: `source .venv/bin/activate`
 
-You copied a connection string from a different Neon branch/project.
+## Documentation
 
-The username/password is wrong.
+- **`CLAUDE.md`** — Architecture reference, conventions, testing strategy, feature module guide
+- **`FEEDBACK.md`** — Session-over-session development log, pending items, tech debt tracking
+- **`docs/`** — Additional documentation
 
-Fix:
+## Coding Guidelines
 
-Re-copy the connection string from Neon (for the exact DB you intend).
-
-Replace DATABASE_URL in .env.
-
-Re-run:
-
-bash
-Copy code
-cd ~/Documents/Projects/fbst
-npx prisma migrate dev --name add_transactions_aliases
-4.2 zsh: command not found: python
-Use:
-
-python3 (system), OR
-
-activate your venv first:
-
-bash
-Copy code
-cd ~/Documents/Projects/fbst-stats-worker
-source .venv/bin/activate
-python --version
-5) Render deployment (optional)
-5.1 Server (API)
-Typical configuration:
-
-Root directory: server/
-
-Start command: npm start
-
-Env vars: DATABASE_URL, PORT
-
-5.2 Client (static)
-Root directory: client/
-
-Build: npm run build
-
-Publish directory: client/dist
-
-Env var:
-
-env
-Copy code
-VITE_API_BASE_URL=https://<your-api-host>
-6) Known limitations / TODO
-Period standings page (/period) is still future work.
-
-Transactions are imported but not yet exposed via an API route/UI.
-
-Player canonical ID strategy is mlbId (hidden from UI), with alias mapping via PlayerAlias.
-
-yaml
-Copy code
-## 7) Coding Guidelines
-
-To maintain a high-quality, extensible, and performant codebase, please follow these principles:
-
-- **SOLID Principles**: Follow Single Responsibility, Open-Closed, Liskov Substitution, Interface Segregation, and Dependency Inversion principles.
-- **DRY (Don't Repeat Yourself)**: Avoid code duplication by extracting common logic into reusable functions, classes, or modules.
-- **KISS (Keep It Simple, Stupid)**: Strive for simplicity in design and implementation. Avoid over-engineering.
-- **Clean Code**: Write readable, self-documenting code with meaningful names, small functions, and clear structure.
-- **Error Handling**: Implement robust error handling and logging. Use low-cardinality logging with stable message strings (e.g., `logger.info({id, foo}, 'Msg')`).
-- **Performance**: Optimize for performance where necessary, but prioritize readability and maintainability.
+- **SOLID Principles** — Single Responsibility, Open-Closed, Liskov Substitution, Interface Segregation, Dependency Inversion
+- **DRY** — Extract common logic into reusable functions/modules
+- **KISS** — Strive for simplicity; avoid over-engineering
+- **Clean Code** — Readable, self-documenting with meaningful names
+- **Error Handling** — Robust handling with structured logging via `logger`
