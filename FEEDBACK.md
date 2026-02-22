@@ -4,7 +4,49 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
-## Session 2026-02-21
+## Session 2026-02-21 (Session 2)
+
+### Completed
+- Merged all 4 open PRs to main in order (#2 → #3 → #4 → #5)
+  - PR #2: Feature module extraction (15 modules, 122 files) — already merged
+  - PR #3: Fix 320 TypeScript strict mode errors — rebased, 1 conflict resolved
+  - PR #4: Clean up stale Prisma duplicates, unused routes, backup files — rebased, 6 conflicts resolved
+  - PR #5: Consolidate inline auth middleware — rebased, 5 conflicts resolved
+- Set up Vitest infrastructure (PR #6, merged)
+  - Server: `vitest.config.ts`, `vitest` + `@vitest/coverage-v8` deps, test scripts
+  - Client: `vitest.config.ts` with jsdom + React Testing Library, test setup file
+  - Root `npm run test` / `test:server` / `test:client` scripts
+- Wrote 103 tests across 6 test files:
+  - `server/src/lib/__tests__/utils.test.ts` (28 tests)
+  - `server/src/features/standings/__tests__/standingsService.test.ts` (21 tests)
+  - `server/src/features/standings/__tests__/standings.integration.test.ts` (7 tests)
+  - `server/src/middleware/__tests__/auth.test.ts` (13 tests)
+  - `client/src/api/__tests__/base.test.ts` (17 tests)
+  - `client/src/lib/__tests__/baseballUtils.test.ts` (17 tests)
+
+### Pending / Next Steps
+- [ ] Feature-by-feature quality pass (types, error handling, validation, tests, API shapes)
+  - Start with: standings, trades, auth
+  - Then: leagues, teams, players, roster, auction
+  - Then: keeper-prep, commissioner, admin, archive, periods, waivers, transactions
+- [ ] UI/Design system module (theme tokens, shared patterns, component audit)
+- [ ] New feature work (auction improvements, standings visualizations, etc.)
+
+### Concerns / Tech Debt
+- **`parseIntParam` edge case**: Returns 0 for null/undefined/empty string due to `Number("") === 0`. May want to treat these as null for stricter validation.
+- **Cross-feature imports**: leagues→keeper-prep, leagues→commissioner, admin→commissioner, commissioner→roster. Monitor for circular dependency risk.
+- **No MSW setup**: Client API tests could benefit from Mock Service Worker for more realistic HTTP mocking.
+- **Supabase debug logging**: Client `base.test.ts` outputs Supabase init debug info — consider suppressing in test environment.
+- **Multiple worktrees**: 11 worktrees exist, most on stale commit `29af429`. Consider cleaning up unused worktrees.
+
+### Test Results
+- Server: 4 files, 69 tests passing
+- Client: 2 files, 34 tests passing
+- Total: 103 tests, all green
+
+---
+
+## Session 2026-02-21 (Session 1)
 
 ### Completed
 - Extracted 15 feature modules from layer-based architecture (both server and client)
@@ -13,29 +55,9 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 - Updated all import paths across 77 files
 - Updated CLAUDE.md with full feature module documentation
 - Created FEEDBACK.md for session continuity
-
-### Pending / Next Steps
-- [ ] Set up Vitest for server (`server/vitest.config.ts`, add `vitest` dependency)
-- [ ] Set up Vitest for client (`client/vitest.config.ts`, add `vitest` + `@testing-library/react` dependencies)
-- [ ] Add `npm run test`, `npm run test:server`, `npm run test:client` scripts to package.json files
-- [ ] Write first unit tests for a simple feature module (e.g., `standings` or `periods`)
-- [ ] Write first integration test (e.g., trade execution affecting roster)
-- [ ] Resolve 319 pre-existing server TypeScript errors (mostly TS7006 implicit any, TS7016 missing type declarations)
-- [ ] Install missing `@types/express`, `@types/multer`, `@types/cookie-parser` for server
-- [ ] Clean up stale files: `server/src/routes/auctionValues.ts`, `server/src/routes/archive.ts.backup`, `client/src/pages/ArchivePage.tsx.bak`
-- [ ] Remove empty `server/src/routes/` directory (only `public.ts` and stale files remain)
-- [ ] Consider moving `server/src/routes/public.ts` into a `public` feature or keeping as shared
-
-### Concerns / Tech Debt
-- **319 pre-existing TS errors** — mostly implicit `any` and missing type declarations. Should be fixed incrementally.
-- **No test suite** — testing infrastructure needs to be set up before adding more features
-- **Cross-feature imports** — leagues imports from keeper-prep and commissioner services. Monitor for circular dependency risk.
-- **Inline auth middleware** — Several route files define their own auth checks instead of using shared middleware from `middleware/auth.ts`. Consider standardizing.
-- **`server/src/prisma.ts`** and **`server/src/lib/prisma.ts`** still exist alongside the canonical `server/src/db/prisma.ts` — should be removed to avoid confusion
-- **`auctionValues.ts`** route file in `routes/` is not mounted in `index.ts` — appears unused, verify and remove
+- Created PR #2 (merged)
 
 ### Test Results
 - Server TypeScript: 319 pre-existing errors (0 from refactoring)
 - Client TypeScript: 0 errors
 - Client Vite build: Passes
-- Test suite: Not yet set up
