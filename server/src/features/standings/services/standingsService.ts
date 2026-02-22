@@ -21,8 +21,18 @@ type SeasonStatRow = { ogba_team_code: string };
 /** Team stats row from Prisma (TeamStatsPeriod or TeamStatsSeason with team included) */
 export type TeamStatsRow = {
   team: { id: number; name: string };
-  teamId: number;
-} & Record<CategoryKey, number>;
+  R: number;
+  HR: number;
+  RBI: number;
+  SB: number;
+  AVG: number;
+  W: number;
+  S: number;
+  ERA: number;
+  WHIP: number;
+  K: number;
+  [key: string]: unknown;
+};
 
 /** Row returned by computeCategoryRows */
 export type CategoryRow = {

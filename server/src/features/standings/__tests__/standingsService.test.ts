@@ -80,10 +80,15 @@ describe("CATEGORY_CONFIG", () => {
   });
 });
 
-function makeStats(teams: Array<{ id: number; name: string } & Record<string, number>>) {
+import type { TeamStatsRow } from "../services/standingsService.js";
+
+const STAT_DEFAULTS = { R: 0, HR: 0, RBI: 0, SB: 0, AVG: 0, W: 0, S: 0, ERA: 0, WHIP: 0, K: 0 };
+
+function makeStats(teams: Array<{ id: number; name: string } & Partial<typeof STAT_DEFAULTS>>): TeamStatsRow[] {
   return teams.map((t) => ({
-    team: { id: t.id, name: t.name },
+    ...STAT_DEFAULTS,
     ...t,
+    team: { id: t.id, name: t.name },
   }));
 }
 
