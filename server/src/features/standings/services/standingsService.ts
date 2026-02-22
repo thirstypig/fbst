@@ -1,26 +1,48 @@
 
 import { normCode } from "../../../lib/utils.js";
 
+// --- Types ---
 
-export function buildTeamNameMap(seasonStandings: any, seasonStats: any[]): Record<string, string> {
-  const map: Record<string, string> = {};
+/** A row of season standings data (from archive or season views) */
+type StandingsRow = {
+  teamCode?: string;
+  code?: string;
+  team?: string;
+  teamName?: string;
+  name?: string;
+};
 
-  // 1. From seasonStandings
-  const rows = Array.isArray(seasonStandings) ? seasonStandings : seasonStandings?.rows || [];
-  for (const r of rows) {
-    const code = normCode(r.teamCode || r.code || r.team || "");
-    const name = r.teamName || r.name || r.team || "";
-    if (code && name) map[code] = name;
-  }
+/** Season standings can be an array or an object with a `rows` property */
+type SeasonStandingsInput = StandingsRow[] | { rows?: StandingsRow[] };
 
-  // 2. From seasonStats
-  for (const s of seasonStats) {
-    const code = normCode(s.ogba_team_code);
-    if (code && !map[code]) map[code] = code;
-  }
+/** A row from seasonStats used for team code fallback */
+type SeasonStatRow = { ogba_team_code: string };
 
-  return map;
-}
+/** Team stats row from Prisma (TeamStatsPeriod or TeamStatsSeason with team included) */
+export type TeamStatsRow = {
+  team: { id: number; name: string };
+  teamId: number;
+} & Record<CategoryKey, number>;
+
+/** Row returned by computeCategoryRows */
+export type CategoryRow = {
+  teamId: number;
+  teamName: string;
+  value: number;
+  rank: number;
+  points: number;
+};
+
+/** Row returned by computeStandingsFromStats */
+export type StandingRow = {
+  teamId: number;
+  teamName: string;
+  points: number;
+  rank: number;
+  delta: number;
+};
+
+// --- Constants ---
 
 export const CATEGORY_CONFIG = [
   { key: "R", label: "Runs", lowerIsBetter: false },
@@ -37,53 +59,60 @@ export const CATEGORY_CONFIG = [
 
 export type CategoryKey = (typeof CATEGORY_CONFIG)[number]["key"];
 
+// --- Functions ---
+
+export function buildTeamNameMap(
+  seasonStandings: SeasonStandingsInput,
+  seasonStats: SeasonStatRow[]
+): Record<string, string> {
+  const map: Record<string, string> = {};
+
+  // 1. From seasonStandings
+  const rows: StandingsRow[] = Array.isArray(seasonStandings)
+    ? seasonStandings
+    : seasonStandings?.rows || [];
+  for (const r of rows) {
+    const code = normCode(r.teamCode || r.code || r.team || "");
+    const name = r.teamName || r.name || r.team || "";
+    if (code && name) map[code] = name;
+  }
+
+  // 2. From seasonStats
+  for (const s of seasonStats) {
+    const code = normCode(s.ogba_team_code);
+    if (code && !map[code]) map[code] = code;
+  }
+
+  return map;
+}
+
 export function computeCategoryRows(
-  stats: any[],
+  stats: TeamStatsRow[],
   key: CategoryKey,
   lowerIsBetter: boolean
-) {
+): CategoryRow[] {
   const rows = stats.map((s) => ({
     teamId: s.team.id,
     teamName: s.team.name,
-    value: s[key],
+    value: s[key] as number,
   }));
 
-  rows.sort((a, b) => {
-    if (lowerIsBetter) {
-      return a.value - b.value;
-    } else {
-      return b.value - a.value;
-    }
-  });
+  rows.sort((a, b) =>
+    lowerIsBetter ? a.value - b.value : b.value - a.value
+  );
 
   const n = rows.length;
-  // Handle ties logic: if values are equal, they should share points & rank?
-  // Previous implementation in routes/standings.ts was simplistic:
-  // rank: idx+1, points: n - idx.
-  // This meant ties were broken arbitrarily by sort stability or previous order.
-  // TODO: Implement proper tie handling if "Data Correctness" rule demands it.
-  // For now, mirroring existing logic to avoid breaking changes, but flagging for upgrade.
-  
   return rows.map((row, idx) => ({
     ...row,
-    rank: idx + 1, // 1-based rank
+    rank: idx + 1,
     points: n - idx,
   }));
 }
 
-export function computeStandingsFromStats(stats: any[]) {
-  if (stats.length === 0) {
-    return [];
-  }
+export function computeStandingsFromStats(stats: TeamStatsRow[]): StandingRow[] {
+  if (stats.length === 0) return [];
 
-  const teamMap = new Map<
-    number,
-    {
-      teamId: number;
-      teamName: string;
-      points: number;
-    }
-  >();
+  const teamMap = new Map<number, { teamId: number; teamName: string; points: number }>();
 
   for (const row of stats) {
     teamMap.set(row.team.id, {
@@ -93,9 +122,8 @@ export function computeStandingsFromStats(stats: any[]) {
     });
   }
 
-  // For each category, rank and add points
   for (const cfg of CATEGORY_CONFIG) {
-    const rows = computeCategoryRows(stats, cfg.key as CategoryKey, cfg.lowerIsBetter);
+    const rows = computeCategoryRows(stats, cfg.key, cfg.lowerIsBetter);
     for (const r of rows) {
       const team = teamMap.get(r.teamId);
       if (!team) continue;
@@ -111,7 +139,7 @@ export function computeStandingsFromStats(stats: any[]) {
     teamName: s.teamName,
     points: s.points,
     rank: idx + 1,
-    delta: 0, // later we can compute movement vs previous snapshot
+    delta: 0,
   }));
 }
 
@@ -130,23 +158,17 @@ export function rankPoints(
 
   let i = 0;
   while (i < sorted.length) {
+    // Find end of tie group
     let j = i;
     while (j + 1 < sorted.length && sorted[j + 1].value === sorted[i].value) j++;
 
     const rankStart = i + 1;
-    const rankEnd = j + 1;
-
-    const pointForRank = (rank: number) => totalTeams - rank + 1;
-
-    let sum = 0;
-    for (let r = rankStart; r <= rankEnd; r++) sum += pointForRank(r);
-    // const avg = sum / (rankEnd - rankStart + j - j + 1); // wait j-j? it should be (j-i+1)
+    const tiedCount = j - i + 1;
 
     // Average points across tied ranks
-    const tiedCount = j - i + 1;
     let pointSum = 0;
     for (let k = 0; k < tiedCount; k++) {
-      pointSum += totalTeams - (i + k + 1) + 1;
+      pointSum += totalTeams - (i + k);
     }
     const avgPoints = pointSum / tiedCount;
 
