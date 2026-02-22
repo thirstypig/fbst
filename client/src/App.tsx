@@ -5,27 +5,27 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./components/AppShell";
 
 import Home from "./pages/Home";
-import Period from "./pages/Period";
-import Season from "./pages/Season";
-import Team from "./pages/Team";
-import Players from "./pages/Players";
-import TransactionsPage from "./pages/TransactionsPage";
-import { TradesPage } from "./pages/TradesPage";
-import Login from "./pages/Login";
+import Period from "./features/periods/pages/Period";
+import Season from "./features/periods/pages/Season";
+import Team from "./features/teams/pages/Team";
+import Players from "./features/players/pages/Players";
+import TransactionsPage from "./features/transactions/pages/TransactionsPage";
+import { TradesPage } from "./features/trades/pages/TradesPage";
+import Login from "./features/auth/pages/Login";
 
-import Leagues from "./pages/Leagues";
-import Commissioner from "./pages/Commissioner";
-import Admin from "./pages/Admin";
-import Rules from "./pages/Rules";
+import Leagues from "./features/leagues/pages/Leagues";
+import Commissioner from "./features/commissioner/pages/Commissioner";
+import Admin from "./features/admin/pages/Admin";
+import Rules from "./features/leagues/pages/Rules";
 import Guide from "./pages/Guide";
-import ArchivePage from "./pages/ArchivePage";
-import Auction from "./pages/Auction";
-import KeeperSelection from "./pages/KeeperSelection";
-import Signup from "./pages/Signup";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
+import ArchivePage from "./features/archive/pages/ArchivePage";
+import Auction from "./features/auction/pages/Auction";
+import KeeperSelection from "./features/keeper-prep/pages/KeeperSelection";
+import Signup from "./features/auth/pages/Signup";
+import ForgotPassword from "./features/auth/pages/ForgotPassword";
+import ResetPassword from "./features/auth/pages/ResetPassword";
 
-import Landing from "./pages/Landing";
+import Landing from "./features/auth/pages/Landing";
 import { useAuth } from "./auth/AuthProvider";
 
 export default function App() {

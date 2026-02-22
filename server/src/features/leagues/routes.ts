@@ -1,0 +1,277 @@
+// server/src/routes/leagues.ts
+import { Router } from "express";
+import { prisma } from "../../db/prisma.js";
+import { KeeperPrepService } from "../keeper-prep/services/keeperPrepService.js";
+
+const keeperPrepService = new KeeperPrepService();
+
+const router = Router();
+
+function requireAuth(req: any, res: any, next: any) {
+  if (!req.user?.id) return res.status(401).json({ error: "Not authenticated" });
+  next();
+}
+
+/**
+ * GET /api/leagues
+ * Returns:
+ * - leagues the user can access via membership
+ * - plus public leagues (deduped)
+ */
+router.get("/leagues", requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id as number;
+
+    const memberships = await prisma.leagueMembership.findMany({
+      where: { userId },
+      select: {
+        role: true,
+        league: {
+          select: { id: true, name: true, season: true, draftMode: true, draftOrder: true, isPublic: true, publicSlug: true },
+        },
+      },
+      orderBy: [{ leagueId: "asc" }],
+    });
+
+    const memberLeagues = memberships.map((m) => ({
+      ...m.league,
+      access: { type: "MEMBER" as const, role: m.role },
+    }));
+
+    const publicLeaguesRaw = await prisma.league.findMany({
+      where: { isPublic: true },
+      select: { id: true, name: true, season: true, draftMode: true, draftOrder: true, isPublic: true, publicSlug: true },
+      orderBy: [{ season: "desc" }, { name: "asc" }],
+    });
+
+    const byId = new Map<number, any>();
+    for (const l of memberLeagues) byId.set(l.id, l);
+
+    for (const l of publicLeaguesRaw) {
+      if (!byId.has(l.id)) {
+        byId.set(l.id, { ...l, access: { type: "PUBLIC" as const } });
+      }
+    }
+
+    const leagues = Array.from(byId.values());
+    return res.json({ leagues });
+  } catch (err: any) {
+    console.error("GET /leagues error:", err);
+    return res.status(500).json({ error: err?.message || "Leagues error" });
+  }
+});
+
+/**
+ * GET /api/leagues/:id
+ * Returns full details including teams.
+ */
+router.get("/leagues/:id", async (req, res) => {
+  try {
+    const userId = req.user?.id ? (req.user.id as number) : null;
+    const leagueId = Number(req.params.id);
+
+    // Check visibility/membership
+    const league = await prisma.league.findUnique({
+      where: { id: leagueId },
+      include: {
+        teams: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            ownerUserId: true,
+            owner: true,
+            budget: true,
+            ownerships: { select: { userId: true } }, // For multi-owner lookup
+          },
+        },
+      },
+    });
+
+    if (!league) return res.status(404).json({ error: "League not found" });
+
+    // Public or Member?
+    let membership = null;
+    if (userId) {
+      membership = await prisma.leagueMembership.findUnique({
+        where: { leagueId_userId: { leagueId, userId } },
+      });
+    }
+
+    if (!league.isPublic && !membership && !req.user?.isAdmin) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    return res.json({ league: { ...league, access: membership ? { type: "MEMBER", role: membership.role } : { type: "PUBLIC_VIEWER" } } });
+  } catch (err: any) {
+    console.error("GET /leagues/:id error:", err);
+    return res.status(500).json({ error: err?.message });
+  }
+});
+
+/**
+ * GET /api/leagues/:id/rosters
+ * Returns active rosters for the league (Public/Member access)
+ */
+router.get("/leagues/:id/rosters", async (req, res) => {
+  try {
+    const userId = req.user?.id ? (req.user.id as number) : null;
+    const leagueId = Number(req.params.id);
+
+    const league = await prisma.league.findUnique({ where: { id: leagueId } });
+    if (!league) return res.status(404).json({ error: "League not found" });
+
+    let membership = null;
+    if (userId) {
+      membership = await prisma.leagueMembership.findUnique({
+        where: { leagueId_userId: { leagueId, userId } },
+      });
+    }
+
+    if (!league.isPublic && !membership && !req.user?.isAdmin) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    const rosters = await prisma.roster.findMany({
+      where: { team: { leagueId }, releasedAt: null },
+      include: {
+        team: { select: { id: true, code: true, name: true, budget: true } },
+        player: { select: { id: true, name: true, posPrimary: true, mlbId: true } },
+      },
+      orderBy: { teamId: "asc" },
+    });
+
+    return res.json({ rosters });
+  } catch (err: any) {
+    return res.status(500).json({ error: err?.message || "Failed to load rosters" });
+  }
+});
+
+/**
+ * GET /api/leagues/:id/my-roster
+ * Fetches the logged-in user's roster for the given league.
+ * Returns players with cost and keeper status.
+ */
+router.get("/leagues/:id/my-roster", requireAuth, async (req, res) => {
+  try {
+    const userId = Number(req.user!.id);
+    const leagueId = Number(req.params.id);
+
+    // 1. Find the user's team in this league
+    // Support multi-owner via TeamOwnership or direct ownerUserId
+    const team = await prisma.team.findFirst({
+        where: {
+            leagueId,
+            OR: [
+                { ownerUserId: userId },
+                { ownerships: { some: { userId } } }
+            ]
+        }
+    });
+
+    if (!team) {
+        return res.status(404).json({ error: "No team found for you in this league." });
+    }
+
+    // 2. Fetch Roster
+    const roster = await prisma.roster.findMany({
+        where: { teamId: team.id, releasedAt: null },
+        include: {
+            player: { select: { id: true, name: true, posPrimary: true, mlbTeam: true } }
+        },
+        orderBy: { player: { name: "asc" } }
+    });
+
+    const isLocked = await keeperPrepService.isKeepersLocked(leagueId);
+    const keeperLimit = await keeperPrepService.getKeeperLimit(leagueId);
+
+    return res.json({ team, roster, isLocked, keeperLimit });
+
+  } catch (err: any) {
+    console.error("GET /my-roster error:", err);
+    return res.status(500).json({ error: err?.message || "Failed to fetch roster" });
+  }
+});
+
+/**
+ * POST /api/leagues/:id/my-roster/keepers
+ * Updates keeper selections for the user's team.
+ * Body: { keeperIds: number[] }
+ */
+router.post("/leagues/:id/my-roster/keepers", requireAuth, async (req, res) => {
+  try {
+    const userId = Number(req.user!.id);
+    const leagueId = Number(req.params.id);
+    const { keeperIds } = req.body; // Array of Roster IDs
+
+    if (!Array.isArray(keeperIds)) {
+        return res.status(400).json({ error: "Invalid keeperIds" });
+    }
+
+    // 1. Validate Team Ownership
+    const team = await prisma.team.findFirst({
+        where: {
+            leagueId,
+            OR: [
+                { ownerUserId: userId },
+                { ownerships: { some: { userId } } }
+            ]
+        }
+    });
+
+    if (!team) {
+        return res.status(403).json({ error: "You do not own a team in this league." });
+    }
+
+    // 2. Validate Roster Items belong to this team
+    // Security check: ensure all keeperIds provided effectively belong to this team
+    const validRosters = await prisma.roster.findMany({
+        where: { teamId: team.id, id: { in: keeperIds } }
+    });
+
+    if (validRosters.length !== keeperIds.length) {
+        return res.status(400).json({ error: "One or more invalid roster IDs provided." });
+    }
+
+    // 3. Validation: Lock Status and Keeper Limit
+    const isLocked = await keeperPrepService.isKeepersLocked(leagueId);
+    if (isLocked) {
+        return res.status(403).json({ error: "Keeper selections are locked for this league." });
+    }
+
+    const keeperLimit = await keeperPrepService.getKeeperLimit(leagueId);
+    if (keeperIds.length > keeperLimit) {
+        return res.status(400).json({ error: `You can only select up to ${keeperLimit} keepers.` });
+    }
+
+    // 4. Update DB
+    // Transaction: Reset all current keepers for this team, then set new ones
+    await prisma.$transaction(async (tx) => {
+        // Validation Logic (Budget check) could go here if we enforce hard limits backend-side now.
+        // For now, let's allow saving and trust the UI + later validation or loose limits.
+        
+        // Reset all to false
+        await tx.roster.updateMany({
+            where: { teamId: team.id },
+            data: { isKeeper: false }
+        });
+
+        // Set selected to true
+        if (keeperIds.length > 0) {
+            await tx.roster.updateMany({
+                where: { id: { in: keeperIds } },
+                data: { isKeeper: true }
+            });
+        }
+    });
+
+    return res.json({ success: true, count: keeperIds.length });
+
+  } catch (err: any) {
+    console.error("POST /keepers error:", err);
+    return res.status(500).json({ error: err?.message || "Failed to save keepers" });
+  }
+});
+
+export const leaguesRouter = router;
+export default leaguesRouter;

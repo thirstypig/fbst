@@ -11,29 +11,30 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import fs from "fs";
 
-import { authRouter } from "./routes/auth/index.js";
+import { authRouter } from "./features/auth/index.js";
 import { publicRouter } from "./routes/public.js";
-import { leaguesRouter } from "./routes/leagues.js";
-import { adminRouter } from "./routes/admin.js";
-import auctionRouter from "./routes/auction.js";
-import { commissionerRouter } from "./routes/commissioner.js";
-import tradesRouter from "./routes/trades.js";
-import waiversRouter from "./routes/waivers.js";
-import { transactionsRouter } from "./routes/transactions.js";
-import standingsRouter from "./routes/standings.js";
-import { archiveRouter } from "./routes/archive.js";
-import rulesRouter from "./routes/rules.js";
-import rosterRouter from './routes/roster.js';
-import rosterImportRouter from './routes/rosterImport.js';
-import teamsRouter from "./routes/teams.js";
-import { keeperPrepRouter } from "./routes/keeperPrep.js";
+import { leaguesRouter } from "./features/leagues/index.js";
+import { rulesRouter } from "./features/leagues/index.js";
+import { adminRouter } from "./features/admin/index.js";
+import { auctionRouter } from "./features/auction/index.js";
+import { commissionerRouter } from "./features/commissioner/index.js";
+import { tradesRouter } from "./features/trades/index.js";
+import { waiversRouter } from "./features/waivers/index.js";
+import { transactionsRouter } from "./features/transactions/index.js";
+import { standingsRouter } from "./features/standings/index.js";
+import { archiveRouter } from "./features/archive/index.js";
+import { rosterRouter, rosterImportRouter } from "./features/roster/index.js";
+import { teamsRouter } from "./features/teams/index.js";
+import { keeperPrepRouter } from "./features/keeper-prep/index.js";
+import { periodsRouter } from "./features/periods/index.js";
+import { playersRouter } from "./features/players/index.js";
 
 import { attachUser } from "./middleware/auth.js";
 import { toNum, toBool, normCode } from './lib/utils.js';
-import { DataService } from './services/dataService.js';
+import { DataService } from './features/players/services/dataService.js';
 import { warmMlbTeamCache } from './lib/mlbApi.js';
 import { logger } from './lib/logger.js';
-import { buildTeamNameMap } from './services/standingsService.js';
+import { buildTeamNameMap } from './features/standings/services/standingsService.js';
 
 // Validate Auth Config on Startup
 // validateAuthConfig(); // Removed legacy auth validation
