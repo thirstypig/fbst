@@ -1,23 +1,9 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { prisma } from "../../db/prisma.js";
 import { CommissionerService } from "../commissioner/services/CommissionerService.js";
+import { requireAuth, requireAdmin, requireCommissionerOrAdmin } from "../../middleware/auth.js";
 const router = Router();
 const commissionerService = new CommissionerService();
-
-// Use a simpler type-safe approach for auth
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AuthedRequest = Request & { user?: any };
-
-// Check if user can edit rules (admin or commissioner)
-const canEditRules = async (req: AuthedRequest, leagueId: number): Promise<boolean> => {
-  if (req.user?.isAdmin) return true;
-  
-  const membership = await prisma.leagueMembership.findFirst({
-    where: { userId: req.user?.id, leagueId },
-  });
-  
-  return membership?.role === "COMMISSIONER";
-};
 
 /**
  * GET /api/leagues/:id/rules
@@ -46,18 +32,10 @@ router.get("/:id/rules", async (req: Request, res: Response, next: NextFunction)
  * PUT /api/leagues/:id/rules
  * Bulk update rules (admin/commissioner only)
  */
-router.put("/:id/rules", async (req: AuthedRequest, res: Response, next: NextFunction) => {
+router.put("/:id/rules", requireAuth, requireCommissionerOrAdmin("id"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const leagueId = parseInt(req.params.id);
     const { updates } = req.body; // Array of { id, value } objects
-
-    if (!req.user) {
-      return res.status(401).json({ error: "Authentication required" });
-    }
-
-    if (!(await canEditRules(req, leagueId))) {
-      return res.status(403).json({ error: "Commissioner or admin access required" });
-    }
 
     const count = await commissionerService.updateRules(leagueId, updates);
 
@@ -71,17 +49,9 @@ router.put("/:id/rules", async (req: AuthedRequest, res: Response, next: NextFun
  * POST /api/leagues/:id/rules/lock
  * Lock all rules for the season (prevents further editing)
  */
-router.post("/:id/rules/lock", async (req: AuthedRequest, res: Response, next: NextFunction) => {
+router.post("/:id/rules/lock", requireAuth, requireCommissionerOrAdmin("id"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const leagueId = parseInt(req.params.id);
-
-    if (!req.user) {
-      return res.status(401).json({ error: "Authentication required" });
-    }
-
-    if (!(await canEditRules(req, leagueId))) {
-      return res.status(403).json({ error: "Commissioner or admin access required" });
-    }
 
     await commissionerService.lockRules(leagueId);
 
@@ -95,13 +65,9 @@ router.post("/:id/rules/lock", async (req: AuthedRequest, res: Response, next: N
  * POST /api/leagues/:id/rules/unlock
  * Unlock rules (admin only - emergency)
  */
-router.post("/:id/rules/unlock", async (req: AuthedRequest, res: Response, next: NextFunction) => {
+router.post("/:id/rules/unlock", requireAuth, requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const leagueId = parseInt(req.params.id);
-
-    if (!req.user?.isAdmin) {
-      return res.status(403).json({ error: "Admin access required to unlock rules" });
-    }
 
     await commissionerService.unlockRules(leagueId);
 
