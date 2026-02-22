@@ -2,15 +2,11 @@
 import { Router } from "express";
 import { prisma } from "../../db/prisma.js";
 import { KeeperPrepService } from "../keeper-prep/services/keeperPrepService.js";
+import { requireAuth } from "../../middleware/auth.js";
 
 const keeperPrepService = new KeeperPrepService();
 
 const router = Router();
-
-function requireAuth(req: any, res: any, next: any) {
-  if (!req.user?.id) return res.status(401).json({ error: "Not authenticated" });
-  next();
-}
 
 /**
  * GET /api/leagues

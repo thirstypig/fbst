@@ -2,21 +2,9 @@
 import { Router } from "express";
 import express from "express";
 import { prisma } from "../../db/prisma.js";
+import { requireAuth, requireAdmin } from "../../middleware/auth.js";
 
 const router = Router();
-
-/**
- * Assumes your existing auth middleware sets (req as any).user when cookie is valid.
- */
-function requireAuth(req: any, res: any, next: any) {
-  if (!req.user?.id) return res.status(401).json({ error: "Not authenticated" });
-  next();
-}
-
-function requireAdmin(req: any, res: any, next: any) {
-  if (!req.user?.isAdmin) return res.status(403).json({ error: "Admin only" });
-  next();
-}
 
 function normStr(v: any) {
   return String(v ?? "").trim();

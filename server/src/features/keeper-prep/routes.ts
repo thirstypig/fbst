@@ -4,38 +4,10 @@
 import { Router } from "express";
 import { KeeperPrepService } from "./services/keeperPrepService.js";
 import { prisma } from "../../db/prisma.js";
+import { requireAuth, requireCommissionerOrAdmin } from "../../middleware/auth.js";
 
 const router = Router();
 const keeperPrepService = new KeeperPrepService();
-
-// ─── Auth Middleware (reused from commissioner.ts pattern) ──────────────────
-
-function requireAuth(req: any, res: any, next: any) {
-  if (!req.user?.id) return res.status(401).json({ error: "Not authenticated" });
-  next();
-}
-
-async function requireCommissionerOrAdmin(req: any, res: any, next: any) {
-  try {
-    const leagueId = Number(req.params.leagueId);
-    if (!Number.isFinite(leagueId)) return res.status(400).json({ error: "Invalid leagueId" });
-
-    if (req.user?.isAdmin) return next();
-
-    const m = await prisma.leagueMembership.findUnique({
-      where: { leagueId_userId: { leagueId, userId: req.user.id } },
-      select: { role: true },
-    });
-
-    if (!m || m.role !== "COMMISSIONER") {
-      return res.status(403).json({ error: "Commissioner only" });
-    }
-
-    return next();
-  } catch (err: any) {
-    return res.status(500).json({ error: err?.message || "Auth check failed" });
-  }
-}
 
 // ─── Routes ─────────────────────────────────────────────────────────────────
 
@@ -46,7 +18,7 @@ async function requireCommissionerOrAdmin(req: any, res: any, next: any) {
 router.post(
   "/commissioner/:leagueId/keeper-prep/populate",
   requireAuth,
-  requireCommissionerOrAdmin,
+  requireCommissionerOrAdmin(),
   async (req, res) => {
     try {
       const leagueId = Number(req.params.leagueId);
@@ -66,7 +38,7 @@ router.post(
 router.get(
   "/commissioner/:leagueId/keeper-prep/status",
   requireAuth,
-  requireCommissionerOrAdmin,
+  requireCommissionerOrAdmin(),
   async (req, res) => {
     try {
       const leagueId = Number(req.params.leagueId);
@@ -86,7 +58,7 @@ router.get(
 router.get(
   "/commissioner/:leagueId/keeper-prep/team/:teamId/roster",
   requireAuth,
-  requireCommissionerOrAdmin,
+  requireCommissionerOrAdmin(),
   async (req, res) => {
     try {
       const leagueId = Number(req.params.leagueId);
@@ -121,7 +93,7 @@ router.get(
 router.post(
   "/commissioner/:leagueId/keeper-prep/save",
   requireAuth,
-  requireCommissionerOrAdmin,
+  requireCommissionerOrAdmin(),
   async (req, res) => {
     try {
       const leagueId = Number(req.params.leagueId);
@@ -150,7 +122,7 @@ router.post(
 router.post(
   "/commissioner/:leagueId/keeper-prep/lock",
   requireAuth,
-  requireCommissionerOrAdmin,
+  requireCommissionerOrAdmin(),
   async (req, res) => {
     try {
       const leagueId = Number(req.params.leagueId);
@@ -169,7 +141,7 @@ router.post(
 router.post(
   "/commissioner/:leagueId/keeper-prep/unlock",
   requireAuth,
-  requireCommissionerOrAdmin,
+  requireCommissionerOrAdmin(),
   async (req, res) => {
     try {
       const leagueId = Number(req.params.leagueId);

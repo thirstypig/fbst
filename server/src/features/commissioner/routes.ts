@@ -5,41 +5,12 @@ import multer from "multer";
 import { parse } from "csv-parse";
 import { Readable } from "stream";
 import { CommissionerService } from "./services/CommissionerService.js";
+import { requireAuth, requireAdmin, requireCommissionerOrAdmin } from "../../middleware/auth.js";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
 const router = Router();
 const commissionerService = new CommissionerService();
-
-/**
- * Assumes your existing auth middleware sets (req as any).user when cookie is valid.
- */
-function requireAuth(req: any, res: any, next: any) {
-  if (!req.user?.id) return res.status(401).json({ error: "Not authenticated" });
-  next();
-}
-
-async function requireCommissionerOrAdmin(req: any, res: any, next: any) {
-  try {
-    const leagueId = Number(req.params.leagueId);
-    if (!Number.isFinite(leagueId)) return res.status(400).json({ error: "Invalid leagueId" });
-
-    if (req.user?.isAdmin) return next();
-
-    const m = await prisma.leagueMembership.findUnique({
-      where: { leagueId_userId: { leagueId, userId: req.user.id } },
-      select: { role: true },
-    });
-
-    if (!m || m.role !== "COMMISSIONER") {
-      return res.status(403).json({ error: "Commissioner only" });
-    }
-
-    return next();
-  } catch (err: any) {
-    return res.status(500).json({ error: err?.message || "Auth check failed" });
-  }
-}
 
 function normStr(v: any) {
   return String(v ?? "").trim();
@@ -59,7 +30,7 @@ function mustOneOf(v: string, allowed: string[], name: string) {
  * GET /api/commissioner/:leagueId
  * Returns league + teams + memberships (with user info)
  */
-router.get("/commissioner/:leagueId", requireAuth, requireCommissionerOrAdmin, async (req, res) => {
+router.get("/commissioner/:leagueId", requireAuth, requireCommissionerOrAdmin(), async (req, res) => {
   try {
     const leagueId = Number(req.params.leagueId);
 
@@ -115,7 +86,7 @@ router.get("/commissioner/:leagueId", requireAuth, requireCommissionerOrAdmin, a
  * GET /api/commissioner/:leagueId/available-users
  * Returns all registered users for owner assignment dropdown
  */
-router.get("/commissioner/:leagueId/available-users", requireAuth, requireCommissionerOrAdmin, async (req, res) => {
+router.get("/commissioner/:leagueId/available-users", requireAuth, requireCommissionerOrAdmin(), async (req, res) => {
   try {
     const users = await prisma.user.findMany({
       select: { id: true, email: true, name: true, avatarUrl: true },
@@ -131,7 +102,7 @@ router.get("/commissioner/:leagueId/available-users", requireAuth, requireCommis
  * GET /api/commissioner/:leagueId/prior-teams
  * Returns teams from the previous season for team history linking
  */
-router.get("/commissioner/:leagueId/prior-teams", requireAuth, requireCommissionerOrAdmin, async (req, res) => {
+router.get("/commissioner/:leagueId/prior-teams", requireAuth, requireCommissionerOrAdmin(), async (req, res) => {
   try {
     const leagueId = Number(req.params.leagueId);
     
@@ -169,7 +140,7 @@ router.get("/commissioner/:leagueId/prior-teams", requireAuth, requireCommission
  *  - { name, code?, owner?, budget?, priorTeamId? }
  *  - OR { teams: [{ name, code?, owner?, budget?, priorTeamId? }, ...] }
  */
-router.post("/commissioner/:leagueId/teams", requireAuth, requireCommissionerOrAdmin, async (req, res) => {
+router.post("/commissioner/:leagueId/teams", requireAuth, requireCommissionerOrAdmin(), async (req, res) => {
   try {
     const leagueId = Number(req.params.leagueId);
 
@@ -205,7 +176,7 @@ router.post("/commissioner/:leagueId/teams", requireAuth, requireCommissionerOrA
  * DELETE /api/commissioner/:leagueId/teams/:teamId
  * Commissioner can delete a team (cleanup).
  */
-router.delete("/commissioner/:leagueId/teams/:teamId", requireAuth, requireCommissionerOrAdmin, async (req, res) => {
+router.delete("/commissioner/:leagueId/teams/:teamId", requireAuth, requireCommissionerOrAdmin(), async (req, res) => {
   try {
     const leagueId = Number(req.params.leagueId);
     const teamId = Number(req.params.teamId);
@@ -225,7 +196,7 @@ router.delete("/commissioner/:leagueId/teams/:teamId", requireAuth, requireCommi
  * Commissioner can add OWNER/VIEWER. Only admin can add COMMISSIONER.
  * Body: { userId?: number, email?: string, role: "OWNER" | "VIEWER" | "COMMISSIONER" }
  */
-router.post("/commissioner/:leagueId/members", requireAuth, requireCommissionerOrAdmin, async (req, res) => {
+router.post("/commissioner/:leagueId/members", requireAuth, requireCommissionerOrAdmin(), async (req, res) => {
   try {
     const leagueId = Number(req.params.leagueId);
 
@@ -258,7 +229,7 @@ router.post("/commissioner/:leagueId/members", requireAuth, requireCommissionerO
 router.post(
   "/commissioner/:leagueId/teams/:teamId/owner",
   requireAuth,
-  requireCommissionerOrAdmin,
+  requireCommissionerOrAdmin(),
   async (req, res) => {
     try {
       const leagueId = Number(req.params.leagueId);
@@ -286,7 +257,7 @@ router.post(
 router.delete(
   "/commissioner/:leagueId/teams/:teamId/owner/:userId",
   requireAuth,
-  requireCommissionerOrAdmin,
+  requireCommissionerOrAdmin(),
   async (req, res) => {
     try {
       const leagueId = Number(req.params.leagueId);
@@ -313,7 +284,7 @@ router.delete(
 router.get(
   "/commissioner/:leagueId/teams/:teamId/roster",
   requireAuth,
-  requireCommissionerOrAdmin,
+  requireCommissionerOrAdmin(),
   async (req, res) => {
     try {
       const leagueId = Number(req.params.leagueId);
@@ -363,7 +334,7 @@ router.get(
 router.post(
   "/commissioner/:leagueId/roster/assign",
   requireAuth,
-  requireCommissionerOrAdmin,
+  requireCommissionerOrAdmin(),
   async (req, res) => {
     try {
       const leagueId = Number(req.params.leagueId);
@@ -402,7 +373,7 @@ router.post(
 router.post(
   "/commissioner/:leagueId/roster/release",
   requireAuth,
-  requireCommissionerOrAdmin,
+  requireCommissionerOrAdmin(),
   async (req, res) => {
     try {
       const leagueId = Number(req.params.leagueId);
@@ -432,7 +403,7 @@ router.post(
 router.get(
   "/commissioner/:leagueId/rosters",
   requireAuth,
-  requireCommissionerOrAdmin,
+  requireCommissionerOrAdmin(),
   async (req, res) => {
     try {
       const leagueId = Number(req.params.leagueId);
@@ -460,7 +431,7 @@ router.get(
 router.post(
   "/commissioner/:leagueId/roster/import",
   requireAuth,
-  requireCommissionerOrAdmin,
+  requireCommissionerOrAdmin(),
   upload.single("file"),
   async (req, res) => {
     try {
@@ -504,10 +475,8 @@ router.get("/commissioner/periods/list", requireAuth, async (req, res) => {
  * POST /api/commissioner/periods
  * Create or Update Period
  */
-router.post("/commissioner/periods", requireAuth, async (req, res) => {
+router.post("/commissioner/periods", requireAuth, requireAdmin, async (req, res) => {
   try {
-    if (!req.user?.isAdmin) return res.status(403).json({ error: "Admin only" });
-
     const id = Number(req.body.id);
     const name = normStr(req.body.name);
     const start = req.body.startDate ? new Date(req.body.startDate) : null;
@@ -536,9 +505,8 @@ router.post("/commissioner/periods", requireAuth, async (req, res) => {
 /**
  * DELETE /api/commissioner/periods/:id
  */
-router.delete("/commissioner/periods/:id", requireAuth, async (req, res) => {
+router.delete("/commissioner/periods/:id", requireAuth, requireAdmin, async (req, res) => {
    try {
-     if (!req.user?.isAdmin) return res.status(403).json({ error: "Admin only" });
      const id = Number(req.params.id);
      await prisma.period.delete({ where: { id } });
      return res.json({ success: true });
@@ -553,7 +521,7 @@ router.delete("/commissioner/periods/:id", requireAuth, async (req, res) => {
  * ==========================================
  */
 
-router.get("/commissioner/:leagueId/rules", requireAuth, requireCommissionerOrAdmin, async (req, res) => {
+router.get("/commissioner/:leagueId/rules", requireAuth, requireCommissionerOrAdmin(), async (req, res) => {
     try {
         const leagueId = Number(req.params.leagueId);
         const rules = await prisma.leagueRule.findMany({ where: { leagueId } });
@@ -563,7 +531,7 @@ router.get("/commissioner/:leagueId/rules", requireAuth, requireCommissionerOrAd
     }
 });
 
-router.post("/commissioner/:leagueId/rules", requireAuth, requireCommissionerOrAdmin, async (req, res) => {
+router.post("/commissioner/:leagueId/rules", requireAuth, requireCommissionerOrAdmin(), async (req, res) => {
     try {
         const leagueId = Number(req.params.leagueId);
         const { category, key, value, label } = req.body;
@@ -592,7 +560,7 @@ router.post("/commissioner/:leagueId/rules", requireAuth, requireCommissionerOrA
  * 2. Creates initial RosterEntry snapshot for "Start of Season"
  * 3. Updates League status (if we had one) or Rule?
  */
-router.post("/commissioner/:leagueId/end-auction", requireAuth, requireCommissionerOrAdmin, async (req, res) => {
+router.post("/commissioner/:leagueId/end-auction", requireAuth, requireCommissionerOrAdmin(), async (req, res) => {
     try {
         const leagueId = Number(req.params.leagueId);
         

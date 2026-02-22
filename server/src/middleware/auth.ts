@@ -1,5 +1,5 @@
 // server/src/middleware/auth.ts
-import type { Request, Response, NextFunction } from "express";
+import type { Request, Response, NextFunction, RequestHandler } from "express";
 import jwt from "jsonwebtoken";
 import { prisma } from "../db/prisma.js";
 const COOKIE_NAME = "fbst_session";
@@ -148,6 +148,33 @@ export async function requireLeagueRole(
   }
 
   return true;
+}
+
+/**
+ * Middleware factory: requires the user to be a COMMISSIONER of the league
+ * (identified by `leagueIdParam` in req.params) or a site admin.
+ * Must be placed after `requireAuth` in the middleware chain.
+ */
+export function requireCommissionerOrAdmin(leagueIdParam = "leagueId"): RequestHandler {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const leagueId = Number(req.params[leagueIdParam]);
+    if (!Number.isFinite(leagueId)) {
+      return res.status(400).json({ error: "Invalid leagueId" });
+    }
+
+    if (req.user!.isAdmin) return next();
+
+    const m = await prisma.leagueMembership.findUnique({
+      where: { leagueId_userId: { leagueId, userId: req.user!.id } },
+      select: { role: true },
+    });
+
+    if (!m || m.role !== "COMMISSIONER") {
+      return res.status(403).json({ error: "Commissioner only" });
+    }
+
+    return next();
+  };
 }
 
 export function parseIntParam(v: any): number | null {
