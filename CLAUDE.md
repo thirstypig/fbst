@@ -174,10 +174,18 @@ server/src/__tests__/integration/
 
 ### Test Configuration
 - **Framework**: Vitest (fast, native TypeScript, Vite-compatible)
-- **Server mocking**: Use Prisma mock client (`vitest-mock-extended`) for unit tests
-- **Client mocking**: Use MSW (Mock Service Worker) for API mocking, React Testing Library for components
-- **DB tests**: Use a test database with Prisma migrations for integration tests
+- **Server mocking**: Use `vi.mock()` to mock Prisma (`../../db/prisma.js`) and Supabase (`../../lib/supabase.js`) in unit tests
+- **Client mocking**: React Testing Library for components; `vi.mock()` for API mocking
+- **DB tests**: Use a test database with Prisma migrations for integration tests (future)
 - **CI**: Run `npm run test` in CI pipeline before deploy
+
+### Current Test Coverage (103 tests)
+- `server/src/lib/__tests__/utils.test.ts` — 28 tests (toNum, toBool, norm, normCode, parseCsv, splitCsvLine, chunk)
+- `server/src/features/standings/__tests__/standingsService.test.ts` — 21 tests (buildTeamNameMap, CATEGORY_CONFIG, computeCategoryRows, computeStandingsFromStats, rankPoints)
+- `server/src/features/standings/__tests__/standings.integration.test.ts` — 7 tests (full pipeline: 4-team league scenario)
+- `server/src/middleware/__tests__/auth.test.ts` — 13 tests (requireAuth, requireAdmin, parseIntParam)
+- `client/src/api/__tests__/base.test.ts` — 17 tests (toNum, fmt2, fmt3Avg, fmtRate, yyyyMmDd, addDays)
+- `client/src/lib/__tests__/baseballUtils.test.ts` — 17 tests (POS_ORDER, POS_SCORE, getPrimaryPosition, sortByPosition)
 
 ### Running Tests
 ```bash
