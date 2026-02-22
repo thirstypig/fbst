@@ -85,7 +85,7 @@ export class DataService {
           for (const r of rosters) {
               if (r.player?.mlbId) {
                   rosterMap.set(String(r.player.mlbId), { 
-                      teamCode: r.team.code, 
+                      teamCode: r.team.code ?? "",
                       price: Number(r.price) 
                   });
               }

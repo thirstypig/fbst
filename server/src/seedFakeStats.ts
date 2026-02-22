@@ -1,4 +1,4 @@
-import prisma from './prisma';
+import prisma from './prisma.js';
 
 async function main() {
   console.log('⚾ Seeding fake stats for OGBA Period 1...');
@@ -128,7 +128,7 @@ async function main() {
   ];
 
   for (const teamData of fakeStats) {
-    const team = await prisma.team.findUnique({
+    const team = await prisma.team.findFirst({
       where: { name: teamData.teamName },
     });
 

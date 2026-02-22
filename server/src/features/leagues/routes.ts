@@ -20,7 +20,7 @@ function requireAuth(req: any, res: any, next: any) {
  */
 router.get("/leagues", requireAuth, async (req, res) => {
   try {
-    const userId = req.user.id as number;
+    const userId = req.user!.id as number;
 
     const memberships = await prisma.leagueMembership.findMany({
       where: { userId },
