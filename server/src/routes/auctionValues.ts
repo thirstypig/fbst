@@ -1,12 +1,12 @@
 // server/src/routes/auctionValues.ts
 import { Router } from "express";
-import { auctionValues } from "../data/auctionValues";
+import { getAuctionValues } from "../data/auctionValues.js";
 
 const router = Router();
 
 // GET /api/auction-values
 router.get("/", (req, res) => {
-  res.json(auctionValues);
+  res.json(getAuctionValues());
 });
 
 export default router;

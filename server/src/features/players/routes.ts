@@ -1,10 +1,9 @@
-// server/src/routes/players.ts
+// server/src/features/players/routes.ts
 import { Router } from "express";
 import {
   loadPlayerSeasonStats,
-  getPlayerByMlbId,
-  PlayerSeasonRow,
-} from "../../data/playerSeasonStats";
+  SeasonStatRow,
+} from "../../data/playerSeasonStats.js";
 
 const router = Router();
 
@@ -14,7 +13,7 @@ const router = Router();
  *   - availability: "all" | "available" | "owned"
  *   - type: "all" | "hitters" | "pitchers"
  */
-router.get("/", (req, res) => {
+router.get("/", async (req, res) => {
   const availability = String(req.query.availability ?? "all") as
     | "all"
     | "available"
@@ -24,20 +23,20 @@ router.get("/", (req, res) => {
     | "hitters"
     | "pitchers";
 
-  let players: PlayerSeasonRow[] = loadPlayerSeasonStats();
+  let players: SeasonStatRow[] = await loadPlayerSeasonStats();
 
   // availability filter
   if (availability === "available") {
-    players = players.filter((p) => p.isFreeAgent);
+    players = players.filter((p) => !p.ogba_team_code);
   } else if (availability === "owned") {
-    players = players.filter((p) => !p.isFreeAgent);
+    players = players.filter((p) => !!p.ogba_team_code);
   }
 
   // hitter/pitcher filter
   if (type === "hitters") {
-    players = players.filter((p) => !p.isPitcher);
+    players = players.filter((p) => !p.is_pitcher);
   } else if (type === "pitchers") {
-    players = players.filter((p) => p.isPitcher);
+    players = players.filter((p) => p.is_pitcher);
   }
 
   res.json(players);
@@ -46,8 +45,9 @@ router.get("/", (req, res) => {
 /**
  * GET /players/:mlbId
  */
-router.get("/:mlbId", (req, res) => {
-  const player = getPlayerByMlbId(req.params.mlbId);
+router.get("/:mlbId", async (req, res) => {
+  const allPlayers = await loadPlayerSeasonStats();
+  const player = allPlayers.find((p) => p.mlb_id === req.params.mlbId);
   if (!player) {
     return res.status(404).json({ error: "Not found" });
   }

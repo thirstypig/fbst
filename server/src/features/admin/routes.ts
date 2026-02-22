@@ -88,11 +88,11 @@ router.post("/admin/league", requireAuth, requireAdmin, async (req, res) => {
     // (Optional but recommended) auto-add creator as COMMISSIONER for this league
     await prisma.leagueMembership.upsert({
       where: {
-        leagueId_userId: { leagueId: league.id, userId: req.user.id },
+        leagueId_userId: { leagueId: league.id, userId: req.user!.id },
       },
       create: {
         leagueId: league.id,
-        userId: req.user.id,
+        userId: req.user!.id,
         role: "COMMISSIONER",
       },
       update: {
@@ -125,7 +125,7 @@ router.post("/admin/league", requireAuth, requireAdmin, async (req, res) => {
         // 2. Copy Memberships
         const sourceMembers = await prisma.leagueMembership.findMany({ where: { leagueId: copyFromLeagueId } });
         for (const m of sourceMembers) {
-            if (m.userId === req.user.id) continue; // Already added
+            if (m.userId === req.user!.id) continue; // Already added
             try {
                 await prisma.leagueMembership.create({
                     data: {

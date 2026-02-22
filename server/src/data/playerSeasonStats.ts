@@ -1,7 +1,7 @@
 // server/src/data/playerSeasonStats.ts
 import fs from "fs";
 import path from "path";
-import { warmTeamCacheOnce, defaultCachePath } from "./mlbTeamCache";
+import { warmTeamCacheOnce, defaultCachePath } from "./mlbTeamCache.js";
 
 type AnyRow = Record<string, any>;
 

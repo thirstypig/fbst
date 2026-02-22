@@ -133,8 +133,7 @@ router.post(
       const result = await keeperPrepService.saveKeepersForTeam(
         leagueId,
         Number(teamId),
-        keeperIds.map(Number),
-        Boolean(force)
+        keeperIds.map(Number)
       );
 
       return res.json({ success: true, ...result });
