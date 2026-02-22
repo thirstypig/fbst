@@ -6,6 +6,7 @@ import {
   computeStandingsFromStats,
   rankPoints,
 } from "../services/standingsService.js";
+import type { TeamStatsRow } from "../services/standingsService.js";
 
 /**
  * Integration test: exercises the full standings computation pipeline
@@ -15,7 +16,7 @@ import {
  */
 describe("standings computation pipeline", () => {
   // A realistic 4-team league scenario
-  const teamStats = [
+  const teamStats: TeamStatsRow[] = [
     {
       team: { id: 1, name: "Sluggers" },
       R: 120, HR: 60, RBI: 110, SB: 5, AVG: 0.280,

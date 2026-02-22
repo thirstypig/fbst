@@ -4,6 +4,31 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
+## Session 2026-02-22 (Session 3)
+
+### Completed
+- Quality pass batch 1: standings, trades, auth (PR #8)
+  - **Standings**: Replaced all `any` with `TeamStatsRow`, `CategoryRow`, `StandingRow` types; cleaned ~50 lines of dead comments; added periodId validation; switched to structured logger; added 13 route tests
+  - **Trades**: Added `TradeItemInput`/`ProposeTradeBody` types; comprehensive input validation (leagueId, proposerTeamId, items, assetType enum); status checks on accept/reject; try/catch on all routes; stopped leaking raw error messages; added 24 route tests
+  - **Auth**: Replaced `(req as any).user` with typed `req.user`; added response type interfaces; typed `parseIntParam`; structured logging; added 8 route tests
+- Added `supertest` + `@types/supertest` dev deps for HTTP-level route testing
+- Fixed `TeamStatsRow` type to avoid `Record<string, number>` intersection conflict
+- Total: 45 new tests (114 total server-side, up from 69), zero `any` in these 3 modules, zero TS errors
+
+### Pending / Next Steps
+- [ ] Quality pass batch 2: leagues, teams, players
+- [ ] Quality pass batch 3: roster, auction, commissioner
+- [ ] Quality pass batch 4: keeper-prep, transactions, waivers, periods, admin, archive
+- [ ] UI/Design system module
+- [ ] New feature work
+
+### Test Results
+- Server: 7 files, 114 tests passing
+- Client: 2 files, 34 tests passing (unchanged)
+- TypeScript: 0 errors (`npx tsc --noEmit`)
+
+---
+
 ## Session 2026-02-21 (Session 2)
 
 ### Completed

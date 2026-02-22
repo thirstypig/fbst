@@ -1,26 +1,53 @@
-import { Router } from "express";
+import { Router, Request, Response } from "express";
 import { prisma } from "../../db/prisma.js";
+import { logger } from "../../lib/logger.js";
 
 const router = Router();
 
-// Global Auth Health Check
-router.get("/health", (req, res) => {
-    // Supabase auth is handled via middleware/external service
-    // We can check if SUPABASE_URL is set
-    const status = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) ? "ok" : "degraded";
+// --- Types ---
 
-    res.json({ 
-        status,
-        provider: "supabase",
-        env: process.env.NODE_ENV
-    });
+type MembershipResponse = {
+  leagueId: number;
+  role: string;
+  league?: { id: number; name: string; season: number };
+};
+
+type AuthMeResponse = {
+  user: {
+    id: number;
+    email: string;
+    name: string | null;
+    avatarUrl: string | null;
+    isAdmin: boolean;
+    memberships: MembershipResponse[];
+  } | null;
+};
+
+type HealthResponse = {
+  status: "ok" | "degraded";
+  provider: string;
+  env: string | undefined;
+};
+
+// --- Routes ---
+
+// GET /api/auth/health - Auth health check
+router.get("/health", (_req: Request, res: Response<HealthResponse>) => {
+  const status = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
+    ? "ok" as const
+    : "degraded" as const;
+
+  res.json({
+    status,
+    provider: "supabase",
+    env: process.env.NODE_ENV,
+  });
 });
 
-// GET /api/auth/me (User Session)
-router.get("/me", async (req, res) => {
+// GET /api/auth/me - Current user session
+router.get("/me", async (req: Request, res: Response<AuthMeResponse | { error: string }>) => {
   try {
-    const sessionUser = (req as any).user ?? null;
-    const userId = sessionUser?.id ?? null;
+    const userId = req.user?.id ?? null;
 
     if (!userId) return res.json({ user: null });
 
@@ -45,16 +72,18 @@ router.get("/me", async (req, res) => {
       name: full.name,
       avatarUrl: full.avatarUrl,
       isAdmin: full.isAdmin,
-      memberships: full.memberships.map((m: any) => ({
+      memberships: full.memberships.map((m) => ({
         leagueId: m.leagueId,
-        role: m.role,
-        league: m.league ? { id: m.league.id, name: m.league.name, season: m.league.season } : undefined,
+        role: String(m.role),
+        league: m.league
+          ? { id: m.league.id, name: m.league.name, season: m.league.season }
+          : undefined,
       })),
     };
 
     return res.json({ user });
-  } catch (err: any) {
-    console.error("GET /auth/me error:", err);
+  } catch (e) {
+    logger.error({ err: String(e) }, "GET /auth/me failed");
     return res.status(500).json({ error: "Auth check failed" });
   }
 });

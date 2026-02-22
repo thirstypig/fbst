@@ -177,7 +177,7 @@ export function requireCommissionerOrAdmin(leagueIdParam = "leagueId"): RequestH
   };
 }
 
-export function parseIntParam(v: any): number | null {
+export function parseIntParam(v: string | number | null | undefined): number | null {
   const n = Number(String(v ?? "").trim());
   return Number.isFinite(n) ? n : null;
 }
