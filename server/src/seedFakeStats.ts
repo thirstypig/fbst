@@ -1,4 +1,4 @@
-import prisma from './prisma.js';
+import { prisma } from './db/prisma.js';
 
 async function main() {
   console.log('⚾ Seeding fake stats for OGBA Period 1...');
