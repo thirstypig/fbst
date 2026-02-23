@@ -8,11 +8,14 @@
     "dev": "npx tsx --watch src/index.ts",
     "seed": "npx tsx src/seed.ts",
     "db:push": "npx prisma db push --schema ../prisma/schema.prisma --accept-data-loss",
-    "postinstall": "prisma generate --schema=../prisma/schema.prisma"
+    "postinstall": "prisma generate --schema=../prisma/schema.prisma",
+    "test": "vitest run",
+    "test:watch": "vitest --watch"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^6.19.1",
+    "@supabase/supabase-js": "^2.48.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/xlsx": "^0.0.35",
     "bcryptjs": "^3.0.3",
@@ -21,13 +24,12 @@
     "csv-parse": "^6.1.0",
     "csv-parser": "^3.2.0",
     "express": "^4.19.2",
-    "@supabase/supabase-js": "^2.48.1",
     "google-auth-library": "^10.5.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.0.2",
     "papaparse": "^5.5.3",
-    "xlsx": "^0.18.5",
-    "tsx": "^4.19.2"
+    "tsx": "^4.19.2",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",
@@ -36,6 +38,7 @@
     "@types/multer": "^2.0.0",
     "@types/node": "^22.10.2",
     "prisma": "^6.19.1",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^4.0.18"
   }
 }
