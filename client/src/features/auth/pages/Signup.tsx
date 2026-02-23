@@ -47,7 +47,7 @@ export default function Signup() {
         <Link to="/" className="flex items-center gap-3 mb-12 justify-center group">
           <div className="w-10 h-10 rounded-xl bg-[var(--lg-accent)] flex items-center justify-center text-white font-black text-sm shadow-2xl shadow-blue-500/40 transform group-hover:-rotate-6 transition-transform">FBST</div>
           <div className="flex flex-col">
-            <span className="text-xl font-black tracking-tight text-[var(--lg-text-heading)] leading-none">FBST</span>
+            <span className="text-xl font-semibold tracking-tight text-[var(--lg-text-heading)] leading-none">FBST</span>
             <span className="text-[9px] font-bold tracking-widest text-[var(--lg-text-muted)] opacity-60 uppercase mt-0.5">Fantasy Baseball Stat Tool</span>
           </div>
         </Link>
@@ -56,7 +56,7 @@ export default function Signup() {
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[var(--lg-accent)] to-transparent opacity-50" />
           
           <div className="mb-8 text-center">
-            <h2 className="text-3xl font-black tracking-tight text-[var(--lg-text-heading)] mb-2">Create Account</h2>
+            <h2 className="text-3xl font-semibold tracking-tight text-[var(--lg-text-heading)] mb-2">Create Account</h2>
             <p className="text-sm font-medium text-[var(--lg-text-secondary)] opacity-60">Create your free account</p>
           </div>
 

@@ -216,7 +216,7 @@ export default function PlayerDetailModal({ player, onClose, open }: Props) {
         <div className={headerCls}>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-              <h2 className="text-3xl font-black tracking-tighter text-[var(--lg-text-heading)] leading-none truncate">
+              <h2 className="text-3xl font-semibold tracking-tight text-[var(--lg-text-heading)] leading-none truncate">
                 {title}
               </h2>
               <span className={`px-2 py-0.5 rounded-[var(--lg-radius-sm)] text-[10px] font-black uppercase tracking-widest ${mode === 'pitching' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>

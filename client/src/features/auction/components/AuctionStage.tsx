@@ -72,7 +72,7 @@ export default function AuctionStage({ serverState, myTeamId, onBid, onFinish, o
                   <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-8 border border-white/10 shadow-2xl">
                     <MonitorStop size={32} className="text-[var(--lg-text-muted)] opacity-40" />
                   </div>
-                  <h3 className="text-4xl font-black uppercase tracking-tighter text-[var(--lg-text-heading)] mb-3">Awaiting Nomination</h3>
+                  <h3 className="text-4xl font-semibold tracking-tight text-[var(--lg-text-heading)] mb-3">Awaiting Nomination</h3>
                   <p className="text-xs max-w-xs text-[var(--lg-text-muted)] mb-12 font-black uppercase tracking-[0.2em] leading-relaxed opacity-60">
                      {myTeamId && rotationTeams[0]?.id === myTeamId ? 
                         <span className="text-[var(--lg-accent)] animate-pulse">It's your turn. Select a player to begin.</span> : 
@@ -127,7 +127,7 @@ export default function AuctionStage({ serverState, myTeamId, onBid, onFinish, o
             <div className="flex-1 flex flex-col">
                 <div className="p-8 border-b border-[var(--lg-glass-border)] flex justify-between items-start bg-white/5">
                     <div>
-                        <h2 className="text-4xl font-black text-[var(--lg-text-heading)] leading-none tracking-tighter mb-3">{nomination.playerName}</h2>
+                        <h2 className="text-4xl font-semibold text-[var(--lg-text-heading)] leading-none tracking-tight mb-3">{nomination.playerName}</h2>
                         <div className="text-[11px] font-black text-[var(--lg-text-muted)] uppercase tracking-[0.2em] flex items-center gap-2 opacity-60">
                              {nomination.playerTeam}
                         </div>

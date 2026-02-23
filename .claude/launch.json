@@ -1,0 +1,13 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "client",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--port", "$PORT"],
+      "port": 5173,
+      "autoPort": true,
+      "cwd": "client"
+    }
+  ]
+}

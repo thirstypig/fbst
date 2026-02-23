@@ -26,7 +26,7 @@ export default function Guide() {
       <div className="grid grid-cols-1 gap-8">
         {/* Section 1: Overview */}
         <section className="lg-card p-8">
-          <h2 className="text-2xl font-black tracking-tighter text-[var(--lg-text-heading)] mb-6 uppercase">Execution Overview</h2>
+          <h2 className="text-2xl font-semibold tracking-tight text-[var(--lg-text-heading)] mb-6">Overview</h2>
           <p className="text-[var(--lg-text-secondary)] leading-relaxed mb-8 opacity-60">
             This experience combines meticulous 5x5 statistical tracking with the high-stakes environment of a daily auction draft.
           </p>
@@ -47,7 +47,7 @@ export default function Guide() {
 
         {/* Section 2: Hitting Scoring */}
         <section className="lg-card p-8">
-          <h2 className="text-xl font-black text-[var(--lg-text-heading)] mb-6 flex items-center gap-4 uppercase tracking-tighter">
+          <h2 className="text-xl font-semibold text-[var(--lg-text-heading)] mb-6 flex items-center gap-4 tracking-tight">
             <span className="flex items-center justify-center w-8 h-8 bg-blue-500/20 text-blue-400 rounded-xl text-sm border border-blue-500/20 shadow-lg shadow-blue-500/10">⚾</span>
             Hitting Categories
           </h2>
@@ -62,7 +62,7 @@ export default function Guide() {
 
         {/* Section 3: Pitching Scoring */}
         <section className="lg-card p-8">
-          <h2 className="text-xl font-black text-[var(--lg-text-heading)] mb-6 flex items-center gap-4 uppercase tracking-tighter">
+          <h2 className="text-xl font-semibold text-[var(--lg-text-heading)] mb-6 flex items-center gap-4 tracking-tight">
             <span className="flex items-center justify-center w-8 h-8 bg-emerald-500/20 text-emerald-400 rounded-xl text-sm border border-emerald-500/20 shadow-lg shadow-emerald-500/10">🎯</span>
             Pitching Categories
           </h2>
@@ -78,21 +78,21 @@ export default function Guide() {
         {/* Section 4: Operational Pillars */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
              <div className="lg-card p-6 border-b-4 border-blue-500/30">
-                 <h3 className="font-black text-[var(--lg-text-primary)] mb-3 uppercase tracking-tight">Period Waivers</h3>
+                 <h3 className="font-semibold text-[var(--lg-text-primary)] mb-3 tracking-tight">Period Waivers</h3>
                  <p className="text-[11px] text-[var(--lg-text-secondary)] leading-relaxed opacity-60">
                      Market adjustments occur via waiver cycles. Strategic long-term planning is prioritized over daily twitch reactions.
                  </p>
              </div>
 
              <div className="lg-card p-6 border-b-4 border-amber-500/30">
-                 <h3 className="font-black text-[var(--lg-text-primary)] mb-3 uppercase tracking-tight">Auction Market</h3>
+                 <h3 className="font-semibold text-[var(--lg-text-primary)] mb-3 tracking-tight">Auction Market</h3>
                  <p className="text-[11px] text-[var(--lg-text-secondary)] leading-relaxed opacity-60">
                      Every asset has a price. Success is defined by value extraction from the available capital pool.
                  </p>
              </div>
 
               <div className="lg-card p-6 border-b-4 border-purple-500/30">
-                 <h3 className="font-black text-[var(--lg-text-primary)] mb-3 uppercase tracking-tight">Real-time Analytics</h3>
+                 <h3 className="font-semibold text-[var(--lg-text-primary)] mb-3 tracking-tight">Real-time Analytics</h3>
                  <p className="text-[11px] text-[var(--lg-text-secondary)] leading-relaxed opacity-60">
                      Data ingestion is constant. Use the dashboard to monitor high-fidelity stat tracking across the entire league.
                  </p>

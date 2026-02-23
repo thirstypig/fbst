@@ -9,7 +9,7 @@ export default function Landing() {
           FBST
         </div>
         
-        <h1 className="text-5xl md:text-7xl font-black tracking-tighter text-[var(--lg-text-heading)] mb-6 leading-none">
+        <h1 className="text-5xl md:text-7xl font-semibold tracking-tight text-[var(--lg-text-heading)] mb-6 leading-none">
           Fantasy Baseball<br />
           <span className="text-[var(--lg-accent)]">Stat Tool</span>
         </h1>

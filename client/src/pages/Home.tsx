@@ -111,7 +111,7 @@ export default function Home() {
       ) : !myTeam ? (
           <div className="lg-card p-16 text-center max-w-2xl mx-auto shadow-2xl animate-in fade-in zoom-in-95 duration-700">
              <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-8 border border-white/10 text-4xl">🏳️</div>
-             <h2 className="text-3xl font-black tracking-tighter text-[var(--lg-text-heading)] mb-4">Unassigned Identity</h2>
+             <h2 className="text-3xl font-semibold tracking-tight text-[var(--lg-text-heading)] mb-4">Unassigned Identity</h2>
              <p className="text-sm font-medium text-[var(--lg-text-secondary)] mb-10 leading-relaxed opacity-60">You are currently in neutral territory. Link to an active franchise to begin tactical operations.</p>
              <Link to="/leagues" className="lg-button lg-button-primary px-10 py-3 shadow-2xl shadow-blue-500/20">
                Browse Sector Leagues
@@ -123,7 +123,7 @@ export default function Home() {
                  <div className="p-10 flex flex-col md:flex-row md:items-center justify-between gap-10 bg-white/5">
                      <div>
                         <div className="text-[10px] uppercase tracking-[0.3em] font-black text-[var(--lg-text-muted)] mb-3 opacity-60">Operations Unit</div>
-                        <h2 className="text-5xl font-black tracking-tighter text-[var(--lg-text-heading)] leading-none">{myTeam.name}</h2>
+                        <h2 className="text-4xl font-bold tracking-tight text-[var(--lg-text-heading)] leading-none">{myTeam.name}</h2>
                         <div className="mt-4 flex items-center gap-3">
                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2.5 py-1 rounded-md">Status: Active</span>
                            <span className="text-[10px] font-mono text-[var(--lg-text-muted)] opacity-40">REF_ID: {myTeam.code || myTeam.id}</span>
@@ -141,7 +141,7 @@ export default function Home() {
                    <div>
                      <div className="flex items-center gap-4 mb-8">
                         <div className="w-1.5 h-6 bg-blue-500 rounded-full shadow-lg shadow-blue-500/20"></div>
-                        <h3 className="text-2xl font-black uppercase tracking-tighter text-[var(--lg-text-heading)]">Hitting Corps <span className="text-[var(--lg-text-muted)] font-medium text-xs ml-3 uppercase tracking-widest opacity-40">Asset Distribution</span></h3>
+                        <h3 className="text-xl font-semibold tracking-tight text-[var(--lg-text-heading)]">Hitting <span className="text-[var(--lg-text-muted)] font-normal text-sm ml-2">Roster Overview</span></h3>
                      </div>
                      <div className="lg-card p-0 overflow-hidden bg-black/20">
                      <TableCard>
@@ -189,7 +189,7 @@ export default function Home() {
                    <div>
                      <div className="flex items-center gap-4 mb-8">
                         <div className="w-1.5 h-6 bg-purple-500 rounded-full shadow-lg shadow-purple-500/20"></div>
-                        <h3 className="text-2xl font-black uppercase tracking-tighter text-[var(--lg-text-heading)]">Pitching Rotation <span className="text-[var(--lg-text-muted)] font-medium text-xs ml-3 uppercase tracking-widest opacity-40">Kinematic Matrix</span></h3>
+                        <h3 className="text-xl font-semibold tracking-tight text-[var(--lg-text-heading)]">Pitching <span className="text-[var(--lg-text-muted)] font-normal text-sm ml-2">Roster Overview</span></h3>
                      </div>
                      <div className="lg-card p-0 overflow-hidden bg-black/20">
                      <TableCard>

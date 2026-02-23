@@ -139,7 +139,7 @@ const SeasonStandings = () => {
 
       <div className="lg-card p-10">
         <div className="mb-8">
-          <h2 className="text-2xl font-black tracking-tighter text-[var(--lg-text-heading)] uppercase">2025 OGBA Matrix</h2>
+          <h2 className="text-2xl font-semibold tracking-tight text-[var(--lg-text-heading)]">2025 OGBA Matrix</h2>
           <p className="text-sm text-[var(--lg-text-secondary)] mt-2 opacity-60 leading-relaxed">
             Cumulative roto points by meeting date. Values already include ties
             and half-points exactly as scored in the 2025 sheet.

@@ -186,7 +186,7 @@ export default function Team() {
     <div className="flex-1 min-h-screen bg-[var(--lg-bg)] text-[var(--lg-text-primary)]">
       <main className="max-w-7xl mx-auto px-6 py-12">
         <header className="mb-10 text-center relative">
-          <h1 className="text-5xl font-black uppercase tracking-tighter text-[var(--lg-text-heading)] mb-4">{teamName}</h1>
+          <h1 className="text-5xl font-semibold tracking-tight text-[var(--lg-text-heading)] mb-4">{teamName}</h1>
           <div className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--lg-text-muted)] opacity-60">
             Current Deployment: {hitters.length} Hitters • {pitchers.length} Pitchers
           </div>
@@ -450,7 +450,7 @@ export default function Team() {
              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4">
                  <div className="w-full max-w-7xl h-[90vh] bg-[#0c0c0c] rounded-3xl border border-white/10 shadow-2xl overflow-hidden flex flex-col liquid-glass">
                       <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
-                          <h2 className="text-xl font-black uppercase tracking-tighter text-[var(--lg-text-heading)]">Orchestrator: Roster Mobilization</h2>
+                          <h2 className="text-xl font-semibold tracking-tight text-[var(--lg-text-heading)]">Orchestrator: Roster Mobilization</h2>
                           <Button 
                              onClick={() => { setIsManaging(false); window.location.reload(); }}
                              variant="ghost"

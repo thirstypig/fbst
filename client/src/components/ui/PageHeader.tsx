@@ -36,7 +36,7 @@ export default function PageHeader({
               &larr; Back
             </Link>
           )}
-          <h1 className="lg-heading-1 text-5xl drop-shadow-sm">
+          <h1 className="lg-heading-1 text-3xl">
             {title}
           </h1>
           {subtitle && (

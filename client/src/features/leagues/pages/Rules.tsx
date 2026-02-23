@@ -193,7 +193,7 @@ export default function Rules() {
     <div className="max-w-5xl mx-auto px-6 py-12">
        <div className="flex items-center justify-between mb-12">
             <div>
-                <h1 className="text-4xl font-black tracking-tight text-[var(--lg-text-heading)]">Internal Protocols</h1>
+                <h1 className="text-4xl font-semibold tracking-tight text-[var(--lg-text-heading)]">Internal Protocols</h1>
                 <p className="text-[var(--lg-text-muted)] mt-2 font-medium">{isLocked ? "🔒 Strategic configurations are terminal for the current cycle." : "Modify active league parameters and governance rules."}</p>
             </div>
            
@@ -233,7 +233,7 @@ export default function Rules() {
                              ) : (
                                  <span className="text-2xl">📄</span>
                              )}
-                            <h2 className="text-xl font-black tracking-tight text-[var(--lg-text-heading)] capitalize">{cat.replace('_', ' ')} Registry</h2>
+                            <h2 className="text-xl font-semibold tracking-tight text-[var(--lg-text-heading)] capitalize">{cat.replace('_', ' ')} Registry</h2>
                         </div>
                        <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
                            {catRules.map(rule => {

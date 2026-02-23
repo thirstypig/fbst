@@ -187,7 +187,7 @@ export default function TransactionsPage() {
           {activeTab === 'waivers' && (
               <div className="max-w-xl mx-auto space-y-6">
                   <div className="text-center mb-12">
-                    <h3 className="text-4xl font-black uppercase tracking-tighter text-[var(--lg-text-heading)] mb-2">Waiver Priority</h3>
+                    <h3 className="text-4xl font-semibold tracking-tight text-[var(--lg-text-heading)] mb-2">Waiver Priority</h3>
                     <p className="text-[10px] text-[var(--lg-text-muted)] uppercase tracking-[0.3em] font-black opacity-40">Reverse Standings Algorithm</p>
                   </div>
                   

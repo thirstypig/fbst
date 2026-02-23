@@ -45,7 +45,7 @@ export default function EditTeamNameModal({
         className="relative w-full max-w-md rounded-[var(--lg-radius-2xl)] bg-[var(--lg-glass-bg)] backdrop-blur-[var(--lg-glass-blur)] border border-[var(--lg-glass-border)] shadow-[var(--lg-glass-shadow)] p-8 animate-in zoom-in-95 duration-200"
       >
         <div className="mb-6">
-          <h3 className="text-2xl font-black tracking-tighter text-[var(--lg-text-heading)]">
+          <h3 className="text-2xl font-semibold tracking-tight text-[var(--lg-text-heading)]">
             Franchise Rebranding
           </h3>
           <p className="text-[10px] font-black uppercase tracking-widest text-[var(--lg-text-muted)] mt-1 opacity-60">Updating Identity: {teamCode}</p>

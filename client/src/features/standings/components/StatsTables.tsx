@@ -184,7 +184,7 @@ export const PeriodSummaryTable: React.FC<PeriodSummaryTableProps> = ({
 
   return (
     <div className="mb-12">
-      <h2 className="text-2xl font-black tracking-tighter text-[var(--lg-text-heading)] mb-6 flex items-center gap-4 uppercase">
+      <h2 className="text-2xl font-semibold tracking-tight text-[var(--lg-text-heading)] mb-6 flex items-center gap-4">
         <span className="w-1.5 h-6 bg-[var(--lg-accent)] rounded-full"></span>
         Aggregated Summary – {periodId}
       </h2>
@@ -319,7 +319,7 @@ export const SeasonTable: React.FC<SeasonTableProps> = ({
 
   return (
     <div className="mb-12">
-      <h2 className="text-2xl font-black tracking-tighter text-[var(--lg-text-heading)] mb-6 flex items-center gap-4 uppercase">
+      <h2 className="text-2xl font-semibold tracking-tight text-[var(--lg-text-heading)] mb-6 flex items-center gap-4">
         <span className="w-1.5 h-6 bg-[var(--lg-accent)] rounded-full"></span>
         Season Strategic Ledger
       </h2>
@@ -450,7 +450,7 @@ export const TeamPeriodHittersTable: React.FC<TeamPeriodHittersProps> = ({
 
   return (
     <div className="mt-10">
-      <h3 className="text-xl font-black tracking-tighter text-[var(--lg-text-heading)] mb-5">
+      <h3 className="text-xl font-semibold tracking-tight text-[var(--lg-text-heading)] mb-5">
         Hitting Corps – Period {periodId}
       </h3>
       <div className="lg-card p-0 overflow-hidden bg-white/[0.01]">
@@ -535,7 +535,7 @@ export const TeamPeriodPitchersTable: React.FC<TeamPeriodPitchersProps> = ({
 
   return (
     <div className="mt-10">
-      <h3 className="text-xl font-black tracking-tighter text-[var(--lg-text-heading)] mb-5">
+      <h3 className="text-xl font-semibold tracking-tight text-[var(--lg-text-heading)] mb-5">
         Pitching Rotation – Period {periodId}
       </h3>
       <div className="lg-card p-0 overflow-hidden bg-white/[0.01]">

@@ -178,7 +178,7 @@ const Standings = () => {
                   <div className="space-y-10">
                     <div className="flex items-center gap-4 mb-8">
                        <div className="w-2 h-8 bg-blue-500 rounded-full shadow-lg shadow-blue-500/20"></div>
-                       <h3 className="text-2xl font-black uppercase tracking-tighter text-[var(--lg-text-heading)]">
+                       <h3 className="text-2xl font-semibold tracking-tight text-[var(--lg-text-heading)]">
                         Hitting Division
                       </h3>
                     </div>
@@ -197,7 +197,7 @@ const Standings = () => {
                   <div className="space-y-10">
                     <div className="flex items-center gap-4 mb-8">
                        <div className="w-2 h-8 bg-purple-500 rounded-full shadow-lg shadow-purple-500/20"></div>
-                       <h3 className="text-2xl font-black uppercase tracking-tighter text-[var(--lg-text-heading)]">
+                       <h3 className="text-2xl font-semibold tracking-tight text-[var(--lg-text-heading)]">
                         Pitching Division
                       </h3>
                     </div>

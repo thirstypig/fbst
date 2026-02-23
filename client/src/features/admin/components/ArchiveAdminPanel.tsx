@@ -220,7 +220,7 @@ export default function ArchiveAdminPanel({ year }: ArchiveAdminPanelProps) {
       <div className="p-8">
           <div className="flex items-center justify-between mb-8 pb-8 border-b border-white/5">
             <div className="flex items-center gap-8">
-              <h2 className="text-2xl font-black uppercase tracking-tighter text-[var(--fbst-text-heading)]">Registry Control</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[var(--fbst-text-heading)]">Registry Control</h2>
               <div className="flex items-center gap-4 bg-white/5 px-4 py-2 rounded-2xl border border-white/10">
                 <label className="text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)]">Target Cycle</label>
                 <input 

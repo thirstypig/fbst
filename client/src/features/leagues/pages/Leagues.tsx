@@ -122,7 +122,7 @@ export default function Leagues() {
 
         <div className="mt-8 space-y-4">
           <div className="flex items-center justify-between px-2">
-            <h2 className="text-2xl font-black tracking-tight text-[var(--lg-text-heading)]">Available Protocols</h2>
+            <h2 className="text-2xl font-semibold tracking-tight text-[var(--lg-text-heading)]">Available Protocols</h2>
           </div>
 
           {!me ? (
@@ -192,7 +192,7 @@ export default function Leagues() {
 
         {isAdminUser ? (
           <div className="mt-10 lg-card p-8 bg-[var(--lg-accent)]/5 border-[var(--lg-accent)]/20">
-            <div className="mb-6 text-xl font-black uppercase tracking-tighter text-[var(--lg-text-heading)]">Orchestrator: New League</div>
+            <div className="mb-6 text-xl font-semibold tracking-tight text-[var(--lg-text-heading)]">Orchestrator: New League</div>
 
             <form onSubmit={onCreateLeague} className="grid gap-6 md:grid-cols-4">
               <div className="md:col-span-2">
@@ -267,7 +267,7 @@ export default function Leagues() {
           Baseline workflow: Leagues Hub → Commissioner Command Center
         </div>
       <div className="mt-10 lg-card p-8">
-          <div className="mb-6 text-xl font-black uppercase tracking-tighter text-[var(--lg-text-heading)]">Orchestrator: Data Ingestion</div>
+          <div className="mb-6 text-xl font-semibold tracking-tight text-[var(--lg-text-heading)]">Orchestrator: Data Ingestion</div>
           <div className="text-xs text-[var(--lg-text-muted)] font-bold uppercase tracking-widest mb-8 leading-relaxed">
              Import a standardized CSV Manifest to populate league rosters and costs.
              <p className="mt-1 opacity-60">Required Headers: Player, MLB, Team, Cost, Keeper, Pos</p>

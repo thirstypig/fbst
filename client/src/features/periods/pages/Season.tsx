@@ -224,7 +224,7 @@ const SeasonPage: React.FC = () => {
           <div className="mt-8">
             <div className="mb-6 flex items-center justify-between px-2">
                <div>
-                  <h2 className="text-2xl font-black tracking-tight text-[var(--lg-text-heading)]">Point Matrix</h2>
+                  <h2 className="text-2xl font-semibold tracking-tight text-[var(--lg-text-heading)]">Point Matrix</h2>
                   <div className="mt-1 text-sm font-medium text-[var(--lg-text-muted)] opacity-60">Cumulative results across all completed periods.</div>
                </div>
             </div>

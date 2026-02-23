@@ -261,7 +261,7 @@ export default function Period() {
           <div className="overflow-hidden rounded-3xl liquid-glass border border-white/10 shadow-2xl">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white/5 border-b border-white/10 px-8 py-6">
               <div>
-                <h2 className="text-xl font-black tracking-tight text-[var(--fbst-text-heading)]">Roto Standings</h2>
+                <h2 className="text-xl font-semibold tracking-tight text-[var(--fbst-text-heading)]">Roto Standings</h2>
                 <div className="mt-1 text-sm font-medium text-[var(--fbst-text-muted)]">
                   Live ranking matrix based on category performance (1..{teamCount || "N"}).
                 </div>
@@ -364,7 +364,7 @@ export default function Period() {
           {/* Hitting */}
           <section>
             <div className="mb-6 flex items-end justify-between px-2">
-              <h2 className="text-2xl font-black tracking-tight text-[var(--fbst-text-heading)]">Hitting Categories</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[var(--fbst-text-heading)]">Hitting Categories</h2>
               {teamCount && <div className="text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)]">Ranked {teamCount}..1</div>}
             </div>
 
@@ -382,7 +382,7 @@ export default function Period() {
           {/* Pitching */}
           <section>
              <div className="mb-6 flex items-end justify-between px-2">
-              <h2 className="text-2xl font-black tracking-tight text-[var(--fbst-text-heading)]">Pitching Categories</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-[var(--fbst-text-heading)]">Pitching Categories</h2>
               {teamCount && <div className="text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)]">Ranked {teamCount}..1</div>}
             </div>
 
@@ -406,7 +406,7 @@ function CategoryCard({ cat }: { cat: PeriodCategoryStandingTable }) {
   return (
     <div className="overflow-hidden rounded-3xl liquid-glass border border-white/10 shadow-lg">
       <div className="flex items-center justify-between bg-white/5 border-b border-white/10 px-6 py-4">
-        <div className="text-base font-black tracking-tight text-[var(--fbst-text-heading)]">{cat.label}</div>
+        <div className="text-base font-semibold tracking-tight text-[var(--fbst-text-heading)]">{cat.label}</div>
         <div className="text-[9px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] flex items-center gap-2">
           {cat.higherIsBetter ? (
              <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Ascending</span>

@@ -72,7 +72,7 @@ export default function EditPlayerNameModal({ stat, onClose, onSave }: EditPlaye
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-6">
-          <h2 className="text-2xl font-black tracking-tighter text-[var(--lg-text-heading)]">Identity Override</h2>
+          <h2 className="text-2xl font-semibold tracking-tight text-[var(--lg-text-heading)]">Identity Override</h2>
           <p className="text-xs font-bold uppercase tracking-widest text-[var(--lg-text-muted)] mt-1 opacity-60">Updating Player Credentials</p>
         </div>
 

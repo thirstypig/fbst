@@ -49,7 +49,7 @@
     --lg-text-primary: #0f172a;
     --lg-text-secondary: #475569;
     --lg-text-muted: #64748b;
-    --lg-text-heading: var(--lg-pantone-294);
+    --lg-text-heading: #0f172a;
     --lg-text-accent: var(--lg-pantone-294-light);
 
     /* Accent */
@@ -183,7 +183,7 @@
     --lg-text-primary: #f1f5f9;
     --lg-text-secondary: #cbd5e1;
     --lg-text-muted: #64748b;
-    --lg-text-heading: var(--lg-pantone-294-bright);
+    --lg-text-heading: #f1f5f9;
     --lg-text-accent: var(--lg-pantone-294-bright);
 
     /* Accent - Dark */
@@ -371,29 +371,26 @@
 
   .lg-heading-1 {
     font-size: var(--lg-font-size-3xl);
-    font-weight: 900;
+    font-weight: 700;
     color: var(--lg-text-heading);
-    letter-spacing: -0.04em;
+    letter-spacing: -0.025em;
     line-height: 1.1;
-    text-transform: uppercase;
   }
 
   .lg-heading-2 {
     font-size: var(--lg-font-size-2xl);
-    font-weight: 900;
+    font-weight: 600;
     color: var(--lg-text-heading);
-    letter-spacing: -0.03em;
+    letter-spacing: -0.025em;
     line-height: 1.2;
-    text-transform: uppercase;
   }
 
   .lg-heading-3 {
     font-size: var(--lg-font-size-xl);
-    font-weight: 900;
+    font-weight: 600;
     color: var(--lg-text-heading);
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
     line-height: 1.3;
-    text-transform: uppercase;
   }
 
   .lg-label {
@@ -689,8 +686,9 @@
 
   .lg-welcome-title {
     font-size: var(--lg-font-size-3xl);
-    font-weight: 800;
+    font-weight: 700;
     color: var(--lg-text-heading);
+    letter-spacing: -0.025em;
     margin-bottom: 16px;
   }
 

@@ -671,7 +671,7 @@ export default function ArchivePage() {
                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                           </div>
                           <div>
-                            <div className="font-black text-lg tracking-tight text-[var(--fbst-text-heading)]">{OGBA_TEAM_NAMES[teamCode] || teamCode}</div>
+                            <div className="font-semibold text-lg tracking-tight text-[var(--fbst-text-heading)]">{OGBA_TEAM_NAMES[teamCode] || teamCode}</div>
                             <div className="text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] opacity-60">{teamPlayers.length} Nodes</div>
                           </div>
                         </div>
@@ -810,7 +810,7 @@ export default function ArchivePage() {
           <div className="rounded-3xl liquid-glass border border-white/10 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="bg-white/5 border-b border-white/10 px-8 py-6 flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-black tracking-tight text-[var(--fbst-text-heading)]">Standings Evolution</h2>
+                <h2 className="text-xl font-semibold tracking-tight text-[var(--fbst-text-heading)]">Standings Evolution</h2>
                 <div className="mt-1 text-sm font-medium text-[var(--fbst-text-muted)]">Cumulative point velocity across all intervals.</div>
               </div>
               <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--fbst-text-muted)] opacity-40">Scroll to Sort</div>
@@ -938,7 +938,7 @@ export default function ArchivePage() {
                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                           </div>
                           <div>
-                            <div className="font-black text-lg tracking-tight text-[var(--fbst-text-heading)]">{OGBA_TEAM_NAMES[teamCode] || teamCode}</div>
+                            <div className="font-semibold text-lg tracking-tight text-[var(--fbst-text-heading)]">{OGBA_TEAM_NAMES[teamCode] || teamCode}</div>
                             <div className="text-[10px] font-black uppercase tracking-widest text-[var(--fbst-text-muted)] opacity-60">
                                {hitters.length}H / {pitchers.length}P
                                {missingIds > 0 && <span className="ml-2 text-amber-500">⚠️ {missingIds} UNLINKED</span>}
