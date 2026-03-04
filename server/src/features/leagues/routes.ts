@@ -1,6 +1,7 @@
 // server/src/routes/leagues.ts
 import { Router } from "express";
 import { prisma } from "../../db/prisma.js";
+import { logger } from "../../lib/logger.js";
 import { KeeperPrepService } from "../keeper-prep/services/keeperPrepService.js";
 import { requireAuth } from "../../middleware/auth.js";
 
@@ -52,7 +53,7 @@ router.get("/leagues", requireAuth, async (req, res) => {
     const leagues = Array.from(byId.values());
     return res.json({ leagues });
   } catch (err: any) {
-    console.error("GET /leagues error:", err);
+    logger.error({ error: String(err) }, "GET /leagues error");
     return res.status(500).json({ error: err?.message || "Leagues error" });
   }
 });
@@ -100,7 +101,7 @@ router.get("/leagues/:id", async (req, res) => {
 
     return res.json({ league: { ...league, access: membership ? { type: "MEMBER", role: membership.role } : { type: "PUBLIC_VIEWER" } } });
   } catch (err: any) {
-    console.error("GET /leagues/:id error:", err);
+    logger.error({ error: String(err) }, "GET /leagues/:id error");
     return res.status(500).json({ error: err?.message });
   }
 });
@@ -184,7 +185,7 @@ router.get("/leagues/:id/my-roster", requireAuth, async (req, res) => {
     return res.json({ team, roster, isLocked, keeperLimit });
 
   } catch (err: any) {
-    console.error("GET /my-roster error:", err);
+    logger.error({ error: String(err) }, "GET /my-roster error");
     return res.status(500).json({ error: err?.message || "Failed to fetch roster" });
   }
 });
@@ -259,12 +260,12 @@ router.post("/leagues/:id/my-roster/keepers", requireAuth, async (req, res) => {
                 data: { isKeeper: true }
             });
         }
-    });
+    }, { timeout: 30_000 });
 
     return res.json({ success: true, count: keeperIds.length });
 
   } catch (err: any) {
-    console.error("POST /keepers error:", err);
+    logger.error({ error: String(err) }, "POST /keepers error");
     return res.status(500).json({ error: err?.message || "Failed to save keepers" });
   }
 });

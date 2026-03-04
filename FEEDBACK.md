@@ -4,6 +4,99 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
+## Session 2026-03-04 (Session 5)
+
+### Completed
+- **Phase 1 — Immediate Security Fixes**:
+  - Added `requireAuth` to 15 unprotected write endpoints across 5 route files
+  - Added `requireAdmin` to waivers `/process` and trades `/process`
+  - Hard-gated `/auth/dev-login` behind `ENABLE_DEV_LOGIN=true` env var
+  - Added 10s `AbortSignal.timeout` to MLB API fetch calls
+  - Env var validation at startup — server exits if missing
+  - Graceful shutdown (SIGTERM/SIGINT)
+  - Sanitized global error handler — no internal details leaked
+  - Removed unused deps: `csv-parser`, `papaparse`, `socket.io-client`
+- **P0 — Security & Stability**:
+  - **Rate limiting**: `express-rate-limit` — global 100 req/min, auth 10 req/min
+  - **Ownership validation**: `requireTeamOwner` middleware — checks both legacy `ownerUserId` and `TeamOwnership` table. Applied to teams PATCH, waivers POST, transactions claim, trades propose
+  - **Input validation**: `zod` schemas on all 5 write endpoints (roster add-player, waivers claim, trades propose, transactions claim, teams roster update). `validateBody` middleware factory.
+- **P3 — Code Quality**:
+  - **asyncHandler**: utility wrapping all async route handlers (roster, waivers, trades, transactions, teams, standings) — catches unhandled rejections
+  - **Structured logging**: replaced 39 `console.error()` calls across 17 files with `logger.error()`. Only 5 remaining in seed/logger/startup (appropriate)
+  - **Hardcoded season removed**: transactions routes now look up `league.season` dynamically
+  - **Idempotency keys**: replaced `Date.now()` in transaction rowHash with `crypto.randomUUID()`
+- **P1 — Resilience**:
+  - **MLB API retry**: 3 retries with exponential backoff (1s, 2s, 4s) + circuit breaker (opens after 5 failures, resets after 60s)
+  - **Transaction timeouts**: all 7 `prisma.$transaction()` calls now have `{ timeout: 30_000 }`
+  - **Request ID tracking**: `x-request-id` middleware on all requests
+  - **Health check expansion**: `/api/health` now checks both DB and Supabase connectivity
+- **Documentation**:
+  - Created `docs/SECURITY.md`, `docs/ROADMAP.md`
+  - Updated `CLAUDE.md` with security conventions
+  - New middleware files: `asyncHandler.ts`, `validate.ts`
+
+### Pending / Next Steps
+- [ ] IDOR protection — league-scoped queries should filter by user's memberships
+- [ ] Audit logging — log admin/commissioner actions to AuditLog table
+- [ ] Test coverage for new middleware (requireTeamOwner, validateBody, asyncHandler)
+- [ ] Increase overall test coverage (currently 1.4%, 103 tests)
+
+### Concerns / Tech Debt
+- **Trade accept/reject**: currently only requires `requireAuth`, not ownership of the counterparty team. Would need to fetch the trade to determine recipient.
+- **Roster routes use `teamCode` not `teamId`**: can't apply `requireTeamOwner` to legacy `RosterEntry` model — separate ownership pattern needed
+- **IDOR risk**: league-scoped GET queries don't verify the user is a league member
+
+### Test Results
+- Server: 69 tests passing (4 files)
+- Client: 34 tests passing (2 files)
+- Total: 103 tests, all green
+- TypeScript: 0 new errors (server has 10 pre-existing in test file)
+
+---
+
+## Session 2026-03-04 (Session 4)
+
+### Completed
+- **UI/UX Redesign** (PR #10, merged to main, 67 files changed):
+  - Removed wave background image entirely (both light/dark mode)
+  - Unified all table styling through `table.tsx` as single source of truth
+  - Stripped inline style overrides from ThemedTh/ThemedTd across 22 table-using files
+  - Converted raw `<table>/<th>/<td>` to ThemedTable in 6 files (Period, PlayerDetailModal, RosterManagementForm, ArchivePage, AuctionValues, PlayerExpandedRow)
+  - Removed blue accent color from all table headers — consistent muted gray everywhere
+  - Added `tabular-nums` to base TableCell component
+  - Toned down typography: `font-bold` → `font-medium` on labels, `font-bold` → `font-semibold` on headings
+  - Deleted 3 stale files (Layout.tsx, NavBar.tsx, ThemeContext.tsx)
+  - Migrated all `--fbst-*` CSS vars to `--lg-*`, removed legacy shim block
+  - Compacted sidebar nav, tuned liquid glass opacity/blur
+  - Added Inter font import
+  - Cleaned sci-fi/military naming across ~30 files
+- **Feature Module Isolation Audit** — comprehensive audit of client + server
+  - Found 9 undocumented client cross-feature imports, 1 undocumented server import
+  - Updated CLAUDE.md with full cross-feature dependency map
+  - All 15 modules properly structured with index.ts barrels
+
+### Pending / Next Steps
+- [ ] Visual QA: run dev server and inspect all pages in light/dark mode after design reset
+- [ ] Consider extracting `PlayerDetailModal` and `StatsTables` to `src/components/` (used by 3+ features each)
+- [ ] Consider extracting shared auction import logic from CommissionerService → auction dependency
+- [ ] 46 unmatched archive players still need manual matching
+- [ ] Feature-by-feature quality pass (types, error handling, validation, tests)
+
+### Concerns / Tech Debt
+- **`PlayerDetailModal`** used by 3 features (auction, teams, archive) — candidate for promotion to shared components
+- **`StatsTables`** used by 3 features (standings, archive, periods) — candidate for promotion to shared components
+- **CommissionerService → AuctionImportService** server dependency — tightest coupling; consider shared service extraction
+- **14 stale worktrees** exist in `.claude/worktrees/` — should clean up
+- **ThemeContext still imported** in `roster/RosterManagementForm.tsx` and `periods/Season.tsx` — verify it's actually needed after the `useTheme()` removal from Period.tsx
+
+### Test Results
+- Server: 4 files, 69 tests passing
+- Client: 2 files, 34 tests passing
+- Total: 103 tests, all green
+- TypeScript: zero errors (client)
+
+---
+
 ## Session 2026-03-03 (Session 3)
 
 ### Completed

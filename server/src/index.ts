@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import dotenv from "dotenv";
 import path from "path";
 
@@ -29,15 +30,23 @@ import { keeperPrepRouter } from "./features/keeper-prep/index.js";
 import { periodsRouter } from "./features/periods/index.js";
 import { playersRouter } from "./features/players/index.js";
 
+import rateLimit from "express-rate-limit";
 import { attachUser } from "./middleware/auth.js";
+import { supabaseAdmin } from "./lib/supabase.js";
 import { toNum, toBool, normCode } from './lib/utils.js';
 import { DataService } from './features/players/services/dataService.js';
 import { warmMlbTeamCache } from './lib/mlbApi.js';
 import { logger } from './lib/logger.js';
 import { buildTeamNameMap } from './features/standings/services/standingsService.js';
 
-// Validate Auth Config on Startup
-// validateAuthConfig(); // Removed legacy auth validation
+// Validate required env vars at startup
+const REQUIRED_ENV = ["DATABASE_URL", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SESSION_SECRET"];
+for (const key of REQUIRED_ENV) {
+  if (!process.env[key]) {
+    console.error(`FATAL: Missing required env var: ${key}`);
+    process.exit(1);
+  }
+}
 
 const PORT = Number(process.env.PORT || 4001);
 
@@ -62,21 +71,58 @@ async function main() {
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
+  // Request ID tracking
+  app.use((req, _res, next) => {
+    (req as any).requestId = req.headers["x-request-id"] || crypto.randomUUID();
+    next();
+  });
+
+  // Rate limiting
+  const globalLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many requests, please try again later" },
+  });
+  const authLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many auth attempts, please try again later" },
+  });
+  app.use("/api", globalLimiter);
+  app.use("/api/auth", authLimiter);
+
   app.use(attachUser);
 
   // Health check
-  // Health check
   app.get("/api/health", async (req, res) => {
+    const checks: Record<string, string> = {};
+    let healthy = true;
+
+    // DB check
     try {
-      // Check DB connection
       await prisma.$queryRaw`SELECT 1`;
-      res.json({ 
-        debug: "V3_LOGGING_ACTIVE" 
-      });
-    } catch (error) {
-            console.error("Health check failed:", error);
-      res.status(503).json({ status: "error", db: "disconnected", timestamp: Date.now(), error: String(error) });
+      checks.db = "ok";
+    } catch {
+      checks.db = "error";
+      healthy = false;
     }
+
+    // Supabase check
+    try {
+      const { data, error } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1 });
+      checks.supabase = error ? "error" : "ok";
+      if (error) healthy = false;
+    } catch {
+      checks.supabase = "error";
+      healthy = false;
+    }
+
+    const status = healthy ? 200 : 503;
+    res.status(status).json({ status: healthy ? "ok" : "degraded", checks, timestamp: Date.now() });
   });
 
   // Routes
@@ -149,14 +195,9 @@ async function main() {
   });
 
   // --- 4. Global Error Handler ---
-  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-    console.error("Global Error Handler:", err);
-    res.status(500).json({
-      status: "error",
-      error: "Internal Server Error",
-      message: err?.message || String(err),
-      stack: process.env.NODE_ENV === "development" ? err?.stack : undefined,
-    });
+  app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    logger.error({ error: String(err?.message), path: req.path }, "Unhandled error");
+    res.status(500).json({ error: "Internal Server Error" });
   });
 
   // --- 3. SPA Catch-All (For React Routing) ---
@@ -176,7 +217,7 @@ async function main() {
   });
 
   // Determine if we should use HTTPS locally
-  let server;
+  let server: import("http").Server | import("https").Server;
   const keyPath = path.resolve(process.cwd(), "certs", "key.pem");
   const certPath = path.resolve(process.cwd(), "certs", "cert.pem");
 
@@ -184,14 +225,6 @@ async function main() {
     const protocol = fs.existsSync(keyPath) ? "HTTPS" : "HTTP";
     logger.info({ port: PORT, protocol }, `🔥 FBST server listening on 0.0.0.0 (${protocol})`);
     
-    // ── Auth Configuration Validation ──────────────────────────────
-    // Supabase validation handled by lib/supabase.ts (initially warnings)
-    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-        logger.warn({}, "⚠️ Supabase credentials missing. Auth will fail.");
-    } else {
-        logger.info({}, "✅ Supabase Configured");
-    }
-
   };
 
   const isDev = process.env.NODE_ENV === "development";
@@ -220,6 +253,17 @@ async function main() {
     logger.error({ error: String(err) }, 'Server listen error');
     process.exit(1);
   });
+
+  // Graceful shutdown
+  function shutdown(signal: string) {
+    logger.info({ signal }, "Shutdown signal received");
+    server.close(() => {
+      prisma.$disconnect().then(() => process.exit(0));
+    });
+    setTimeout(() => process.exit(1), 10_000);
+  }
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
 }
 
 main().catch((e) => {

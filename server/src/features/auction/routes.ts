@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../../db/prisma.js";
+import { logger } from "../../lib/logger.js";
 
 const router = Router();
 
@@ -178,7 +179,7 @@ router.post("/init", async (req, res) => {
 
     res.json(STATE);
   } catch (e: any) {
-    console.error("Auction /init error:", e);
+    logger.error({ error: String(e) }, "Auction /init error");
     res.status(500).json({ 
       error: "Failed to initialize auction", 
       message: e.message, 
@@ -344,7 +345,7 @@ router.post("/finish", async (req, res) => {
      res.json(STATE);
 
   } catch (e: any) {
-      console.error(e);
+      logger.error({ error: String(e) }, "Auction /finish error");
       res.status(500).json({ error: "Failed to commit auction result" });
   }
 });

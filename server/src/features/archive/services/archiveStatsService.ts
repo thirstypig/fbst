@@ -1,4 +1,5 @@
 import { prisma } from '../../../db/prisma.js';
+import { logger } from '../../../lib/logger.js';
 
 export class ArchiveStatsService {
   private OPENING_DAYS: Record<number, string> = {
@@ -17,7 +18,7 @@ export class ArchiveStatsService {
       const data = await response.json() as any;
       return data.people?.[0]?.id?.toString() || null;
     } catch (e) {
-      console.error(`Error looking up MLB ID for ${name}:`, e);
+      logger.error({ error: String(e), name }, "Error looking up MLB ID");
       return null;
     }
   }
@@ -130,7 +131,7 @@ export class ArchiveStatsService {
         
         return Object.keys(updateData).length > 0 ? updateData : null;
       } catch (err) {
-        console.error(`Error fetching MLB data for ${mlbId}:`, err);
+        logger.error({ error: String(err), mlbId }, "Error fetching MLB data");
         return null;
       }
     };

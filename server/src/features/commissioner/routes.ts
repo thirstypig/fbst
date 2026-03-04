@@ -1,6 +1,7 @@
 // server/src/routes/commissioner.ts
 import { Router } from "express";
 import { prisma } from "../../db/prisma.js";
+import { logger } from "../../lib/logger.js";
 import multer from "multer";
 import { parse } from "csv-parse";
 import { Readable } from "stream";
@@ -77,7 +78,7 @@ router.get("/commissioner/:leagueId", requireAuth, requireCommissionerOrAdmin(),
 
     return res.json({ league, teams, memberships });
   } catch (err: any) {
-    console.error("GET /commissioner/:leagueId error:", err);
+    logger.error({ error: String(err) }, "GET /commissioner/:leagueId error");
     return res.status(500).json({ error: err?.message || "Commissioner overview error" });
   }
 });
@@ -444,7 +445,7 @@ router.post(
 
       return res.json(result);
     } catch (err: any) {
-       console.error(err);
+       logger.error({ error: String(err) }, "Roster import error");
       return res.status(500).json({ error: "Import failed" });
     }
   }
@@ -598,7 +599,7 @@ router.post("/commissioner/:leagueId/end-auction", requireAuth, requireCommissio
 
         return res.json({ success: true, snapshotted: count });
     } catch(e: any) {
-        console.error(e);
+        logger.error({ error: String(e) }, "End auction error");
         return res.status(500).json({ error: e.message });
     }
 });

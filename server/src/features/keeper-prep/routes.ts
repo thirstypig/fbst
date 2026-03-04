@@ -2,6 +2,7 @@
 // Keeper Selection Agent — Pre-Auction Preparation Routes
 
 import { Router } from "express";
+import { logger } from "../../lib/logger.js";
 import { KeeperPrepService } from "./services/keeperPrepService.js";
 import { prisma } from "../../db/prisma.js";
 import { requireAuth, requireCommissionerOrAdmin } from "../../middleware/auth.js";
@@ -25,7 +26,7 @@ router.post(
       const result = await keeperPrepService.populateRostersFromPriorSeason(leagueId);
       return res.json({ success: true, ...result });
     } catch (err: any) {
-      console.error("keeper-prep/populate error:", err);
+      logger.error({ error: String(err) }, "keeper-prep/populate error");
       return res.status(400).json({ error: err?.message || "Populate failed" });
     }
   }
