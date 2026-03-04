@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../../db/prisma.js";
+import { asyncHandler } from "../../middleware/asyncHandler.js";
+import { logger } from "../../lib/logger.js";
 
 const router = Router();
 
@@ -43,7 +45,7 @@ router.get("/period/current", async (req, res) => {
       data: standings,
     });
   } catch (e) {
-    console.error("Error fetching period standings:", e);
+    logger.error({ error: String(e) }, "Error fetching period standings");
     res.status(500).json({ error: "Failed to fetch period standings" });
   }
 });
@@ -143,7 +145,7 @@ router.get("/period-category-standings", async (req, res) => {
       teamCount: stats.length, 
     });
   } catch (e) {
-    console.error("Error fetching period standings:", e);
+    logger.error({ error: String(e) }, "Error fetching period standings");
     res.status(500).json({ error: "Failed to fetch period standings" });
   }
 });
@@ -187,7 +189,7 @@ router.get("/season", async (req, res) => {
 
     res.json({ data });
   } catch (e) {
-    console.error("Error fetching season standings:", e);
+    logger.error({ error: String(e) }, "Error fetching season standings");
     res.status(500).json({ error: "Failed to fetch season standings" });
   }
 });

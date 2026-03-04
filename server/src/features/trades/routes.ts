@@ -1,45 +1,56 @@
 
 import { Router } from "express";
+import { z } from "zod";
 import { prisma } from "../../db/prisma.js";
+import { requireAuth, requireAdmin, requireTeamOwner } from "../../middleware/auth.js";
+import { validateBody } from "../../middleware/validate.js";
+import { asyncHandler } from "../../middleware/asyncHandler.js";
+
+const tradeItemSchema = z.object({
+  senderId: z.number().int().positive(),
+  recipientId: z.number().int().positive(),
+  assetType: z.enum(["PLAYER", "BUDGET", "PICK"]),
+  playerId: z.number().int().positive().optional(),
+  amount: z.number().nonnegative().optional(),
+  pickRound: z.number().int().positive().optional(),
+});
+
+const tradeProposalSchema = z.object({
+  leagueId: z.number().int().positive(),
+  proposerTeamId: z.number().int().positive(),
+  items: z.array(tradeItemSchema).min(1),
+});
 
 const router = Router();
 
 // POST /api/trades - Propose a new trade
-router.post("/", async (req, res) => {
-  try {
-    const { leagueId, proposerTeamId, items } = req.body;
-    // items: [{ senderId, recipientId, assetType, playerId?, amount?, pickRound? }]
+router.post("/", requireAuth, validateBody(tradeProposalSchema), requireTeamOwner("proposerTeamId"), asyncHandler(async (req, res) => {
+  const { leagueId, proposerTeamId, items } = req.body;
 
-    // Validation ...
-
-    const trade = await prisma.trade.create({
-      data: {
-        leagueId,
-        proposerId: proposerTeamId,
-        status: "PROPOSED",
-        items: {
-          create: items.map((item: any) => ({
-            senderId: item.senderId,
-            recipientId: item.recipientId,
-            assetType: item.assetType,
-            playerId: item.playerId,
-            amount: item.amount,
-            pickRound: item.pickRound,
-          })),
-        },
+  const trade = await prisma.trade.create({
+    data: {
+      leagueId,
+      proposerId: proposerTeamId,
+      status: "PROPOSED",
+      items: {
+        create: items.map((item: any) => ({
+          senderId: item.senderId,
+          recipientId: item.recipientId,
+          assetType: item.assetType,
+          playerId: item.playerId,
+          amount: item.amount,
+          pickRound: item.pickRound,
+        })),
       },
-      include: { items: true },
-    });
+    },
+    include: { items: true },
+  });
 
-    res.json(trade);
-  } catch (e: any) {
-    console.error("Error creating trade:", e);
-    res.status(500).json({ error: e.message });
-  }
-});
+  res.json(trade);
+}));
 
 // GET /api/trades - List trades for a league
-router.get("/", async (req, res) => {
+router.get("/", asyncHandler(async (req, res) => {
   const leagueId = Number(req.query.leagueId);
   if (!leagueId) return res.status(400).json({ error: "Missing leagueId" });
 
@@ -52,34 +63,32 @@ router.get("/", async (req, res) => {
     orderBy: { createdAt: "desc" },
   });
   res.json(trades);
-});
+}));
 
 // POST /api/trades/:id/accept - Accept a trade
-router.post("/:id/accept", async (req, res) => {
+router.post("/:id/accept", requireAuth, asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
-  // Logic to verify user is the recipient...
-  // For now, simple implementation
   const trade = await prisma.trade.update({
     where: { id },
     data: { status: "ACCEPTED" },
   });
   res.json(trade);
-});
+}));
 
 // POST /api/trades/:id/reject - Reject a trade
-router.post("/:id/reject", async (req, res) => {
+router.post("/:id/reject", requireAuth, asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
   const trade = await prisma.trade.update({
     where: { id },
     data: { status: "REJECTED" },
   });
   res.json(trade);
-});
+}));
 
 // POST /api/trades/:id/process - Execute (Commission/Admin)
-router.post("/:id/process", async (req, res) => {
+router.post("/:id/process", requireAdmin, asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
-  
+
   // 1. Verify status is ACCEPTED
   const trade = await prisma.trade.findUnique({
     where: { id },
@@ -92,36 +101,30 @@ router.post("/:id/process", async (req, res) => {
 
   // 2. Transact
   await prisma.$transaction(async (tx: any) => {
-    // Process items
     for (const item of trade.items) {
       if (item.assetType === "PLAYER" && item.playerId) {
-        // Move player: Update Roster
-        // Find current roster entry for sender
         const rosterEntry = await tx.roster.findFirst({
           where: { teamId: item.senderId, playerId: item.playerId, releasedAt: null },
         });
 
         if (rosterEntry) {
-           // Release from sender
            await tx.roster.update({
              where: { id: rosterEntry.id },
-             data: { releasedAt: new Date(), source: "TRADE_OUT" }, // Maybe keep original source but set releasedAt?
+             data: { releasedAt: new Date(), source: "TRADE_OUT" },
            });
-           
-           // Add to recipient
+
            await tx.roster.create({
              data: {
                teamId: item.recipientId,
                playerId: item.playerId,
                source: "TRADE_IN",
-               acquiredAt: new Date(), // Effective immediately?
-               price: rosterEntry.price, // Keep price (keeper value)
-               assignedPosition: null, 
+               acquiredAt: new Date(),
+               price: rosterEntry.price,
+               assignedPosition: null,
              },
            });
         }
       } else if (item.assetType === "BUDGET") {
-        // Transfer budget
         await tx.team.update({
           where: { id: item.senderId },
           data: { budget: { decrement: item.amount || 0 } },
@@ -130,20 +133,17 @@ router.post("/:id/process", async (req, res) => {
           where: { id: item.recipientId },
           data: { budget: { increment: item.amount || 0 } },
         });
-
-        // Log finance event?
       }
     }
 
-    // 3. Update Trade status
     await tx.trade.update({
       where: { id },
       data: { status: "PROCESSED", processedAt: new Date() },
     });
-  });
+  }, { timeout: 30_000 });
 
   res.json({ success: true });
-});
+}));
 
 export const tradesRouter = router;
 export default tradesRouter;

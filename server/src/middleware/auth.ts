@@ -2,6 +2,7 @@
 import type { Request, Response, NextFunction, RequestHandler } from "express";
 import jwt from "jsonwebtoken";
 import { prisma } from "../db/prisma.js";
+import { logger } from "../lib/logger.js";
 const COOKIE_NAME = "fbst_session";
 
 export type SessionTokenPayload = {
@@ -94,7 +95,7 @@ export async function attachUser(req: Request, _res: Response, next: NextFunctio
     req.user = u ?? null;
     return next();
   } catch (err) {
-    console.error("Auth middleware error:", err);
+    logger.error({ error: String(err) }, "Auth middleware error");
     req.user = null;
     return next();
   }
@@ -180,4 +181,45 @@ export function requireCommissionerOrAdmin(leagueIdParam = "leagueId"): RequestH
 export function parseIntParam(v: any): number | null {
   const n = Number(String(v ?? "").trim());
   return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Check if a user owns a team (via legacy ownerUserId or TeamOwnership table).
+ * Admins bypass ownership checks.
+ */
+export async function isTeamOwner(teamId: number, userId: number): Promise<boolean> {
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+    select: { ownerUserId: true },
+  });
+  if (!team) return false;
+  if (team.ownerUserId === userId) return true;
+
+  const ownership = await prisma.teamOwnership.findUnique({
+    where: { teamId_userId: { teamId, userId } },
+  });
+  return !!ownership;
+}
+
+/**
+ * Middleware factory: requires the authenticated user to own the team
+ * identified by `teamIdSource`. Reads from req.params first, then req.body.
+ * Admins bypass the check. Must be placed after `requireAuth`.
+ */
+export function requireTeamOwner(teamIdSource = "teamId"): RequestHandler {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const teamId = Number(req.params[teamIdSource] ?? req.body?.[teamIdSource]);
+    if (!Number.isFinite(teamId)) {
+      return res.status(400).json({ error: "Invalid teamId" });
+    }
+
+    if (req.user!.isAdmin) return next();
+
+    const owns = await isTeamOwner(teamId, req.user!.id);
+    if (!owns) {
+      return res.status(403).json({ error: "You do not own this team" });
+    }
+
+    return next();
+  };
 }

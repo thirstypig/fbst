@@ -399,7 +399,7 @@ export class CommissionerService {
 
       // Finally delete the team
       await tx.team.delete({ where: { id: teamId } });
-    });
+    }, { timeout: 30_000 });
 
     return { success: true };
   }

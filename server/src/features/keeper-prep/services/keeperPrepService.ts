@@ -252,7 +252,7 @@ export class KeeperPrepService {
           data: { isKeeper: true },
         });
       }
-    });
+    }, { timeout: 30_000 });
 
     return { count: keeperRosterIds.length, cost: validRosters.reduce((sum, r) => sum + r.price, 0) };
   }

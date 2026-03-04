@@ -134,7 +134,7 @@ export class AuctionImportService {
             }
             importedCount++;
         }
-    });
+    }, { timeout: 30_000 });
 
     return { success: true, count: importedCount, errors };
   }

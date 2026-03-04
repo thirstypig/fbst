@@ -2,6 +2,7 @@
 import { Router } from "express";
 import express from "express";
 import { prisma } from "../../db/prisma.js";
+import { logger } from "../../lib/logger.js";
 import { requireAuth, requireAdmin } from "../../middleware/auth.js";
 
 const router = Router();
@@ -301,7 +302,7 @@ router.post("/admin/league/:leagueId/import-rosters", requireAuth, requireAdmin,
     
     return res.json(result);
   } catch (err: any) {
-    console.error("Import failed:", err);
+    logger.error({ error: String(err) }, "Import failed");
     return res.status(500).json({ error: String(err?.message || "Import failed") });
   }
 });

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../../db/prisma.js";
 import { supabaseAdmin } from "../../lib/supabase.js";
+import { logger } from "../../lib/logger.js";
 
 const router = Router();
 
@@ -55,13 +56,13 @@ router.get("/me", async (req, res) => {
 
     return res.json({ user });
   } catch (err: any) {
-    console.error("GET /auth/me error:", err);
+    logger.error({ error: String(err) }, "GET /auth/me error");
     return res.status(500).json({ error: "Auth check failed" });
   }
 });
 
 // Dev-only: set a known password on the first admin user and return credentials
-if (process.env.NODE_ENV !== "production") {
+if (process.env.ENABLE_DEV_LOGIN === "true") {
   router.post("/dev-login", async (_req, res) => {
     try {
       const DEV_PASSWORD = "Password123";

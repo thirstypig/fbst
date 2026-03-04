@@ -2,6 +2,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { logger } from "../lib/logger.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -117,7 +118,7 @@ export function saveTeamCache(map: Map<string, string>, cachePath = defaultCache
     };
     fs.writeFileSync(cachePath, JSON.stringify(obj, null, 2), "utf-8");
   } catch (err: any) {
-    console.error(`[mlb_team_cache] Save failed to ${cachePath}: ${err.message}`);
+    logger.error({ error: String(err) }, `[mlb_team_cache] Save failed to ${cachePath}`);
   }
 }
 

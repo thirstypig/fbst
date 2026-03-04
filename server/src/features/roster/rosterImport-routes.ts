@@ -1,5 +1,6 @@
 import express from 'express';
 import multer from 'multer';
+import { logger } from '../../lib/logger.js';
 import { parse } from 'csv-parse';
 import { Readable } from 'stream';
 import { prisma } from '../../db/prisma.js';
@@ -86,7 +87,7 @@ router.post('/import', upload.single('file'), async (req, res) => {
 
     res.json({ success: true, created, updated, logs });
   } catch (err) {
-    console.error('Roster import error:', err);
+    logger.error({ error: String(err) }, "Roster import error");
     res.status(500).json({ error: 'Failed to import roster CSV' });
   }
 });

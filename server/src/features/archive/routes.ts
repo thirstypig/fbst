@@ -1,5 +1,6 @@
 import express from 'express';
 import { prisma } from '../../db/prisma.js';
+import { logger } from '../../lib/logger.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -37,7 +38,7 @@ router.get('/archive/seasons', async (req, res) => {
     });
     return res.json({ seasons: seasons.map(s => s.year) });
   } catch (error: any) {
-    console.error('GET /archive/seasons error:', error);
+    logger.error({ error: String(error) }, "GET /archive/seasons error");
     return res.status(500).json({ error: error?.message || 'Failed to fetch archive seasons' });
   }
 });
@@ -71,7 +72,7 @@ router.get('/archive/:year/standings', async (req, res) => {
       standings: (season as any).standings 
     });
   } catch (error: any) {
-    console.error(`GET /archive/${req.params.year}/standings error:`, error);
+    logger.error({ error: String(error) }, `GET /archive/${req.params.year}/standings error`);
     return res.status(500).json({ error: error?.message || 'Failed to fetch standings' });
   }
 });
@@ -91,7 +92,7 @@ router.get('/archive/:year/period/:num/standings', async (req, res) => {
     const standings = await statsService.calculatePeriodStandings(year, periodNum);
     return res.json({ year, periodNumber: periodNum, standings });
   } catch (error: any) {
-    console.error(`GET /archive/${req.params.year}/period/${req.params.num}/standings error:`, error);
+    logger.error({ error: String(error) }, `GET /archive/${req.params.year}/period/${req.params.num}/standings error`);
     return res.status(500).json({ error: error?.message || 'Failed to fetch period standings' });
   }
 });
@@ -135,7 +136,7 @@ router.get('/archive/:year/periods', async (req, res) => {
       periods: season.periods 
     });
   } catch (error: any) {
-    console.error(`GET /archive/${req.params.year}/periods error:`, error);
+    logger.error({ error: String(error) }, `GET /archive/${req.params.year}/periods error`);
     return res.status(500).json({ error: error?.message || 'Failed to fetch periods' });
   }
 });
@@ -170,7 +171,7 @@ router.put('/archive/:year/teams/:teamCode', async (req, res) => {
 
     res.json({ success: true, message: 'Team updated', count: updated.count });
   } catch (err: any) {
-    console.error('Error updating team name:', err);
+    logger.error({ error: String(err) }, "Error updating team name");
     res.status(500).json({ error: 'Failed to update team' });
   }
 });
@@ -230,7 +231,7 @@ router.get('/archive/:year/period/:num/stats', async (req, res) => {
       stats: period.stats
     });
   } catch (error: any) {
-    console.error(`GET /archive/${req.params.year}/period/${req.params.num}/stats error:`, error);
+    logger.error({ error: String(error) }, `GET /archive/${req.params.year}/period/${req.params.num}/stats error`);
     return res.status(500).json({ error: error?.message || 'Failed to fetch period stats' });
   }
 });
@@ -267,7 +268,7 @@ router.patch('/archive/stat/:id', async (req, res) => {
 
     return res.json({ success: true, stat: updated });
   } catch (error: any) {
-    console.error(`PATCH /archive/stat/${req.params.id} error:`, error);
+    logger.error({ error: String(error) }, `PATCH /archive/stat/${req.params.id} error`);
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Stat record not found' });
     }
@@ -344,7 +345,7 @@ router.post('/archive/:year/sync', async (req, res) => {
 
     return res.json({ success: true, year, updated, matchResult, logs });
   } catch (error: any) {
-    console.error(`POST /archive/${req.params.year}/sync error:`, error);
+    logger.error({ error: String(error) }, `POST /archive/${req.params.year}/sync error`);
     return res.status(500).json({ error: error?.message || 'Failed to sync season' });
   }
 });
@@ -361,7 +362,7 @@ router.post('/archive/:year/recalculate', async (req, res) => {
 
     return res.json({ success: true, year, updated });
   } catch (error: any) {
-    console.error(`POST /archive/${req.params.year}/recalculate error:`, error);
+    logger.error({ error: String(error) }, `POST /archive/${req.params.year}/recalculate error`);
     return res.status(500).json({ error: error?.message || 'Failed to recalculate' });
   }
 });
@@ -397,7 +398,7 @@ router.get('/archive/search-players', async (req, res) => {
 
     return res.json({ players });
   } catch (error: any) {
-    console.error('GET /archive/search-players error:', error);
+    logger.error({ error: String(error) }, "GET /archive/search-players error");
     return res.status(500).json({ error: error?.message || 'Failed to search players' });
   }
 });
@@ -431,7 +432,7 @@ router.get('/archive/search-mlb', async (req, res) => {
 
     return res.json({ players });
   } catch (error: any) {
-    console.error('GET /archive/search-mlb error:', error);
+    logger.error({ error: String(error) }, "GET /archive/search-mlb error");
     return res.status(500).json({ error: error?.message || 'Failed to search MLB API' });
   }
 });
@@ -533,7 +534,7 @@ router.get('/archive/:year/period-results', async (req, res) => {
 
     return res.json({ year, results });
   } catch (error) {
-    console.error(error);
+    logger.error({ error: String(error) }, "GET /archive/:year/period-results error");
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -550,7 +551,7 @@ router.post('/archive/auto-match-all', async (req, res) => {
     }
     return res.json({ success: true, results });
   } catch (error: any) {
-    console.error('POST /archive/auto-match-all error:', error);
+    logger.error({ error: String(error) }, "POST /archive/auto-match-all error");
     return res.status(500).json({ error: error?.message || 'Failed to run auto-match for all seasons' });
   }
 });
@@ -683,7 +684,7 @@ router.get('/archive/:year/draft-results', async (req, res) => {
 
     return res.json({ year, players, trades });
   } catch (error: any) {
-    console.error('GET /archive/:year/draft-results error:', error);
+    logger.error({ error: String(error) }, "GET /archive/:year/draft-results error");
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -711,7 +712,7 @@ router.post('/archive/archive-current', async (req, res) => {
 
     return res.json(result);
   } catch (error: any) {
-    console.error('POST /api/archive/archive-current error:', error);
+    logger.error({ error: String(error) }, "POST /api/archive/archive-current error");
     return res.status(500).json({ error: error?.message || 'Internal server error' });
   }
 });
@@ -860,7 +861,7 @@ router.post('/archive/:year/import-excel', upload.single('file'), async (req, re
     return res.json({ success: true, logs: result.messages, autoMatch: matchResult });
 
   } catch (err: any) {
-    console.error('Import error:', err);
+    logger.error({ error: String(err) }, "Import error");
     return res.status(500).json({ error: err?.message || 'Import failed' });
   }
 });
@@ -887,7 +888,7 @@ router.post('/archive/:year/auto-match', async (req, res) => {
       message: `Matched ${result.matched} players, ${result.unmatched} could not be matched automatically`
     });
   } catch (error: any) {
-    console.error(`POST /archive/${req.params.year}/auto-match error:`, error);
+    logger.error({ error: String(error) }, `POST /archive/${req.params.year}/auto-match error`);
     return res.status(500).json({ error: error?.message || 'Auto-match failed' });
   }
 });
@@ -918,7 +919,7 @@ router.get('/archive/:year/ai/trends/:teamCode', async (req, res) => {
 
     return res.json({ year, teamCode: teamCode.toUpperCase(), analysis: result.analysis });
   } catch (error: any) {
-    console.error(`GET /archive/${req.params.year}/ai/trends error:`, error);
+    logger.error({ error: String(error) }, `GET /archive/${req.params.year}/ai/trends error`);
     return res.status(500).json({ error: error?.message || 'AI analysis failed' });
   }
 });
@@ -944,7 +945,7 @@ router.get('/archive/:year/ai/draft/:teamCode', async (req, res) => {
 
     return res.json({ year, teamCode: teamCode.toUpperCase(), analysis: result.analysis });
   } catch (error: any) {
-    console.error(`GET /archive/${req.params.year}/ai/draft error:`, error);
+    logger.error({ error: String(error) }, `GET /archive/${req.params.year}/ai/draft error`);
     return res.status(500).json({ error: error?.message || 'AI analysis failed' });
   }
 });

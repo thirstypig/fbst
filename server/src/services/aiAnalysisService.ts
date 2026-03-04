@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { prisma } from '../db/prisma.js';
+import { logger } from '../lib/logger.js';
 
 // Initialize Gemini
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
@@ -111,7 +112,7 @@ Keep it conversational and insightful. Use specific numbers.`;
 
       return { success: true, analysis: text };
     } catch (err) {
-      console.error('AI analysis error:', err);
+      logger.error({ error: String(err) }, "AI analysis error");
       return { success: false, error: err instanceof Error ? err.message : 'Analysis failed' };
     }
   }
@@ -204,7 +205,7 @@ Keep it conversational. Highlight specific players and prices.`;
 
       return { success: true, analysis: text };
     } catch (err) {
-      console.error('AI draft analysis error:', err);
+      logger.error({ error: String(err) }, "AI draft analysis error");
       return { success: false, error: err instanceof Error ? err.message : 'Analysis failed' };
     }
   }

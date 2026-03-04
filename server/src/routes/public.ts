@@ -1,6 +1,7 @@
 // server/src/routes/public.ts
 import { Router } from "express";
 import { prisma } from "../db/prisma.js";
+import { logger } from "../lib/logger.js";
 
 export const publicRouter = Router();
 
@@ -32,7 +33,7 @@ publicRouter.get("/public/leagues/:slug", async (req, res) => {
 
     return res.json({ league });
   } catch (e: any) {
-    console.error("public league error:", e);
+    logger.error({ error: String(e) }, "public league error");
     return res.status(500).json({ error: String(e?.message ?? e ?? "Unknown error") });
   }
 });

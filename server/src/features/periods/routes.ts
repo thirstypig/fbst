@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { prisma } from "../../db/prisma.js";
+import { logger } from "../../lib/logger.js";
 
 const router = Router();
 
@@ -21,7 +22,7 @@ router.get("/", async (req, res) => {
 
     res.json({ data });
   } catch (e) {
-    console.error("Error fetching periods:", e);
+    logger.error({ error: String(e) }, "Error fetching periods");
     res.status(500).json({ error: "Failed to fetch periods" });
   }
 });

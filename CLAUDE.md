@@ -90,11 +90,24 @@ client/src/features/<feature>/
 7. Add integration tests if the feature interacts with other modules
 
 ### Cross-Feature Dependencies
-Some features import from other features' services:
+Some features import from other features' services or components.
+
+**Server (service imports):**
 - `leagues/routes.ts` imports `keeper-prep/services/keeperPrepService`
 - `leagues/rules-routes.ts` imports `commissioner/services/CommissionerService`
 - `admin/routes.ts` imports `commissioner/services/CommissionerService`
+- `commissioner/services/CommissionerService` imports `auction/services/auctionImport`
+
+**Client (component imports):**
+- `commissioner/pages/Commissioner` imports `keeper-prep/components/KeeperPrepDashboard`
 - `commissioner/components/CommissionerRosterTool` imports `roster/components/`
+- `keeper-prep/pages/KeeperSelection` imports `leagues/api` (getMyRoster, saveKeepers)
+- `transactions/pages/TransactionsPage` imports `roster/components/AddDropTab`
+- `trades/pages/TradesPage` imports `teams/components/TeamRosterView`
+- `auction/pages/AuctionValues` imports `players/components/PlayerDetailModal`
+- `teams/pages/Team` imports `players/components/PlayerDetailModal`
+- `archive/pages/ArchivePage` imports `players/components/EditPlayerNameModal`, `teams/components/EditTeamNameModal`, `admin/components/ArchiveAdminPanel`, `standings/components/StatsTables`
+- `periods/pages/Season` imports `standings/components/StatsTables`
 
 When adding cross-feature imports, document them here to maintain visibility.
 
@@ -118,6 +131,11 @@ When adding cross-feature imports, document them here to maintain visibility.
 - Auth token passed via `Authorization: Bearer <token>` header
 - Tailwind for all styling; shadcn-pattern components in `components/ui/`
 - Named exports preferred; default exports only for page components
+- **All write endpoints (POST, PATCH, DELETE) MUST use `requireAuth` middleware** — no exceptions
+- **Admin-only endpoints** (waiver processing, trade processing) use `requireAdmin`
+- **Error responses MUST NOT leak internal details** — return `{ error: "Internal Server Error" }` for 500s; log details server-side via `logger`
+- **Required env vars** (`DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SESSION_SECRET`) validated at startup — server exits if missing
+- **Dev-only endpoints** gated behind explicit env vars (e.g., `ENABLE_DEV_LOGIN=true`), never `NODE_ENV` checks
 
 ## Database
 - Schema at `prisma/schema.prisma`
