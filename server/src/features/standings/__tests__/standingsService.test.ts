@@ -5,6 +5,7 @@ import {
   computeCategoryRows,
   computeStandingsFromStats,
   rankPoints,
+  aggregatePeriodStatsFromCsv,
 } from "../services/standingsService.js";
 
 describe("buildTeamNameMap", () => {
@@ -262,5 +263,70 @@ describe("rankPoints", () => {
     const { pointsByTeam } = rankPoints(teams, true, 10);
     expect(pointsByTeam.A).toBe(10); // rank 1 → 10 - 1 + 1 = 10
     expect(pointsByTeam.B).toBe(9); // rank 2 → 10 - 2 + 1 = 9
+  });
+});
+
+describe("aggregatePeriodStatsFromCsv", () => {
+  const csvRows = [
+    { period_id: "P1", team_code: "DMK", team_name: "Diamond Kings", R: 10, HR: 5, RBI: 8, SB: 2, H: 20, AB: 80, W: 0, SV: 0, K: 0, ER: 0, IP: 0, BB_H: 0 },
+    { period_id: "P1", team_code: "DMK", team_name: "Diamond Kings", R: 5, HR: 3, RBI: 4, SB: 1, H: 15, AB: 60, W: 0, SV: 0, K: 0, ER: 0, IP: 0, BB_H: 0 },
+    { period_id: "P1", team_code: "DMK", team_name: "Diamond Kings", R: 0, HR: 0, RBI: 0, SB: 0, H: 0, AB: 0, W: 3, SV: 2, K: 30, ER: 10, IP: 40, BB_H: 50 },
+    { period_id: "P1", team_code: "LDY", team_name: "Los Doyers", R: 20, HR: 10, RBI: 15, SB: 5, H: 30, AB: 100, W: 0, SV: 0, K: 0, ER: 0, IP: 0, BB_H: 0 },
+    { period_id: "P1", team_code: "LDY", team_name: "Los Doyers", R: 0, HR: 0, RBI: 0, SB: 0, H: 0, AB: 0, W: 5, SV: 3, K: 50, ER: 15, IP: 60, BB_H: 70 },
+    { period_id: "P2", team_code: "DMK", team_name: "Diamond Kings", R: 99, HR: 99, RBI: 99, SB: 99, H: 99, AB: 99, W: 99, SV: 99, K: 99, ER: 99, IP: 99, BB_H: 99 },
+  ];
+
+  it("aggregates stats by team for a given period", () => {
+    const result = aggregatePeriodStatsFromCsv(csvRows, "P1");
+    expect(result).toHaveLength(2);
+
+    const dmk = result.find((r: any) => r.team.code === "DMK")!;
+    const ldy = result.find((r: any) => r.team.code === "LDY")!;
+
+    // Counting stats are summed
+    expect(dmk.R).toBe(15);
+    expect(dmk.HR).toBe(8);
+    expect(dmk.RBI).toBe(12);
+    expect(dmk.SB).toBe(3);
+    expect(dmk.W).toBe(3);
+    expect(dmk.S).toBe(2); // SV in CSV → S in output
+    expect(dmk.K).toBe(30);
+
+    expect(ldy.R).toBe(20);
+    expect(ldy.HR).toBe(10);
+  });
+
+  it("computes rate stats (AVG, ERA, WHIP) from components", () => {
+    const result = aggregatePeriodStatsFromCsv(csvRows, "P1");
+    const dmk = result.find((r: any) => r.team.code === "DMK")!;
+
+    // AVG = H/AB = 35/140 = 0.25
+    expect(dmk.AVG).toBeCloseTo(35 / 140, 5);
+    // ERA = (ER/IP)*9 = (10/40)*9 = 2.25
+    expect(dmk.ERA).toBeCloseTo(2.25, 5);
+    // WHIP = BB_H/IP = 50/40 = 1.25
+    expect(dmk.WHIP).toBeCloseTo(1.25, 5);
+  });
+
+  it("filters by period key", () => {
+    const p1 = aggregatePeriodStatsFromCsv(csvRows, "P1");
+    const p2 = aggregatePeriodStatsFromCsv(csvRows, "P2");
+    expect(p1).toHaveLength(2);
+    expect(p2).toHaveLength(1);
+  });
+
+  it("returns empty array for unknown period", () => {
+    const result = aggregatePeriodStatsFromCsv(csvRows, "P99");
+    expect(result).toEqual([]);
+  });
+
+  it("works with computeCategoryRows for ranking", () => {
+    const stats = aggregatePeriodStatsFromCsv(csvRows, "P1");
+    const rows = computeCategoryRows(stats, "HR", false);
+    expect(rows).toHaveLength(2);
+    expect(rows[0].teamCode).toBe("LDY"); // 10 HR > 8 HR
+    expect(rows[0].points).toBe(2);
+    expect(rows[1].teamCode).toBe("DMK");
+    expect(rows[1].points).toBe(1);
   });
 });

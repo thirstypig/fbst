@@ -48,7 +48,7 @@ for (const key of REQUIRED_ENV) {
   }
 }
 
-const PORT = Number(process.env.PORT || 4001);
+const PORT = Number(process.env.PORT || 4002);
 
 async function main() {
   const app = express();

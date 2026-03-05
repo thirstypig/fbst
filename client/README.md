@@ -57,10 +57,10 @@ features/<name>/
 npm install
 ```
 
-2. Set environment (optional, defaults to localhost:4001):
+2. Set environment (optional, defaults to localhost:4002):
 ```bash
 # client/.env.local
-VITE_API_BASE_URL=http://localhost:4001
+VITE_API_BASE_URL=http://localhost:4002
 ```
 
 3. Start the development server:

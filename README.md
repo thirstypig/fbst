@@ -69,8 +69,8 @@ cp server/.env.example server/.env
 cd server && npx prisma migrate dev && cd ..
 
 # Start both servers (two terminals)
-npm run server    # Express on :4001
-npm run dev       # Vite on :5173 (proxies /api to :4001)
+npm run server    # Express on :4002
+npm run dev       # Vite on :5173 (proxies /api to :4002)
 ```
 
 ### Testing
@@ -83,7 +83,7 @@ npm run test:client   # Client unit tests
 
 ## API Convention
 
-All server routes are behind `/api`. Client uses `VITE_API_BASE_URL` (defaults to `http://localhost:4001`).
+All server routes are behind `/api`. Client uses `VITE_API_BASE_URL` (defaults to `http://localhost:4002`).
 
 Key endpoints:
 - `GET /api/health` — Health check

@@ -129,6 +129,113 @@ export function computeStandingsFromStats(stats: any[]) {
   }));
 }
 
+/**
+ * Aggregate player-level CSV rows into team-level stats for a given period.
+ * Returns objects shaped like DB TeamStatsPeriod rows with { team: { id, name, code } }
+ * so they can be passed directly to computeCategoryRows.
+ */
+export function aggregatePeriodStatsFromCsv(
+  periodStats: any[],
+  periodKey: string
+): any[] {
+  // Filter rows for the requested period (CSV uses "P1", "P2", etc.)
+  const periodRows = periodStats.filter(
+    (r) => String(r.period_id ?? "").trim().toUpperCase() === periodKey.toUpperCase()
+  );
+
+  // Group by team_code
+  const teamMap = new Map<
+    string,
+    {
+      teamCode: string;
+      teamName: string;
+      R: number;
+      HR: number;
+      RBI: number;
+      SB: number;
+      H: number;
+      AB: number;
+      W: number;
+      S: number; // DB uses "S" for saves
+      K: number;
+      ER: number;
+      IP: number;
+      BB_H: number;
+    }
+  >();
+
+  for (const r of periodRows) {
+    const code = String(r.team_code ?? "").trim().toUpperCase();
+    if (!code) continue;
+
+    if (!teamMap.has(code)) {
+      teamMap.set(code, {
+        teamCode: code,
+        teamName: String(r.team_name ?? code).trim(),
+        R: 0, HR: 0, RBI: 0, SB: 0, H: 0, AB: 0,
+        W: 0, S: 0, K: 0, ER: 0, IP: 0, BB_H: 0,
+      });
+    }
+
+    const team = teamMap.get(code)!;
+    const n = (v: any) => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
+
+    team.R += n(r.R);
+    team.HR += n(r.HR);
+    team.RBI += n(r.RBI);
+    team.SB += n(r.SB);
+    team.H += n(r.H);
+    team.AB += n(r.AB);
+    team.W += n(r.W);
+    team.S += n(r.SV); // CSV uses SV, DB uses S
+    team.K += n(r.K);
+    team.ER += n(r.ER);
+    team.IP += n(r.IP);
+    team.BB_H += n(r.BB_H);
+  }
+
+  // Compute rate stats (AVG, ERA, WHIP) from components
+  const result: any[] = [];
+  let idx = 0;
+  for (const team of teamMap.values()) {
+    const AVG = team.AB > 0 ? team.H / team.AB : 0;
+    const ERA = team.IP > 0 ? (team.ER / team.IP) * 9 : 0;
+    const WHIP = team.IP > 0 ? team.BB_H / team.IP : 0;
+
+    result.push({
+      team: {
+        id: idx + 1, // synthetic ID — used only for ranking
+        name: team.teamName,
+        code: team.teamCode,
+      },
+      R: team.R,
+      HR: team.HR,
+      RBI: team.RBI,
+      SB: team.SB,
+      AVG,
+      W: team.W,
+      S: team.S, // computeCategoryRows maps SV → "S"
+      ERA,
+      WHIP,
+      K: team.K,
+    });
+    idx++;
+  }
+
+  return result;
+}
+
+/**
+ * Aggregate player-level CSV rows across ALL periods into team-level season totals.
+ * Same shape as aggregatePeriodStatsFromCsv output.
+ */
+export function aggregateSeasonStatsFromCsv(periodStats: any[]): any[] {
+  return aggregatePeriodStatsFromCsv(
+    periodStats.map((r: any) => ({ ...r, period_id: "ALL" })),
+    "ALL"
+  );
+}
+
 export function rankPoints(
   teams: Array<{ teamCode: string; value: number }>,
   higherIsBetter: boolean,
