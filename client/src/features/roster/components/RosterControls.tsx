@@ -1,5 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { fetchJsonApi } from '../../../api/base';
+import { supabase } from '../../../lib/supabase';
 
 interface Team {
   id: number;
@@ -52,8 +54,7 @@ export default function RosterControls({ leagueId, teams, onUpdate }: RosterCont
         return;
       }
       try {
-        const res = await fetch(`/api/archive/search-mlb?query=${encodeURIComponent(query)}`);
-        const data = await res.json();
+        const data = await fetchJsonApi<any>(`/api/archive/search-mlb?query=${encodeURIComponent(query)}`);
         setResults(data.players || []);
         setShowDropdown(true);
       } catch (e) {
@@ -78,10 +79,8 @@ export default function RosterControls({ leagueId, teams, onUpdate }: RosterCont
 
     try {
       setLoading(true);
-      const res = await fetch(`/api/commissioner/${leagueId}/roster/assign`, {
+      await fetchJsonApi(`/api/commissioner/${leagueId}/roster/assign`, {
         method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           teamId: Number(selectedTeamId),
           mlbId: selectedMlbPlayer.mlbId,
@@ -91,8 +90,6 @@ export default function RosterControls({ leagueId, teams, onUpdate }: RosterCont
           source: isKeeper ? 'keeper_2025' : 'manual'
         })
       });
-
-      if (!res.ok) throw new Error("Failed to assign player");
       
       // Reset form
       setQuery('');
@@ -113,9 +110,11 @@ export default function RosterControls({ leagueId, teams, onUpdate }: RosterCont
     formData.append('file', importFile);
     
     try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
         const res = await fetch(`/api/commissioner/${leagueId}/roster/import`, {
             method: 'POST',
-            credentials: 'include',
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {},
             body: formData
         });
         const data = await res.json();

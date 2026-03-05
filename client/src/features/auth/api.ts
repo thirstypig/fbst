@@ -11,13 +11,6 @@ export function getGoogleLoginUrl(): string {
 }
 
 export async function logout(): Promise<{ ok: boolean }> {
-  const res = await fetch(`${API_BASE}/auth/logout`, {
-    method: "POST",
-    headers: { Accept: "application/json" },
-    credentials: "include",
-  });
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status} for ${API_BASE}/auth/logout`);
-  }
+  await fetchJsonApi(`${API_BASE}/auth/logout`, { method: "POST" });
   return { ok: true };
 }

@@ -35,7 +35,7 @@ router.delete('/api/roster/:id', requireAuth, asyncHandler(async (req, res) => {
 }));
 
 // Get roster for a team (optionally filtered by year)
-router.get('/api/roster/:teamCode', asyncHandler(async (req, res) => {
+router.get('/api/roster/:teamCode', requireAuth, asyncHandler(async (req, res) => {
   const { teamCode } = req.params;
   const year = req.query.year ? parseInt(req.query.year as string) : undefined;
   const roster = await prisma.rosterEntry.findMany({
@@ -46,7 +46,7 @@ router.get('/api/roster/:teamCode', asyncHandler(async (req, res) => {
 }));
 
 // Get all rosters for a year
-router.get('/api/roster/year/:year', asyncHandler(async (req, res) => {
+router.get('/api/roster/year/:year', requireAuth, asyncHandler(async (req, res) => {
   const year = parseInt(req.params.year);
   const roster = await prisma.rosterEntry.findMany({
     where: { year },

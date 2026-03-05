@@ -20,13 +20,13 @@ Long-term hardening tasks, organized by priority.
 
 ## P2 — Test Coverage (Sessions 8-10)
 
-- [ ] **Auth routes** — 15 tests (login flow, token validation, dev-login gating, /me endpoint)
-- [ ] **Auction workflow** — 20 tests (init, nominate, bid, budget enforcement, draft completion -> roster)
-- [ ] **Trades** — 15 tests (propose, accept, reject, process with roster transfer, budget adjustment)
-- [ ] **Waivers** — 10 tests (submit claim, process FAAB, priority ordering, budget limit enforcement)
-- [ ] **Integration tests** — auction->roster, trade->roster, waiver->roster, keeper->league
-- [ ] **Client component tests** — PlayerDetailModal, StatsTables, auction components
-- [ ] **New middleware tests** — requireTeamOwner, validateBody, asyncHandler, rate limiting
+- [x] **Auth routes** — 8 tests (health, /me session, /me DB, dev-login gating) *(Session 6)*
+- [x] **Auction workflow** — 21 tests (calculateMaxBid, state transitions, bidding, pause/resume, finish, reset, refreshTeams) *(Session 6)*
+- [x] **Trades** — 13 tests (schema validation, propose, list, accept, reject, process player/budget) *(Session 6)*
+- [x] **Waivers** — 12 tests (schema validation, list, submit, delete, process FAAB with priority, budget, drop) *(Session 6)*
+- [x] **Client component tests** — 22 StatsTables tests + 14 PlayerDetailModal tests *(Session 6)*
+- [x] **New middleware tests** — 35 tests: requireTeamOwner, validateBody, asyncHandler, attachUser, requireLeagueRole, requireCommissionerOrAdmin, isTeamOwner *(Session 6)*
+- [ ] **Integration tests** — auction->roster, trade->roster, waiver->roster, keeper->league (requires test DB setup)
 
 ## P3 — Code Quality (Sessions 10-12)
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { fetchJsonApi } from '../../../api/base';
 import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from "../../../components/ui/ThemedTable";
 
 interface RosterEntry {
@@ -35,8 +36,7 @@ export default function RosterManagementForm({ year, teamCodes }: RosterManageme
     if (!selectedTeam) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/roster/${selectedTeam}?year=${year}`);
-      const data = await res.json();
+      const data = await fetchJsonApi<RosterEntry[]>(`/api/roster/${selectedTeam}?year=${year}`);
       setRoster(data);
     } catch (e) {
       console.error('Failed to load roster:', e);
@@ -60,20 +60,14 @@ export default function RosterManagementForm({ year, teamCodes }: RosterManageme
     }
 
     try {
-      const res = await fetch('/api/roster/add-player', {
+      await fetchJsonApi('/api/roster/add-player', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           year,
           teamCode: selectedTeam,
           ...formData,
         }),
       });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to add player');
-      }
 
       setSuccess(`Added ${formData.playerName} to ${selectedTeam}`);
       setFormData({ playerName: '', position: '', mlbTeam: '', acquisitionCost: 0 });
@@ -87,8 +81,7 @@ export default function RosterManagementForm({ year, teamCodes }: RosterManageme
     if (!window.confirm(`Delete ${playerName} from roster?`)) return;
 
     try {
-      const res = await fetch(`/api/roster/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete');
+      await fetchJsonApi(`/api/roster/${id}`, { method: 'DELETE' });
       setSuccess(`Removed ${playerName}`);
       loadRoster();
     } catch (e) {

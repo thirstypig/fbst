@@ -17,22 +17,22 @@ describe("standings computation pipeline", () => {
   // A realistic 4-team league scenario
   const teamStats = [
     {
-      team: { id: 1, name: "Sluggers" },
+      team: { id: 1, name: "Sluggers", code: "SLG" },
       R: 120, HR: 60, RBI: 110, SB: 5, AVG: 0.280,
       W: 8,  S: 3,  ERA: 4.50, WHIP: 1.40, K: 150,
     },
     {
-      team: { id: 2, name: "Speedsters" },
+      team: { id: 2, name: "Speedsters", code: "SPD" },
       R: 90,  HR: 20, RBI: 70,  SB: 40, AVG: 0.300,
       W: 10, S: 5,  ERA: 3.80, WHIP: 1.25, K: 130,
     },
     {
-      team: { id: 3, name: "Aces" },
+      team: { id: 3, name: "Aces", code: "ACE" },
       R: 80,  HR: 25, RBI: 75,  SB: 10, AVG: 0.260,
       W: 15, S: 12, ERA: 2.80, WHIP: 1.05, K: 220,
     },
     {
-      team: { id: 4, name: "Balanced" },
+      team: { id: 4, name: "Balanced", code: "BAL" },
       R: 100, HR: 35, RBI: 90,  SB: 15, AVG: 0.275,
       W: 12, S: 8,  ERA: 3.50, WHIP: 1.20, K: 180,
     },
@@ -131,9 +131,11 @@ describe("standings computation pipeline", () => {
   });
 
   it("validates category config covers all stat keys used", () => {
-    const statKeys = CATEGORY_CONFIG.map((c) => c.key);
-    // Every category key should exist as a property in our test data
-    for (const key of statKeys) {
+    // Config keys map to DB column names (SV → S)
+    const KEY_TO_DB: Record<string, string> = { SV: "S" };
+    const dbKeys = CATEGORY_CONFIG.map((c) => KEY_TO_DB[c.key] || c.key);
+    // Every DB column key should exist as a property in our test data
+    for (const key of dbKeys) {
       expect(teamStats[0]).toHaveProperty(key);
     }
   });

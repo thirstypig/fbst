@@ -23,31 +23,53 @@ export function buildTeamNameMap(seasonStandings: any, seasonStats: any[]): Reco
 }
 
 export const CATEGORY_CONFIG = [
-  { key: "R", label: "Runs", lowerIsBetter: false },
-  { key: "HR", label: "Home Runs", lowerIsBetter: false },
-  { key: "RBI", label: "RBI", lowerIsBetter: false },
-  { key: "SB", label: "Stolen Bases", lowerIsBetter: false },
-  { key: "AVG", label: "Average", lowerIsBetter: false },
-  { key: "W", label: "Wins", lowerIsBetter: false },
-  { key: "S", label: "Saves", lowerIsBetter: false },
-  { key: "ERA", label: "ERA", lowerIsBetter: true },
-  { key: "WHIP", label: "WHIP", lowerIsBetter: true },
-  { key: "K", label: "Strikeouts", lowerIsBetter: false },
+  { key: "R", label: "Runs", lowerIsBetter: false, group: "H" },
+  { key: "HR", label: "Home Runs", lowerIsBetter: false, group: "H" },
+  { key: "RBI", label: "RBI", lowerIsBetter: false, group: "H" },
+  { key: "SB", label: "Stolen Bases", lowerIsBetter: false, group: "H" },
+  { key: "AVG", label: "Average", lowerIsBetter: false, group: "H" },
+  { key: "W", label: "Wins", lowerIsBetter: false, group: "P" },
+  { key: "SV", label: "Saves", lowerIsBetter: false, group: "P" },
+  { key: "ERA", label: "ERA", lowerIsBetter: true, group: "P" },
+  { key: "WHIP", label: "WHIP", lowerIsBetter: true, group: "P" },
+  { key: "K", label: "Strikeouts", lowerIsBetter: false, group: "P" },
 ] as const;
 
 export type CategoryKey = (typeof CATEGORY_CONFIG)[number]["key"];
+
+// Map config keys to DB column names where they differ
+const KEY_TO_DB_FIELD: Partial<Record<CategoryKey, string>> = {
+  SV: "S",
+};
 
 export function computeCategoryRows(
   stats: any[],
   key: CategoryKey,
   lowerIsBetter: boolean
 ) {
+  const dbField = KEY_TO_DB_FIELD[key] || key;
   const rows = stats.map((s) => ({
     teamId: s.team.id,
     teamName: s.team.name,
-    value: s[key],
+    teamCode: s.team.code || s.team.name.substring(0, 3).toUpperCase(),
+    value: s[dbField],
   }));
 
+  const n = rows.length;
+  if (n === 0) return [];
+
+  // Use rankPoints for proper tie handling
+  const teamsForRank = rows.map((r) => ({
+    teamCode: String(r.teamId), // use teamId as key
+    value: r.value,
+  }));
+  const { pointsByTeam, rankByTeam } = rankPoints(
+    teamsForRank,
+    !lowerIsBetter,
+    n
+  );
+
+  // Sort for display order
   rows.sort((a, b) => {
     if (lowerIsBetter) {
       return a.value - b.value;
@@ -56,18 +78,10 @@ export function computeCategoryRows(
     }
   });
 
-  const n = rows.length;
-  // Handle ties logic: if values are equal, they should share points & rank?
-  // Previous implementation in routes/standings.ts was simplistic:
-  // rank: idx+1, points: n - idx.
-  // This meant ties were broken arbitrarily by sort stability or previous order.
-  // TODO: Implement proper tie handling if "Data Correctness" rule demands it.
-  // For now, mirroring existing logic to avoid breaking changes, but flagging for upgrade.
-  
-  return rows.map((row, idx) => ({
+  return rows.map((row) => ({
     ...row,
-    rank: idx + 1, // 1-based rank
-    points: n - idx,
+    rank: rankByTeam[String(row.teamId)] ?? 0,
+    points: pointsByTeam[String(row.teamId)] ?? 0,
   }));
 }
 
@@ -115,6 +129,113 @@ export function computeStandingsFromStats(stats: any[]) {
   }));
 }
 
+/**
+ * Aggregate player-level CSV rows into team-level stats for a given period.
+ * Returns objects shaped like DB TeamStatsPeriod rows with { team: { id, name, code } }
+ * so they can be passed directly to computeCategoryRows.
+ */
+export function aggregatePeriodStatsFromCsv(
+  periodStats: any[],
+  periodKey: string
+): any[] {
+  // Filter rows for the requested period (CSV uses "P1", "P2", etc.)
+  const periodRows = periodStats.filter(
+    (r) => String(r.period_id ?? "").trim().toUpperCase() === periodKey.toUpperCase()
+  );
+
+  // Group by team_code
+  const teamMap = new Map<
+    string,
+    {
+      teamCode: string;
+      teamName: string;
+      R: number;
+      HR: number;
+      RBI: number;
+      SB: number;
+      H: number;
+      AB: number;
+      W: number;
+      S: number; // DB uses "S" for saves
+      K: number;
+      ER: number;
+      IP: number;
+      BB_H: number;
+    }
+  >();
+
+  for (const r of periodRows) {
+    const code = String(r.team_code ?? "").trim().toUpperCase();
+    if (!code) continue;
+
+    if (!teamMap.has(code)) {
+      teamMap.set(code, {
+        teamCode: code,
+        teamName: String(r.team_name ?? code).trim(),
+        R: 0, HR: 0, RBI: 0, SB: 0, H: 0, AB: 0,
+        W: 0, S: 0, K: 0, ER: 0, IP: 0, BB_H: 0,
+      });
+    }
+
+    const team = teamMap.get(code)!;
+    const n = (v: any) => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
+
+    team.R += n(r.R);
+    team.HR += n(r.HR);
+    team.RBI += n(r.RBI);
+    team.SB += n(r.SB);
+    team.H += n(r.H);
+    team.AB += n(r.AB);
+    team.W += n(r.W);
+    team.S += n(r.SV); // CSV uses SV, DB uses S
+    team.K += n(r.K);
+    team.ER += n(r.ER);
+    team.IP += n(r.IP);
+    team.BB_H += n(r.BB_H);
+  }
+
+  // Compute rate stats (AVG, ERA, WHIP) from components
+  const result: any[] = [];
+  let idx = 0;
+  for (const team of teamMap.values()) {
+    const AVG = team.AB > 0 ? team.H / team.AB : 0;
+    const ERA = team.IP > 0 ? (team.ER / team.IP) * 9 : 0;
+    const WHIP = team.IP > 0 ? team.BB_H / team.IP : 0;
+
+    result.push({
+      team: {
+        id: idx + 1, // synthetic ID — used only for ranking
+        name: team.teamName,
+        code: team.teamCode,
+      },
+      R: team.R,
+      HR: team.HR,
+      RBI: team.RBI,
+      SB: team.SB,
+      AVG,
+      W: team.W,
+      S: team.S, // computeCategoryRows maps SV → "S"
+      ERA,
+      WHIP,
+      K: team.K,
+    });
+    idx++;
+  }
+
+  return result;
+}
+
+/**
+ * Aggregate player-level CSV rows across ALL periods into team-level season totals.
+ * Same shape as aggregatePeriodStatsFromCsv output.
+ */
+export function aggregateSeasonStatsFromCsv(periodStats: any[]): any[] {
+  return aggregatePeriodStatsFromCsv(
+    periodStats.map((r: any) => ({ ...r, period_id: "ALL" })),
+    "ALL"
+  );
+}
+
 export function rankPoints(
   teams: Array<{ teamCode: string; value: number }>,
   higherIsBetter: boolean,
@@ -134,13 +255,6 @@ export function rankPoints(
     while (j + 1 < sorted.length && sorted[j + 1].value === sorted[i].value) j++;
 
     const rankStart = i + 1;
-    const rankEnd = j + 1;
-
-    const pointForRank = (rank: number) => totalTeams - rank + 1;
-
-    let sum = 0;
-    for (let r = rankStart; r <= rankEnd; r++) sum += pointForRank(r);
-    // const avg = sum / (rankEnd - rankStart + j - j + 1); // wait j-j? it should be (j-i+1)
 
     // Average points across tied ranks
     const tiedCount = j - i + 1;

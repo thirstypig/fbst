@@ -32,7 +32,7 @@ export default defineConfig({
     },
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:4001",
+        target: "http://127.0.0.1:4002",
         secure: false,
         changeOrigin: true,
       },

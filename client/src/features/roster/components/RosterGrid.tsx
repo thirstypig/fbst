@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
+import { fetchJsonApi } from '../../../api/base';
 
 interface Team {
   id: number;
@@ -52,8 +53,8 @@ export default function RosterGrid({ leagueId, teams: initialTeams, rosters: ini
       try {
         // Parallel fetch
         const [teamsRes, rostersRes] = await Promise.all([
-            fetch(`/api/commissioner/${leagueId}`, { credentials: 'include' }).then(r => r.json()),
-            fetch(`/api/commissioner/${leagueId}/rosters`, { credentials: 'include' }).then(r => r.json())
+            fetchJsonApi<any>(`/api/commissioner/${leagueId}`),
+            fetchJsonApi<any>(`/api/commissioner/${leagueId}/rosters`)
         ]);
 
         if (teamsRes.error) throw new Error(teamsRes.error);

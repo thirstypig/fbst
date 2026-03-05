@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { fetchJsonApi } from '../../../api/base';
 
 // Types redefined locally to avoid build issues importing from server
 export type AuctionStatus = "not_started" | "nominating" | "bidding" | "paused" | "completed";
@@ -79,9 +80,7 @@ export function useAuctionState() {
 
     const fetchState = async () => {
         try {
-            const res = await fetch('/api/auction/state');
-            if (!res.ok) throw new Error('Failed to fetch auction state');
-            const data = await res.json();
+            const data = await fetchJsonApi<ClientAuctionState>('/api/auction/state');
             setState(data);
             setError(null);
         } catch (e: any) {
@@ -103,34 +102,31 @@ export function useAuctionState() {
 
     // Actions
     const nominate = async (payload: { nominatorTeamId: number, playerId: string, playerName: string, startBid: number, positions: string, team: string, isPitcher: boolean }) => {
-        await fetch('/api/auction/nominate', {
+        await fetchJsonApi('/api/auction/nominate', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        fetchState(); // Immediate refresh
+        fetchState();
     };
 
     const bid = async (payload: { bidderTeamId: number, amount: number }) => {
-        await fetch('/api/auction/bid', {
+        await fetchJsonApi('/api/auction/bid', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
         fetchState();
     };
 
     const initAuction = async (leagueId: number) => {
-        await fetch('/api/auction/init', {
+        await fetchJsonApi('/api/auction/init', {
              method: 'POST',
-             headers: { 'Content-Type': 'application/json' },
              body: JSON.stringify({ leagueId })
         });
         fetchState();
     };
 
     const finishAuction = async () => {
-        await fetch('/api/auction/finish', { method: 'POST' });
+        await fetchJsonApi('/api/auction/finish', { method: 'POST' });
         fetchState();
     };
 
@@ -143,9 +139,9 @@ export function useAuctionState() {
             bid,
             initAuction,
             finishAuction,
-            pause: async () => { await fetch('/api/auction/pause', { method: 'POST' }); fetchState(); },
-            resume: async () => { await fetch('/api/auction/resume', { method: 'POST' }); fetchState(); },
-            reset: async () => { await fetch('/api/auction/reset', { method: 'POST' }); fetchState(); }
+            pause: async () => { await fetchJsonApi('/api/auction/pause', { method: 'POST' }); fetchState(); },
+            resume: async () => { await fetchJsonApi('/api/auction/resume', { method: 'POST' }); fetchState(); },
+            reset: async () => { await fetchJsonApi('/api/auction/reset', { method: 'POST' }); fetchState(); }
         }
     };
 }

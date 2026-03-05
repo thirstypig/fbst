@@ -78,6 +78,7 @@ model User {
   memberships    LeagueMembership[]
   ownedTeams     Team[]             @relation("TeamOwner")
   teamOwnerships TeamOwnership[]
+  auditLogs      AuditLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -571,6 +572,22 @@ model HistoricalStanding {
 
   @@unique([seasonId, teamCode])
   @@index([seasonId])
+}
+
+model AuditLog {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  action       String   // e.g. TRADE_PROCESS, WAIVER_PROCESS, AUCTION_INIT, AUCTION_RESET, RULES_UPDATE
+  resourceType String   // e.g. Trade, WaiverClaim, Auction, LeagueRule
+  resourceId   String?  // ID of the affected resource (string for flexibility)
+  metadata     Json?    // Additional context (JSON)
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
 }
 
 model RosterEntry {

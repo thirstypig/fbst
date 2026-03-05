@@ -3,6 +3,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { getPlayerSeasonStats, type PlayerSeasonStat } from "../api";
+import { fetchJsonApi, API_BASE } from "../api/base";
 import { TableCard, Table, THead, Tr, Th, Td } from "../components/ui/TableCard";
 import PageHeader from "../components/ui/PageHeader";
 import { formatAvg } from "../lib/playerDisplay";
@@ -42,26 +43,26 @@ export default function Home() {
 
   useEffect(() => {
     if (!user) return;
-    
+
     let mounted = true;
     (async () => {
        try {
          setLoading(true);
-         
-         const leaguesRes = await fetch('/api/public/leagues').then(r => r.json());
-         const lid = leaguesRes.leagues?.[0]?.id;
+
+         // Use the user's league memberships instead of public leagues
+         const lid = user.memberships?.[0]?.leagueId;
          if (!lid) return;
 
-         const leagueRes = await fetch(`/api/leagues/${lid}`).then(r => r.json());
+         const leagueRes = await fetchJsonApi<any>(`${API_BASE}/leagues/${lid}`);
          const teams = leagueRes.league?.teams || [];
          const uid = Number(user.id);
-         const mine = teams.find((t: { ownerUserId?: number | null; ownerships?: Array<{ userId: number }> }) => 
+         const mine = teams.find((t: { ownerUserId?: number | null; ownerships?: Array<{ userId: number }> }) =>
            t.ownerUserId === uid || (t.ownerships || []).some((o) => o.userId === uid)
          );
-         
+
          if (mine && mounted) {
             setMyTeam(mine);
-            const rostersRes = await fetch(`/api/leagues/${lid}/rosters`).then(r => r.json());
+            const rostersRes = await fetchJsonApi<any>(`${API_BASE}/leagues/${lid}/rosters`);
             const myRoster = (rostersRes.rosters || []).filter((r: { teamId: number }) => r.teamId === mine.id);
             if (mounted) setRoster(myRoster);
 

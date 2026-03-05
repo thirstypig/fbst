@@ -9,7 +9,7 @@ export function validateBody(schema: ZodSchema): RequestHandler {
   return (req: Request, res: Response, next: NextFunction) => {
     const result = schema.safeParse(req.body);
     if (!result.success) {
-      const errors = result.error.errors.map((e) => ({
+      const errors = result.error.issues.map((e) => ({
         path: e.path.join("."),
         message: e.message,
       }));

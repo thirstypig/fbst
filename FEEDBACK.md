@@ -4,6 +4,43 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
+## Session 2026-03-04 (Session 6)
+
+### Completed
+- **P2 — Test Coverage** (125 new tests, 228 total):
+  - **New middleware tests** (35 tests across 3 files):
+    - `middleware/__tests__/validate.test.ts` — 7 tests (valid/invalid input, type errors, null body, multiple errors)
+    - `middleware/__tests__/asyncHandler.test.ts` — 4 tests (success, rejection forwarding, sync error wrapping)
+    - `middleware/__tests__/authExtended.test.ts` — 24 tests (attachUser: 5, requireLeagueRole: 5, requireCommissionerOrAdmin: 5, isTeamOwner: 4, requireTeamOwner: 5)
+  - **Auth routes** — `features/auth/__tests__/routes.test.ts` — 8 tests (health check, /me session lookup, /me DB user, /me error, dev-login gating, dev-login admin lookup, dev-login credentials)
+  - **Trades routes** — `features/trades/__tests__/routes.test.ts` — 13 tests (schema validation: 6, propose, list, accept, reject, process rejection, player trade processing, budget trade processing)
+  - **Waivers routes** — `features/waivers/__tests__/routes.test.ts` — 12 tests (schema: 5, list: 2, submit, delete, process FAAB: highest bidder wins, budget insufficient, drop player processing)
+  - **Auction routes** — `features/auction/__tests__/routes.test.ts` — 21 tests (calculateMaxBid: 6, state transitions: 3, bidding: 5, pause/resume: 2, finish DB: 2, reset: 2, refreshTeams: 1)
+  - **Client StatsTables** — `features/standings/__tests__/StatsTables.test.tsx` — 22 tests (PeriodSummaryTable: 5, CategoryPeriodTable: 3, SeasonTable: 4, TeamSeasonSummaryTable: 3, HittersTable: 3, PitchersTable: 4)
+  - **Client PlayerDetailModal** — `features/players/__tests__/PlayerDetailModal.test.tsx` — 14 tests (null/closed states, rendering, API fetch, loading, recent/career stats, overlay close, Escape key, profile tab, error state, pitcher badge)
+- **Bugfix**: Fixed `validate.ts` — `result.error.errors` → `result.error.issues` (Zod v4 API change)
+
+### Pending / Next Steps
+- [ ] IDOR protection — league-scoped queries should filter by user's memberships
+- [ ] Audit logging — log admin/commissioner actions to AuditLog table
+- [ ] Trade accept/reject ownership check — currently any authed user can accept/reject
+- [ ] Waiver delete ownership check — any authed user can cancel anyone's claim
+- [ ] Extract `PlayerDetailModal` and `StatsTables` to shared components
+
+### Concerns / Tech Debt
+- **Trade accept/reject**: still no ownership check — any authenticated user can accept/reject any trade
+- **Waiver DELETE**: no ownership check — any authed user can cancel anyone's claim
+- **Auction routes**: no auth middleware at all — significant security gap
+- **PlayerDetailModal tests**: React act() warnings from async state updates (non-blocking, cosmetic)
+
+### Test Results
+- Server: 11 files, 158 tests passing
+- Client: 4 files, 70 tests passing
+- Total: 228 tests, all green
+- Zod bugfix: `validate.ts` now uses `.issues` (Zod v4 compatible)
+
+---
+
 ## Session 2026-03-04 (Session 5)
 
 ### Completed

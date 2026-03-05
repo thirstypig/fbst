@@ -1,7 +1,9 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { prisma } from "../../db/prisma.js";
 import { CommissionerService } from "../commissioner/services/CommissionerService.js";
-import { requireAuth, requireAdmin, requireCommissionerOrAdmin } from "../../middleware/auth.js";
+import { requireAuth, requireAdmin, requireCommissionerOrAdmin, requireLeagueMember } from "../../middleware/auth.js";
+import { asyncHandler } from "../../middleware/asyncHandler.js";
+import { writeAuditLog } from "../../lib/auditLog.js";
 const router = Router();
 const commissionerService = new CommissionerService();
 
@@ -9,24 +11,20 @@ const commissionerService = new CommissionerService();
  * GET /api/leagues/:id/rules
  * Get all rules for a league (creates defaults if none exist)
  */
-router.get("/:id/rules", async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const leagueId = parseInt(req.params.id);
-    
-    const rules = await commissionerService.getRules(leagueId);
+router.get("/:id/rules", requireAuth, requireLeagueMember("id"), asyncHandler(async (req: Request, res: Response) => {
+  const leagueId = parseInt(req.params.id);
 
-    // Group by category for easier UI rendering
-    const grouped = rules.reduce((acc: Record<string, typeof rules>, rule) => {
-      if (!acc[rule.category]) acc[rule.category] = [];
-      acc[rule.category].push(rule);
-      return acc;
-    }, {});
+  const rules = await commissionerService.getRules(leagueId);
 
-    res.json({ rules, grouped, leagueId });
-  } catch (err) {
-    next(err);
-  }
-});
+  // Group by category for easier UI rendering
+  const grouped = rules.reduce((acc: Record<string, typeof rules>, rule) => {
+    if (!acc[rule.category]) acc[rule.category] = [];
+    acc[rule.category].push(rule);
+    return acc;
+  }, {});
+
+  res.json({ rules, grouped, leagueId });
+}));
 
 /**
  * PUT /api/leagues/:id/rules
@@ -38,6 +36,14 @@ router.put("/:id/rules", requireAuth, requireCommissionerOrAdmin("id"), async (r
     const { updates } = req.body; // Array of { id, value } objects
 
     const count = await commissionerService.updateRules(leagueId, updates);
+
+    writeAuditLog({
+      userId: req.user!.id,
+      action: "RULES_UPDATE",
+      resourceType: "LeagueRule",
+      resourceId: leagueId,
+      metadata: { updateCount: count },
+    });
 
     res.json({ success: true, updated: count });
   } catch (err) {

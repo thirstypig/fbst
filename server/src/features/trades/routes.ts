@@ -2,7 +2,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../../db/prisma.js";
-import { requireAuth, requireAdmin, requireTeamOwner } from "../../middleware/auth.js";
+import { requireAuth, requireAdmin, requireTeamOwner, requireLeagueMember, isTeamOwner } from "../../middleware/auth.js";
+import { writeAuditLog } from "../../lib/auditLog.js";
 import { validateBody } from "../../middleware/validate.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
 
@@ -50,7 +51,7 @@ router.post("/", requireAuth, validateBody(tradeProposalSchema), requireTeamOwne
 }));
 
 // GET /api/trades - List trades for a league
-router.get("/", asyncHandler(async (req, res) => {
+router.get("/", requireAuth, requireLeagueMember("leagueId"), asyncHandler(async (req, res) => {
   const leagueId = Number(req.query.leagueId);
   if (!leagueId) return res.status(400).json({ error: "Missing leagueId" });
 
@@ -68,21 +69,69 @@ router.get("/", asyncHandler(async (req, res) => {
 // POST /api/trades/:id/accept - Accept a trade
 router.post("/:id/accept", requireAuth, asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
-  const trade = await prisma.trade.update({
+
+  const trade = await prisma.trade.findUnique({
+    where: { id },
+    include: { items: true },
+  });
+
+  if (!trade) return res.status(404).json({ error: "Trade not found" });
+  if (trade.status !== "PROPOSED") return res.status(400).json({ error: "Trade is not in PROPOSED status" });
+
+  // Verify caller owns a counterparty team (not the proposer)
+  if (!req.user!.isAdmin) {
+    const counterpartyTeamIds = [...new Set(
+      trade.items
+        .map(i => i.recipientId)
+        .filter(id => id !== trade.proposerId)
+    )];
+    const ownsCounterparty = await Promise.all(
+      counterpartyTeamIds.map(tid => isTeamOwner(tid, req.user!.id))
+    );
+    if (!ownsCounterparty.some(Boolean)) {
+      return res.status(403).json({ error: "You are not a counterparty to this trade" });
+    }
+  }
+
+  const updated = await prisma.trade.update({
     where: { id },
     data: { status: "ACCEPTED" },
   });
-  res.json(trade);
+  res.json(updated);
 }));
 
 // POST /api/trades/:id/reject - Reject a trade
 router.post("/:id/reject", requireAuth, asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
-  const trade = await prisma.trade.update({
+
+  const trade = await prisma.trade.findUnique({
+    where: { id },
+    include: { items: true },
+  });
+
+  if (!trade) return res.status(404).json({ error: "Trade not found" });
+  if (trade.status !== "PROPOSED") return res.status(400).json({ error: "Trade is not in PROPOSED status" });
+
+  // Verify caller owns a counterparty team (not the proposer)
+  if (!req.user!.isAdmin) {
+    const counterpartyTeamIds = [...new Set(
+      trade.items
+        .map(i => i.recipientId)
+        .filter(id => id !== trade.proposerId)
+    )];
+    const ownsCounterparty = await Promise.all(
+      counterpartyTeamIds.map(tid => isTeamOwner(tid, req.user!.id))
+    );
+    if (!ownsCounterparty.some(Boolean)) {
+      return res.status(403).json({ error: "You are not a counterparty to this trade" });
+    }
+  }
+
+  const updated = await prisma.trade.update({
     where: { id },
     data: { status: "REJECTED" },
   });
-  res.json(trade);
+  res.json(updated);
 }));
 
 // POST /api/trades/:id/process - Execute (Commission/Admin)
@@ -141,6 +190,14 @@ router.post("/:id/process", requireAdmin, asyncHandler(async (req, res) => {
       data: { status: "PROCESSED", processedAt: new Date() },
     });
   }, { timeout: 30_000 });
+
+  writeAuditLog({
+    userId: req.user!.id,
+    action: "TRADE_PROCESS",
+    resourceType: "Trade",
+    resourceId: id,
+    metadata: { leagueId: trade.leagueId, itemCount: trade.items.length },
+  });
 
   res.json({ success: true });
 }));

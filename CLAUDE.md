@@ -143,9 +143,24 @@ When adding cross-feature imports, document them here to maintain visibility.
 - Key models: User, League, LeagueMembership, Team, Player, Roster, Period, TeamStatsPeriod, TeamStatsSeason, Trade, WaiverClaim, AuctionLot, AuctionBid, TransactionEvent, HistoricalSeason, HistoricalStanding, HistoricalPlayerStat
 
 ## Development
-- `npm run dev` (from root) — starts Vite dev server on :5173
-- `npm run server` (from root) — starts Express on :4001
-- Vite proxies `/api` to Express in dev
+
+### Port Assignments (DO NOT CHANGE without updating all references)
+| Project | Service | Port |
+|---------|---------|------|
+| **FBST** | Vite dev server | **5173** |
+| **FBST** | Express API server | **4002** |
+| **FSVP Pro** | (separate project) | **4001** — do NOT use for FBST |
+
+### Starting the App (two terminals)
+```bash
+# Terminal 1: Express API server
+npm run server        # Starts on :4002
+
+# Terminal 2: Vite dev server (proxies /api → :4002)
+npm run dev           # Starts on :5173, open https://localhost:5173
+```
+
+### Other Commands
 - `npm run test` (from root) — runs all tests
 - `npm run test:server` — server unit + integration tests
 - `npm run test:client` — client unit tests

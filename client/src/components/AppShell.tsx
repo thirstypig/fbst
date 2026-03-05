@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { API_BASE, getLeagues, getMe, type LeagueListItem, type AuthUser } from "../api";
+import { fetchJsonApi } from "../api/base";
 import { useTheme } from "../contexts/ThemeContext";
 
 function isActive(pathname: string, to: string) {
@@ -11,11 +12,7 @@ function isActive(pathname: string, to: string) {
 }
 
 async function postLogout(): Promise<void> {
-  await fetch(`${API_BASE}/auth/logout`, {
-    method: "POST",
-    credentials: "include",
-    headers: { Accept: "application/json" },
-  }).catch(() => {});
+  await fetchJsonApi(`${API_BASE}/auth/logout`, { method: "POST" }).catch(() => {});
 }
 
 type NavItem = { to: string; label: string; show?: boolean };
@@ -109,7 +106,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       title: "Admin",
       items: [
         { to: "/leagues", label: "Leagues", show: true },
-        { to: "/rules", label: "Rules", show: true },
+        {
+          to: commissionerLeagueId ? `/commissioner/${commissionerLeagueId}#settings` : "/rules",
+          label: "Rules",
+          show: true,
+        },
         {
           to: commissionerLeagueId ? `/commissioner/${commissionerLeagueId}` : "/leagues",
           label: "Commissioner",

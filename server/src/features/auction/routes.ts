@@ -1,6 +1,9 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../../db/prisma.js";
 import { logger } from "../../lib/logger.js";
+import { requireAuth, requireAdmin } from "../../middleware/auth.js";
+import { asyncHandler } from "../../middleware/asyncHandler.js";
+import { writeAuditLog } from "../../lib/auditLog.js";
 
 const router = Router();
 
@@ -151,46 +154,35 @@ const refreshTeams = async (leagueId: number) => {
 // --- Routes ---
 
 // GET /api/auction/state
-router.get("/state", (req, res) => {
-  try {
-    res.json(STATE);
-  } catch (e: any) {
-    res.status(500).json({ 
-      error: "Failed to fetch state", 
-      message: e.message, 
-      stack: e.stack 
-    });
-  }
+router.get("/state", requireAuth, (req, res) => {
+  res.json(STATE);
 });
 
 // POST /api/auction/init
 // Load teams from DB for a specific league
-router.post("/init", async (req, res) => {
-  try {
-    const leagueId = Number(req.body.leagueId);
-    if (!leagueId) return res.status(400).json({ error: "Missing leagueId" });
+router.post("/init", requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+  const leagueId = Number(req.body.leagueId);
+  if (!leagueId) return res.status(400).json({ error: "Missing leagueId" });
 
-    STATE.leagueId = leagueId;
-    await refreshTeams(leagueId);
-    
-    STATE.status = "nominating"; // Ready to go
-    STATE.nomination = null;
-    STATE.lastUpdate = Date.now();
+  STATE.leagueId = leagueId;
+  await refreshTeams(leagueId);
 
-    res.json(STATE);
-  } catch (e: any) {
-    logger.error({ error: String(e) }, "Auction /init error");
-    res.status(500).json({ 
-      error: "Failed to initialize auction", 
-      message: e.message, 
-      stack: e.stack,
-      env: { hasDbUrl: !!process.env.DATABASE_URL }
-    });
-  }
-});
+  STATE.status = "nominating"; // Ready to go
+  STATE.nomination = null;
+  STATE.lastUpdate = Date.now();
+
+  writeAuditLog({
+    userId: req.user!.id,
+    action: "AUCTION_INIT",
+    resourceType: "Auction",
+    metadata: { leagueId, teamCount: STATE.teams.length },
+  });
+
+  res.json(STATE);
+}));
 
 // POST /api/auction/nominate
-router.post("/nominate", (req, res) => {
+router.post("/nominate", requireAuth, (req, res) => {
   // Basic validation
   // if (STATE.status !== 'nominating') return res.status(400).json({ error: "Not in nominating phase" });
 
@@ -237,7 +229,7 @@ router.post("/nominate", (req, res) => {
 });
 
 // POST /api/auction/bid
-router.post("/bid", (req, res) => {
+router.post("/bid", requireAuth, (req, res) => {
   if (STATE.status !== 'bidding' || !STATE.nomination) {
     return res.status(400).json({ error: "Auction not active" });
   }
@@ -288,15 +280,13 @@ router.post("/bid", (req, res) => {
 // POST /api/auction/finish
 // Called when client timer detects ends (or manually by commish)
 // Commits the winner to DB
-router.post("/finish", async (req, res) => {
+router.post("/finish", requireAuth, requireAdmin, asyncHandler(async (req, res) => {
   if (!STATE.nomination || !STATE.leagueId) return res.status(400).json({ error: "No active nomination" });
 
   const { playerId, currentBid, highBidderTeamId, playerName, positions } = STATE.nomination;
   
-  // 1. DB Update check
-  try {
-     // Check if Player exists, if not create (should exist from pool)
-     let dbPlayer = await prisma.player.findFirst({ where: { mlbId: Number(playerId) } });
+  // Check if Player exists, if not create (should exist from pool)
+  let dbPlayer = await prisma.player.findFirst({ where: { mlbId: Number(playerId) } });
      if (!dbPlayer) {
          // Create stub if missing
          dbPlayer = await prisma.player.create({
@@ -343,15 +333,10 @@ router.post("/finish", async (req, res) => {
      STATE.lastUpdate = Date.now();
 
      res.json(STATE);
-
-  } catch (e: any) {
-      logger.error({ error: String(e) }, "Auction /finish error");
-      res.status(500).json({ error: "Failed to commit auction result" });
-  }
-});
+}));
 
 // POST /api/auction/pause
-router.post("/pause", (req, res) => {
+router.post("/pause", requireAuth, requireAdmin, (req, res) => {
     if (STATE.nomination && STATE.nomination.status === 'running') {
         const now = Date.now();
         const end = new Date(STATE.nomination.endTime).getTime();
@@ -362,7 +347,7 @@ router.post("/pause", (req, res) => {
 });
 
 // POST /api/auction/resume
-router.post("/resume", (req, res) => {
+router.post("/resume", requireAuth, requireAdmin, (req, res) => {
     if (STATE.nomination && STATE.nomination.status === 'paused') {
         const now = Date.now();
         const remaining = STATE.nomination.pausedRemainingMs || (STATE.config.bidTimer * 1000);
@@ -373,7 +358,7 @@ router.post("/resume", (req, res) => {
 });
 
 // POST /api/auction/reset
-router.post("/reset", async (req, res) => {
+router.post("/reset", requireAuth, requireAdmin, asyncHandler(async (req, res) => {
     // Clear State
     STATE.status = "nominating";
     STATE.nomination = null;
@@ -385,20 +370,22 @@ router.post("/reset", async (req, res) => {
     // BUT DB rosters persist. So "Reset" implies clearing DB rosters too?
     // User said "dry run... so they know how this works". They will likely bid, win players.
     // So we need to DELETE the roster entries created during the dry run.
-    try {
-        if (STATE.leagueId) {
-           // Delete all rosters for this league? Or just "auction_2025" source?
-           // Safest is to handle "auction_2025" source if we added it in finish.
-           await prisma.roster.deleteMany({
-               where: { source: 'auction_2025', team: { leagueId: STATE.leagueId } }
-           });
-           await refreshTeams(STATE.leagueId);
-        }
-        res.json(STATE);
-    } catch (e: any) {
-        res.status(500).json({ error: e.message });
+    if (STATE.leagueId) {
+       await prisma.roster.deleteMany({
+           where: { source: 'auction_2025', team: { leagueId: STATE.leagueId } }
+       });
+       await refreshTeams(STATE.leagueId);
     }
-});
+
+    writeAuditLog({
+      userId: req.user!.id,
+      action: "AUCTION_RESET",
+      resourceType: "Auction",
+      metadata: { leagueId: STATE.leagueId },
+    });
+
+    res.json(STATE);
+}));
 
 export const auctionRouter = router;
 export default auctionRouter;

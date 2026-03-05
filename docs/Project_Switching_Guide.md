@@ -24,10 +24,10 @@ To run FBST and TrustDesk at the same time without port conflicts, you must diff
 
 ### Default Port Mappings
 - **FBST**:
-  - Backend: `4000`
+  - Backend: `4002`
   - Frontend: `5173`
   - Vite HMR: `24678`
-- **TrustDesk** (Recommended Adjustment):
+- **FSVP Pro**:
   - Backend: `4001`
   - Frontend: `5174`
   - Vite HMR: `24679`

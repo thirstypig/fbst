@@ -178,6 +178,34 @@ export function requireCommissionerOrAdmin(leagueIdParam = "leagueId"): RequestH
   };
 }
 
+/**
+ * Middleware factory: requires the user to be a member of the league
+ * (any role: COMMISSIONER, OWNER, or VIEWER). Reads leagueId from
+ * req.params[leagueIdParam] first, then req.query[leagueIdParam].
+ * Admins bypass. Must be placed after `requireAuth`.
+ */
+export function requireLeagueMember(leagueIdParam = "leagueId"): RequestHandler {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const raw = req.params[leagueIdParam] ?? req.query[leagueIdParam];
+    const leagueId = Number(raw);
+    if (!Number.isFinite(leagueId)) {
+      return res.status(400).json({ error: "Invalid leagueId" });
+    }
+
+    if (req.user!.isAdmin) return next();
+
+    const m = await prisma.leagueMembership.findUnique({
+      where: { leagueId_userId: { leagueId, userId: req.user!.id } },
+    });
+
+    if (!m) {
+      return res.status(403).json({ error: "Not a member of this league" });
+    }
+
+    return next();
+  };
+}
+
 export function parseIntParam(v: any): number | null {
   const n = Number(String(v ?? "").trim());
   return Number.isFinite(n) ? n : null;

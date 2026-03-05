@@ -16,7 +16,7 @@ const router = Router();
 const teamService = new TeamService();
 
 // GET /api/teams - simple list of teams
-router.get("/", asyncHandler(async (_req, res) => {
+router.get("/", requireAuth, asyncHandler(async (_req, res) => {
   const teams = await prisma.team.findMany({
     orderBy: { name: "asc" },
     select: {
@@ -31,7 +31,7 @@ router.get("/", asyncHandler(async (_req, res) => {
 }));
 
 // GET /api/teams/:id/summary
-router.get("/:id/summary", asyncHandler(async (req, res) => {
+router.get("/:id/summary", requireAuth, asyncHandler(async (req, res) => {
   const teamId = Number(req.params.id);
   if (Number.isNaN(teamId)) {
     return res.status(400).json({ error: "Invalid team id" });

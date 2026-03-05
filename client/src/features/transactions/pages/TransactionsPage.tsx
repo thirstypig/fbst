@@ -1,6 +1,7 @@
 // client/src/pages/TransactionsPage.tsx
 import React, { useEffect, useState } from "react";
 import { getTransactions, TransactionEvent, getPlayerSeasonStats, getLeagues, getLeague, PlayerSeasonStat, getSeasonStandings } from "../../../api";
+import { fetchJsonApi } from "../../../api/base";
 import AddDropTab from "../../roster/components/AddDropTab";
 import PageHeader from "../../../components/ui/PageHeader";
 import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from "../../../components/ui/ThemedTable";
@@ -70,13 +71,8 @@ export default function TransactionsPage() {
       if (!confirmed) return;
 
       try {
-          // TODO: Use a proper API wrapper
-          const res = await fetch('/api/transactions/claim', {
+          await fetchJsonApi('/api/transactions/claim', {
               method: 'POST',
-              headers: { 
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${localStorage.getItem('token')}`
-              },
               body: JSON.stringify({
                   leagueId,
                   teamId: selectedTeamId,
@@ -84,9 +80,6 @@ export default function TransactionsPage() {
                   mlbId: player.mlb_id || (player as any).mlbId,
               })
           });
-
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || "Claim failed");
 
           alert(`Successfully claimed ${player.player_name}!`);
           window.location.reload(); // Simple refresh to show new state
