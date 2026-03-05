@@ -80,9 +80,9 @@ describe("CATEGORY_CONFIG", () => {
   });
 });
 
-function makeStats(teams: Array<{ id: number; name: string } & Record<string, number>>) {
+function makeStats(teams: Array<Record<string, any>>) {
   return teams.map((t) => ({
-    team: { id: t.id, name: t.name },
+    team: { id: t.id, name: t.name, code: t.code || t.name },
     ...t,
   }));
 }

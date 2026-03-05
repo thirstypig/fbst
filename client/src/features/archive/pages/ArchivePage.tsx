@@ -1,6 +1,7 @@
 // client/src/pages/ArchivePage.tsx
 import React, { useEffect, useState } from 'react';
 import { getArchiveSeasons, getArchivePeriods, getArchivePeriodStats, getArchiveDraftResults, updateArchiveTeamName, fmtRate } from '../../../api';
+import { fetchJsonApi } from '../../../api/base';
 import { OGBA_TEAM_NAMES } from '../../../lib/ogbaTeams';
 import { useAuth } from '../../../auth/AuthProvider';
 import EditPlayerNameModal from '../../players/components/EditPlayerNameModal';
@@ -147,12 +148,10 @@ export default function ArchivePage() {
     
     try {
       setRecalculating(true);
-      const response = await fetch(`/api/archive/${selectedYear}/recalculate`, {
+      const result = await fetchJsonApi<any>(`/api/archive/${selectedYear}/recalculate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tab, periodNumber: period }),
       });
-      const result = await response.json();
       if (result.success) {
         alert(`Recalculation complete! Updated ${result.updated} player records for ${result.tab === 'draft' ? 'Auction Draft' : result.periodNumber ? `Period ${result.periodNumber}` : 'all periods'}.`);
         window.location.reload();
@@ -322,8 +321,8 @@ export default function ArchivePage() {
 
             // Fetch ALL periods
             // TODO: Optimize backend to return matrix
-            const promises = periods.map(p => 
-                fetch(`/api/archive/${year}/period/${p.periodNumber}/standings`).then(r => r.json())
+            const promises = periods.map(p =>
+                fetchJsonApi<any>(`/api/archive/${year}/period/${p.periodNumber}/standings`)
             );
             
             const results = await Promise.all(promises);
@@ -387,9 +386,7 @@ export default function ArchivePage() {
       try {
         setPeriodResultsLoading(true);
         const year = selectedYear!;
-        const res = await fetch(`/api/archive/${year}/period-results`);
-        if (!res.ok) throw new Error('Failed to load period results');
-        const data = await res.json();
+        const data = await fetchJsonApi<any>(`/api/archive/${year}/period-results`);
         setPeriodResults(data.results || []);
       } catch (err) {
         console.error(err);

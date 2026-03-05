@@ -141,15 +141,16 @@ const SeasonPage: React.FC = () => {
         const teamSummaryMap = new Map<string, TeamPeriodSummaryRow>();
 
         (resp.categories || []).forEach((cat: any) => {
-          catMap[cat.categoryId] = cat.rows || [];
-          
+          const catKey = cat.key || cat.id;
+          catMap[catKey] = cat.rows || [];
+
           (cat.rows || []).forEach((row: any) => {
             const code = row.teamCode;
             if (!teamSummaryMap.has(code)) {
               teamSummaryMap.set(code, {
                 teamId: code,
                 teamName: OGBA_TEAM_NAMES[code] || code,
-                gamesPlayed: 0, // Not currently used in this view
+                gamesPlayed: 0,
                 totalPoints: 0,
                 totalPointsDelta: 0,
                 categories: []
@@ -158,7 +159,7 @@ const SeasonPage: React.FC = () => {
             const team = teamSummaryMap.get(code)!;
             team.totalPoints += toNum(row.points);
             team.categories.push({
-              categoryId: cat.categoryId,
+              categoryId: catKey,
               points: toNum(row.points)
             });
           });

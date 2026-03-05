@@ -3,9 +3,11 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { API_BASE, getLeagues, getMe, type LeagueListItem } from "../../../api";
+import { fetchJsonApi } from "../../../api/base";
 import CommissionerRosterTool from "../components/CommissionerRosterTool";
 import CommissionerControls from "../components/CommissionerControls";
 import KeeperPrepDashboard from "../../keeper-prep/components/KeeperPrepDashboard";
+import { RulesEditor } from "../../leagues/components/RulesEditor";
 import PageHeader from "../../../components/ui/PageHeader";
 
 type CommissionerUser = {
@@ -56,30 +58,6 @@ function cls(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
 }
 
-async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const url = `${API_BASE}${path}`;
-  const res = await fetch(url, {
-    credentials: "include",
-    headers: { Accept: "application/json", "Content-Type": "application/json", ...(init?.headers || {}) },
-    ...init,
-  });
-
-  const text = await res.text();
-  const json = (() => {
-    try {
-      return text ? JSON.parse(text) : null;
-    } catch {
-      return null;
-    }
-  })();
-
-  if (!res.ok) {
-    const msg = (json && (json.error || json.message)) || (text ? text.slice(0, 180) : `HTTP ${res.status}`);
-    throw new Error(msg);
-  }
-
-  return (json ?? ({} as any)) as T;
-}
 
 function normalizeOverview(resp: CommissionerOverviewResponse): {
   league: CommissionerLeague;
@@ -166,12 +144,12 @@ export default function Commissioner() {
   const [selectedPriorTeamId, setSelectedPriorTeamId] = useState<number | "">("");
 
   // Tabs
-  const [activeTab, setActiveTab] = useState<'overview' | 'rosters' | 'keepers' | 'controls'>('overview');
-  
+  const [activeTab, setActiveTab] = useState<'overview' | 'rosters' | 'keepers' | 'controls' | 'settings'>('overview');
+
   // Hash listener
   useEffect(() => {
      const hash = window.location.hash.replace('#', '');
-     if (['overview', 'rosters', 'keepers', 'controls'].includes(hash)) {
+     if (['overview', 'rosters', 'keepers', 'controls', 'settings'].includes(hash)) {
          setActiveTab(hash as any);
      }
   }, []);
@@ -212,18 +190,18 @@ export default function Commissioner() {
       setLeagues(leaguesResp.leagues ?? []);
 
       // commissioner overview (server enforces access)
-      const resp = await fetchJson<CommissionerOverviewResponse>(`/commissioner/${lid}`);
+      const resp = await fetchJsonApi<CommissionerOverviewResponse>(`${API_BASE}/commissioner/${lid}`);
       const norm = normalizeOverview(resp);
 
       setOverview({ league: norm.league, teams: norm.teams, memberships: norm.memberships });
       reconcileTeamSelections(norm.teams);
 
       // Fetch available users for dropdown
-      const usersResp = await fetchJson<{ users: Array<{ id: number; email: string; name: string | null }> }>(`/commissioner/${lid}/available-users`);
+      const usersResp = await fetchJsonApi<{ users: Array<{ id: number; email: string; name: string | null }> }>(`${API_BASE}/commissioner/${lid}/available-users`);
       setAvailableUsers(usersResp.users ?? []);
 
       // Fetch prior teams for team creation
-      const priorResp = await fetchJson<{ priorTeams: Array<{ id: number; name: string; code: string | null }> }>(`/commissioner/${lid}/prior-teams`);
+      const priorResp = await fetchJsonApi<{ priorTeams: Array<{ id: number; name: string; code: string | null }> }>(`${API_BASE}/commissioner/${lid}/prior-teams`);
       setPriorTeams(priorResp.priorTeams ?? []);
     } catch (e: any) {
       setError(e?.message ?? "Failed to load commissioner data.");
@@ -245,7 +223,7 @@ export default function Commissioner() {
   }, [leagueId]);
 
   async function refreshOverviewOnly() {
-    const resp = await fetchJson<CommissionerOverviewResponse>(`/commissioner/${lid}`);
+    const resp = await fetchJsonApi<CommissionerOverviewResponse>(`${API_BASE}/commissioner/${lid}`);
     const norm = normalizeOverview(resp);
     setOverview({ league: norm.league, teams: norm.teams, memberships: norm.memberships });
     reconcileTeamSelections(norm.teams);
@@ -265,7 +243,7 @@ export default function Commissioner() {
       };
       if (!payload.name) throw new Error("Team name is required.");
 
-      await fetchJson(`/commissioner/${lid}/teams`, { method: "POST", body: JSON.stringify(payload) });
+      await fetchJsonApi(`${API_BASE}/commissioner/${lid}/teams`, { method: "POST", body: JSON.stringify(payload) });
 
       setTeamName("");
       setTeamCode("");
@@ -286,7 +264,7 @@ export default function Commissioner() {
       const email = String(inviteEmail || "").trim().toLowerCase();
       if (!email) throw new Error("Email is required.");
 
-      await fetchJson(`/commissioner/${lid}/members`, {
+      await fetchJsonApi(`${API_BASE}/commissioner/${lid}/members`, {
         method: "POST",
         body: JSON.stringify({ email, role: inviteRole }),
       });
@@ -310,7 +288,7 @@ export default function Commissioner() {
       const userId = Number(ownerUserId);
       if (!Number.isFinite(userId) || userId <= 0) throw new Error("Select an owner.");
 
-      await fetchJson(`/commissioner/${lid}/teams/${teamId}/owner`, {
+      await fetchJsonApi(`${API_BASE}/commissioner/${lid}/teams/${teamId}/owner`, {
         method: "POST",
         body: JSON.stringify({ userId, ownerName: String(ownerName || "").trim() || undefined }),
       });
@@ -329,7 +307,7 @@ export default function Commissioner() {
     setBusy(true);
     setError(null);
     try {
-      await fetchJson(`/commissioner/${lid}/teams/${teamId}/owner/${userId}`, { method: "DELETE" });
+      await fetchJsonApi(`${API_BASE}/commissioner/${lid}/teams/${teamId}/owner/${userId}`, { method: "DELETE" });
       await refreshOverviewOnly();
     } catch (err: any) {
       setError(err?.message ?? "Remove owner failed.");
@@ -345,7 +323,7 @@ export default function Commissioner() {
 
     setBusy(true);
     try {
-      await fetchJson(`/commissioner/${lid}/teams/${teamId}`, { method: "DELETE" });
+      await fetchJsonApi(`${API_BASE}/commissioner/${lid}/teams/${teamId}`, { method: "DELETE" });
       await refreshOverviewOnly();
     } catch (e: any) {
       alert(e.message || "Failed to delete team.");
@@ -433,7 +411,7 @@ export default function Commissioner() {
 
             {/* Navigation Tabs */}
             <div className="flex gap-2 border-b border-[var(--lg-border-subtle)] pb-4 mb-6 overflow-x-auto">
-                {['overview', 'rosters', 'keepers', 'controls'].map((tab) => (
+                {['overview', 'rosters', 'keepers', 'controls', 'settings'].map((tab) => (
                     <button
                         key={tab}
                         onClick={() => {
@@ -737,6 +715,15 @@ export default function Commissioner() {
              {activeTab === 'controls' && (
                 <div className="space-y-6">
                      <CommissionerControls leagueId={lid} />
+                </div>
+             )}
+
+             {/* Tab: Settings */}
+             {activeTab === 'settings' && (
+                <div className="space-y-6">
+                    <div className="rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] p-5">
+                        <RulesEditor leagueId={lid} />
+                    </div>
                 </div>
              )}
           </>

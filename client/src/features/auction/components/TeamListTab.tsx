@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PlayerSeasonStat } from '../../../api';
+import { fetchJsonApi } from '../../../api/base';
 import PlayerExpandedRow from './PlayerExpandedRow';
 import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from "../../../components/ui/ThemedTable";
 
@@ -50,9 +51,7 @@ export default function TeamListTab({ teams = [], players = [] }: TeamListTabPro
     const fetchRoster = async () => {
         try {
             setLoadingIds(prev => new Set(prev).add(expandedId));
-            const res = await fetch(`/api/teams/${expandedId}/summary`);
-            if (!res.ok) throw new Error("Failed to fetch team summary");
-            const data = await res.json();
+            const data = await fetchJsonApi<any>(`/api/teams/${expandedId}/summary`);
             setDetailedRoster(data.currentRoster);
         } catch (err) {
             console.error(err);
@@ -80,35 +79,21 @@ export default function TeamListTab({ teams = [], players = [] }: TeamListTabPro
       });
 
       try {
-           const res = await fetch(`/api/teams/${teamId}/roster/${rosterId}`, {
+           await fetchJsonApi(`/api/teams/${teamId}/roster/${rosterId}`, {
                method: 'PATCH',
-               headers: { 'Content-Type': 'application/json' },
                body: JSON.stringify({ assignedPosition: newPos })
            });
-           
-           if (!res.ok) {
-               throw new Error("Failed to update");
-           }
-           
-           // Optionally confirm with server data, but optimistic is usually enough for this UX.
-           // However, let's keep the re-fetch to be safe and ensure consistency with other fields if they changed.
-           // Actually, if we re-fetch immediately, we might race? 
-           // Let's just rely on the verify step or re-fetch silently.
-           // For now, sticking with re-fetch to be robust against "smart" backend logic.
-           const summaryRes = await fetch(`/api/teams/${teamId}/summary`);
-           const data = await summaryRes.json();
+
+           const data = await fetchJsonApi<any>(`/api/teams/${teamId}/summary`);
            setDetailedRoster(data.currentRoster);
 
       } catch(err) {
           console.error("Failed to swap pos", err);
           alert("Failed to update position. Reverting...");
-          // Revert would require keeping old state or just re-fetching.
-          // Let's just re-fetch origin to reset.
-          const summaryRes = await fetch(`/api/teams/${teamId}/summary`);
-          if (summaryRes.ok) {
-              const data = await summaryRes.json();
+          try {
+              const data = await fetchJsonApi<any>(`/api/teams/${teamId}/summary`);
               setDetailedRoster(data.currentRoster);
-          }
+          } catch { /* ignore */ }
       }
   };
 

@@ -83,30 +83,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    // 1. Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) {
-        fetchMe().then(setMe).finally(() => setLoading(false));
-      } else {
+    let lastAccessToken: string | null = null;
+    let fetchInFlight = false;
+
+    async function syncUser(newSession: Session | null) {
+      // Skip if the access token hasn't actually changed
+      const newToken = newSession?.access_token ?? null;
+      if (newToken === lastAccessToken) return;
+      lastAccessToken = newToken;
+
+      setSession(newSession);
+
+      if (!newSession) {
+        setMe({ user: null });
+        setLoading(false);
+        return;
+      }
+
+      // Avoid overlapping fetches from rapid auth events
+      if (fetchInFlight) return;
+      fetchInFlight = true;
+      setLoading(true);
+      try {
+        const data = await fetchMe();
+        setMe(data);
+      } catch (e) {
+        console.error("Failed to fetch user profile", e);
+      } finally {
+        fetchInFlight = false;
         setLoading(false);
       }
+    }
+
+    // 1. Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      syncUser(session);
     });
 
     // 2. Listen for changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) {
-        // Only fetch if session changed (or use a flag?)
-        // Simple approach: just fetch.
-        setLoading(true);
-        fetchMe().then(setMe).finally(() => setLoading(false));
-      } else {
-        setMe({ user: null });
-        setLoading(false);
-      }
+      syncUser(session);
     });
 
     return () => subscription.unsubscribe();

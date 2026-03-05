@@ -22,7 +22,7 @@ const router = Router();
 /**
  * GET /api/transactions
  */
-router.get("/transactions", asyncHandler(async (req, res) => {
+router.get("/transactions", requireAuth, asyncHandler(async (req, res) => {
   const leagueId = req.query.leagueId ? Number(req.query.leagueId) : undefined;
   const teamId = req.query.teamId ? Number(req.query.teamId) : undefined;
   const skip = req.query.skip ? Number(req.query.skip) : 0;

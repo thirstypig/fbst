@@ -23,31 +23,53 @@ export function buildTeamNameMap(seasonStandings: any, seasonStats: any[]): Reco
 }
 
 export const CATEGORY_CONFIG = [
-  { key: "R", label: "Runs", lowerIsBetter: false },
-  { key: "HR", label: "Home Runs", lowerIsBetter: false },
-  { key: "RBI", label: "RBI", lowerIsBetter: false },
-  { key: "SB", label: "Stolen Bases", lowerIsBetter: false },
-  { key: "AVG", label: "Average", lowerIsBetter: false },
-  { key: "W", label: "Wins", lowerIsBetter: false },
-  { key: "S", label: "Saves", lowerIsBetter: false },
-  { key: "ERA", label: "ERA", lowerIsBetter: true },
-  { key: "WHIP", label: "WHIP", lowerIsBetter: true },
-  { key: "K", label: "Strikeouts", lowerIsBetter: false },
+  { key: "R", label: "Runs", lowerIsBetter: false, group: "H" },
+  { key: "HR", label: "Home Runs", lowerIsBetter: false, group: "H" },
+  { key: "RBI", label: "RBI", lowerIsBetter: false, group: "H" },
+  { key: "SB", label: "Stolen Bases", lowerIsBetter: false, group: "H" },
+  { key: "AVG", label: "Average", lowerIsBetter: false, group: "H" },
+  { key: "W", label: "Wins", lowerIsBetter: false, group: "P" },
+  { key: "SV", label: "Saves", lowerIsBetter: false, group: "P" },
+  { key: "ERA", label: "ERA", lowerIsBetter: true, group: "P" },
+  { key: "WHIP", label: "WHIP", lowerIsBetter: true, group: "P" },
+  { key: "K", label: "Strikeouts", lowerIsBetter: false, group: "P" },
 ] as const;
 
 export type CategoryKey = (typeof CATEGORY_CONFIG)[number]["key"];
+
+// Map config keys to DB column names where they differ
+const KEY_TO_DB_FIELD: Partial<Record<CategoryKey, string>> = {
+  SV: "S",
+};
 
 export function computeCategoryRows(
   stats: any[],
   key: CategoryKey,
   lowerIsBetter: boolean
 ) {
+  const dbField = KEY_TO_DB_FIELD[key] || key;
   const rows = stats.map((s) => ({
     teamId: s.team.id,
     teamName: s.team.name,
-    value: s[key],
+    teamCode: s.team.code || s.team.name.substring(0, 3).toUpperCase(),
+    value: s[dbField],
   }));
 
+  const n = rows.length;
+  if (n === 0) return [];
+
+  // Use rankPoints for proper tie handling
+  const teamsForRank = rows.map((r) => ({
+    teamCode: String(r.teamId), // use teamId as key
+    value: r.value,
+  }));
+  const { pointsByTeam, rankByTeam } = rankPoints(
+    teamsForRank,
+    !lowerIsBetter,
+    n
+  );
+
+  // Sort for display order
   rows.sort((a, b) => {
     if (lowerIsBetter) {
       return a.value - b.value;
@@ -56,18 +78,10 @@ export function computeCategoryRows(
     }
   });
 
-  const n = rows.length;
-  // Handle ties logic: if values are equal, they should share points & rank?
-  // Previous implementation in routes/standings.ts was simplistic:
-  // rank: idx+1, points: n - idx.
-  // This meant ties were broken arbitrarily by sort stability or previous order.
-  // TODO: Implement proper tie handling if "Data Correctness" rule demands it.
-  // For now, mirroring existing logic to avoid breaking changes, but flagging for upgrade.
-  
-  return rows.map((row, idx) => ({
+  return rows.map((row) => ({
     ...row,
-    rank: idx + 1, // 1-based rank
-    points: n - idx,
+    rank: rankByTeam[String(row.teamId)] ?? 0,
+    points: pointsByTeam[String(row.teamId)] ?? 0,
   }));
 }
 
@@ -134,13 +148,6 @@ export function rankPoints(
     while (j + 1 < sorted.length && sorted[j + 1].value === sorted[i].value) j++;
 
     const rankStart = i + 1;
-    const rankEnd = j + 1;
-
-    const pointForRank = (rank: number) => totalTeams - rank + 1;
-
-    let sum = 0;
-    for (let r = rankStart; r <= rankEnd; r++) sum += pointForRank(r);
-    // const avg = sum / (rankEnd - rankStart + j - j + 1); // wait j-j? it should be (j-i+1)
 
     // Average points across tied ranks
     const tiedCount = j - i + 1;

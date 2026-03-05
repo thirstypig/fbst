@@ -55,24 +55,12 @@ export async function endAuction(leagueId: number): Promise<{ success: boolean; 
 }
 
 export async function adminImportRosters(leagueId: number, csvContent: string): Promise<{ success: boolean; count: number; errors: string[] }> {
-    // Note: CSV content is not JSON, so we use raw fetch for body but might expect JSON response
-    // Actually base fetchJsonApi expects JSON body if init is provided?
-    // Let's use raw fetch for this one to be safe with CSV content-type
-    const res = await fetch(`${API_BASE}/admin/league/${leagueId}/import-rosters`, {
+    // CSV content needs special Content-Type, so we use fetchJsonApi with explicit header
+    return fetchJsonApi(`${API_BASE}/admin/league/${leagueId}/import-rosters`, {
         method: "POST",
-        headers: { 
-           "Content-Type": "text/csv", 
-           Accept: "application/json" 
-        },
-        credentials: "include",
+        headers: { "Content-Type": "text/csv" },
         body: csvContent,
     });
-    
-    if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Import failed: ${text}`);
-    }
-    return res.json();
 }
 
 export async function getMyRoster(leagueId: number): Promise<{ team: any; roster: any[]; isLocked: boolean; keeperLimit: number }> {

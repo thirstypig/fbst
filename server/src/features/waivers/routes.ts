@@ -2,10 +2,11 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../../db/prisma.js";
-import { requireAuth, requireAdmin, requireTeamOwner } from "../../middleware/auth.js";
+import { requireAuth, requireAdmin, requireTeamOwner, isTeamOwner } from "../../middleware/auth.js";
 import { validateBody } from "../../middleware/validate.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { logger } from "../../lib/logger.js";
+import { writeAuditLog } from "../../lib/auditLog.js";
 
 const waiverClaimSchema = z.object({
   teamId: z.number().int().positive(),
@@ -19,7 +20,7 @@ const router = Router();
 
 // GET /api/waivers - List pending claims for current user (or all if admin?)
 // Query param: teamId (optional)
-router.get("/", asyncHandler(async (req, res) => {
+router.get("/", requireAuth, asyncHandler(async (req, res) => {
   const teamId = Number(req.query.teamId);
   const where = teamId ? { teamId } : {};
 
@@ -57,6 +58,16 @@ router.post("/", requireAuth, validateBody(waiverClaimSchema), requireTeamOwner(
 // DELETE /api/waivers/:id - Cancel claim
 router.delete("/:id", requireAuth, asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
+
+  const claim = await prisma.waiverClaim.findUnique({ where: { id } });
+  if (!claim) return res.status(404).json({ error: "Claim not found" });
+
+  // Verify ownership (admins bypass)
+  if (!req.user!.isAdmin) {
+    const owns = await isTeamOwner(claim.teamId, req.user!.id);
+    if (!owns) return res.status(403).json({ error: "You do not own this team" });
+  }
+
   await prisma.waiverClaim.delete({ where: { id } });
   res.json({ success: true });
 }));
@@ -157,6 +168,13 @@ router.post("/process", requireAdmin, asyncHandler(async (req, res) => {
       logs.push(`Claim ${claim.id} SUCCESS: Team ${claim.teamId} gets Player ${claim.playerId} for $${claim.bidAmount}`);
     }
   }, { timeout: 30_000 });
+
+  writeAuditLog({
+    userId: req.user!.id,
+    action: "WAIVER_PROCESS",
+    resourceType: "WaiverClaim",
+    metadata: { claimCount: claims.length, successCount: logs.filter(l => l.includes("SUCCESS")).length },
+  });
 
   res.json({ success: true, logs });
 }));

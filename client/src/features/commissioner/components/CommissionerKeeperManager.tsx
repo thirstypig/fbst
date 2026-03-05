@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { getLeague } from '../../../api';
+import { fetchJsonApi } from '../../../api/base';
 
 interface KeeperManagerProps {
     leagueId: number;
@@ -50,7 +51,7 @@ export default function CommissionerKeeperManager({ leagueId }: KeeperManagerPro
             setTeams(lRes.league?.teams || []);
 
             // 2. Get Rosters
-            const rRes = await fetch(`/api/commissioner/${leagueId}/rosters`).then(r => r.json());
+            const rRes = await fetchJsonApi<any>(`/api/commissioner/${leagueId}/rosters`);
             setRosters(rRes.rosters || []);
         } catch (e) {
             console.error(e);
@@ -70,8 +71,7 @@ export default function CommissionerKeeperManager({ leagueId }: KeeperManagerPro
             return;
         }
         const t = setTimeout(async () => {
-             const res = await fetch(`/api/archive/search-mlb?query=${encodeURIComponent(query)}`);
-             const data = await res.json();
+             const data = await fetchJsonApi<any>(`/api/archive/search-mlb?query=${encodeURIComponent(query)}`);
              setSearchResults(data.players || []);
         }, 300);
         return () => clearTimeout(t);
@@ -81,9 +81,8 @@ export default function CommissionerKeeperManager({ leagueId }: KeeperManagerPro
         if (!selectedTeamId) return alert("Select a team first.");
         setProcessing(true);
         try {
-             await fetch(`/api/commissioner/${leagueId}/roster/assign`, {
+             await fetchJsonApi(`/api/commissioner/${leagueId}/roster/assign`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     teamId: Number(selectedTeamId),
                     mlbId: player.mlbId,
@@ -107,9 +106,8 @@ export default function CommissionerKeeperManager({ leagueId }: KeeperManagerPro
         if(!confirm("Remove this keeper?")) return;
         setProcessing(true);
          try {
-             await fetch(`/api/commissioner/${leagueId}/roster/release`, {
+             await fetchJsonApi(`/api/commissioner/${leagueId}/roster/release`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ rosterId })
              });
              refresh();
