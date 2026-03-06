@@ -4,7 +4,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../../db/prisma.js";
 import { DataService } from "../players/services/dataService.js";
-import { requireAuth, requireTeamOwner } from "../../middleware/auth.js";
+import { requireAuth, requireTeamOwner, requireLeagueMember } from "../../middleware/auth.js";
 import { validateBody } from "../../middleware/validate.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { logger } from "../../lib/logger.js";
@@ -21,15 +21,15 @@ const router = Router();
 
 /**
  * GET /api/transactions
+ * Requires leagueId query param + membership check
  */
-router.get("/transactions", requireAuth, asyncHandler(async (req, res) => {
-  const leagueId = req.query.leagueId ? Number(req.query.leagueId) : undefined;
+router.get("/transactions", requireAuth, requireLeagueMember("leagueId"), asyncHandler(async (req, res) => {
+  const leagueId = Number(req.query.leagueId);
   const teamId = req.query.teamId ? Number(req.query.teamId) : undefined;
   const skip = req.query.skip ? Number(req.query.skip) : 0;
   const take = req.query.take ? Number(req.query.take) : 50;
 
-  const where: any = {};
-  if (leagueId) where.leagueId = leagueId;
+  const where: any = { leagueId };
   if (teamId) where.teamId = teamId;
 
   const [total, transactions] = await Promise.all([

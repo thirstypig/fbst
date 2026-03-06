@@ -4,6 +4,76 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
+## Session 2026-03-05 (Session 8) — P0 Security Fixes
+
+### Completed
+- **`001` Hardcoded credentials** — deleted `fix_2025_auction_values.js` and `get_league_id.js` (contained Neon DB password)
+- **`002` Archive auth** — added `requireAuth` to all 11 GET endpoints, `requireAuth + requireAdmin` to all 8 write endpoints (POST/PUT/PATCH)
+- **`002b` Roster import auth** — added `requireAuth + requireAdmin` to POST `/import`; template GET left public
+- **`003` Auction ownership** — added `requireTeamOwner("nominatorTeamId")` to nominate, `requireTeamOwner("bidderTeamId")` to bid
+- **`004` Roster ownership** — inline `isTeamOwner()` check on POST `/add-player` and DELETE `/:id` (lookup team by code). Admins bypass.
+- **`010` Waivers info disclosure** — GET without `teamId` now scoped to user's own teams (via `Team.ownerUserId` + `TeamOwnership`). With `teamId`, verifies ownership. Admins see all.
+- **IDOR — Teams** — GET `/api/teams` scoped to user's league memberships. With `leagueId` query param, verifies membership.
+- **IDOR — Transactions** — `leagueId` now required + `requireLeagueMember("leagueId")` middleware added.
+- **Smoke tested** all 30+ endpoints: unauthed → 401, authed → correct scoping
+
+### Pending / Next Steps (for Session 9+)
+- [ ] `005` — Type standings service (replace `any[]` with proper interfaces)
+- [ ] `006` — Cache standings computation
+- [ ] `007` — Complete auth migration (~6 client files still use raw `fetch()`)
+- [ ] `008` — Fix test files testing copied logic (~550 LOC)
+- [ ] `009` — Document 3 undocumented cross-feature dependencies
+- [ ] `011`–`014` — P3 cleanup (AppShell, RulesEditor, Commissioner tokens, parseIntParam)
+- [ ] Rotate Neon DB password (credentials were in git history)
+- [ ] Commit and create PR for this session's changes
+
+### Test Results
+- Server: 11 files, 168 tests passing
+- Client: 4 files, 70 tests passing
+- Total: 238 tests, all green
+- TypeScript: both server + client compile clean
+- Manual smoke: 30+ endpoints tested (unauthed + authed)
+
+---
+
+## Session 2026-03-05 (Session 7)
+
+### Completed
+- **PR #12 merged to main** — auth fix, port change, standings CSV, guide cleanup (57 files, +3524 -1016)
+- **Port change**: FBST Express API moved from 4001 → 4002 (avoids conflict with FSVP Pro)
+- **Standings fix**: Routes compute from CSV data (DataService) instead of empty DB tables
+- **Scripts security**: Removed hardcoded OAuth secrets from shell scripts; now source from `server/.env`
+- **6-agent code review** completed: Security, Performance, Architecture, TypeScript, Pattern, Simplicity
+
+### Code Review Findings (14 total)
+
+**P1 — Critical (4):**
+- [x] `001` — Hardcoded production DB credentials — **fixed Session 8**
+- [x] `002` — Archive routes + roster import missing auth — **fixed Session 8**
+- [x] `003` — Auction nominate/bid no ownership check — **fixed Session 8**
+- [x] `004` — Roster add/delete missing ownership checks — **fixed Session 8**
+
+**P2 — Important (6):**
+- [ ] `005` — Pervasive `any` types in standings service (all function signatures)
+- [ ] `006` — Cache standings computation (recomputes on every request)
+- [ ] `007` — ~6 client files still use raw `fetch()` for authenticated endpoints
+- [ ] `008` — Test files test copied logic, not real source code (~550 LOC)
+- [ ] `009` — 3 undocumented cross-feature dependencies in CLAUDE.md
+- [x] `010` — Waivers GET info leak — **fixed Session 8**
+
+**P3 — Nice-to-Have (4):**
+- [ ] `011` — AppShell duplicates auth state + YAGNI sidebar resize
+- [ ] `012` — RulesEditor: derive `grouped` with useMemo
+- [ ] `013` — Commissioner page uses hardcoded colors, not design tokens
+- [ ] `014` — `parseIntParam` belongs in utils.ts, not auth.ts
+
+### Test Results
+- Server: 11 files, 168 tests passing
+- Client: 4 files, 70 tests passing
+- Total: 238 tests, all green
+
+---
+
 ## Session 2026-03-04 (Session 6)
 
 ### Completed

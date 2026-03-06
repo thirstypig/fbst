@@ -1,6 +1,7 @@
 import express from 'express';
 import { prisma } from '../../db/prisma.js';
 import { logger } from '../../lib/logger.js';
+import { requireAuth, requireAdmin } from '../../middleware/auth.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -30,7 +31,7 @@ if (!fs.existsSync(path.join(__dirname, '../../data/uploads/'))) {
  * GET /api/archive/seasons
  * Returns all years that have archive data
  */
-router.get('/archive/seasons', async (req, res) => {
+router.get('/archive/seasons', requireAuth, async (req, res) => {
   try {
     const seasons = await prisma.historicalSeason.findMany({
       orderBy: { year: 'desc' },
@@ -47,7 +48,7 @@ router.get('/archive/seasons', async (req, res) => {
  * GET /api/archive/:year/standings
  * Returns the final standings for a given year
  */
-router.get('/archive/:year/standings', async (req, res) => {
+router.get('/archive/:year/standings', requireAuth, async (req, res) => {
   try {
     const year = parseInt(req.params.year);
     if (!Number.isFinite(year)) {
@@ -81,7 +82,7 @@ router.get('/archive/:year/standings', async (req, res) => {
  * GET /api/archive/:year/period/:num/standings
  * Returns calculated standings for a specific period
  */
-router.get('/archive/:year/period/:num/standings', async (req, res) => {
+router.get('/archive/:year/period/:num/standings', requireAuth, async (req, res) => {
   try {
     const year = parseInt(req.params.year);
     const periodNum = parseInt(req.params.num);
@@ -101,7 +102,7 @@ router.get('/archive/:year/period/:num/standings', async (req, res) => {
  * GET /api/archive/:year/periods
  * Returns list of periods for a given year
  */
-router.get('/archive/:year/periods', async (req, res) => {
+router.get('/archive/:year/periods', requireAuth, async (req, res) => {
   try {
     const year = parseInt(req.params.year);
     if (!Number.isFinite(year)) {
@@ -145,7 +146,7 @@ router.get('/archive/:year/periods', async (req, res) => {
  * PUT /api/archive/:year/teams/:teamCode
  * Update a historical team name (Admin only)
  */
-router.put('/archive/:year/teams/:teamCode', async (req, res) => {
+router.put('/archive/:year/teams/:teamCode', requireAuth, requireAdmin, async (req, res) => {
   try {
     const year = parseInt(req.params.year);
     const { teamCode } = req.params;
@@ -180,7 +181,7 @@ router.put('/archive/:year/teams/:teamCode', async (req, res) => {
  * GET /api/archive/:year/period/:num/stats
  * Returns all player stats for a specific period, separated by hitters and pitchers.
  */
-router.get('/archive/:year/period/:num/stats', async (req, res) => {
+router.get('/archive/:year/period/:num/stats', requireAuth, async (req, res) => {
   try {
     const year = parseInt(req.params.year);
     const periodNum = parseInt(req.params.num);
@@ -240,7 +241,7 @@ router.get('/archive/:year/period/:num/stats', async (req, res) => {
  * PATCH /api/archive/stat/:id
  * Updates player metadata for a historical stat record
  */
-router.patch('/archive/stat/:id', async (req, res) => {
+router.patch('/archive/stat/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     if (!Number.isFinite(id)) {
@@ -280,7 +281,7 @@ router.patch('/archive/stat/:id', async (req, res) => {
  * GET /api/archive/recalculate-all
  * Triggers recalculation for all historical years.
  */
-router.post('/archive/recalculate-all', async (req, res) => {
+router.post('/archive/recalculate-all', requireAuth, requireAdmin, async (req, res) => {
   try {
     const seasons = await prisma.historicalSeason.findMany({ select: { year: true } });
     let totalUpdated = 0;
@@ -327,7 +328,7 @@ const OPENING_DAYS: Record<number, string> = {
  * POST /api/archive/:year/sync
  * Performs both auto-matching AND stat recalculation for a season.
  */
-router.post('/archive/:year/sync', async (req, res) => {
+router.post('/archive/:year/sync', requireAuth, requireAdmin, async (req, res) => {
   try {
     const year = parseInt(req.params.year);
     if (!Number.isFinite(year)) {
@@ -350,7 +351,7 @@ router.post('/archive/:year/sync', async (req, res) => {
   }
 });
 
-router.post('/archive/:year/recalculate', async (req, res) => {
+router.post('/archive/:year/recalculate', requireAuth, requireAdmin, async (req, res) => {
   try {
     const year = parseInt(req.params.year);
     if (!Number.isFinite(year)) {
@@ -371,7 +372,7 @@ router.post('/archive/:year/recalculate', async (req, res) => {
  * GET /api/archive/search-players?query=:name
  * Search current Player table for MLB player lookup
  */
-router.get('/archive/search-players', async (req, res) => {
+router.get('/archive/search-players', requireAuth, async (req, res) => {
   try {
     const query = req.query.query as string;
     
@@ -407,7 +408,7 @@ router.get('/archive/search-players', async (req, res) => {
  * GET /archive/search-mlb
  * Search the MLB Stats API directly for players
  */
-router.get('/archive/search-mlb', async (req, res) => {
+router.get('/archive/search-mlb', requireAuth, async (req, res) => {
   try {
     const query = req.query.query as string;
     if (!query || query.trim().length < 2) {
@@ -441,7 +442,7 @@ router.get('/archive/search-mlb', async (req, res) => {
  * GET /api/archive/:year/period-results
  * Returns cumulative standings for all periods
  */
-router.get('/archive/:year/period-results', async (req, res) => {
+router.get('/archive/:year/period-results', requireAuth, async (req, res) => {
   try {
     const year = parseInt(req.params.year);
     const season = await prisma.historicalSeason.findFirst({
@@ -541,7 +542,7 @@ router.get('/archive/:year/period-results', async (req, res) => {
 
 // POST /api/archive/auto-match-all
 // Runs name auto-matching for all seasons (full name, MLB ID).
-router.post('/archive/auto-match-all', async (req, res) => {
+router.post('/archive/auto-match-all', requireAuth, requireAdmin, async (req, res) => {
   try {
     const years = await prisma.historicalSeason.findMany({ select: { year: true } });
     const results: { year: number; matched: number; unmatched: number }[] = [];
@@ -560,7 +561,7 @@ router.post('/archive/auto-match-all', async (req, res) => {
  * GET /api/archive/:year/draft-results
  * Returns auction draft results with player $ values and pre-draft trades
  */
-router.get('/archive/:year/draft-results', async (req, res) => {
+router.get('/archive/:year/draft-results', requireAuth, async (req, res) => {
   try {
     const year = parseInt(req.params.year);
     if (!Number.isFinite(year)) {
@@ -695,7 +696,7 @@ router.get('/archive/:year/draft-results', async (req, res) => {
  * POST /api/archive/archive-current
  * Archives the current live season (highest year) if it has ended.
  */
-router.post('/archive/archive-current', async (req, res) => {
+router.post('/archive/archive-current', requireAuth, requireAdmin, async (req, res) => {
   try {
     const league = await prisma.league.findFirst({
       orderBy: { season: 'desc' }
@@ -829,7 +830,7 @@ async function autoMatchPlayersForYear(year: number): Promise<{ matched: number;
  * POST /api/archive/:year/import-excel
  * Uploads an Excel file, converts it to CSVs, imports data, and auto-matches players
  */
-router.post('/archive/:year/import-excel', upload.single('file'), async (req, res) => {
+router.post('/archive/:year/import-excel', requireAuth, requireAdmin, upload.single('file'), async (req, res) => {
   try {
     const year = parseInt(req.params.year);
     if (!Number.isFinite(year)) {
@@ -870,7 +871,7 @@ router.post('/archive/:year/import-excel', upload.single('file'), async (req, re
  * POST /api/archive/:year/auto-match
  * Manually trigger auto-matching of abbreviated player names to full names
  */
-router.post('/archive/:year/auto-match', async (req, res) => {
+router.post('/archive/:year/auto-match', requireAuth, requireAdmin, async (req, res) => {
   try {
     const year = parseInt(req.params.year);
     if (!Number.isFinite(year)) {
@@ -902,7 +903,7 @@ import { aiAnalysisService } from '../../services/aiAnalysisService.js';
  * GET /api/archive/:year/ai/trends/:teamCode
  * Get AI-generated team performance trend analysis
  */
-router.get('/archive/:year/ai/trends/:teamCode', async (req, res) => {
+router.get('/archive/:year/ai/trends/:teamCode', requireAuth, async (req, res) => {
   try {
     const year = parseInt(req.params.year);
     const { teamCode } = req.params;
@@ -928,7 +929,7 @@ router.get('/archive/:year/ai/trends/:teamCode', async (req, res) => {
  * GET /api/archive/:year/ai/draft/:teamCode
  * Get AI-generated draft strategy analysis
  */
-router.get('/archive/:year/ai/draft/:teamCode', async (req, res) => {
+router.get('/archive/:year/ai/draft/:teamCode', requireAuth, async (req, res) => {
   try {
     const year = parseInt(req.params.year);
     const { teamCode } = req.params;

@@ -1,6 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import { logger } from '../../lib/logger.js';
+import { requireAuth, requireAdmin } from '../../middleware/auth.js';
 import { parse } from 'csv-parse';
 import { Readable } from 'stream';
 import { prisma } from '../../db/prisma.js';
@@ -18,7 +19,7 @@ interface RosterRow {
 }
 
 // POST /api/roster/import - Bulk import roster entries from CSV
-router.post('/import', upload.single('file'), async (req, res) => {
+router.post('/import', requireAuth, requireAdmin, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });

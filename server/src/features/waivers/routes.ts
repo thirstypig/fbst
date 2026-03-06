@@ -18,17 +18,39 @@ const waiverClaimSchema = z.object({
 
 const router = Router();
 
-// GET /api/waivers - List pending claims for current user (or all if admin?)
+// GET /api/waivers - List pending claims scoped to user's teams (admins see all)
 // Query param: teamId (optional)
 router.get("/", requireAuth, asyncHandler(async (req, res) => {
-  const teamId = Number(req.query.teamId);
-  const where = teamId ? { teamId } : {};
+  const teamId = req.query.teamId ? Number(req.query.teamId) : undefined;
+  let where: any = { status: "PENDING" };
+
+  if (req.user!.isAdmin) {
+    // Admins can see all, optionally filtered by teamId
+    if (teamId) where.teamId = teamId;
+  } else if (teamId) {
+    // Non-admin with teamId: verify ownership first
+    const owns = await isTeamOwner(teamId, req.user!.id);
+    if (!owns) return res.status(403).json({ error: "You do not own this team" });
+    where.teamId = teamId;
+  } else {
+    // No teamId: scope to user's own teams only
+    const userTeams = await prisma.team.findMany({
+      where: { ownerUserId: req.user!.id },
+      select: { id: true },
+    });
+    const ownedTeams = await prisma.teamOwnership.findMany({
+      where: { userId: req.user!.id },
+      select: { teamId: true },
+    });
+    const teamIds = [...new Set([
+      ...userTeams.map(t => t.id),
+      ...ownedTeams.map(t => t.teamId),
+    ])];
+    where.teamId = { in: teamIds };
+  }
 
   const claims = await prisma.waiverClaim.findMany({
-    where: {
-      ...where,
-      status: "PENDING",
-    },
+    where,
     include: { player: true, dropPlayer: true },
     orderBy: [{ bidAmount: "desc" }, { priority: "asc" }],
   });

@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../../db/prisma.js";
 import { logger } from "../../lib/logger.js";
-import { requireAuth, requireAdmin } from "../../middleware/auth.js";
+import { requireAuth, requireAdmin, requireTeamOwner } from "../../middleware/auth.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { writeAuditLog } from "../../lib/auditLog.js";
 
@@ -182,7 +182,7 @@ router.post("/init", requireAuth, requireAdmin, asyncHandler(async (req, res) =>
 }));
 
 // POST /api/auction/nominate
-router.post("/nominate", requireAuth, (req, res) => {
+router.post("/nominate", requireAuth, requireTeamOwner("nominatorTeamId"), (req, res) => {
   // Basic validation
   // if (STATE.status !== 'nominating') return res.status(400).json({ error: "Not in nominating phase" });
 
@@ -229,7 +229,7 @@ router.post("/nominate", requireAuth, (req, res) => {
 });
 
 // POST /api/auction/bid
-router.post("/bid", requireAuth, (req, res) => {
+router.post("/bid", requireAuth, requireTeamOwner("bidderTeamId"), (req, res) => {
   if (STATE.status !== 'bidding' || !STATE.nomination) {
     return res.status(400).json({ error: "Auction not active" });
   }
