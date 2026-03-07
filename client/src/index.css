@@ -11,6 +11,8 @@
 
 @layer base {
   :root {
+    color-scheme: light;
+
     /* ============================================
        PANTONE 294 COLOR PALETTE
        Base: #002d72 (Pantone 294 Deep Navy)
@@ -154,6 +156,8 @@
      DARK MODE TOKENS
      ============================================ */
   .dark {
+    color-scheme: dark;
+
     --lg-bg-primary: #0a0f1a;
     --lg-bg-secondary: #0f172a;
     --lg-bg-page: linear-gradient(
@@ -703,4 +707,24 @@ a:hover {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--lg-text-muted);
+}
+
+/* ============================================
+   SCROLL HINT — fading right edge on overflow
+   ============================================ */
+.scroll-hint {
+  position: relative;
+}
+
+.scroll-hint::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 32px;
+  pointer-events: none;
+  background: linear-gradient(to right, transparent, var(--lg-bg-primary));
+  opacity: 0.6;
+  border-radius: 0 var(--lg-radius-md) var(--lg-radius-md) 0;
 }

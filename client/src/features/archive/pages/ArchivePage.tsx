@@ -454,7 +454,7 @@ export default function ArchivePage() {
 
   return (
     <div className="flex-1 min-h-screen bg-[var(--lg-glass-bg)] text-[var(--lg-text-primary)]">
-      <main className="max-w-7xl mx-auto px-6 py-12">
+      <main className="max-w-6xl mx-auto px-4 py-6 md:px-6 md:py-10">
         <PageHeader 
           title="Historical Archive" 
           subtitle="League History: Season stats and draft records."

@@ -74,7 +74,7 @@ export default function RosterGrid({ leagueId, teams: initialTeams, rosters: ini
     fetchData();
   }, [leagueId, initialTeams, initialRosters]);
 
-  if (loading) return <div className="p-4 text-center text-white/50 text-sm">Loading grid...</div>;
+  if (loading) return <div className="p-4 text-center text-[var(--lg-text-muted)] text-sm">Loading grid...</div>;
   if (error) return <div className="p-4 text-center text-red-400 text-sm">{error}</div>;
 
   // Group rosters
@@ -87,7 +87,7 @@ export default function RosterGrid({ leagueId, teams: initialTeams, rosters: ini
 
   return (
     <div className={className}>
-       <h3 className="mb-4 text-xl font-semibold text-white border-b border-[var(--lg-border-subtle)] pb-2">Live Rosters</h3>
+       <h3 className="mb-4 text-xl font-semibold text-[var(--lg-text-primary)] border-b border-[var(--lg-border-subtle)] pb-2">Live Rosters</h3>
        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
            {teams.map(team => {
                const teamRoster = rostersByTeam[team.id] || [];
@@ -96,26 +96,26 @@ export default function RosterGrid({ leagueId, teams: initialTeams, rosters: ini
                const remaining = budget - totalSpent;
                
                return (
-                   <div key={team.id} className="rounded-xl border border-[var(--lg-border-subtle)] bg-slate-900/60 overflow-hidden flex flex-col h-96">
+                   <div key={team.id} className="rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] overflow-hidden flex flex-col h-96">
                        <div className="p-3 bg-[var(--lg-tint)] border-b border-[var(--lg-border-faint)] flex justify-between items-center">
-                           <div className="font-semibold text-white truncate max-w-[120px]" title={team.name}>{team.name}</div>
-                           <div className="text-xs text-white/60 flex flex-col items-end">
+                           <div className="font-semibold text-[var(--lg-text-primary)] truncate max-w-[120px]" title={team.name}>{team.name}</div>
+                           <div className="text-xs text-[var(--lg-text-secondary)] flex flex-col items-end">
                                <span className={remaining < 0 ? 'text-red-400' : 'text-green-400'}>${remaining} left</span>
-                               <span className="text-white/40">{teamRoster.length} players</span>
+                               <span className="text-[var(--lg-text-muted)]">{teamRoster.length} players</span>
                            </div>
                        </div>
                        <div className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-thin scrollbar-thumb-white/10">
                            {teamRoster.length === 0 && (
-                               <div className="text-center text-xs text-white/20 mt-10">No players</div>
+                               <div className="text-center text-xs text-[var(--lg-text-muted)] mt-10">No players</div>
                            )}
                            {teamRoster.map(r => (
                                <div key={r.id} className="flex justify-between items-center text-xs p-1.5 hover:bg-[var(--lg-tint)] rounded group">
                                    <div className="flex items-center gap-2 overflow-hidden">
-                                       <span className="font-mono text-white/50 w-5 text-center shrink-0">{r.player.posPrimary}</span>
-                                       <span className="text-white truncate group-hover:text-sky-300 transition-colors">{r.player.name}</span>
+                                       <span className="font-mono text-[var(--lg-text-muted)] w-5 text-center shrink-0">{r.player.posPrimary}</span>
+                                       <span className="text-[var(--lg-text-primary)] truncate group-hover:text-sky-300 transition-colors">{r.player.name}</span>
                                    </div>
                                    <div className="flex items-center gap-2">
-                                        {r.player.mlbId && <span className="text-xs px-1 bg-[var(--lg-tint)] rounded text-white/30">MLB</span>}
+                                        {r.player.mlbId && <span className="text-xs px-1 bg-[var(--lg-tint)] rounded text-[var(--lg-text-muted)]">MLB</span>}
                                         <span className="font-semibold text-amber-400 w-6 text-right">${r.price}</span>
                                    </div>
                                </div>

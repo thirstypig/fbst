@@ -115,15 +115,15 @@ export default function CommissionerKeeperManager({ leagueId }: KeeperManagerPro
 
     const keeperRosters = rosters.filter(r => r.source && r.source.toLowerCase().includes('keeper'));
 
-    if (loading && teams.length === 0) return <div className="text-white/50">Loading keepers...</div>;
+    if (loading && teams.length === 0) return <div className="text-[var(--lg-text-muted)]">Loading keepers...</div>;
 
     return (
         <div className={`space-y-6 ${processing ? 'opacity-50 pointer-events-none' : ''}`}>
             <div className="flex gap-4">
                  <div className="w-1/3 space-y-4">
-                     <h3 className="font-bold text-lg text-white">Add Keeper</h3>
+                     <h3 className="font-bold text-lg text-[var(--lg-text-primary)]">Add Keeper</h3>
                      <select 
-                        className="w-full p-2 bg-slate-950 border border-[var(--lg-border-subtle)] rounded-xl text-white outline-none"
+                        className="w-full p-2 bg-[var(--lg-input-bg)] border border-[var(--lg-border-subtle)] rounded-xl text-[var(--lg-text-primary)] outline-none"
                         value={selectedTeamId}
                         onChange={e => setSelectedTeamId(e.target.value)}
                      >
@@ -133,21 +133,21 @@ export default function CommissionerKeeperManager({ leagueId }: KeeperManagerPro
                      
                      <div className="relative">
                          <input 
-                            className="w-full p-2 bg-slate-950 border border-[var(--lg-border-subtle)] rounded-xl text-white outline-none"
+                            className="w-full p-2 bg-[var(--lg-input-bg)] border border-[var(--lg-border-subtle)] rounded-xl text-[var(--lg-text-primary)] outline-none"
                             placeholder="Search Player (MLB)..."
                             value={query}
                             onChange={e => setQuery(e.target.value)}
                          />
                          {searchResults.length > 0 && (
-                             <div className="absolute top-full left-0 right-0 bg-slate-800 border border-[var(--lg-border-subtle)] max-h-60 overflow-auto z-10 rounded-xl mt-1 shadow-lg">
+                             <div className="absolute top-full left-0 right-0 bg-[var(--lg-tint-hover)] border border-[var(--lg-border-subtle)] max-h-60 overflow-auto z-10 rounded-xl mt-1 shadow-lg">
                                  {searchResults.map(p => (
                                      <div 
                                         key={p.id} 
-                                        className="p-2 hover:bg-slate-700 cursor-pointer flex justify-between text-sm text-white border-b border-[var(--lg-border-faint)] last:border-0"
+                                        className="p-2 hover:bg-[var(--lg-tint-hover)] cursor-pointer flex justify-between text-sm text-[var(--lg-text-primary)] border-b border-[var(--lg-border-faint)] last:border-0"
                                         onClick={() => handleAddKeeper(p)}
                                      >
-                                         <span>{p.name} <span className="text-white/50">({p.position})</span></span>
-                                         <span className="text-xs text-white/40">{p.team}</span>
+                                         <span>{p.name} <span className="text-[var(--lg-text-muted)]">({p.position})</span></span>
+                                         <span className="text-xs text-[var(--lg-text-muted)]">{p.team}</span>
                                      </div>
                                  ))}
                              </div>
@@ -155,10 +155,10 @@ export default function CommissionerKeeperManager({ leagueId }: KeeperManagerPro
                      </div>
 
                      <div className="flex items-center gap-2">
-                         <label className="text-white text-sm">Cost:</label>
+                         <label className="text-[var(--lg-text-primary)] text-sm">Cost:</label>
                          <input 
                             type="number" 
-                            className="p-2 bg-slate-950 border border-[var(--lg-border-subtle)] rounded-xl w-24 text-white outline-none"
+                            className="p-2 bg-[var(--lg-input-bg)] border border-[var(--lg-border-subtle)] rounded-xl w-24 text-[var(--lg-text-primary)] outline-none"
                             value={bid}
                             onChange={e => setBid(Number(e.target.value))}
                          />
@@ -167,21 +167,21 @@ export default function CommissionerKeeperManager({ leagueId }: KeeperManagerPro
                  </div>
 
                  <div className="w-2/3">
-                     <h3 className="font-bold text-lg mb-4 text-white">Assigned Keepers</h3>
+                     <h3 className="font-bold text-lg mb-4 text-[var(--lg-text-primary)]">Assigned Keepers</h3>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto pr-2">
                          {teams.map(t => {
                              const teamKeepers = keeperRosters.filter(r => r.teamId === t.id);
                              if (teamKeepers.length === 0) return null;
                              return (
-                                 <div key={t.id} className="bg-slate-950/50 p-3 rounded-xl border border-[var(--lg-border-subtle)]">
+                                 <div key={t.id} className="bg-[var(--lg-tint)] p-3 rounded-xl border border-[var(--lg-border-subtle)]">
                                      <div className="font-bold text-sky-400 mb-2 text-sm">{t.name}</div>
                                      <div className="space-y-1">
                                          {teamKeepers.map(r => (
                                              <div key={r.id} className="flex justify-between items-center text-xs group hover:bg-[var(--lg-tint)] p-1 rounded">
-                                                 <span className="text-white">{r.player.name} <span className="text-amber-400 font-mono">(${r.price})</span></span>
+                                                 <span className="text-[var(--lg-text-primary)]">{r.player.name} <span className="text-amber-400 font-mono">(${r.price})</span></span>
                                                  <button 
                                                     onClick={() => handleRemove(r.id)}
-                                                    className="text-white/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    className="text-[var(--lg-text-muted)] hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
                                                  >
                                                      ✕
                                                  </button>

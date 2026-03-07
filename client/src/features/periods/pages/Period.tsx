@@ -204,7 +204,7 @@ export default function Period() {
 
   return (
     <div className="flex-1 min-h-screen">
-      <main className="max-w-6xl mx-auto px-6 py-12">
+      <main className="max-w-6xl mx-auto px-4 py-6 md:px-6 md:py-10">
         <PageHeader 
           title="Period Performance" 
           subtitle={
@@ -229,7 +229,7 @@ export default function Period() {
                   className="bg-transparent text-sm text-[var(--lg-text-primary)] outline-none font-bold cursor-pointer hover:text-[var(--lg-accent)] transition-colors"
                 >
                   {PERIOD_OPTIONS.map((p) => (
-                    <option key={p.id} value={p.id} className="bg-slate-900 border-none">
+                    <option key={p.id} value={p.id} className="bg-[var(--lg-bg-primary)] border-none">
                       Period {p.id} ({p.label})
                     </option>
                   ))}
@@ -349,7 +349,7 @@ export default function Period() {
         </div>
 
         {/* Category standings */}
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 md:gap-12 lg:grid-cols-2">
           {/* Hitting */}
           <section>
             <div className="mb-6 flex items-end justify-between px-2">

@@ -20,7 +20,7 @@ export default function MyNominationQueue({ players, queueIds, onRemove, onNomin
     return (
         <div className="w-full bg-[var(--lg-glass-bg-hover)] rounded-xl border border-[var(--lg-table-border)] flex flex-col shadow-sm max-h-[300px] flex-1">
             <div className="p-3 border-b border-[var(--lg-table-border)] flex justify-between items-center bg-[var(--lg-bg-secondary)]">
-                <div className="text-xs font-bold text-[var(--lg-text-muted)] uppercase tracking-wider flex items-center gap-2">
+                <div className="text-xs font-semibold text-[var(--lg-text-muted)] uppercase tracking-wider flex items-center gap-2">
                     <span>Your Nomination Queue</span>
                     <span className="bg-[var(--lg-glass-bg-hover)] px-1.5 rounded text-[var(--lg-text-primary)]">{queueIds.length}</span>
                 </div>
@@ -37,7 +37,7 @@ export default function MyNominationQueue({ players, queueIds, onRemove, onNomin
                 {queuedPlayers.map(p => (
                     <div key={p.mlb_id} className="flex items-center justify-between p-2 rounded bg-[var(--lg-glass-bg)] border border-[var(--lg-table-border)] group hover:border-[var(--lg-accent)] transition-colors">
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded bg-gray-800 overflow-hidden shrink-0">
+                            <div className="w-8 h-8 rounded bg-[var(--lg-tint)] overflow-hidden shrink-0">
                                  <img 
                                     src={`https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_426,q_auto:best/v1/people/${p.mlb_id}/headshot/67/current`}
                                     alt={p.player_name}
@@ -45,12 +45,12 @@ export default function MyNominationQueue({ players, queueIds, onRemove, onNomin
                                  />
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-sm font-bold text-[var(--lg-text-primary)] leading-tight">{p.player_name}</span>
+                                <span className="text-sm font-semibold text-[var(--lg-text-primary)] leading-tight">{p.player_name}</span>
                                 <div className="text-xs text-[var(--lg-text-muted)] flex gap-1">
                                      <span className="font-mono">{getPrimaryPosition(p.positions) || (p.is_pitcher ? 'P' : 'UT')}</span>
                                      <span>•</span>
                                      <span>{p.mlb_team}</span>
-                                     <span className="text-[var(--lg-success)] font-bold ml-1">${p.value || p.dollar_value}</span>
+                                     <span className="text-[var(--lg-success)] font-semibold ml-1">${p.value || p.dollar_value}</span>
                                 </div>
                             </div>
                         </div>

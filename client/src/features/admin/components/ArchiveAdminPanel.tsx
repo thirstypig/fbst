@@ -161,7 +161,7 @@ export default function ArchiveAdminPanel({ year }: ArchiveAdminPanelProps) {
           onClick={() => setActiveTab('archive')}
           className={`flex-1 px-8 py-4 text-xs font-medium uppercase transition-all rounded-2xl ${activeTab === 'archive'
             ? 'bg-[var(--lg-accent)] text-white shadow-lg' 
-            : 'text-[var(--lg-text-muted)] hover:text-white hover:bg-[var(--lg-tint)]'
+            : 'text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] hover:bg-[var(--lg-tint)]'
           }`}
         >
           Archive Management
@@ -179,7 +179,7 @@ export default function ArchiveAdminPanel({ year }: ArchiveAdminPanelProps) {
                   type="number" 
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                  className="w-20 bg-transparent text-sm font-bold text-white outline-none"
+                  className="w-20 bg-transparent text-sm font-bold text-[var(--lg-text-primary)] outline-none"
                 />
               </div>
             </div>
@@ -225,7 +225,7 @@ export default function ArchiveAdminPanel({ year }: ArchiveAdminPanelProps) {
               <td className="px-4 py-3 font-medium">Sync MLB Data</td>
               <td className="px-4 py-3">Matches players to MLB IDs and fetches latest stats/teams for the entire {selectedYear} season.</td>
               <td className="px-4 py-3 text-center">
-                <button onClick={handleSyncSeason} disabled={uploading} className="px-5 py-2.5 rounded-xl text-xs font-medium uppercase border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] text-white hover:bg-[var(--lg-tint-hover)] disabled:opacity-20 transition-all">
+                <button onClick={handleSyncSeason} disabled={uploading} className="px-5 py-2.5 rounded-xl text-xs font-medium uppercase border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] text-[var(--lg-text-primary)] hover:bg-[var(--lg-tint-hover)] disabled:opacity-20 transition-all">
                   Sync
                 </button>
               </td>
@@ -247,7 +247,7 @@ export default function ArchiveAdminPanel({ year }: ArchiveAdminPanelProps) {
       <div className="mt-12 pt-8 border-t border-[var(--lg-border-faint)]">
         <button 
           onClick={() => setShowMaintenance(!showMaintenance)}
-          className="flex items-center gap-3 text-xs font-medium uppercase text-[var(--lg-text-muted)] hover:text-white transition-all"
+          className="flex items-center gap-3 text-xs font-medium uppercase text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] transition-all"
         >
           <span className={`w-6 h-6 rounded-lg flex items-center justify-center bg-[var(--lg-tint)] border border-[var(--lg-border-subtle)] transition-transform ${showMaintenance ? 'rotate-90' : ''}`}>▶</span>
           Maintenance Operations
@@ -255,10 +255,10 @@ export default function ArchiveAdminPanel({ year }: ArchiveAdminPanelProps) {
         
         {showMaintenance && (
           <div className="mt-8 flex flex-wrap gap-4">
-            <button onClick={() => handleAutoMatch(true)} disabled={uploading} className="px-5 py-2.5 rounded-xl text-xs font-medium uppercase border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] text-white hover:bg-[var(--lg-tint-hover)] disabled:opacity-20 transition-all">
+            <button onClick={() => handleAutoMatch(true)} disabled={uploading} className="px-5 py-2.5 rounded-xl text-xs font-medium uppercase border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] text-[var(--lg-text-primary)] hover:bg-[var(--lg-tint-hover)] disabled:opacity-20 transition-all">
               Global Auto-Match
             </button>
-            <button onClick={handleRecalculateAll} disabled={uploading} className="px-5 py-2.5 rounded-xl text-xs font-medium uppercase border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] text-white hover:bg-[var(--lg-tint-hover)] disabled:opacity-20 transition-all">
+            <button onClick={handleRecalculateAll} disabled={uploading} className="px-5 py-2.5 rounded-xl text-xs font-medium uppercase border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] text-[var(--lg-text-primary)] hover:bg-[var(--lg-tint-hover)] disabled:opacity-20 transition-all">
               Global Recalculate
             </button>
           </div>
@@ -267,10 +267,10 @@ export default function ArchiveAdminPanel({ year }: ArchiveAdminPanelProps) {
 
       {/* Logs / Output */}
       {(logs.length > 0 || error) && (
-        <div className="mt-10 p-6 rounded-3xl text-sm font-mono max-h-80 overflow-y-auto bg-black/40 border border-[var(--lg-border-subtle)] text-emerald-400 backdrop-blur-xl">
+        <div className="mt-10 p-6 rounded-3xl text-sm font-mono max-h-80 overflow-y-auto bg-[var(--lg-bg-secondary)] border border-[var(--lg-border-subtle)] text-emerald-400 backdrop-blur-xl">
           <div className="flex justify-between items-center mb-4 border-b border-emerald-500/20 pb-4">
             <span className="text-xs uppercase font-medium text-emerald-500">Activity Log</span>
-            <button onClick={() => setLogs([])} className="text-xs font-medium hover:text-white uppercase transition-all">Clear</button>
+            <button onClick={() => setLogs([])} className="text-xs font-medium hover:text-[var(--lg-text-primary)] uppercase transition-all">Clear</button>
           </div>
           <div className="space-y-1">
             {logs.map((log, i) => (

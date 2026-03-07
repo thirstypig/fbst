@@ -9,18 +9,32 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+function getSystemTheme(): Theme {
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function syncThemeColorMeta(theme: Theme) {
+  const color = theme === 'dark' ? '#0a0f1a' : '#e4e9f0';
+  let meta = document.querySelector('meta[name="theme-color"]:not([media])') as HTMLMetaElement | null;
+  if (!meta) {
+    meta = document.createElement('meta');
+    meta.name = 'theme-color';
+    document.head.appendChild(meta);
+  }
+  meta.content = color;
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
-    // Check localStorage first, default to dark
     const stored = localStorage.getItem('fbst-theme');
-    return (stored as Theme) || 'dark';
+    return (stored as Theme) || getSystemTheme();
   });
 
   useEffect(() => {
-    // Apply theme to document
     document.documentElement.classList.remove('dark', 'light');
     document.documentElement.classList.add(theme);
     localStorage.setItem('fbst-theme', theme);
+    syncThemeColorMeta(theme);
   }, [theme]);
 
   const toggleTheme = () => {

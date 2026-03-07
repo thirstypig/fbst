@@ -130,15 +130,15 @@ export default function RosterControls({ leagueId, teams, onUpdate }: RosterCont
   return (
        <div className="grid gap-6 lg:grid-cols-2">
          {/* Manual Entry Pane */}
-         <div className="rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] p-5">
-           <h3 className="mb-4 text-lg font-semibold text-white">Manual Entry</h3>
+         <div className="rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] p-4 md:p-5">
+           <h3 className="mb-4 text-lg font-semibold text-[var(--lg-text-primary)]">Manual Entry</h3>
            
            <div className="space-y-4">
              {/* Player Search */}
              <div className="relative" ref={searchRef}>
-               <label className="text-xs text-white/60 block mb-1">Player Search (MLB)</label>
-               <input 
-                 className="w-full rounded-xl border border-[var(--lg-border-subtle)] bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-[var(--lg-border-subtle)]"
+               <label className="text-xs text-[var(--lg-text-secondary)] block mb-1">Player Search (MLB)</label>
+               <input
+                 className="w-full rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-input-bg)] px-3 py-2 text-sm text-[var(--lg-text-primary)] outline-none focus:border-[var(--lg-border-subtle)]"
                  placeholder="Type player name..."
                  value={query}
                  onChange={(e) => {
@@ -148,15 +148,15 @@ export default function RosterControls({ leagueId, teams, onUpdate }: RosterCont
                />
                
                {showDropdown && results.length > 0 && (
-                 <div className="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                 <div className="absolute z-10 w-full mt-1 bg-[var(--lg-input-bg)] border border-[var(--lg-border-subtle)] rounded-lg shadow-lg max-h-60 overflow-y-auto">
                    {results.map(p => (
-                     <div 
+                     <div
                        key={p.id}
-                       className="px-4 py-2 hover:bg-slate-700 cursor-pointer text-sm text-white flex justify-between"
+                       className="px-4 py-2 hover:bg-[var(--lg-tint-hover)] cursor-pointer text-sm text-[var(--lg-text-primary)] flex justify-between"
                        onClick={() => handleSelectPlayer(p)}
                      >
-                        <span>{p.name} <span className='text-white/50'>({p.position})</span></span>
-                        <span className='text-xs text-white/40'>{p.team}</span>
+                        <span>{p.name} <span className='text-[var(--lg-text-muted)]'>({p.position})</span></span>
+                        <span className='text-xs text-[var(--lg-text-muted)]'>{p.team}</span>
                      </div>
                    ))}
                  </div>
@@ -165,17 +165,17 @@ export default function RosterControls({ leagueId, teams, onUpdate }: RosterCont
 
              {/* MLB Team Display (Read Only) */}
              <div>
-                <label className="text-xs text-white/60 block mb-1">MLB Team</label>
-                <div className="w-full rounded-xl border border-[var(--lg-border-subtle)] bg-slate-900/40 px-3 py-2 text-sm text-white/70">
+                <label className="text-xs text-[var(--lg-text-secondary)] block mb-1">MLB Team</label>
+                <div className="w-full rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-input-bg)] px-3 py-2 text-sm text-[var(--lg-text-secondary)]">
                     {selectedMlbPlayer?.team || '—'}
                 </div>
              </div>
              
              <div className="grid grid-cols-2 gap-4">
                <div>
-                  <label className="text-xs text-white/60 block mb-1">Fantasy Team</label>
-                  <select 
-                    className="w-full rounded-xl border border-[var(--lg-border-subtle)] bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-[var(--lg-border-subtle)]"
+                  <label className="text-xs text-[var(--lg-text-secondary)] block mb-1">Fantasy Team</label>
+                  <select
+                    className="w-full rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-input-bg)] px-3 py-2 text-sm text-[var(--lg-text-primary)] outline-none focus:border-[var(--lg-border-subtle)]"
                     value={selectedTeamId}
                     onChange={(e) => setSelectedTeamId(e.target.value)}
                   >
@@ -186,9 +186,9 @@ export default function RosterControls({ leagueId, teams, onUpdate }: RosterCont
                   </select>
                </div>
                <div>
-                  <label className="text-xs text-white/60 block mb-1">Position (Editable)</label>
-                  <input 
-                    className="w-full rounded-xl border border-[var(--lg-border-subtle)] bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-[var(--lg-border-subtle)]"
+                  <label className="text-xs text-[var(--lg-text-secondary)] block mb-1">Position (Editable)</label>
+                  <input
+                    className="w-full rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-input-bg)] px-3 py-2 text-sm text-[var(--lg-text-primary)] outline-none focus:border-[var(--lg-border-subtle)]"
                     value={position}
                     onChange={(e) => setPosition(e.target.value)}
                   />
@@ -196,10 +196,10 @@ export default function RosterControls({ leagueId, teams, onUpdate }: RosterCont
              </div>
 
              <div>
-                <label className="text-xs text-white/60 block mb-1">Bid Amount ($)</label>
-                <input 
+                <label className="text-xs text-[var(--lg-text-secondary)] block mb-1">Bid Amount ($)</label>
+                <input
                    type="number"
-                   className="w-full rounded-xl border border-[var(--lg-border-subtle)] bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-[var(--lg-border-subtle)]"
+                   className="w-full rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-input-bg)] px-3 py-2 text-sm text-[var(--lg-text-primary)] outline-none focus:border-[var(--lg-border-subtle)]"
                    value={bid}
                    onChange={(e) => setBid(Number(e.target.value))}
                 />
@@ -209,13 +209,13 @@ export default function RosterControls({ leagueId, teams, onUpdate }: RosterCont
                 <input 
                     type="checkbox" 
                     id="isKeeper"
-                    className="rounded border-[var(--lg-border-subtle)] bg-slate-950/60 text-blue-600 focus:ring-blue-500"
+                    className="rounded border-[var(--lg-border-subtle)] bg-[var(--lg-input-bg)] text-blue-600 focus:ring-blue-500"
                     checked={isKeeper}
                     onChange={(e) => setIsKeeper(e.target.checked)}
                 />
-                <label htmlFor="isKeeper" className="text-sm text-white select-none cursor-pointer">
-                    Assign as 2025 Keeper 
-                    <span className="text-xs text-white/50 block">Source: {isKeeper ? 'keeper_2025' : 'manual'} (Protected from Auction Reset)</span>
+                <label htmlFor="isKeeper" className="text-sm text-[var(--lg-text-primary)] select-none cursor-pointer">
+                    Assign as 2025 Keeper
+                    <span className="text-xs text-[var(--lg-text-muted)] block">Source: {isKeeper ? 'keeper_2025' : 'manual'} (Protected from Auction Reset)</span>
                 </label>
              </div>
 
@@ -232,13 +232,13 @@ export default function RosterControls({ leagueId, teams, onUpdate }: RosterCont
          </div>
 
          {/* Import Pane */}
-         <div className="rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] p-5">
-            <h3 className="mb-4 text-lg font-semibold text-white">Bulk Data Import</h3>
+         <div className="rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] p-4 md:p-5">
+            <h3 className="mb-4 text-lg font-semibold text-[var(--lg-text-primary)]">Bulk Data Import</h3>
             <div className="space-y-4">
                 <input 
                    type="file"
                    accept=".csv"
-                   className="text-sm text-white/80 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-[var(--lg-tint-hover)] file:text-white hover:file:bg-[var(--lg-tint-hover)]"
+                   className="text-sm text-[var(--lg-text-secondary)] file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-[var(--lg-tint-hover)] file:text-[var(--lg-text-primary)] hover:file:bg-[var(--lg-tint-hover)]"
                    onChange={(e) => setImportFile(e.target.files?.[0] || null)}
                 />
                 <button
@@ -249,7 +249,7 @@ export default function RosterControls({ leagueId, teams, onUpdate }: RosterCont
                     {importing ? 'Importing...' : 'Upload Rosters'}
                 </button>
                 {importLogs.length > 0 && (
-                    <div className="mt-4 p-3 bg-slate-950/50 rounded-xl text-xs text-slate-400 font-mono h-40 overflow-y-auto">
+                    <div className="mt-4 p-3 bg-[var(--lg-tint)] rounded-xl text-xs text-[var(--lg-text-muted)] font-mono h-40 overflow-y-auto">
                         {importLogs.map((log, i) => <div key={i}>{log}</div>)}
                     </div>
                 )}

@@ -129,7 +129,7 @@ const SEASON_ROWS_2025: TeamSeasonRow[] = [
 
 const SeasonStandings = () => {
   return (
-    <div className="mx-auto w-full max-w-6xl px-6 py-12">
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-6 md:py-10">
       <div className="mb-10">
         <PageHeader 
           title="Historical Season Standings" 
@@ -137,9 +137,9 @@ const SeasonStandings = () => {
         />
       </div>
 
-      <div className="lg-card p-10">
+      <div className="lg-card p-4 md:p-10">
         <div className="mb-8">
-          <h2 className="text-2xl font-bold tracking-tight text-[var(--lg-text-heading)] uppercase">2025 OGBA Matrix</h2>
+          <h2 className="text-2xl font-semibold tracking-tight text-[var(--lg-text-heading)] uppercase">2025 OGBA Matrix</h2>
           <p className="text-sm text-[var(--lg-text-secondary)] mt-2 opacity-60 leading-relaxed">
             Cumulative roto points by meeting date. Values already include ties
             and half-points exactly as scored in the 2025 sheet.

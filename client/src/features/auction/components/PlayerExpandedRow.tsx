@@ -80,7 +80,7 @@ export default function PlayerExpandedRow({ player, isTaken, ownerName, onNomina
                         <div className="flex flex-wrap gap-2">
                             {fieldingStats.map((f, i) => (
                                 <div key={i} className="text-xs bg-[var(--lg-glass-bg-hover)] border border-[var(--lg-table-border)] px-2 py-1 rounded flex gap-2 items-center text-[var(--lg-text-primary)]">
-                                    <span className="font-bold">{f.position}</span>
+                                    <span className="font-semibold">{f.position}</span>
                                     <span className="text-[var(--lg-text-muted)]">{f.games} G</span>
                                     <span className="text-[var(--lg-text-muted)]">({f.gamesStarted} GS)</span>
                                 </div>
@@ -111,7 +111,7 @@ export default function PlayerExpandedRow({ player, isTaken, ownerName, onNomina
                             {loading && <ThemedTr><ThemedTd colSpan={9} align="center" className="py-4"><span className="text-[var(--lg-text-muted)]">Loading stats...</span></ThemedTd></ThemedTr>}
                             {error && !loading && <ThemedTr><ThemedTd colSpan={9} align="center" className="py-4"><span className="text-red-500">Failed to load stats.</span></ThemedTd></ThemedTr>}
                             {!loading && !error && careerStats.map((r, i) => (
-                                <ThemedTr key={i} className={r.year === 'TOT' ? 'font-bold bg-[var(--lg-bg-secondary)]/50' : ''}>
+                                <ThemedTr key={i} className={r.year === 'TOT' ? 'font-semibold bg-[var(--lg-bg-secondary)]/50' : ''}>
                                     <ThemedTd>{r.year === 'TOT' ? 'Career totals' : r.year}</ThemedTd>
                                     <ThemedTd align="center">{r.tm}</ThemedTd>
                                     {isPitcher ? (
@@ -146,7 +146,7 @@ export default function PlayerExpandedRow({ player, isTaken, ownerName, onNomina
                     {!isTaken && onQueue && (
                         <button 
                             onClick={() => onQueue(player.mlb_id || '')}
-                            className={`text-sm font-bold bg-[var(--lg-bg-secondary)] border border-[var(--lg-table-border)] text-[var(--lg-text-primary)] px-4 py-2 rounded shadow hover:bg-[var(--lg-glass-bg-hover)] active:scale-95 transition-all ${isQueued?.(player.mlb_id || '') ? 'text-[var(--lg-success)] border-[var(--lg-success)]' : ''}`}
+                            className={`text-sm font-semibold bg-[var(--lg-bg-secondary)] border border-[var(--lg-table-border)] text-[var(--lg-text-primary)] px-4 py-2 rounded shadow hover:bg-[var(--lg-glass-bg-hover)] active:scale-95 transition-all ${isQueued?.(player.mlb_id || '') ? 'text-[var(--lg-success)] border-[var(--lg-success)]' : ''}`}
                         >
                             {isQueued?.(player.mlb_id || '') ? '✓ Queued' : '+ Queue'}
                         </button>
@@ -154,13 +154,13 @@ export default function PlayerExpandedRow({ player, isTaken, ownerName, onNomina
                     {!isTaken && onNominate && (
                         <button 
                             onClick={() => onNominate(player)}
-                            className="text-sm font-bold bg-[var(--lg-text-primary)] text-[var(--lg-glass-bg)] px-4 py-2 rounded shadow hover:opacity-90 active:scale-95 transition-all"
+                            className="text-sm font-semibold bg-[var(--lg-text-primary)] text-[var(--lg-glass-bg)] px-4 py-2 rounded shadow hover:opacity-90 active:scale-95 transition-all"
                         >
                             Nominate
                         </button>
                     )}
                     {isTaken && (
-                        <span className="text-xs font-bold text-[var(--lg-text-muted)] self-center px-2">
+                        <span className="text-xs font-semibold text-[var(--lg-text-muted)] self-center px-2">
                             {ownerName ? `Held by ${ownerName}` : 'Player Taken'}
                         </span>
                     )}

@@ -80,7 +80,7 @@ export default function AIAnalysisTab({ log, teams }: AIAnalysisTabProps) {
       {/* Header */}
       <div className="flex items-center justify-between border-b border-[var(--lg-table-border)] pb-4">
           <div>
-            <h3 className="text-xl font-bold flex items-center gap-2 text-purple-400">
+            <h3 className="text-xl font-semibold flex items-center gap-2 text-purple-400">
                 <Award className="w-6 h-6" />
                 AI Auction Analysis
             </h3>
@@ -90,13 +90,13 @@ export default function AIAnalysisTab({ log, teams }: AIAnalysisTabProps) {
           </div>
           <div className="text-right">
              <div className="text-xs text-[var(--lg-text-muted)]">Transactions Analyzed</div>
-             <div className="font-bold text-lg">{wins.length}</div>
+             <div className="font-semibold text-lg">{wins.length}</div>
           </div>
       </div>
 
       {/* Team Grades */}
       <section>
-          <h4 className="text-sm font-bold uppercase tracking-wider text-[var(--lg-text-muted)] mb-3 flex items-center gap-2">
+          <h4 className="text-sm font-semibold uppercase tracking-wider text-[var(--lg-text-muted)] mb-3 flex items-center gap-2">
               <BarChart3 className="w-4 h-4" /> Live Team Grades
           </h4>
           <div className="grid grid-cols-1 gap-3">
@@ -104,7 +104,7 @@ export default function AIAnalysisTab({ log, teams }: AIAnalysisTabProps) {
                   <div key={t.teamId} className="flex items-center justify-between p-3 bg-[var(--lg-bg-secondary)] rounded-lg border border-[var(--lg-table-border)]">
                       <div className="flex items-center gap-3">
                           <div className={`
-                             w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg border-2
+                             w-10 h-10 rounded-full flex items-center justify-center font-semibold text-lg border-2
                              ${t.grade.startsWith('A') ? 'border-green-500 text-green-500 bg-green-500/10' : 
                                t.grade.startsWith('B') ? 'border-blue-500 text-blue-500 bg-blue-500/10' :
                                t.grade.startsWith('C') ? 'border-yellow-500 text-yellow-500 bg-yellow-500/10' :
@@ -113,7 +113,7 @@ export default function AIAnalysisTab({ log, teams }: AIAnalysisTabProps) {
                               {t.grade}
                           </div>
                           <div>
-                              <div className="font-bold">{t.name}</div>
+                              <div className="font-semibold">{t.name}</div>
                               <div className="text-xs text-[var(--lg-text-muted)]">{t.reason}</div>
                           </div>
                       </div>
@@ -125,7 +125,7 @@ export default function AIAnalysisTab({ log, teams }: AIAnalysisTabProps) {
 
       {/* Notable Transactions */}
       <section>
-          <h4 className="text-sm font-bold uppercase tracking-wider text-[var(--lg-text-muted)] mb-3 flex items-center gap-2">
+          <h4 className="text-sm font-semibold uppercase tracking-wider text-[var(--lg-text-muted)] mb-3 flex items-center gap-2">
               <TrendingUp className="w-4 h-4" /> Notable Moves
           </h4>
           <div className="space-y-2">
@@ -136,7 +136,7 @@ export default function AIAnalysisTab({ log, teams }: AIAnalysisTabProps) {
                    <div key={i} className="flex items-center justify-between p-2 text-sm border-b border-[var(--lg-table-border)]/50 last:border-0">
                        <div className="flex items-center gap-2">
                            {t.type === 'STEAL' ? <TrendingUp className="w-4 h-4 text-green-500" /> : <AlertCircle className="w-4 h-4 text-orange-500" />}
-                           <span><span className="font-bold">{t.playerName}</span> to {t.teamName}</span>
+                           <span><span className="font-semibold">{t.playerName}</span> to {t.teamName}</span>
                        </div>
                        <div className="font-mono">
                            ${t.amount} <span className="text-[var(--lg-text-muted)] text-xs">({t.type})</span>

@@ -89,7 +89,7 @@ export default function CategoryStandings() {
   }, [rows]);
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-6 py-12">
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-6 md:py-10">
       <div className="mb-10">
         <PageHeader 
           title="Category Standings"

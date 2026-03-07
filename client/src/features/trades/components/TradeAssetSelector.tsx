@@ -82,14 +82,14 @@ export function TradeAssetSelector({ teamId, label, onAssetsChange }: Props) {
     setSelectedPlayerIds(next);
   };
 
-  if (loading) return <div className="p-4 bg-gray-900 rounded">Loading roster...</div>;
+  if (loading) return <div className="p-4 bg-[var(--lg-tint)] rounded">Loading roster...</div>;
 
   return (
-    <div className="bg-gray-900 p-4 rounded border border-gray-700 h-full flex flex-col">
-      <h3 className="text-sm font-bold uppercase text-gray-400 mb-2">{label}</h3>
-      
-      <div className="flex-1 overflow-y-auto mb-4 border border-gray-800 rounded bg-gray-950 p-2 max-h-60">
-        {roster.length === 0 && <div className="text-gray-500 text-sm">No players on roster</div>}
+    <div className="bg-[var(--lg-tint)] p-4 rounded border border-[var(--lg-border-subtle)] h-full flex flex-col">
+      <h3 className="text-sm font-bold uppercase text-[var(--lg-text-muted)] mb-2">{label}</h3>
+
+      <div className="flex-1 overflow-y-auto mb-4 border border-[var(--lg-border-faint)] rounded bg-[var(--lg-input-bg)] p-2 max-h-60">
+        {roster.length === 0 && <div className="text-[var(--lg-text-muted)] text-sm">No players on roster</div>}
         {roster.map(p => {
           const isSelected = selectedPlayerIds.has(p.playerId);
           return (
@@ -97,27 +97,27 @@ export function TradeAssetSelector({ teamId, label, onAssetsChange }: Props) {
               key={p.id}
               onClick={() => togglePlayer(p.playerId)}
               className={`flex justify-between items-center p-2 rounded cursor-pointer text-sm mb-1 ${
-                isSelected ? "bg-blue-900/50 text-blue-200 border border-blue-800" : "hover:bg-gray-800 text-gray-300"
+                isSelected ? "bg-[var(--lg-accent)]/10 text-[var(--lg-accent)] border border-[var(--lg-accent)]/20" : "hover:bg-[var(--lg-tint-hover)] text-[var(--lg-text-secondary)]"
               }`}
             >
               <span>{p.posPrimary} <strong>{p.name}</strong></span>
-              <span className="text-gray-500">${p.price}</span>
+              <span className="text-[var(--lg-text-muted)]">${p.price}</span>
             </div>
           );
         })}
       </div>
 
-      <div className="mt-auto pt-4 border-t border-gray-800">
-        <label className="block text-xs text-gray-500 uppercase mb-1">
+      <div className="mt-auto pt-4 border-t border-[var(--lg-border-faint)]">
+        <label className="block text-xs text-[var(--lg-text-muted)] uppercase mb-1">
            Budget (Max: ${budget})
         </label>
         <div className="flex items-center space-x-2">
-            <span className="text-gray-400 text-sm">$</span>
-            <input 
+            <span className="text-[var(--lg-text-muted)] text-sm">$</span>
+            <input
               type="number"
               min="0"
               max={budget}
-              className="bg-gray-800 border-gray-700 rounded px-2 py-1 text-white text-sm w-full focus:outline-none focus:border-blue-500"
+              className="bg-[var(--lg-tint-hover)] border-[var(--lg-border-subtle)] rounded px-2 py-1 text-[var(--lg-text-primary)] text-sm w-full focus:outline-none focus:border-blue-500"
               placeholder="0"
               value={budgetAmount}
               onChange={e => {
