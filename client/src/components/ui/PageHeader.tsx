@@ -25,7 +25,7 @@ export default function PageHeader({
   backTo,
 }: PageHeaderProps) {
   return (
-    <div className={`py-8 mb-6 ${className || ""}`}>
+    <div className={`py-4 md:py-8 mb-4 md:mb-6 ${className || ""}`}>
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div className="space-y-1">
           {backTo && (
@@ -36,7 +36,7 @@ export default function PageHeader({
               &larr; Back
             </Link>
           )}
-          <h1 className="lg-heading-1 text-3xl">
+          <h1 className="lg-heading-1 text-2xl md:text-3xl">
             {title}
           </h1>
           {subtitle && (

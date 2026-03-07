@@ -113,10 +113,10 @@ export default function TransactionsPage() {
       return teamsWithRank.sort((a: any, b: any) => b.rank - a.rank);
   }, [teams, standings]);
 
-  if (loading) return <div className="p-10 text-slate-400">Loading transactions center...</div>;
+  if (loading) return <div className="text-center text-[var(--lg-text-muted)] py-20 animate-pulse text-sm">Loading transactions center...</div>;
 
   return (
-    <div className="relative min-h-full">
+    <div className="max-w-6xl mx-auto px-4 py-6 md:px-6 md:py-10">
        <div className="mb-10">
            <PageHeader 
              title="Transactions Center" 

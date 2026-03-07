@@ -4,6 +4,39 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
+## Session 2026-03-07 (Session 12) — Mobile-Ready + Light/Dark Mode
+
+### Completed
+- **Phase 1: Theme Infrastructure** (4 files):
+  - `index.html` — added `color-scheme` and `theme-color` meta tags for browser awareness
+  - `ThemeContext.tsx` — system preference detection (`prefers-color-scheme`), dynamic `theme-color` meta sync
+  - `index.css` — `color-scheme: light`/`dark` declarations, `.scroll-hint` utility class
+  - `PageHeader.tsx` — responsive sizing (`text-2xl md:text-3xl`, `py-4 md:py-8`)
+- **Phase 2: Light Mode Color Fixes** (~25 files):
+  - Replaced ~169 `text-white`, ~40 `bg-slate-*`/`bg-gray-*`, ~52 `text-white/XX` with `--lg-*` tokens
+  - Files: RosterControls, KeeperPrepDashboard, RosterImport (removed `useTheme`), CommissionerKeeperManager, RosterGrid, AddDropTab, ArchiveAdminPanel, TradesPage, TradeAssetSelector, TeamRosterView, TeamRosterManager, RosterManagementForm (removed `useTheme`), AuctionStage, ContextDeck, PlayerPoolTab, Period, KeeperSelection, AppShell, Players, Standings, AuctionValues, Leagues, Commissioner
+  - Kept `text-white` only on accent/opaque backgrounds (buttons, auth hero)
+- **Phase 3: Mobile Responsiveness** (16+ page files):
+  - All page containers: `px-6 py-10` → `px-4 py-6 md:px-6 md:py-10`
+  - Card padding: `p-8`/`p-10` → `p-4 md:p-8`/`p-4 md:p-10`
+  - Gap reduction: `gap-6` → `gap-3 md:gap-6`, `space-y-12` → `space-y-6 md:space-y-12`
+  - Players filter bar: `grid grid-cols-2 md:flex`
+  - TradesPage: `grid-cols-1 md:grid-cols-2`
+  - KeeperSelection: `grid-cols-1 sm:grid-cols-3`
+
+### Verification
+- TypeScript: 0 errors (`npx tsc --noEmit`)
+- Client tests: 70/70 passing
+- `grep -r "bg-slate-\|bg-gray-[0-9]"` → 0 results
+- Remaining `text-white` only on accent/opaque backgrounds
+
+### Test Results
+- Server: 15 files, 207 tests passing
+- Client: 4 files, 70 tests passing
+- Total: 277 tests, all green
+
+---
+
 ## Session 2026-03-06 (Session 11) — Complete All Pending P2 & P3 Todos
 
 ### Completed

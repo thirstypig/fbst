@@ -123,13 +123,13 @@ export default function PlayerPoolTab({ players, teams = [], onNominate, onQueue
         <div className="flex bg-[var(--lg-tint)] rounded-2xl p-1 border border-[var(--lg-border-subtle)] backdrop-blur-md shrink-0">
             <button 
                 onClick={() => setViewGroup('hitters')}
-                className={`px-4 py-2 text-xs font-medium uppercase rounded-xl transition-all ${viewGroup === 'hitters' ? 'bg-[var(--lg-accent)] text-white shadow-lg' : 'text-[var(--lg-text-muted)] hover:text-white hover:bg-[var(--lg-tint)]'}`}
+                className={`px-4 py-2 text-xs font-medium uppercase rounded-xl transition-all ${viewGroup === 'hitters' ? 'bg-[var(--lg-accent)] text-white shadow-lg' : 'text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] hover:bg-[var(--lg-tint)]'}`}
             >
                 Hitters
             </button>
             <button 
                 onClick={() => setViewGroup('pitchers')}
-                className={`px-4 py-2 text-xs font-medium uppercase rounded-xl transition-all ${viewGroup === 'pitchers' ? 'bg-[var(--lg-accent)] text-white shadow-lg' : 'text-[var(--lg-text-muted)] hover:text-white hover:bg-[var(--lg-tint)]'}`}
+                className={`px-4 py-2 text-xs font-medium uppercase rounded-xl transition-all ${viewGroup === 'pitchers' ? 'bg-[var(--lg-accent)] text-white shadow-lg' : 'text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] hover:bg-[var(--lg-tint)]'}`}
             >
                 Pitchers
             </button>
@@ -142,7 +142,7 @@ export default function PlayerPoolTab({ players, teams = [], onNominate, onQueue
                 placeholder="Search..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-5 py-2.5 rounded-2xl bg-[var(--lg-tint)] border border-[var(--lg-border-subtle)] text-sm text-white font-bold outline-none focus:border-[var(--lg-accent)] transition-all placeholder:opacity-30"
+                className="w-full px-5 py-2.5 rounded-2xl bg-[var(--lg-tint)] border border-[var(--lg-border-subtle)] text-sm text-[var(--lg-text-primary)] font-semibold outline-none focus:border-[var(--lg-accent)] transition-all placeholder:opacity-30"
             />
         </div>
 
@@ -150,13 +150,13 @@ export default function PlayerPoolTab({ players, teams = [], onNominate, onQueue
         <div className="flex bg-[var(--lg-tint)] rounded-2xl p-1 border border-[var(--lg-border-subtle)] backdrop-blur-md shrink-0">
             <button 
                 onClick={() => setViewMode('all')}
-                className={`px-4 py-2 text-xs font-medium uppercase rounded-xl transition-all ${viewMode === 'all' ? 'bg-[var(--lg-tint-hover)] text-white' : 'text-[var(--lg-text-muted)] hover:text-white'}`}
+                className={`px-4 py-2 text-xs font-medium uppercase rounded-xl transition-all ${viewMode === 'all' ? 'bg-[var(--lg-tint-hover)] text-[var(--lg-text-primary)]' : 'text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)]'}`}
             >
                 All
             </button>
             <button 
                 onClick={() => setViewMode('remaining')}
-                className={`px-4 py-2 text-xs font-medium uppercase rounded-xl transition-all ${viewMode === 'remaining' ? 'bg-[var(--lg-tint-hover)] text-white' : 'text-[var(--lg-text-muted)] hover:text-white'}`}
+                className={`px-4 py-2 text-xs font-medium uppercase rounded-xl transition-all ${viewMode === 'remaining' ? 'bg-[var(--lg-tint-hover)] text-[var(--lg-text-primary)]' : 'text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)]'}`}
             >
                 Avail
             </button>
@@ -170,14 +170,14 @@ export default function PlayerPoolTab({ players, teams = [], onNominate, onQueue
             <select 
                 value={filterTeam}
                 onChange={(e) => setFilterTeam(e.target.value)}
-                className="px-4 py-2.5 text-xs font-medium uppercase rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] text-white outline-none focus:border-[var(--lg-accent)] transition-all cursor-pointer"
+                className="px-4 py-2.5 text-xs font-medium uppercase rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] text-[var(--lg-text-primary)] outline-none focus:border-[var(--lg-accent)] transition-all cursor-pointer"
             >
                 {uniqueTeams.map(t => <option key={t} value={t} className="text-black">{t === 'ALL' ? 'Teams' : t}</option>)}
             </select>
-            <select 
+            <select
                 value={filterPos}
                 onChange={(e) => setFilterPos(e.target.value)}
-                className="px-4 py-2.5 text-xs font-medium uppercase rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] text-white outline-none focus:border-[var(--lg-accent)] transition-all cursor-pointer"
+                className="px-4 py-2.5 text-xs font-medium uppercase rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] text-[var(--lg-text-primary)] outline-none focus:border-[var(--lg-accent)] transition-all cursor-pointer"
             >
                 <option value="ALL" className="text-black">Position</option>
                 {uniquePositions.map(p => <option key={p} value={p} className="text-black">{p}</option>)}

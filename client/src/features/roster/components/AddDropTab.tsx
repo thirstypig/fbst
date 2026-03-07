@@ -90,13 +90,13 @@ export default function AddDropTab({ players, onClaim }: AddDropTabProps) {
                 <div className="flex bg-[var(--lg-tint)] rounded-2xl p-1 border border-[var(--lg-border-subtle)] backdrop-blur-md">
                     <button
                         onClick={() => { setViewGroup('hitters'); setSortKey('name'); }}
-                        className={`px-5 py-2 rounded-xl text-xs font-medium uppercase transition-all ${viewGroup === 'hitters' ? 'bg-[var(--lg-accent)] text-white shadow-lg' : 'text-[var(--lg-text-muted)] hover:text-white hover:bg-[var(--lg-tint)]'}`}
+                        className={`px-5 py-2 rounded-xl text-xs font-medium uppercase transition-all ${viewGroup === 'hitters' ? 'bg-[var(--lg-accent)] text-white shadow-lg' : 'text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] hover:bg-[var(--lg-tint)]'}`}
                     >
                         Hitters
                     </button>
                     <button
                          onClick={() => { setViewGroup('pitchers'); setSortKey('name'); }}
-                         className={`px-5 py-2 rounded-xl text-xs font-medium uppercase transition-all ${viewGroup === 'pitchers' ? 'bg-[var(--lg-accent)] text-white shadow-lg' : 'text-[var(--lg-text-muted)] hover:text-white hover:bg-[var(--lg-tint)]'}`}
+                         className={`px-5 py-2 rounded-xl text-xs font-medium uppercase transition-all ${viewGroup === 'pitchers' ? 'bg-[var(--lg-accent)] text-white shadow-lg' : 'text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] hover:bg-[var(--lg-tint)]'}`}
                     >
                         Pitchers
                     </button>
@@ -104,7 +104,7 @@ export default function AddDropTab({ players, onClaim }: AddDropTabProps) {
 
                 <div className="relative flex-1 min-w-[240px]">
                     <input 
-                        className="w-full rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] px-5 py-3 text-sm text-white outline-none focus:border-[var(--lg-accent)] transition-all font-bold placeholder:opacity-30"
+                        className="w-full rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] px-5 py-3 text-sm text-[var(--lg-text-primary)] outline-none focus:border-[var(--lg-accent)] transition-all font-bold placeholder:opacity-30"
                         placeholder="Search free agents..."
                         value={search}
                         onChange={e => setSearch(e.target.value)}
@@ -112,7 +112,7 @@ export default function AddDropTab({ players, onClaim }: AddDropTabProps) {
                 </div>
                 
                 <select 
-                     className="rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] px-5 py-3 text-sm text-white outline-none focus:border-[var(--lg-accent)] transition-all font-bold cursor-pointer"
+                     className="rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] px-5 py-3 text-sm text-[var(--lg-text-primary)] outline-none focus:border-[var(--lg-accent)] transition-all font-bold cursor-pointer"
                      value={posFilter}
                      onChange={e => setPosFilter(e.target.value)}
                 >

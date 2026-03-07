@@ -67,9 +67,9 @@ function SortablePlayer({ player, compact = false }: { player: RosterPlayer; com
       {...attributes}
       {...listeners}
       className={`
-        relative px-3 py-2 bg-slate-800 border border-slate-700 
-        rounded text-sm flex justify-between items-center 
-        cursor-grab active:cursor-grabbing hover:border-slate-500 transition-colors
+        relative px-3 py-2 bg-[var(--lg-tint)] border border-[var(--lg-border-subtle)]
+        rounded text-sm flex justify-between items-center
+        cursor-grab active:cursor-grabbing hover:border-[var(--lg-border-subtle)] transition-colors
         ${compact ? 'text-xs py-1.5' : 'mb-2 shadow-sm'}
         ${isDragging ? 'shadow-xl ring-2 ring-sky-500' : ''}
       `}
@@ -82,8 +82,8 @@ function SortablePlayer({ player, compact = false }: { player: RosterPlayer; com
             {player.posPrimary}
         </span>
         <div className="flex flex-col">
-            <span className="font-semibold text-slate-200 leading-tight">{player.name}</span>
-            <span className="text-xs text-slate-500 uppercase tracking-wide">
+            <span className="font-semibold text-[var(--lg-text-primary)] leading-tight">{player.name}</span>
+            <span className="text-xs text-[var(--lg-text-muted)] uppercase tracking-wide">
                 {player.mlbTeam || 'FA'} • {player.posList}
             </span>
         </div>
@@ -100,7 +100,7 @@ function DroppableSlot({ id, label, player, isPitcherSlot }: { id: string, label
     <div 
         ref={setNodeRef} 
         className={`flex items-center gap-3 p-2 rounded border-2 transition-all duration-200 ${
-            isOver ? 'border-sky-500 bg-sky-500/10 scale-[1.02]' : 'border-slate-800/60 bg-slate-900/40'
+            isOver ? 'border-sky-500 bg-sky-500/10 scale-[1.02]' : 'border-[var(--lg-border-faint)] bg-[var(--lg-tint)]'
         }`}
     >
         <div className={`w-10 h-10 flex items-center justify-center rounded-lg font-bold text-sm shadow-inner ${
@@ -115,7 +115,7 @@ function DroppableSlot({ id, label, player, isPitcherSlot }: { id: string, label
                     <SortablePlayer player={player} compact />
                 </div>
             ) : (
-                <div className="text-slate-600 text-xs italic ml-2">Empty Slot</div>
+                <div className="text-[var(--lg-text-muted)] text-xs italic ml-2">Empty Slot</div>
             )}
         </div>
     </div>
@@ -129,7 +129,7 @@ function DroppableArea({ id, children }: { id: string, children: React.ReactNode
         <div 
             ref={setNodeRef} 
             className={`min-h-[300px] p-2 rounded-lg transition-colors border-2 border-dashed ${
-                isOver ? 'bg-slate-800/50 border-sky-500/50' : 'border-slate-800/50 bg-slate-900/20'
+                isOver ? 'bg-[var(--lg-tint)] border-sky-500/50' : 'border-[var(--lg-border-faint)] bg-[var(--lg-tint)]'
             }`}
         >
             {children}
@@ -254,10 +254,10 @@ export default function TeamRosterManager({ teamId, roster, onUpdate }: TeamRost
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
             {/* Active Lineup Column */}
             <div className="lg:col-span-7 space-y-3">
-                <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-800 shadow-xl backdrop-blur-sm">
-                    <h3 className="font-bold text-slate-100 uppercase text-xs tracking-wider mb-4 flex justify-between items-center">
+                <div className="bg-[var(--lg-glass-bg)] p-4 rounded-xl border border-[var(--lg-border-faint)] shadow-xl backdrop-blur-sm">
+                    <h3 className="font-bold text-[var(--lg-text-primary)] uppercase text-xs tracking-wider mb-4 flex justify-between items-center">
                         <span>Starting Lineup</span>
-                        <span className="text-slate-500 font-normal">{items.filter(p => p.assignedPosition && p.assignedPosition !== 'BN').length} Active</span>
+                        <span className="text-[var(--lg-text-muted)] font-normal">{items.filter(p => p.assignedPosition && p.assignedPosition !== 'BN').length} Active</span>
                     </h3>
                     
                     <div className="grid grid-cols-1 gap-2">
@@ -288,8 +288,8 @@ export default function TeamRosterManager({ teamId, roster, onUpdate }: TeamRost
 
             {/* Bench Column */}
             <div className="lg:col-span-5 h-full">
-                <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 h-full flex flex-col">
-                    <h3 className="font-bold text-slate-400 uppercase text-xs tracking-wider mb-4">Bench / Reserves</h3>
+                <div className="bg-[var(--lg-glass-bg)] p-4 rounded-xl border border-[var(--lg-border-faint)] h-full flex flex-col">
+                    <h3 className="font-bold text-[var(--lg-text-muted)] uppercase text-xs tracking-wider mb-4">Bench / Reserves</h3>
                     
                     <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                         <DroppableArea id="bench">
@@ -303,7 +303,7 @@ export default function TeamRosterManager({ teamId, roster, onUpdate }: TeamRost
                            </SortableContext>
                              
                              {items.filter(p => !p.assignedPosition || p.assignedPosition === 'BN').length === 0 && (
-                                 <div className="text-center text-slate-600 text-sm py-12 flex flex-col items-center">
+                                 <div className="text-center text-[var(--lg-text-muted)] text-sm py-12 flex flex-col items-center">
                                     <span className="text-2xl mb-2">🏝️</span>
                                     <span>Bench is empty</span>
                                  </div>

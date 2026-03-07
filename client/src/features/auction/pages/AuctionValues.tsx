@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 
 import { getAuctionValues, type PlayerSeasonStat } from "../../../api";
 import PlayerDetailModal from "../../../components/PlayerDetailModal";
+import PageHeader from "../../../components/ui/PageHeader";
 import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from "../../../components/ui/ThemedTable";
 
 function norm(v: any) {
@@ -116,19 +117,17 @@ export default function AuctionValues() {
   }, [filtered]);
 
   return (
-    <div className="px-10 py-8">
-      <div className="mb-6 text-center">
-        <div className="text-4xl font-semibold text-[var(--lg-text-heading)]">Auction Values</div>
-        <div className="mt-2 text-sm text-white/60">
-          Read-only display of auction values (engine is deferred).
-        </div>
-      </div>
+    <div className="max-w-6xl mx-auto px-4 py-6 md:px-6 md:py-10">
+      <PageHeader
+        title="Auction Values"
+        subtitle="Read-only display of auction values (engine is deferred)."
+      />
 
       <div className="mb-6 flex flex-wrap items-center justify-center gap-3">
         <div className="rounded-full bg-[var(--lg-tint)] p-1">
           <button
             className={`rounded-full px-4 py-2 text-sm ${
-              group === "hitters" ? "bg-sky-600/80 text-white" : "text-white/70 hover:bg-[var(--lg-tint-hover)]"
+              group === "hitters" ? "bg-sky-600/80 text-white" : "text-[var(--lg-text-muted)] hover:bg-[var(--lg-tint-hover)]"
             }`}
             onClick={() => setGroup("hitters")}
           >
@@ -136,7 +135,7 @@ export default function AuctionValues() {
           </button>
           <button
             className={`rounded-full px-4 py-2 text-sm ${
-              group === "pitchers" ? "bg-sky-600/80 text-white" : "text-white/70 hover:bg-[var(--lg-tint-hover)]"
+              group === "pitchers" ? "bg-sky-600/80 text-white" : "text-[var(--lg-text-muted)] hover:bg-[var(--lg-tint-hover)]"
             }`}
             onClick={() => setGroup("pitchers")}
           >
@@ -148,11 +147,11 @@ export default function AuctionValues() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search player / team / pos…"
-          className="w-[320px] rounded-full border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] px-4 py-2 text-sm text-white placeholder:text-white/40"
+          className="w-[320px] rounded-full border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] px-4 py-2 text-sm text-[var(--lg-text-primary)] placeholder:text-[var(--lg-text-muted)]"
         />
       </div>
 
-      <div className="mx-auto max-w-6xl">
+      <div>
         <ThemedTable>
           <ThemedThead>
             <ThemedTr>

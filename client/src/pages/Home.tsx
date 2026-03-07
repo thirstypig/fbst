@@ -96,7 +96,7 @@ export default function Home() {
   if (!user) return null; // Fallback during loading
 
   return (
-    <div className="relative min-h-full p-6 scrollbar-hide">
+    <div className="relative min-h-full max-w-6xl mx-auto px-4 py-6 md:px-6 md:py-10 scrollbar-hide">
       <div className="mb-12 animate-in fade-in slide-in-from-top-4 duration-500">
         <PageHeader 
           title="Dashboard"
@@ -119,9 +119,9 @@ export default function Home() {
              </Link>
           </div>
       ) : (
-          <div className="space-y-12 animate-in fade-in slide-in-from-bottom-6 duration-700">
+          <div className="space-y-6 md:space-y-12 animate-in fade-in slide-in-from-bottom-6 duration-700">
              <div className="lg-card p-0 overflow-hidden border-b-8 border-[var(--lg-accent)] shadow-2xl bg-transparent">
-                 <div className="p-10 flex flex-col md:flex-row md:items-center justify-between gap-10 bg-[var(--lg-tint)]">
+                 <div className="p-4 md:p-10 flex flex-col md:flex-row md:items-center justify-between gap-10 bg-[var(--lg-tint)]">
                      <div>
                         <div className="text-xs font-medium uppercase text-[var(--lg-text-muted)] mb-3 opacity-60">My Team</div>
                         <h2 className="text-3xl font-semibold text-[var(--lg-text-heading)] leading-none">{myTeam.name}</h2>
@@ -137,7 +137,7 @@ export default function Home() {
                      </div>
                  </div>
 
-                 <div className="p-10 grid grid-cols-1 gap-14">
+                 <div className="p-4 md:p-10 grid grid-cols-1 gap-14">
                    {/* Hitters */}
                    <div>
                      <div className="flex items-center gap-4 mb-8">

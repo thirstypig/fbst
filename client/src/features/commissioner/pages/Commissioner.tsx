@@ -339,13 +339,13 @@ export default function Commissioner() {
   const league = overview.league;
 
   return (
-    <div className="px-10 py-8">
-      <PageHeader 
-        title="Commissioner" 
-        subtitle="League setup and manual season tools." 
+    <div className="max-w-6xl mx-auto px-4 py-6 md:px-6 md:py-10">
+      <PageHeader
+        title="Commissioner"
+        subtitle="League setup and manual season tools."
       />
 
-      <div className="mx-auto max-w-6xl space-y-5">
+      <div className="space-y-5">
         <div className="flex items-center justify-between">
           <Link to="/leagues" className="text-sm text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)]">
             ← Back to Leagues
@@ -695,7 +695,7 @@ export default function Commissioner() {
             {activeTab === 'rosters' && (
                 <div className="space-y-6">
                     <div className="rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] p-5">
-                       <h2 className="text-xl font-bold mb-4 text-[var(--lg-text-heading)]">Manual Roster Management</h2>
+                       <h2 className="text-xl font-semibold mb-4 text-[var(--lg-text-heading)]">Manual Roster Management</h2>
                        <CommissionerRosterTool
                           leagueId={lid}
                           teams={overview.teams}
@@ -709,7 +709,7 @@ export default function Commissioner() {
             {activeTab === 'keepers' && (
                 <div className="space-y-6">
                     <div className="rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] p-5">
-                         <h2 className="text-xl font-bold mb-4 text-[var(--lg-text-heading)]">Keeper Selection Agent</h2>
+                         <h2 className="text-xl font-semibold mb-4 text-[var(--lg-text-heading)]">Keeper Selection Agent</h2>
                          <KeeperPrepDashboard leagueId={lid} />
                     </div>
                 </div>

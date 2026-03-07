@@ -37,7 +37,7 @@ export default function ContextDeck({ tabs }: ContextDeckProps) {
             >
               {tab.label}
               {tab.count !== undefined && (
-                <span className={`ml-2 text-xs tabular-nums ${isActive ? 'text-white/50' : 'text-white/30'}`}>
+                <span className={`ml-2 text-xs tabular-nums ${isActive ? 'text-white/50' : 'text-[var(--lg-text-muted)]'}`}>
                   {tab.count}
                 </span>
               )}

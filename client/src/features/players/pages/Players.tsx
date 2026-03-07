@@ -148,7 +148,7 @@ export default function Players() {
   return (
     <div className="h-full flex flex-col scrollbar-hide">
        {/* Page Header */}
-       <div className="px-6 pt-10">
+       <div className="max-w-6xl mx-auto px-4 pt-6 md:px-6 md:pt-10">
          <PageHeader 
            title="Player Search"
            subtitle="Search and explore all MLB players."
@@ -156,8 +156,8 @@ export default function Players() {
        </div>
 
        {/* Filters Header */}
-       <div className="px-6 py-4 sticky top-0 z-50">
-          <div className="lg-card p-4 flex flex-wrap items-center gap-6 bg-transparent backdrop-blur-3xl">
+       <div className="max-w-6xl mx-auto px-4 py-4 md:px-6 sticky top-0 z-50">
+          <div className="lg-card p-4 flex flex-wrap items-center gap-3 md:gap-6 bg-transparent backdrop-blur-3xl">
               
               {/* Type Toggle */}
               <div className="flex bg-[var(--lg-tint)] rounded-[var(--lg-radius-lg)] p-1 border border-[var(--lg-border-subtle)]">
@@ -188,7 +188,7 @@ export default function Players() {
               </div>
 
               {/* Filters */}
-              <div className="flex flex-wrap items-center gap-4">
+              <div className="grid grid-cols-2 md:flex gap-2 md:gap-4">
                   <select 
                       value={viewMode}
                       onChange={(e) => setViewMode(e.target.value as 'all' | 'remaining')}
@@ -240,7 +240,7 @@ export default function Players() {
        </div>
 
        {/* Results Table */}
-       <div className="flex-1 overflow-auto px-6 pb-12 custom-scrollbar">
+       <div className="flex-1 overflow-auto max-w-6xl mx-auto px-4 pb-8 md:px-6 md:pb-12 custom-scrollbar">
            <div className="lg-card p-0 overflow-hidden bg-transparent animate-in fade-in slide-in-from-bottom-6 duration-700">
                <div className="overflow-x-auto">
                    <ThemedTable bare>

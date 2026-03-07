@@ -36,13 +36,13 @@ export default function Admin() {
   }, []);
 
   return (
-    <div className="flex flex-col h-full bg-transparent">
-       <PageHeader 
-          title="Admin" 
+    <div className="max-w-6xl mx-auto px-4 py-6 md:px-6 md:py-10">
+       <PageHeader
+          title="Admin"
           subtitle="Platform-level administration (not league commissioner tools)."
        />
-       
-       <div className="px-10 py-8 mx-auto max-w-4xl w-full">
+
+       <div className="mt-8">
         {loading ? (
           <div className="lg-card text-center text-sm text-[var(--lg-text-muted)] opacity-60">
             Loading…
@@ -62,7 +62,7 @@ export default function Admin() {
         ) : (
           <div className="space-y-6">
             <div className="lg-card space-y-4">
-              <div className="text-xl font-bold tracking-tight text-[var(--lg-text-heading)]">Platform Governance</div>
+              <div className="text-xl font-semibold tracking-tight text-[var(--lg-text-heading)]">Platform Governance</div>
               <ul className="list-disc space-y-3 pl-5 text-sm text-[var(--lg-text-secondary)] leading-relaxed">
                 <li>Global user controls (ban/disable, admin flag).</li>
                 <li>League creation + emergency repair tools.</li>

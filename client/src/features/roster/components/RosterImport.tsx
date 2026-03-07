@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useTheme } from '../../../contexts/ThemeContext';
 import { fetchWithAuth } from '../../../api/base';
 
 interface RosterImportProps {
@@ -8,7 +7,6 @@ interface RosterImportProps {
 }
 
 export default function RosterImport({ year, onImportComplete }: RosterImportProps) {
-  const { theme } = useTheme();
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
@@ -67,23 +65,19 @@ export default function RosterImport({ year, onImportComplete }: RosterImportPro
         <h3 className="font-semibold">Import Roster from CSV</h3>
         <button
           onClick={handleDownloadTemplate}
-          className={`text-sm px-3 py-1 rounded ${
-            theme === 'dark' ? 'bg-slate-600 hover:bg-slate-500 text-white' : 'bg-gray-200 hover:bg-gray-300'
-          }`}
+          className="text-sm px-3 py-1 rounded bg-[var(--lg-tint)] hover:bg-[var(--lg-tint-hover)] text-[var(--lg-text-primary)]"
         >
           Download Template
         </button>
       </div>
 
-      <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-gray-600'}`}>
+      <p className="text-sm text-[var(--lg-text-secondary)]">
         Upload a CSV file with columns: <code>teamCode, playerName, position, mlbTeam, acquisitionCost</code>.
         Players will be added to rosters for year <strong>{year}</strong>.
       </p>
 
       <div
-        className={`border-2 border-dashed rounded-lg p-6 text-center ${
-          theme === 'dark' ? 'border-slate-600 hover:border-slate-400' : 'border-gray-300 hover:border-gray-400'
-        }`}
+        className="border-2 border-dashed rounded-lg p-6 text-center border-[var(--lg-border-subtle)] hover:border-[var(--lg-accent)]"
       >
         <input
           type="file"
@@ -104,10 +98,8 @@ export default function RosterImport({ year, onImportComplete }: RosterImportPro
           disabled={!file || uploading}
           className={`px-4 py-2 rounded font-medium ${
             !file || uploading
-              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              : theme === 'dark'
-              ? 'bg-blue-600 hover:bg-blue-500 text-white'
-              : 'bg-blue-500 hover:bg-blue-600 text-white'
+              ? 'bg-[var(--lg-tint)] text-[var(--lg-text-muted)] cursor-not-allowed'
+              : 'bg-[var(--lg-accent)] hover:bg-[var(--lg-accent-hover)] text-white'
           }`}
         >
           {uploading ? 'Importing...' : 'Import CSV'}
@@ -117,9 +109,7 @@ export default function RosterImport({ year, onImportComplete }: RosterImportPro
       {/* Logs / Output */}
       {(logs.length > 0 || error) && (
         <div
-          className={`p-4 rounded text-sm font-mono max-h-40 overflow-y-auto ${
-            theme === 'dark' ? 'bg-slate-900 text-slate-300' : 'bg-gray-100 text-gray-800'
-          }`}
+          className="p-4 rounded text-sm font-mono max-h-40 overflow-y-auto bg-[var(--lg-tint)] text-[var(--lg-text-secondary)]"
         >
           {logs.map((log, i) => (
             <div key={i} className="mb-1">

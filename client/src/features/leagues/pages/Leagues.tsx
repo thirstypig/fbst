@@ -86,9 +86,9 @@ export default function Leagues() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-[var(--lg-glass-bg)]">
-      <PageHeader 
-        title="Leagues Hub" 
+    <div className="max-w-6xl mx-auto px-4 py-6 md:px-6 md:py-10">
+      <PageHeader
+        title="Leagues Hub"
         subtitle="Select a league to manage or access commissioner tools."
         rightElement={
              <Button
@@ -101,7 +101,7 @@ export default function Leagues() {
         }
       />
 
-      <div className="px-10 py-8 mx-auto max-w-5xl w-full">
+      <div className="mt-8">
         <div className="lg-card p-6">
           {meLoading ? (
             <div className="text-sm text-[var(--lg-text-muted)] font-bold uppercase tracking-wide animate-pulse">Loading…</div>
@@ -122,7 +122,7 @@ export default function Leagues() {
 
         <div className="mt-8 space-y-4">
           <div className="flex items-center justify-between px-2">
-            <h2 className="text-2xl font-bold tracking-tight text-[var(--lg-text-heading)]">Your Leagues</h2>
+            <h2 className="text-2xl font-semibold tracking-tight text-[var(--lg-text-heading)]">Your Leagues</h2>
           </div>
 
           {!me ? (
@@ -191,8 +191,8 @@ export default function Leagues() {
         </div>
 
         {isAdminUser ? (
-          <div className="mt-10 lg-card p-8 bg-[var(--lg-accent)]/5 border-[var(--lg-accent)]/20">
-            <div className="mb-6 text-xl font-bold uppercase tracking-tight text-[var(--lg-text-heading)]">Create League</div>
+          <div className="mt-10 lg-card p-4 md:p-8 bg-[var(--lg-accent)]/5 border-[var(--lg-accent)]/20">
+            <div className="mb-6 text-xl font-semibold uppercase tracking-tight text-[var(--lg-text-heading)]">Create League</div>
 
             <form onSubmit={onCreateLeague} className="grid gap-6 md:grid-cols-4">
               <div className="md:col-span-2">
@@ -266,8 +266,8 @@ export default function Leagues() {
         <div className="mt-12 text-center text-xs font-bold uppercase tracking-wide text-[var(--lg-text-muted)] opacity-30">
           Go to Commissioner Tools to manage league settings
         </div>
-      <div className="mt-10 lg-card p-8">
-          <div className="mb-6 text-xl font-bold uppercase tracking-tight text-[var(--lg-text-heading)]">Import Data</div>
+      <div className="mt-10 lg-card p-4 md:p-8">
+          <div className="mb-6 text-xl font-semibold uppercase tracking-tight text-[var(--lg-text-heading)]">Import Data</div>
           <div className="text-xs text-[var(--lg-text-muted)] font-bold uppercase tracking-wide mb-8 leading-relaxed">
              Import a CSV file to populate league rosters and costs.
              <p className="mt-1 opacity-60">Required Headers: Player, MLB, Team, Cost, Keeper, Pos</p>

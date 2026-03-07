@@ -94,41 +94,41 @@ export default function KeeperSelection() {
       }
   };
 
-  if (loading && !team) return <div className="p-10 text-center text-white/50">Loading...</div>;
-  if (error) return <div className="p-10 text-center text-red-400">{error}</div>;
+  if (loading && !team) return <div className="text-center text-[var(--lg-text-muted)] py-20 animate-pulse text-sm">Loading...</div>;
+  if (error) return <div className="text-center text-red-300 py-20 text-sm">{error}</div>;
 
   return (
-    <div className="flex flex-col h-full bg-[var(--lg-glass-bg)] overflow-hidden">
-      <PageHeader 
-        title="Keeper Selection" 
+    <div className="max-w-6xl mx-auto px-4 py-6 md:px-6 md:py-10">
+      <PageHeader
+        title="Keeper Selection"
         subtitle={`Select players to keep for ${team?.name || "Team"}`}
-        backTo={`/commissioner/${leagueId}`} // Or just back to league home if checking as owner
+        backTo={`/commissioner/${leagueId}`}
       />
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-8">
-        <div className="mx-auto max-w-4xl space-y-6">
+      <div>
+        <div className="space-y-6">
             
             {isLocked && (
                 <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5 text-center text-amber-200">
-                    <div className="text-lg font-bold">Keepers are Locked</div>
+                    <div className="text-lg font-semibold">Keepers are Locked</div>
                     <p className="text-sm opacity-80">The commissioner has locked keeper selections for the upcoming auction. You can no longer modify your team.</p>
                 </div>
             )}
             {/* Summary Card */}
-            <div className="grid grid-cols-3 gap-4 rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] p-6 text-center shadow-xl backdrop-blur-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] p-6 text-center shadow-xl backdrop-blur-sm">
                 <div>
-                   <div className="text-xs uppercase tracking-wider text-white/50">Total Budget</div>
-                   <div className="mt-1 text-2xl font-bold text-white">{fmtMoney(budget)}</div>
+                   <div className="text-xs uppercase tracking-wider text-[var(--lg-text-muted)]">Total Budget</div>
+                   <div className="mt-1 text-2xl font-semibold text-[var(--lg-text-primary)]">{fmtMoney(budget)}</div>
                 </div>
                 <div>
-                   <div className="text-xs uppercase tracking-wider text-white/50">Keeper Cost</div>
+                   <div className="text-xs uppercase tracking-wider text-[var(--lg-text-muted)]">Keeper Cost</div>
                    <div className={`mt-1 text-2xl font-bold ${totalCost > budget ? "text-red-400" : "text-sky-300"}`}>
                        {fmtMoney(totalCost)}
                    </div>
-                   <div className="text-xs text-white/40">{count} / {keeperLimit} Players</div>
+                   <div className="text-xs text-[var(--lg-text-muted)] opacity-60">{count} / {keeperLimit} Players</div>
                 </div>
                 <div>
-                   <div className="text-xs uppercase tracking-wider text-white/50">Available</div>
+                   <div className="text-xs uppercase tracking-wider text-[var(--lg-text-muted)]">Available</div>
                    <div className={`mt-1 text-2xl font-bold ${remaining < 0 ? "text-red-500" : "text-green-400"}`}>
                        {fmtMoney(remaining)}
                    </div>
@@ -136,9 +136,9 @@ export default function KeeperSelection() {
             </div>
 
             {/* Roster Table */}
-            <div className="overflow-hidden rounded-2xl border border-[var(--lg-border-subtle)] bg-black/20">
-              <table className="w-full text-left text-sm text-white/80">
-                  <thead className="bg-[var(--lg-tint)] text-xs font-semibold uppercase tracking-wider text-white/50">
+            <div className="overflow-hidden rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)]">
+              <table className="w-full text-left text-sm text-[var(--lg-text-secondary)]">
+                  <thead className="bg-[var(--lg-tint)] text-xs font-semibold uppercase tracking-wider text-[var(--lg-text-muted)]">
                       <tr>
                           <th className="px-6 py-4">Pos</th>
                           <th className="px-6 py-4">Player</th>
@@ -156,10 +156,10 @@ export default function KeeperSelection() {
                                 className={`transition-colors hover:bg-[var(--lg-tint)] ${isSelected ? "bg-sky-900/10" : ""}`}
                                 onClick={() => toggleKeeper(r.id)}
                               >
-                                  <td className="px-6 py-4 font-mono text-white/40">{r.player?.posPrimary || r.assignedPosition}</td>
-                                  <td className="px-6 py-4 font-medium text-white">{r.player?.name || "Unknown"}</td>
-                                  <td className="px-6 py-4 text-white/40">{r.player?.mlbTeam || (r.player as any)?.mlb_team}</td>
-                                  <td className="px-6 py-4 text-right font-mono text-white/90">{fmtMoney(r.price)}</td>
+                                  <td className="px-6 py-4 font-mono text-[var(--lg-text-muted)] opacity-60">{r.player?.posPrimary || r.assignedPosition}</td>
+                                  <td className="px-6 py-4 font-medium text-[var(--lg-text-primary)]">{r.player?.name || "Unknown"}</td>
+                                  <td className="px-6 py-4 text-[var(--lg-text-muted)] opacity-60">{r.player?.mlbTeam || (r.player as any)?.mlb_team}</td>
+                                  <td className="px-6 py-4 text-right font-mono text-[var(--lg-text-primary)]">{fmtMoney(r.price)}</td>
                                   <td className="px-6 py-4 text-center">
                                       <input 
                                         type="checkbox" 
@@ -173,18 +173,18 @@ export default function KeeperSelection() {
                           );
                       })}
                       {roster.length === 0 && (
-                          <tr><td colSpan={5} className="p-8 text-center text-white/40">No players on roster.</td></tr>
+                          <tr><td colSpan={5} className="p-8 text-center text-[var(--lg-text-muted)] opacity-60">No players on roster.</td></tr>
                       )}
                   </tbody>
               </table>
             </div>
 
             {/* Sticky Action Footer (Mobile friendly) */}
-            <div className="sticky bottom-4 mx-auto max-w-md rounded-2xl border border-[var(--lg-border-subtle)] bg-slate-900/90 p-4 shadow-2xl backdrop-blur-md">
+            <div className="sticky bottom-4 mx-auto max-w-md rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] p-4 shadow-2xl backdrop-blur-md">
                  <div className="flex items-center justify-between gap-4">
                      <div className="text-sm">
-                         <div className="text-white/50">Keeping</div>
-                         <div className="font-bold text-white">{count} / {keeperLimit} for {fmtMoney(totalCost)}</div>
+                         <div className="text-[var(--lg-text-muted)]">Keeping</div>
+                         <div className="font-semibold text-[var(--lg-text-primary)]">{count} / {keeperLimit} for {fmtMoney(totalCost)}</div>
                      </div>
                       <button
                         onClick={handleSave}

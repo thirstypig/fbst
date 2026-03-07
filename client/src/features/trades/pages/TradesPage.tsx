@@ -67,7 +67,7 @@ export function TradesPage() {
   if (error) return <div className="p-4 text-red-500">Error: {error}</div>;
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-12 space-y-12">
+    <div className="max-w-6xl mx-auto px-4 py-6 md:px-6 md:py-10 space-y-6 md:space-y-12">
       <div className="mb-6">
         <PageHeader 
             title="Trade Negotiation Hub" 
@@ -120,7 +120,7 @@ export function TradesPage() {
           <div>
             <div className="flex items-center gap-4 mb-8">
                 <div className="w-1.5 h-6 bg-emerald-500 rounded-full shadow-lg shadow-emerald-500/20"></div>
-                <h2 className="text-2xl font-bold uppercase tracking-tight text-[var(--lg-text-heading)]">Active Trades</h2>
+                <h2 className="text-2xl font-semibold uppercase tracking-tight text-[var(--lg-text-heading)]">Active Trades</h2>
             </div>
             {myActive.length === 0 && (
               <div className="lg-card p-16 text-center text-[var(--lg-text-muted)] opacity-40 italic font-medium">
@@ -137,7 +137,7 @@ export function TradesPage() {
           <div>
             <div className="flex items-center gap-4 mb-8">
                 <div className="w-1.5 h-6 bg-[var(--lg-text-muted)] opacity-20 rounded-full"></div>
-                <h2 className="text-2xl font-bold uppercase tracking-tight text-[var(--lg-text-heading)] opacity-60">Trade History</h2>
+                <h2 className="text-2xl font-semibold uppercase tracking-tight text-[var(--lg-text-heading)] opacity-60">Trade History</h2>
             </div>
             {myHistory.length === 0 && (
               <div className="lg-card p-16 text-center text-[var(--lg-text-muted)] opacity-40 italic font-medium">
@@ -158,7 +158,7 @@ export function TradesPage() {
         <div className="grid gap-6">
             <div className="flex items-center gap-4 mb-4">
                 <div className="w-1.5 h-6 bg-blue-500 rounded-full shadow-lg shadow-blue-500/20"></div>
-                <h2 className="text-2xl font-bold uppercase tracking-tight text-[var(--lg-text-heading)]">League Trades</h2>
+                <h2 className="text-2xl font-semibold uppercase tracking-tight text-[var(--lg-text-heading)]">League Trades</h2>
             </div>
           {leagueTrades.length === 0 && (
             <div className="lg-card p-16 text-center text-[var(--lg-text-muted)] opacity-40 italic font-medium">
@@ -186,12 +186,12 @@ export function TradesPage() {
       {/* Context Modal */}
       {contextTrade && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50" onClick={() => setContextTrade(null)}>
-              <div className="bg-gray-900 rounded-xl border border-gray-700 w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
-                  <div className="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-800">
-                      <h3 className="font-bold text-lg">Trade Context</h3>
-                      <button onClick={() => setContextTrade(null)} className="text-gray-400 hover:text-white">✕</button>
+              <div className="rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                  <div className="p-4 border-b border-[var(--lg-border-subtle)] flex justify-between items-center bg-[var(--lg-tint)]">
+                      <h3 className="font-semibold text-lg text-[var(--lg-text-heading)]">Trade Context</h3>
+                      <button onClick={() => setContextTrade(null)} className="text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)]">✕</button>
                   </div>
-                  <div className="p-4 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-950">
+                  <div className="p-4 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-4">
                       <TeamRosterView teamId={contextTrade.proposingTeamId ?? contextTrade.proposerId} teamName={contextTrade.proposingTeam?.name ?? "Proposer"} />
                       <TeamRosterView teamId={contextTrade.acceptingTeamId ?? 0} teamName={contextTrade.acceptingTeam?.name ?? "Counterparty"} />
                   </div>
@@ -217,34 +217,34 @@ function TradeCard({
   const isProposer = trade.proposingTeam?.ownerUserId === currentUserId;
   
   return (
-    <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+    <div className="lg-card p-4">
       <div className="flex justify-between items-start mb-4">
         <div>
-          <div className="text-lg font-bold">
-            {trade.proposingTeam?.name ?? "Proposer"} <span className="text-gray-400 text-sm">offers to</span> {trade.acceptingTeam?.name ?? "Counterparty"}
+          <div className="text-lg font-semibold text-[var(--lg-text-primary)]">
+            {trade.proposingTeam?.name ?? "Proposer"} <span className="text-[var(--lg-text-muted)] text-sm">offers to</span> {trade.acceptingTeam?.name ?? "Counterparty"}
           </div>
-          <div className="text-xs text-gray-400">
+          <div className="text-xs text-[var(--lg-text-muted)]">
             {new Date(trade.createdAt).toLocaleDateString()}
           </div>
         </div>
         <div className="flex items-center gap-2">
             {onViewContext && (
-                <button onClick={onViewContext} className="p-1 hover:bg-gray-700 rounded text-gray-400 hover:text-white" title="View Context">
+                <button onClick={onViewContext} className="p-1 hover:bg-[var(--lg-tint)] rounded text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)]" title="View Context">
                     <Eye size={16} />
                 </button>
             )}
-            <div className="px-2 py-1 bg-gray-700 rounded text-xs font-mono uppercase">
+            <div className="px-2 py-1 bg-[var(--lg-tint)] rounded text-xs font-mono uppercase text-[var(--lg-text-primary)]">
               {trade.status}
             </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <div className="bg-gray-900/50 p-3 rounded">
-          <div className="text-xs text-gray-500 uppercase font-bold mb-2">{trade.proposingTeam?.name ?? "Proposer"} Gives</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div className="bg-[var(--lg-tint)] p-3 rounded-xl">
+          <div className="text-xs text-[var(--lg-text-muted)] uppercase font-semibold mb-2">{trade.proposingTeam?.name ?? "Proposer"} Gives</div>
           <ul className="space-y-1 text-sm">
             {trade.items
-              .filter((i) => i.senderTeamId === trade.proposingTeamId) 
+              .filter((i) => i.senderTeamId === trade.proposingTeamId)
               .map((i) => (
                  <li key={i.id} className="flex items-center space-x-2">
                    {i.assetType === "PLAYER" && i.player && (
@@ -257,8 +257,8 @@ function TradeCard({
               ))}
           </ul>
         </div>
-        <div className="bg-gray-900/50 p-3 rounded">
-          <div className="text-xs text-gray-500 uppercase font-bold mb-2">{trade.acceptingTeam?.name ?? "Counterparty"} Gives</div>
+        <div className="bg-[var(--lg-tint)] p-3 rounded-xl">
+          <div className="text-xs text-[var(--lg-text-muted)] uppercase font-semibold mb-2">{trade.acceptingTeam?.name ?? "Counterparty"} Gives</div>
           <ul className="space-y-1 text-sm">
             {trade.items
                .filter((i) => i.senderTeamId === trade.acceptingTeamId)
@@ -285,7 +285,7 @@ function TradeCard({
                   await cancelTrade(trade.id);
                   onRefresh();
                }}
-               className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-sm transition-colors"
+               className="px-3 py-1 bg-[var(--lg-tint)] hover:bg-[var(--lg-tint-hover)] text-[var(--lg-text-primary)] rounded text-sm transition-colors"
              >
                Cancel
              </button>
@@ -297,7 +297,7 @@ function TradeCard({
                     await respondToTrade(trade.id, "REJECT");
                     onRefresh();
                  }}
-                 className="px-3 py-1 bg-red-900/50 hover:bg-red-900 text-red-200 rounded text-sm transition-colors"
+                 className="px-3 py-1 bg-[var(--lg-error)]/10 hover:bg-[var(--lg-error)]/20 text-[var(--lg-error)] rounded text-sm transition-colors"
                >
                  Reject
                </button>
@@ -307,7 +307,7 @@ function TradeCard({
                     await respondToTrade(trade.id, "ACCEPT");
                     onRefresh();
                  }}
-                 className="px-3 py-1 bg-green-900/50 hover:bg-green-900 text-green-200 rounded text-sm transition-colors"
+                 className="px-3 py-1 bg-[var(--lg-success)]/10 hover:bg-[var(--lg-success)]/20 text-[var(--lg-success)] rounded text-sm transition-colors"
                >
                  Accept
                </button>
@@ -340,34 +340,34 @@ function LeagueTradeCard({
   const approveCount = trade.votes?.filter((v: any) => v.vote === "APPROVE").length || 0;
 
   return (
-    <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+    <div className="lg-card p-4">
       <div className="flex justify-between items-start mb-4">
         <div>
-          <div className="text-lg font-bold">
-            {trade.proposingTeam.name} <span className="text-gray-400 text-sm">↔</span> {trade.acceptingTeam.name}
+          <div className="text-lg font-semibold text-[var(--lg-text-primary)]">
+            {trade.proposingTeam.name} <span className="text-[var(--lg-text-muted)] text-sm">↔</span> {trade.acceptingTeam.name}
           </div>
-          <div className="text-xs text-gray-400">
+          <div className="text-xs text-[var(--lg-text-muted)]">
             {new Date(trade.createdAt).toLocaleDateString()}
           </div>
         </div>
         <div className="flex items-center gap-2">
             {onViewContext && (
-                <button onClick={onViewContext} className="p-1 hover:bg-gray-700 rounded text-gray-400 hover:text-white" title="View Context">
+                <button onClick={onViewContext} className="p-1 hover:bg-[var(--lg-tint)] rounded text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)]" title="View Context">
                     <Eye size={16} />
                 </button>
             )}
-            <div className="px-2 py-1 bg-gray-700 rounded text-xs font-mono uppercase">
+            <div className="px-2 py-1 bg-[var(--lg-tint)] rounded text-xs font-mono uppercase text-[var(--lg-text-primary)]">
               {trade.status}
             </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <div className="bg-gray-900/50 p-3 rounded">
-          <div className="text-xs text-gray-500 uppercase font-bold mb-2">{trade.proposingTeam?.name ?? "Proposer"} Gives</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div className="bg-[var(--lg-tint)] p-3 rounded-xl">
+          <div className="text-xs text-[var(--lg-text-muted)] uppercase font-semibold mb-2">{trade.proposingTeam?.name ?? "Proposer"} Gives</div>
           <ul className="space-y-1 text-sm">
             {trade.items
-              .filter((i: any) => i.senderTeamId === trade.proposingTeamId) 
+              .filter((i: any) => i.senderTeamId === trade.proposingTeamId)
               .map((i: any) => (
                  <li key={i.id}>
                    {i.assetType === "PLAYER" && i.player && `${i.player.posPrimary} ${i.player.name}`}
@@ -376,8 +376,8 @@ function LeagueTradeCard({
               ))}
           </ul>
         </div>
-        <div className="bg-gray-900/50 p-3 rounded">
-          <div className="text-xs text-gray-500 uppercase font-bold mb-2">{trade.acceptingTeam.name} Gives</div>
+        <div className="bg-[var(--lg-tint)] p-3 rounded-xl">
+          <div className="text-xs text-[var(--lg-text-muted)] uppercase font-semibold mb-2">{trade.acceptingTeam.name} Gives</div>
           <ul className="space-y-1 text-sm">
             {trade.items
                .filter((i: any) => i.senderTeamId === trade.acceptingTeamId)
@@ -403,7 +403,7 @@ function LeagueTradeCard({
       {canVote && (
         <div className="flex justify-end space-x-2 mb-2">
           {myVote ? (
-            <div className="text-sm text-gray-400">You voted: {myVote.vote}</div>
+            <div className="text-sm text-[var(--lg-text-muted)]">You voted: {myVote.vote}</div>
           ) : (
             <>
               <button
@@ -411,7 +411,7 @@ function LeagueTradeCard({
                   await voteOnTrade(trade.id, "APPROVE");
                   onRefresh();
                 }}
-                className="px-3 py-1 bg-green-900/50 hover:bg-green-900 text-green-200 rounded text-sm"
+                className="px-3 py-1 bg-[var(--lg-success)]/10 hover:bg-[var(--lg-success)]/20 text-[var(--lg-success)] rounded text-sm"
               >
                 Approve
               </button>
@@ -420,7 +420,7 @@ function LeagueTradeCard({
                   await voteOnTrade(trade.id, "VETO");
                   onRefresh();
                 }}
-                className="px-3 py-1 bg-red-900/50 hover:bg-red-900 text-red-200 rounded text-sm"
+                className="px-3 py-1 bg-[var(--lg-error)]/10 hover:bg-[var(--lg-error)]/20 text-[var(--lg-error)] rounded text-sm"
               >
                 Veto
               </button>
@@ -431,7 +431,7 @@ function LeagueTradeCard({
 
       {/* Commissioner Controls */}
       {isAdmin && trade.status === "ACCEPTED" && (
-        <div className="flex justify-end space-x-2 border-t border-gray-700 pt-3 mt-3">
+        <div className="flex justify-end space-x-2 border-t border-[var(--lg-border-subtle)] pt-3 mt-3">
           <button
             onClick={async () => {
               if (!confirm("Veto this trade?")) return;
@@ -518,13 +518,13 @@ function CreateTradeForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
   if (!myTeam) return <div className="p-4">Loading your team info...</div>;
 
   return (
-    <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-      <h2 className="text-xl font-bold mb-4">Propose Trade</h2>
-      
+    <div className="lg-card p-6">
+      <h2 className="text-xl font-semibold mb-4 text-[var(--lg-text-heading)]">Propose Trade</h2>
+
       <div className="mb-4">
-        <label className="block text-sm text-gray-400 mb-1">Trading Partner</label>
-        <select 
-          className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white"
+        <label className="block text-sm text-[var(--lg-text-muted)] mb-1">Trading Partner</label>
+        <select
+          className="w-full bg-[var(--lg-tint)] border border-[var(--lg-border-subtle)] rounded-xl p-2 text-[var(--lg-text-primary)]"
           value={selectedPartnerId ?? ""}
           onChange={e => setSelectedPartnerId(Number(e.target.value))}
         >
@@ -550,12 +550,12 @@ function CreateTradeForm({ onCancel, onSuccess }: { onCancel: () => void; onSucc
         </div>
       )}
 
-      <div className="flex justify-end space-x-2 pt-4 border-t border-gray-700">
-        <button onClick={onCancel} className="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
-        <button 
+      <div className="flex justify-end space-x-2 pt-4 border-t border-[var(--lg-border-subtle)]">
+        <button onClick={onCancel} className="px-4 py-2 text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)]">Cancel</button>
+        <button
            onClick={handlePropose}
            disabled={!selectedPartnerId || (myAssets.length === 0 && partnerAssets.length === 0)}
-           className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+           className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Propose Trade
         </button>

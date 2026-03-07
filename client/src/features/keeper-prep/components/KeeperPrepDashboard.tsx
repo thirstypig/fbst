@@ -117,7 +117,7 @@ export default function KeeperPrepDashboard({ leagueId }: KeeperPrepDashboardPro
     }
   };
 
-  if (loading) return <div className="p-4 text-white/50">Loading keeper status...</div>;
+  if (loading) return <div className="p-4 text-[var(--lg-text-muted)]">Loading keeper status...</div>;
   if (error) return <div className="p-4 text-red-400">Error: {error}</div>;
 
   return (
@@ -142,8 +142,8 @@ export default function KeeperPrepDashboard({ leagueId }: KeeperPrepDashboardPro
             {isLocked ? "Unlock Selections" : "Lock All Selections"}
           </button>
         </div>
-        <div className="text-sm text-white/50">
-          Keeper Limit: <span className="text-white">{statuses[0]?.keeperLimit || 4}</span>
+        <div className="text-sm text-[var(--lg-text-muted)]">
+          Keeper Limit: <span className="text-[var(--lg-text-primary)]">{statuses[0]?.keeperLimit || 4}</span>
         </div>
       </div>
 
@@ -155,37 +155,37 @@ export default function KeeperPrepDashboard({ leagueId }: KeeperPrepDashboardPro
       )}
 
       {/* Status Table */}
-      <div className="overflow-hidden rounded-2xl border border-[var(--lg-border-subtle)] bg-slate-950/60">
+      <div className="overflow-hidden rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)]">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-[var(--lg-border-subtle)] bg-[var(--lg-tint)]">
             <tr>
-              <th className="px-4 py-3 font-semibold text-white/70">Team</th>
-              <th className="px-4 py-3 font-semibold text-white/70">Roster</th>
-              <th className="px-4 py-3 font-semibold text-white/70">Keepers</th>
-              <th className="px-4 py-3 font-semibold text-white/70">Status</th>
-              <th className="px-4 py-3 text-right font-semibold text-white/70">Actions</th>
+              <th className="px-4 py-3 font-semibold text-[var(--lg-text-secondary)]">Team</th>
+              <th className="px-4 py-3 font-semibold text-[var(--lg-text-secondary)]">Roster</th>
+              <th className="px-4 py-3 font-semibold text-[var(--lg-text-secondary)]">Keepers</th>
+              <th className="px-4 py-3 font-semibold text-[var(--lg-text-secondary)]">Status</th>
+              <th className="px-4 py-3 text-right font-semibold text-[var(--lg-text-secondary)]">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--lg-divide)]">
             {statuses.map((s) => (
               <tr key={s.teamId} className="hover:bg-[var(--lg-tint)]">
                 <td className="px-4 py-3">
-                  <div className="font-semibold text-white">{s.teamName}</div>
-                  <div className="text-xs text-white/40">{s.teamCode || "—"}</div>
+                  <div className="font-semibold text-[var(--lg-text-primary)]">{s.teamName}</div>
+                  <div className="text-xs text-[var(--lg-text-muted)]">{s.teamCode || "—"}</div>
                 </td>
-                <td className="px-4 py-3 text-white/70">{s.rosterCount} players</td>
+                <td className="px-4 py-3 text-[var(--lg-text-secondary)]">{s.rosterCount} players</td>
                 <td className="px-4 py-3">
-                  <span className={s.keeperCount > s.keeperLimit ? "text-red-400" : "text-white"}>
+                  <span className={s.keeperCount > s.keeperLimit ? "text-red-400" : "text-[var(--lg-text-primary)]"}>
                     {s.keeperCount} / {s.keeperLimit}
                   </span>
                 </td>
                 <td className="px-4 py-3">
                   {s.rosterCount === 0 ? (
-                    <span className="text-xs text-white/30">Not Populated</span>
+                    <span className="text-xs text-[var(--lg-text-muted)]">Not Populated</span>
                   ) : s.keeperCount === s.keeperLimit ? (
                     <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs text-emerald-400">Ready</span>
                   ) : (
-                    <span className="rounded-full bg-[var(--lg-tint-hover)] px-2 py-0.5 text-xs text-white/50">In Progress</span>
+                    <span className="rounded-full bg-[var(--lg-tint-hover)] px-2 py-0.5 text-xs text-[var(--lg-text-muted)]">In Progress</span>
                   )}
                 </td>
                 <td className="px-4 py-3 text-right">
@@ -205,19 +205,19 @@ export default function KeeperPrepDashboard({ leagueId }: KeeperPrepDashboardPro
       {/* Edit Modal (Simple overlay for now) */}
       {editingTeamId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
-          <div className="w-full max-w-2xl rounded-2xl border border-[var(--lg-border-subtle)] bg-slate-900 p-6 shadow-2xl">
+          <div className="w-full max-w-2xl rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-bg-secondary)] p-6 shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h3 className="text-xl font-bold text-white">
+                <h3 className="text-xl font-bold text-[var(--lg-text-primary)]">
                   Manage Keepers: {statForTeam(editingTeamId)?.teamName}
                 </h3>
-                <p className="text-sm text-white/50">
+                <p className="text-sm text-[var(--lg-text-muted)]">
                   Select up to {keeperLimit} players to keep.
                 </p>
               </div>
               <button 
                 onClick={() => setEditingTeamId(null)}
-                className="text-white/40 hover:text-white"
+                className="text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)]"
               >
                 ✕
               </button>
@@ -225,12 +225,12 @@ export default function KeeperPrepDashboard({ leagueId }: KeeperPrepDashboardPro
 
             <div className="max-h-[60vh] overflow-y-auto pr-2">
               <table className="w-full text-left text-sm">
-                <thead className="sticky top-0 bg-slate-900 border-b border-[var(--lg-border-subtle)]">
+                <thead className="sticky top-0 bg-[var(--lg-bg-secondary)] border-b border-[var(--lg-border-subtle)]">
                   <tr>
-                    <th className="pb-2 text-white/50 font-medium">Keep?</th>
-                    <th className="pb-2 text-white/50 font-medium">Player</th>
-                    <th className="pb-2 text-white/50 font-medium">Pos</th>
-                    <th className="pb-2 text-white/50 font-medium text-right">Price</th>
+                    <th className="pb-2 text-[var(--lg-text-muted)] font-medium">Keep?</th>
+                    <th className="pb-2 text-[var(--lg-text-muted)] font-medium">Player</th>
+                    <th className="pb-2 text-[var(--lg-text-muted)] font-medium">Pos</th>
+                    <th className="pb-2 text-[var(--lg-text-muted)] font-medium text-right">Price</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--lg-divide)]">
@@ -244,8 +244,8 @@ export default function KeeperPrepDashboard({ leagueId }: KeeperPrepDashboardPro
                           className="h-4 w-4 rounded border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] text-sky-500"
                         />
                       </td>
-                      <td className="py-2 text-white">{r.player.name}</td>
-                      <td className="py-2 text-white/50">{r.player.posPrimary}</td>
+                      <td className="py-2 text-[var(--lg-text-primary)]">{r.player.name}</td>
+                      <td className="py-2 text-[var(--lg-text-muted)]">{r.player.posPrimary}</td>
                       <td className="py-2 text-right font-mono text-amber-400">${r.price}</td>
                     </tr>
                   ))}
@@ -254,13 +254,13 @@ export default function KeeperPrepDashboard({ leagueId }: KeeperPrepDashboardPro
             </div>
 
             <div className="mt-6 flex items-center justify-between border-t border-[var(--lg-border-subtle)] pt-4">
-               <div className="text-sm text-white/60">
-                 Selected: <span className="text-white font-bold">{selectedKeeperIds.size} / {keeperLimit}</span>
+               <div className="text-sm text-[var(--lg-text-secondary)]">
+                 Selected: <span className="text-[var(--lg-text-primary)] font-bold">{selectedKeeperIds.size} / {keeperLimit}</span>
                </div>
                <div className="flex gap-3">
                  <button
                    onClick={() => setEditingTeamId(null)}
-                   className="rounded-xl px-4 py-2 text-sm text-white/60 hover:bg-[var(--lg-tint)]"
+                   className="rounded-xl px-4 py-2 text-sm text-[var(--lg-text-secondary)] hover:bg-[var(--lg-tint)]"
                  >
                    Cancel
                  </button>

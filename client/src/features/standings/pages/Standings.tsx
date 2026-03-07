@@ -119,7 +119,7 @@ const Standings = () => {
 
   return (
     <div className="flex flex-col min-h-screen scrollbar-hide">
-      <div className="px-6 pt-6">
+      <div className="max-w-6xl mx-auto w-full px-4 pt-4 md:px-6 md:pt-6">
         <PageHeader 
           title="Standings Central" 
           subtitle={viewMode === 'season' ? "All-Time Standings" : `Period ${selectedPeriod} Standings`}
@@ -142,9 +142,9 @@ const Standings = () => {
         />
       </div>
       
-      <div className="max-w-7xl mx-auto w-full px-6 py-8 custom-scrollbar">
+      <div className="max-w-6xl mx-auto w-full px-4 py-4 md:px-6 md:py-8 custom-scrollbar">
       {viewMode === 'period' && (
-        <div className="flex flex-wrap items-center gap-6 mb-12 lg-card p-4 bg-transparent">
+        <div className="flex flex-wrap items-center gap-3 md:gap-6 mb-12 lg-card p-4 bg-transparent">
             <div className="flex items-center gap-4">
               <label className="text-xs font-bold uppercase tracking-wide text-[var(--lg-text-muted)] opacity-60">Select Period</label>
               <select 
@@ -167,18 +167,18 @@ const Standings = () => {
         </div>
       ) : (
         <div className="animate-in fade-in slide-in-from-bottom-6 duration-700">
-            <div className="space-y-16">
+            <div className="space-y-8 md:space-y-16">
                 <PeriodSummaryTable
                     periodId={viewMode === 'season' ? "Season" : `P${selectedPeriod}`}
                     rows={summaryRows}
                     categories={categories}
                 />
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-16">
                   <div className="space-y-10">
                     <div className="flex items-center gap-4 mb-8">
-                       <div className="w-2 h-8 bg-blue-500 rounded-full shadow-lg shadow-blue-500/20"></div>
-                       <h3 className="text-2xl font-bold uppercase tracking-tight text-[var(--lg-text-heading)]">
+                       <div className="w-1.5 h-6 bg-blue-500 rounded-full shadow-lg shadow-blue-500/20"></div>
+                       <h3 className="text-2xl font-semibold uppercase tracking-tight text-[var(--lg-text-heading)]">
                         Hitting Division
                       </h3>
                     </div>
@@ -196,8 +196,8 @@ const Standings = () => {
 
                   <div className="space-y-10">
                     <div className="flex items-center gap-4 mb-8">
-                       <div className="w-2 h-8 bg-purple-500 rounded-full shadow-lg shadow-purple-500/20"></div>
-                       <h3 className="text-2xl font-bold uppercase tracking-tight text-[var(--lg-text-heading)]">
+                       <div className="w-1.5 h-6 bg-purple-500 rounded-full shadow-lg shadow-purple-500/20"></div>
+                       <h3 className="text-2xl font-semibold uppercase tracking-tight text-[var(--lg-text-heading)]">
                         Pitching Division
                       </h3>
                     </div>

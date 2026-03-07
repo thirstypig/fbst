@@ -12,6 +12,7 @@ import { getPlayerSeasonStats, type PlayerSeasonStat } from "../../../api";
 import { getOgbaTeamName } from "../../../lib/ogbaTeams";
 import { isPitcher } from "../../../lib/playerDisplay";
 import PageHeader from "../../../components/ui/PageHeader";
+import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from "../../../components/ui/ThemedTable";
 
 function normCode(v: any): string {
   return String(v ?? "").trim().toUpperCase();
@@ -85,56 +86,56 @@ export default function Teams() {
   }, [players]);
 
   return (
-    <div className="px-10 py-8 text-slate-100">
-      <PageHeader 
-        title="Teams" 
-        subtitle="Team roster counts derived from your season player pool." 
+    <div className="max-w-6xl mx-auto px-4 py-6 md:px-6 md:py-10">
+      <PageHeader
+        title="Teams"
+        subtitle="Team roster counts derived from your season player pool."
       />
 
       {error && (
-        <div className="mb-4 rounded-md border border-red-400 bg-red-900/40 px-4 py-2 text-sm text-red-100">
+        <div className="mb-6 rounded-2xl border border-red-500/20 bg-red-500/10 px-6 py-4 text-sm font-medium text-red-300">
           Failed to load teams – {error}
         </div>
       )}
 
       {loading ? (
-        <div className="mt-4 text-sm text-slate-300">Loading teams…</div>
+        <div className="text-center text-[var(--lg-text-muted)] py-20 animate-pulse text-sm">Loading teams…</div>
       ) : teams.length === 0 ? (
-        <div className="mt-4 text-sm text-slate-300">No teams found.</div>
+        <div className="lg-card p-16 text-center text-[var(--lg-text-muted)] opacity-40 italic text-sm">No teams found.</div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-900/60">
-          <table className="min-w-full border-collapse text-sm">
-            <thead className="bg-slate-900/80">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs text-slate-300">TEAM</th>
-                <th className="px-4 py-3 text-left text-xs text-slate-300">CODE</th>
-                <th className="px-4 py-3 text-center text-xs text-slate-300">HITTERS</th>
-                <th className="px-4 py-3 text-center text-xs text-slate-300">PITCHERS</th>
-                <th className="px-4 py-3 text-center text-xs text-slate-300">TOTAL</th>
-                <th className="px-4 py-3 text-right text-xs text-slate-300"></th>
-              </tr>
-            </thead>
+        <div className="lg-card p-0 overflow-hidden">
+          <ThemedTable bare>
+            <ThemedThead>
+              <ThemedTr>
+                <ThemedTh align="left">TEAM</ThemedTh>
+                <ThemedTh align="left">CODE</ThemedTh>
+                <ThemedTh align="center">HITTERS</ThemedTh>
+                <ThemedTh align="center">PITCHERS</ThemedTh>
+                <ThemedTh align="center">TOTAL</ThemedTh>
+                <ThemedTh align="right">{""}</ThemedTh>
+              </ThemedTr>
+            </ThemedThead>
 
-            <tbody>
+            <tbody className="divide-y divide-[var(--lg-divide)]">
               {teams.map((t) => (
-                <tr key={t.code} className="border-t border-slate-800/80">
-                  <td className="px-4 py-3 text-sm font-medium text-slate-100">{t.name}</td>
-                  <td className="px-4 py-3 text-xs text-slate-300">{t.code}</td>
-                  <td className="px-4 py-3 text-center">{t.hitters}</td>
-                  <td className="px-4 py-3 text-center">{t.pitchers}</td>
-                  <td className="px-4 py-3 text-center">{t.total}</td>
-                  <td className="px-4 py-3 text-right">
+                <ThemedTr key={t.code} className="hover:bg-[var(--lg-tint)]">
+                  <ThemedTd className="font-medium">{t.name}</ThemedTd>
+                  <ThemedTd className="text-xs text-[var(--lg-text-muted)]">{t.code}</ThemedTd>
+                  <ThemedTd align="center">{t.hitters}</ThemedTd>
+                  <ThemedTd align="center">{t.pitchers}</ThemedTd>
+                  <ThemedTd align="center">{t.total}</ThemedTd>
+                  <ThemedTd align="right">
                     <Link
                       to={`/teams/${encodeURIComponent(t.code)}`}
-                      className="inline-flex items-center rounded-xl bg-[var(--lg-tint-hover)] px-4 py-2 text-xs font-medium text-slate-100 hover:bg-[var(--lg-tint-hover)]"
+                      className="inline-flex items-center rounded-xl bg-[var(--lg-tint-hover)] px-4 py-2 text-xs font-medium text-[var(--lg-text-primary)] hover:bg-[var(--lg-tint)]"
                     >
                       View roster
                     </Link>
-                  </td>
-                </tr>
+                  </ThemedTd>
+                </ThemedTr>
               ))}
             </tbody>
-          </table>
+          </ThemedTable>
         </div>
       )}
     </div>

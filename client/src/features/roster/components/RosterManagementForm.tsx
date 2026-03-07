@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useTheme } from '../../../contexts/ThemeContext';
 import { fetchJsonApi } from '../../../api/base';
 import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from "../../../components/ui/ThemedTable";
 
@@ -19,7 +18,6 @@ interface RosterManagementFormProps {
 }
 
 export default function RosterManagementForm({ year, teamCodes }: RosterManagementFormProps) {
-  const { theme } = useTheme();
   const [roster, setRoster] = useState<RosterEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<string>(teamCodes[0] || '');
@@ -89,13 +87,9 @@ export default function RosterManagementForm({ year, teamCodes }: RosterManageme
     }
   };
 
-  const inputClass = `w-full px-3 py-2 rounded border ${
-    theme === 'dark' ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-300'
-  }`;
+  const inputClass = `w-full px-3 py-2 rounded border bg-[var(--lg-input-bg)] border-[var(--lg-border-subtle)] text-[var(--lg-text-primary)]`;
 
-  const buttonClass = `px-4 py-2 rounded font-medium ${
-    theme === 'dark' ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'
-  }`;
+  const buttonClass = `px-4 py-2 rounded font-medium bg-[var(--lg-accent)] hover:bg-[var(--lg-accent-hover)] text-white`;
 
   return (
     <div className="space-y-6">
@@ -114,13 +108,13 @@ export default function RosterManagementForm({ year, teamCodes }: RosterManageme
             </option>
           ))}
         </select>
-        <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
+        <span className="text-sm text-[var(--lg-text-muted)]">
           Year: {year}
         </span>
       </div>
 
       {/* Add Player Form */}
-      <form onSubmit={handleSubmit} className={`p-4 rounded-lg ${theme === 'dark' ? 'bg-slate-700' : 'bg-gray-50'}`}>
+      <form onSubmit={handleSubmit} className="p-4 rounded-lg bg-[var(--lg-tint)]">
         <h3 className="font-semibold mb-4">Add Player</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
@@ -191,7 +185,7 @@ export default function RosterManagementForm({ year, teamCodes }: RosterManageme
         {loading ? (
           <p className="text-sm">Loading...</p>
         ) : roster.length === 0 ? (
-          <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-gray-500'}`}>
+          <p className="text-sm text-[var(--lg-text-muted)]">
             No players on roster for {selectedTeam} in {year}.
           </p>
         ) : (

@@ -58,7 +58,7 @@ export default function Guide() {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto pb-20">
+      <div className="max-w-6xl mx-auto px-4 py-6 md:px-6 md:py-10">
         <PageHeader title="League Guide" subtitle="Loading..." />
         <div className="text-center text-[var(--lg-text-muted)] py-20 animate-pulse">Loading league rules...</div>
       </div>
@@ -66,7 +66,7 @@ export default function Guide() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto pb-20">
+    <div className="max-w-6xl mx-auto px-4 py-6 md:px-6 md:py-10">
       <PageHeader
         title="League Guide"
         subtitle="The definitive handbook for this league's format, scoring, and operations."
@@ -87,10 +87,10 @@ export default function Guide() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-8">
+      <div className="grid grid-cols-1 gap-4 md:gap-8">
         {/* Overview */}
-        <section className="lg-card p-8">
-          <h2 className="text-2xl font-bold tracking-tight text-[var(--lg-text-heading)] mb-6 uppercase">League Overview</h2>
+        <section className="lg-card p-4 md:p-8">
+          <h2 className="text-2xl font-semibold tracking-tight text-[var(--lg-text-heading)] mb-6 uppercase">League Overview</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
               { label: 'Format', value: `Head-to-Head (${hittingCats.length}x${pitchingCats.length})` },
@@ -109,8 +109,8 @@ export default function Guide() {
         </section>
 
         {/* Hitting */}
-        <section className="lg-card p-8">
-          <h2 className="text-xl font-bold text-[var(--lg-text-heading)] mb-6 flex items-center gap-4 uppercase tracking-tight">
+        <section className="lg-card p-4 md:p-8">
+          <h2 className="text-xl font-semibold text-[var(--lg-text-heading)] mb-6 flex items-center gap-4 uppercase tracking-tight">
             <span className="flex items-center justify-center w-8 h-8 bg-blue-500/20 text-blue-400 rounded-xl text-sm border border-blue-500/20 shadow-lg shadow-blue-500/10">
               H
             </span>
@@ -126,8 +126,8 @@ export default function Guide() {
         </section>
 
         {/* Pitching */}
-        <section className="lg-card p-8">
-          <h2 className="text-xl font-bold text-[var(--lg-text-heading)] mb-6 flex items-center gap-4 uppercase tracking-tight">
+        <section className="lg-card p-4 md:p-8">
+          <h2 className="text-xl font-semibold text-[var(--lg-text-heading)] mb-6 flex items-center gap-4 uppercase tracking-tight">
             <span className="flex items-center justify-center w-8 h-8 bg-emerald-500/20 text-emerald-400 rounded-xl text-sm border border-emerald-500/20 shadow-lg shadow-emerald-500/10">
               P
             </span>
@@ -143,8 +143,8 @@ export default function Guide() {
         </section>
 
         {/* Scoring */}
-        <section className="lg-card p-8">
-          <h2 className="text-xl font-bold text-[var(--lg-text-heading)] mb-6 uppercase tracking-tight">Scoring System</h2>
+        <section className="lg-card p-4 md:p-8">
+          <h2 className="text-xl font-semibold text-[var(--lg-text-heading)] mb-6 uppercase tracking-tight">Scoring System</h2>
           <p className="text-sm text-[var(--lg-text-secondary)] leading-relaxed mb-4">
             Each stat category is ranked across all teams. {scoringExplanation}
           </p>
@@ -155,8 +155,8 @@ export default function Guide() {
 
         {/* Roster Positions */}
         {rosterPositions && (
-          <section className="lg-card p-8">
-            <h2 className="text-xl font-bold text-[var(--lg-text-heading)] mb-6 uppercase tracking-tight">Roster Positions</h2>
+          <section className="lg-card p-4 md:p-8">
+            <h2 className="text-xl font-semibold text-[var(--lg-text-heading)] mb-6 uppercase tracking-tight">Roster Positions</h2>
             <div className="flex flex-wrap gap-2">
               {rosterPositions.split(',').map((pos) => pos.trim()).filter(Boolean).map((pos) => (
                 <div key={pos} className="px-4 py-2 bg-[var(--lg-tint)] text-[var(--lg-text-primary)] text-xs font-bold rounded-xl border border-[var(--lg-border-subtle)] uppercase tracking-tight">
@@ -169,8 +169,8 @@ export default function Guide() {
 
         {/* Bonuses */}
         {(bonusGrandSlam || bonusShutout) && (
-          <section className="lg-card p-8">
-            <h2 className="text-xl font-bold text-[var(--lg-text-heading)] mb-6 uppercase tracking-tight">Bonuses</h2>
+          <section className="lg-card p-4 md:p-8">
+            <h2 className="text-xl font-semibold text-[var(--lg-text-heading)] mb-6 uppercase tracking-tight">Bonuses</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {bonusGrandSlam && (
                 <div className="bg-[var(--lg-tint)] p-4 rounded-2xl border border-[var(--lg-border-faint)]">

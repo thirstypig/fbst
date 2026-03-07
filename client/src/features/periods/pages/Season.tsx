@@ -178,8 +178,8 @@ const SeasonPage: React.FC = () => {
 
 
   return (
-    <div className="flex-1 min-h-screen bg-[var(--lg-bg)]">
-      <main className="max-w-6xl mx-auto px-6 py-12">
+    <div className="flex-1 min-h-screen">
+      <main className="max-w-6xl mx-auto px-4 py-6 md:px-6 md:py-10">
         <PageHeader 
           title={viewMode === 'season' ? "Season Standings" : `Period ${selectedPeriodId} Standings`}
           subtitle="Roto points distribution for the full season or specific periods. Higher totals indicate stronger performance across categories."
@@ -299,7 +299,7 @@ const SeasonPage: React.FC = () => {
             </ThemedTable>
           </div>
         ) : (
-          <div className="space-y-12">
+          <div className="space-y-6 md:space-y-12">
             <div className="flex items-center gap-4 lg-card p-4 justify-center">
                <span className="text-xs font-medium uppercase text-[var(--lg-text-muted)]">Select Period</span>
                <div className="flex gap-2">
@@ -322,13 +322,13 @@ const SeasonPage: React.FC = () => {
                   <div className="text-[var(--lg-text-muted)] text-lg font-medium italic animate-pulse">Loading stats...</div>
                </div>
             ) : (
-              <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="space-y-6 md:space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <PeriodSummaryTable
                     periodId={`P${selectedPeriodId}`}
                     rows={periodSummaryRows}
                     categories={Object.keys(periodCategoryRows)}
                 />
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-12">
                    {Object.keys(periodCategoryRows).map(catKey => (
                       <CategoryPeriodTable
                           key={catKey}
