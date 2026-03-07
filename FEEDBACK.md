@@ -4,6 +4,172 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
+## Session 2026-03-06 (Session 11) — Complete All Pending P2 & P3 Todos
+
+### Completed
+- **`024` asyncHandler migration** — wrapped ~50 remaining async route handlers in `asyncHandler()` across 7 files:
+  - `commissioner/routes.ts` (19 handlers): 12 had 500 catches removed, 7 kept 400 business logic catches
+  - `archive/routes.ts` (20 handlers): all 500 catches removed
+  - `leagues/routes.ts` (5 handlers): all 500 catches removed
+  - `keeper-prep/routes.ts` (6 handlers): 4 had 500 catches removed, 2 kept 400 catches
+  - `admin/routes.ts` (2 handlers): kept 400 catches, wrapped in asyncHandler
+  - `players/routes.ts` (2 handlers): had NO error handling, now wrapped in asyncHandler
+  - `routes/public.ts` (2 handlers): 500 catches removed (bonus, not in original plan)
+- **`045` waivers/api.ts** — created typed client API file with 4 functions: `getWaiverClaims`, `submitWaiverClaim`, `cancelWaiverClaim`, `processWaiverClaims`
+- **Todo file renames** — 16 todo files renamed from `*-pending-*` to `*-complete-*` (14 previously completed + 2 newly completed)
+- **Zero unprotected async handlers** remaining in all route files (verified via grep)
+
+### Remaining Pending Todos (out of scope)
+- `001` — Hardcoded DB credentials (needs Neon password rotation)
+- `027` — Zod validation for commissioner/admin (already partially done via `validateBody`)
+
+### Test Results
+- Server: 15 files, 207 tests passing
+- Client: 4 files, 70 tests passing
+- Total: 277 tests, all green
+- TypeScript: server compiles clean; client has 1 pre-existing error in AuthProvider.tsx
+
+---
+
+## Session 2026-03-05 (Session 10) — P3 Cleanup, Testing, Shared Components, Audit Logging
+
+### Completed
+- **`011` AppShell cleanup** — removed duplicate auth state (`me`, `loading`, `refreshAuth()`) — now uses `useAuth()` from AuthProvider. Removed YAGNI sidebar resize (sidebarWidth/isResizing/drag handler). Uses fixed `w-60` class.
+- **`012` RulesEditor derive grouped** — removed `grouped` state, replaced with `useMemo(() => rules.reduce(...))`. Removed `setGrouped()` calls in fetch effect and handleSave.
+- **`013` Commissioner design tokens** — replaced all hardcoded `text-white`, `text-white/50-80`, `bg-slate-950/60`, `bg-black/20` with design tokens (`--lg-text-primary`, `--lg-text-muted`, `--lg-text-heading`, `--lg-bg-surface`, `--lg-glass-bg`). Active tab: `bg-[var(--lg-accent)] text-white`. Kept semantic red/amber colors.
+- **`014` parseIntParam move** — moved function from `middleware/auth.ts` to `lib/utils.ts`. Moved 7 tests from auth.test.ts to utils.test.ts. No other files imported it from auth.
+- **Auth handler extraction** — extracted `handleAuthHealth`, `handleGetMe`, `handleDevLogin` as named exported functions in auth/routes.ts. Created 12 unit tests in auth/__tests__/routes.test.ts.
+- **Integration tests** — created 3 files in `server/src/__tests__/integration/`:
+  - `auction-roster.test.ts` (9 tests): finish→roster, budget deduction, queue advancement, reset
+  - `trade-roster.test.ts` (10 tests): player movement, budget, mixed items, status guards, atomicity
+  - `waiver-roster.test.ts` (11 tests): FAAB ordering, budget, drop player, $0 claims, atomicity
+- **Shared component extraction** — moved `PlayerDetailModal` and `StatsTables` to `client/src/components/`. Updated cross-feature imports (teams, auction, archive, periods). Original files re-export for backwards compat within their feature.
+- **Audit logging** — `writeAuditLog()` utility in `server/src/lib/auditLog.ts`. Instrumented 15+ admin/commissioner actions (TEAM_CREATE, TEAM_DELETE, MEMBER_ADD, OWNER_ADD/REMOVE, ROSTER_ASSIGN/RELEASE/IMPORT, AUCTION_FINISH/END, RULES_UPDATE, LEAGUE_CREATE). Fire-and-forget pattern.
+- **CLAUDE.md updated** — test coverage section (272 tests), shared infra (auditLog.ts, PlayerDetailModal, StatsTables), cross-feature deps updated.
+
+### Pending / Next Steps
+- [ ] Rotate Neon DB password (credentials were in git history)
+- [ ] Commit and create PR for Sessions 8–10 changes
+- [ ] Clean up 14+ stale worktrees in `.claude/worktrees/`
+- [ ] Visual QA: verify Commissioner page design tokens in light/dark mode
+
+### Test Results
+- Server: 14 files, 202 tests passing
+- Client: 4 files, 70 tests passing
+- Total: 272 tests, all green
+- TypeScript: both server + client compile clean (`tsc --noEmit`)
+
+---
+
+## Session 2026-03-05 (Session 9) — P2 Code Quality
+
+### Completed
+- **`005` Type standings service** — replaced all `any` types with proper interfaces (`CsvPlayerRow`, `TeamStatRow`, `CategoryRow`, `StandingsRow`, `SeasonStandingsRow`). Zero `any` in standingsService.ts and routes.ts.
+- **`006` Cache standings computation** — added `getCachedStandings()` to DataService with a `Map<string, unknown>` cache that clears on data reload. All 3 standings endpoints now cache results.
+- **`007` Complete auth migration** — migrated 6 files from raw `fetch()` to `fetchJsonApi`/`fetchWithAuth`:
+  - `AIInsightsModal.tsx` — JSON → `fetchJsonApi`
+  - `Standings.tsx` — JSON → `fetchJsonApi`
+  - `ArchiveAdminPanel.tsx` — 5 calls: 1 multipart → `fetchWithAuth`, 4 JSON → `fetchJsonApi`; removed `getToken()` helper and `supabase` import
+  - `RosterImport.tsx` — multipart → `fetchWithAuth`; removed `supabase` import
+  - `RosterControls.tsx` — multipart → `fetchWithAuth`; removed `supabase` import
+  - `AuthProvider.tsx` — JSON → `fetchJsonApi`; simplified `fetchMe()` to 2 lines
+  - Created `fetchWithAuth()` helper in `api/base.ts` for multipart uploads
+- **`008` Fix test files** — tests now import real source code instead of re-implementing:
+  - `auction/routes.test.ts` — imports `calculateMaxBid` + types from `routes.ts` (exported `calculateMaxBid`)
+  - `trades/routes.test.ts` — imports `tradeItemSchema` + `tradeProposalSchema` from `routes.ts` (exported both)
+  - `waivers/routes.test.ts` — imports `waiverClaimSchema` from `routes.ts` (exported it)
+  - Fixed vi.mock hoisting issues (inline factory pattern, `__mockTx` accessor)
+  - Auth tests left as-is (handler logic is anonymous, would need service extraction)
+- **`009` Document cross-feature deps** — added 3 new imports to CLAUDE.md:
+  - Server: `standings/routes.ts` → `players/services/dataService`
+  - Server: `transactions/routes.ts` → `players/services/dataService`
+  - Client: `commissioner/pages/Commissioner` → `leagues/components/RulesEditor`
+
+### Pending / Next Steps (for Session 10+)
+- [ ] `011`–`014` — P3 cleanup (AppShell, RulesEditor, Commissioner tokens, parseIntParam)
+- [ ] Rotate Neon DB password (credentials were in git history)
+- [ ] Commit and create PR for Session 8 + 9 changes
+- [ ] Extract auth route handler logic into named functions (for proper unit testing)
+- [ ] Integration tests (auction→roster, trade→roster, etc.)
+
+### Test Results
+- Server: 11 files, 168 tests passing
+- Client: 4 files, 70 tests passing
+- Total: 238 tests, all green
+- TypeScript: both server + client compile clean
+
+---
+
+## Session 2026-03-05 (Session 8) — P0 Security Fixes
+
+### Completed
+- **`001` Hardcoded credentials** — deleted `fix_2025_auction_values.js` and `get_league_id.js` (contained Neon DB password)
+- **`002` Archive auth** — added `requireAuth` to all 11 GET endpoints, `requireAuth + requireAdmin` to all 8 write endpoints (POST/PUT/PATCH)
+- **`002b` Roster import auth** — added `requireAuth + requireAdmin` to POST `/import`; template GET left public
+- **`003` Auction ownership** — added `requireTeamOwner("nominatorTeamId")` to nominate, `requireTeamOwner("bidderTeamId")` to bid
+- **`004` Roster ownership** — inline `isTeamOwner()` check on POST `/add-player` and DELETE `/:id` (lookup team by code). Admins bypass.
+- **`010` Waivers info disclosure** — GET without `teamId` now scoped to user's own teams (via `Team.ownerUserId` + `TeamOwnership`). With `teamId`, verifies ownership. Admins see all.
+- **IDOR — Teams** — GET `/api/teams` scoped to user's league memberships. With `leagueId` query param, verifies membership.
+- **IDOR — Transactions** — `leagueId` now required + `requireLeagueMember("leagueId")` middleware added.
+- **Smoke tested** all 30+ endpoints: unauthed → 401, authed → correct scoping
+
+### Pending / Next Steps (for Session 9+)
+- [ ] `005` — Type standings service (replace `any[]` with proper interfaces)
+- [ ] `006` — Cache standings computation
+- [ ] `007` — Complete auth migration (~6 client files still use raw `fetch()`)
+- [ ] `008` — Fix test files testing copied logic (~550 LOC)
+- [ ] `009` — Document 3 undocumented cross-feature dependencies
+- [ ] `011`–`014` — P3 cleanup (AppShell, RulesEditor, Commissioner tokens, parseIntParam)
+- [ ] Rotate Neon DB password (credentials were in git history)
+- [ ] Commit and create PR for this session's changes
+
+### Test Results
+- Server: 11 files, 168 tests passing
+- Client: 4 files, 70 tests passing
+- Total: 238 tests, all green
+- TypeScript: both server + client compile clean
+- Manual smoke: 30+ endpoints tested (unauthed + authed)
+
+---
+
+## Session 2026-03-05 (Session 7)
+
+### Completed
+- **PR #12 merged to main** — auth fix, port change, standings CSV, guide cleanup (57 files, +3524 -1016)
+- **Port change**: FBST Express API moved from 4001 → 4002 (avoids conflict with FSVP Pro)
+- **Standings fix**: Routes compute from CSV data (DataService) instead of empty DB tables
+- **Scripts security**: Removed hardcoded OAuth secrets from shell scripts; now source from `server/.env`
+- **6-agent code review** completed: Security, Performance, Architecture, TypeScript, Pattern, Simplicity
+
+### Code Review Findings (14 total)
+
+**P1 — Critical (4):**
+- [x] `001` — Hardcoded production DB credentials — **fixed Session 8**
+- [x] `002` — Archive routes + roster import missing auth — **fixed Session 8**
+- [x] `003` — Auction nominate/bid no ownership check — **fixed Session 8**
+- [x] `004` — Roster add/delete missing ownership checks — **fixed Session 8**
+
+**P2 — Important (6):**
+- [x] `005` — Pervasive `any` types in standings service — **fixed Session 9**
+- [x] `006` — Cache standings computation — **fixed Session 9**
+- [x] `007` — ~6 client files still use raw `fetch()` — **fixed Session 9**
+- [x] `008` — Test files test copied logic — **fixed Session 9**
+- [x] `009` — 3 undocumented cross-feature dependencies — **fixed Session 9**
+- [x] `010` — Waivers GET info leak — **fixed Session 8**
+
+**P3 — Nice-to-Have (4):**
+- [x] `011` — AppShell duplicates auth state + YAGNI sidebar resize — **fixed Session 10**
+- [x] `012` — RulesEditor: derive `grouped` with useMemo — **fixed Session 10**
+- [x] `013` — Commissioner page uses hardcoded colors, not design tokens — **fixed Session 10**
+- [x] `014` — `parseIntParam` belongs in utils.ts, not auth.ts — **fixed Session 10**
+
+### Test Results
+- Server: 11 files, 168 tests passing
+- Client: 4 files, 70 tests passing
+- Total: 238 tests, all green
+
+---
+
 ## Session 2026-03-04 (Session 6)
 
 ### Completed

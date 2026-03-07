@@ -1,14 +1,15 @@
 
 import { Router } from "express";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
-import { requireAuth, requireAdmin, requireTeamOwner, isTeamOwner } from "../../middleware/auth.js";
+import { requireAuth, requireAdmin, requireTeamOwner, isTeamOwner, getOwnedTeamIds } from "../../middleware/auth.js";
 import { validateBody } from "../../middleware/validate.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { logger } from "../../lib/logger.js";
 import { writeAuditLog } from "../../lib/auditLog.js";
 
-const waiverClaimSchema = z.object({
+export const waiverClaimSchema = z.object({
   teamId: z.number().int().positive(),
   playerId: z.number().int().positive(),
   dropPlayerId: z.number().int().positive().optional(),
@@ -18,22 +19,33 @@ const waiverClaimSchema = z.object({
 
 const router = Router();
 
-// GET /api/waivers - List pending claims for current user (or all if admin?)
+// GET /api/waivers - List pending claims scoped to user's teams (admins see all)
 // Query param: teamId (optional)
 router.get("/", requireAuth, asyncHandler(async (req, res) => {
-  const teamId = Number(req.query.teamId);
-  const where = teamId ? { teamId } : {};
+  const teamId = req.query.teamId ? Number(req.query.teamId) : undefined;
+  const where: Prisma.WaiverClaimWhereInput = { status: "PENDING" };
+
+  if (req.user!.isAdmin) {
+    // Admins can see all, optionally filtered by teamId
+    if (teamId) where.teamId = teamId;
+  } else if (teamId) {
+    // Non-admin with teamId: verify ownership first
+    const owns = await isTeamOwner(teamId, req.user!.id);
+    if (!owns) return res.status(403).json({ error: "You do not own this team" });
+    where.teamId = teamId;
+  } else {
+    // No teamId: scope to user's own teams only
+    const teamIds = await getOwnedTeamIds(req.user!.id);
+    where.teamId = { in: teamIds };
+  }
 
   const claims = await prisma.waiverClaim.findMany({
-    where: {
-      ...where,
-      status: "PENDING",
-    },
+    where,
     include: { player: true, dropPlayer: true },
     orderBy: [{ bidAmount: "desc" }, { priority: "asc" }],
   });
 
-  res.json(claims);
+  res.json({ claims });
 }));
 
 // POST /api/waivers - Submit a claim
@@ -73,7 +85,7 @@ router.delete("/:id", requireAuth, asyncHandler(async (req, res) => {
 }));
 
 // POST /api/waivers/process - Execute FAAB (Admin/Cron)
-router.post("/process", requireAdmin, asyncHandler(async (req, res) => {
+router.post("/process", requireAuth, requireAdmin, asyncHandler(async (req, res) => {
   // 1. Fetch all pending claims, sorted by Bid DESC, Priority ASC
   const claims = await prisma.waiverClaim.findMany({
     where: { status: "PENDING" },
@@ -88,7 +100,7 @@ router.post("/process", requireAdmin, asyncHandler(async (req, res) => {
   const processedPlayerIds = new Set<number>(); // Players added
   const teamDropMap = new Map<number, Set<number>>(); // teamId -> Set<droppedPlayerId>
 
-  await prisma.$transaction(async (tx: any) => {
+  await prisma.$transaction(async (tx) => {
     for (const claim of claims) {
       // Check if player already taken in this batch
       if (processedPlayerIds.has(claim.playerId)) {
@@ -101,7 +113,7 @@ router.post("/process", requireAdmin, asyncHandler(async (req, res) => {
 
       // Check budget
       const currentTeam = await tx.team.findUnique({ where: { id: claim.teamId } });
-      if (currentTeam.budget < claim.bidAmount) {
+      if (!currentTeam || currentTeam.budget < claim.bidAmount) {
          await tx.waiverClaim.update({
           where: { id: claim.id },
           data: { status: "FAILED_INVALID", processedAt: new Date() },
