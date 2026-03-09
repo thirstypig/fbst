@@ -21,6 +21,9 @@ vi.mock("../../../middleware/auth.js", () => ({
 vi.mock("../../../middleware/asyncHandler.js", () => ({
   asyncHandler: (fn: Function) => fn,
 }));
+vi.mock("../services/auctionWsService.js", () => ({
+  broadcastState: vi.fn(),
+}));
 
 import { calculateMaxBid } from "../routes.js";
 import type { AuctionState } from "../routes.js";

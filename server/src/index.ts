@@ -38,6 +38,7 @@ import { DataService } from './features/players/services/dataService.js';
 import { logger } from './lib/logger.js';
 import cron from 'node-cron';
 import { syncNLPlayers } from './features/players/services/mlbSyncService.js';
+import { attachAuctionWs } from './features/auction/services/auctionWsService.js';
 
 // Validate required env vars at startup
 const REQUIRED_ENV = ["DATABASE_URL", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SESSION_SECRET"];
@@ -227,7 +228,9 @@ async function main() {
   const onListen = async () => {
     const protocol = fs.existsSync(keyPath) ? "HTTPS" : "HTTP";
     logger.info({ port: PORT, protocol }, `🔥 FBST server listening on 0.0.0.0 (${protocol})`);
-    
+
+    // Attach Auction WebSocket server to the HTTP server
+    attachAuctionWs(server);
   };
 
   const isDev = process.env.NODE_ENV === "development";

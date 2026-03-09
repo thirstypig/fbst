@@ -33,6 +33,9 @@ vi.mock("../../middleware/auth.js", () => ({
 vi.mock("../../middleware/asyncHandler.js", () => ({
   asyncHandler: (fn: Function) => fn,
 }));
+vi.mock("../../features/auction/services/auctionWsService.js", () => ({
+  broadcastState: vi.fn(),
+}));
 
 import { calculateMaxBid } from "../../features/auction/routes.js";
 import { prisma } from "../../db/prisma.js";
