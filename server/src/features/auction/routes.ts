@@ -7,6 +7,7 @@ import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { validateBody } from "../../middleware/validate.js";
 import { writeAuditLog } from "../../lib/auditLog.js";
 import { assertPlayerAvailable } from "../../lib/rosterGuard.js";
+import { broadcastState } from "./services/auctionWsService.js";
 
 const nominateSchema = z.object({
   leagueId: z.number().int().positive(),
@@ -207,6 +208,8 @@ router.post("/init", requireAuth, requireAdmin, asyncHandler(async (req, res) =>
   state.status = "nominating";
   state.lastUpdate = Date.now();
 
+  broadcastState(leagueId, state);
+
   writeAuditLog({
     userId: req.user!.id,
     action: "AUCTION_INIT",
@@ -258,6 +261,7 @@ router.post("/nominate", requireAuth, validateBody(nominateSchema), requireTeamO
   state.status = 'bidding';
   state.lastUpdate = Date.now();
 
+  broadcastState(leagueId, state);
   res.json(state);
 });
 
@@ -303,6 +307,7 @@ router.post("/bid", requireAuth, validateBody(bidSchema), requireTeamOwner("bidd
   state.nomination.endTime = new Date(now + state.config.bidTimer * 1000).toISOString();
   state.lastUpdate = Date.now();
 
+  broadcastState(leagueId, state);
   res.json(state);
 });
 
@@ -363,6 +368,8 @@ router.post("/finish", requireAuth, requireAdmin, asyncHandler(async (req, res) 
      state.nomination = null;
      state.lastUpdate = Date.now();
 
+     broadcastState(leagueId, state);
+
      writeAuditLog({
        userId: req.user!.id,
        action: "AUCTION_FINISH",
@@ -386,6 +393,7 @@ router.post("/pause", requireAuth, requireAdmin, (req, res) => {
         state.nomination.pausedRemainingMs = Math.max(0, end - now);
         state.nomination.status = 'paused';
     }
+    broadcastState(leagueId!, state);
     res.json(state);
 });
 
@@ -401,6 +409,7 @@ router.post("/resume", requireAuth, requireAdmin, (req, res) => {
         state.nomination.endTime = new Date(now + remaining).toISOString();
         state.nomination.status = 'running';
     }
+    broadcastState(leagueId!, state);
     res.json(state);
 });
 
@@ -423,6 +432,8 @@ router.post("/reset", requireAuth, requireAdmin, asyncHandler(async (req, res) =
     state.status = "nominating";
     auctionStates.set(leagueId, state);
     await refreshTeams(state);
+
+    broadcastState(leagueId, state);
 
     writeAuditLog({
       userId: req.user!.id,
