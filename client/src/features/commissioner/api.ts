@@ -14,7 +14,7 @@ export interface CommissionerMembership {
   id: number;
   leagueId: number;
   userId: number;
-  role: "COMMISSIONER" | "OWNER" | "VIEWER";
+  role: "COMMISSIONER" | "OWNER";
   user: CommissionerUser;
 }
 

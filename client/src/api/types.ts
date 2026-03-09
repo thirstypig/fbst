@@ -6,7 +6,7 @@ export interface JsonError {
   message?: string;
 }
 
-export type LeagueRole = "COMMISSIONER" | "OWNER" | "VIEWER";
+export type LeagueRole = "COMMISSIONER" | "OWNER";
 
 export type LeagueSummary = {
   id: number;

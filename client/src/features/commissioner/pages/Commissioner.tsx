@@ -40,7 +40,7 @@ type CommissionerMembership = {
   id: number;
   leagueId: number;
   userId: number;
-  role: "COMMISSIONER" | "OWNER" | "VIEWER";
+  role: "COMMISSIONER" | "OWNER";
   user: CommissionerUser;
 };
 
@@ -141,7 +141,7 @@ export default function Commissioner() {
 
   // Add member form
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"OWNER" | "VIEWER" | "COMMISSIONER">("OWNER");
+  const [inviteRole, setInviteRole] = useState<"OWNER" | "COMMISSIONER">("OWNER");
 
   // Assign owner form
   const [ownerTeamId, setOwnerTeamId] = useState<number | "">("");
@@ -532,7 +532,6 @@ export default function Commissioner() {
                           title={!me.isAdmin ? "Commissioner role requires Admin." : "Select role"}
                         >
                           <option value="OWNER">OWNER</option>
-                          <option value="VIEWER">VIEWER</option>
                           <option value="COMMISSIONER" disabled={!me.isAdmin}>
                             COMMISSIONER (admin only)
                           </option>

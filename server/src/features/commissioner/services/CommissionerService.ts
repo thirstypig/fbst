@@ -186,7 +186,7 @@ export class CommissionerService {
     data: {
       userId?: number;
       email?: string;
-      role: "COMMISSIONER" | "OWNER" | "VIEWER";
+      role: "COMMISSIONER" | "OWNER";
     },
   ) {
     const { userId: userIdRaw, email: emailRaw, role } = data;

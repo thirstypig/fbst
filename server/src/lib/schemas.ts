@@ -4,5 +4,5 @@ import { z } from "zod";
 export const addMemberSchema = z.object({
   userId: z.number().int().positive().optional(),
   email: z.string().email().optional(),
-  role: z.enum(["COMMISSIONER", "OWNER", "VIEWER"]),
+  role: z.enum(["COMMISSIONER", "OWNER"]),
 }).refine(d => d.userId || d.email, { message: "userId or email required" });

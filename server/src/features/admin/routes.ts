@@ -71,16 +71,15 @@ router.post("/admin/league", requireAuth, requireAdmin, validateBody(createLeagu
 /**
  * POST /api/admin/league/:leagueId/members
  * Body:
- * { userId?: number, email?: string, role: "COMMISSIONER" | "OWNER" | "VIEWER" }
+ * { userId?: number, email?: string, role: "COMMISSIONER" | "OWNER" }
  */
 router.post("/admin/league/:leagueId/members", requireAuth, requireAdmin, validateBody(addMemberSchema), asyncHandler(async (req, res) => {
     const leagueId = Number(req.params.leagueId);
     if (!Number.isFinite(leagueId)) return res.status(400).json({ error: "Invalid leagueId" });
 
-    const role = mustOneOf(norm(req.body?.role), ["COMMISSIONER", "OWNER", "VIEWER"], "role") as
+    const role = mustOneOf(norm(req.body?.role), ["COMMISSIONER", "OWNER"], "role") as
       | "COMMISSIONER"
-      | "OWNER"
-      | "VIEWER";
+      | "OWNER";
 
     const membership = await commissionerService.addMember(leagueId, {
         userId: req.body?.userId ? Number(req.body.userId) : undefined,

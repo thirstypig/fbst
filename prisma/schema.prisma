@@ -32,7 +32,6 @@ enum DraftOrder {
 enum LeagueRole {
   COMMISSIONER
   OWNER
-  VIEWER
 }
 
 enum TradeStatus {

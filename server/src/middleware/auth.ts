@@ -211,7 +211,7 @@ export function requireCommissionerOrAdmin(leagueIdParam = "leagueId"): RequestH
 
 /**
  * Middleware factory: requires the user to be a member of the league
- * (any role: COMMISSIONER, OWNER, or VIEWER). Reads leagueId from
+ * (any role: COMMISSIONER or OWNER). Reads leagueId from
  * req.params[leagueIdParam] first, then req.query[leagueIdParam].
  * Admins bypass. Must be placed after `requireAuth`.
  */
