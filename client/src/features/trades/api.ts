@@ -31,7 +31,6 @@ export interface TradeProposal {
   acceptingTeamId?: number;
   proposingTeam?: { id: number; name: string; code: string; ownerUserId?: number };
   acceptingTeam?: { id: number; name: string; code: string; ownerUserId?: number };
-  votes?: { userId: number; vote: string }[];
 }
 
 export async function getTrades(leagueId: number, _view?: "all" | "my"): Promise<{ trades: TradeProposal[] }> {
@@ -81,10 +80,6 @@ export async function rejectTrade(tradeId: number): Promise<TradeProposal> {
 
 export async function cancelTrade(_tradeId: number): Promise<{ success: boolean }> {
     throw new Error("Cancel trade is not yet available");
-}
-
-export async function voteOnTrade(_tradeId: number, _vote: "APPROVE" | "VETO", _reason?: string): Promise<{ success: boolean }> {
-    throw new Error("Trade voting is not yet available");
 }
 
 export async function processTrade(tradeId: number, _action?: "PROCESS" | "VETO"): Promise<{ success: boolean }> {
