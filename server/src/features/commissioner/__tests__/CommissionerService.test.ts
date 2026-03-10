@@ -13,6 +13,12 @@ const { mockPrisma } = vi.hoisted(() => ({
     period: {
       findFirst: vi.fn(),
     },
+    season: {
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
     league: {
       findUnique: vi.fn(),
       create: vi.fn(),
@@ -60,22 +66,22 @@ describe("CommissionerService.updateRules", () => {
     ).rejects.toThrow("Rules are locked for this season");
   });
 
-  it("rejects updates when season has started (active periods exist)", async () => {
+  it("rejects updates when season has moved past SETUP", async () => {
     // No locked rules
     mockPrisma.leagueRule.findFirst.mockResolvedValueOnce(null);
-    // Active period exists
-    mockPrisma.period.findFirst.mockResolvedValueOnce({ id: 1, status: "active" });
+    // Season exists past SETUP
+    mockPrisma.season.findFirst.mockResolvedValueOnce({ id: 1, leagueId: 1, status: "DRAFT" });
 
     await expect(
       service.updateRules(1, [{ id: 10, value: "new" }])
-    ).rejects.toThrow("Rules cannot be changed once the season has started");
+    ).rejects.toThrow("Rules cannot be changed after season setup");
   });
 
   it("rejects updates when rule IDs belong to a different league (IDOR prevention)", async () => {
     // No locked rules
     mockPrisma.leagueRule.findFirst.mockResolvedValueOnce(null);
-    // No active periods
-    mockPrisma.period.findFirst.mockResolvedValueOnce(null);
+    // No active season
+    mockPrisma.season.findFirst.mockResolvedValueOnce(null);
     // Rule 10 belongs to league 2, not league 1 — findMany returns empty
     mockPrisma.leagueRule.findMany.mockResolvedValueOnce([]);
 
@@ -86,7 +92,7 @@ describe("CommissionerService.updateRules", () => {
 
   it("rejects when some rule IDs belong to different league", async () => {
     mockPrisma.leagueRule.findFirst.mockResolvedValueOnce(null);
-    mockPrisma.period.findFirst.mockResolvedValueOnce(null);
+    mockPrisma.season.findFirst.mockResolvedValueOnce(null);
     // Only rule 10 belongs to league 1; rule 20 does not
     mockPrisma.leagueRule.findMany.mockResolvedValueOnce([{ id: 10 }]);
 
@@ -100,7 +106,7 @@ describe("CommissionerService.updateRules", () => {
 
   it("succeeds when all rule IDs belong to the league", async () => {
     mockPrisma.leagueRule.findFirst.mockResolvedValueOnce(null);
-    mockPrisma.period.findFirst.mockResolvedValueOnce(null);
+    mockPrisma.season.findFirst.mockResolvedValueOnce(null);
     mockPrisma.leagueRule.findMany.mockResolvedValueOnce([{ id: 10 }, { id: 11 }]);
     mockPrisma.leagueRule.update.mockResolvedValue({});
 

@@ -239,7 +239,7 @@ export default function PlayerPoolTab({ players, teams = [], onNominate, onQueue
                                             <>
                                                 <span className="opacity-30">•</span>
                                                 <span className="text-[var(--lg-accent)]">
-                                                    {owner ? owner.name : p.ogba_team_code}
+                                                    {owner?.name ?? "Owned"}
                                                 </span>
                                             </>
                                         )}
@@ -290,7 +290,7 @@ export default function PlayerPoolTab({ players, teams = [], onNominate, onQueue
                                 <PlayerExpandedRow 
                                     player={p} 
                                     isTaken={isTaken}
-                                    ownerName={owner?.name || p.ogba_team_code}
+                                    ownerName={owner?.name ?? "Owned"}
                                     onNominate={onNominate}
                                     onQueue={onQueue}
                                     isQueued={isQueued}

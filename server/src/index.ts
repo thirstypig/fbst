@@ -29,12 +29,12 @@ import { rosterRouter, rosterImportRouter } from "./features/roster/index.js";
 import { teamsRouter } from "./features/teams/index.js";
 import { keeperPrepRouter } from "./features/keeper-prep/index.js";
 import { periodsRouter } from "./features/periods/index.js";
+import { seasonsRouter } from "./features/seasons/index.js";
 import { playersRouter, playerDataRouter } from "./features/players/index.js";
 
 import rateLimit from "express-rate-limit";
 import { attachUser } from "./middleware/auth.js";
 import { supabaseAdmin } from "./lib/supabase.js";
-import { DataService } from './features/players/services/dataService.js';
 import { logger } from './lib/logger.js';
 import cron from 'node-cron';
 import { syncNLPlayers } from './features/players/services/mlbSyncService.js';
@@ -152,12 +152,9 @@ async function main() {
   app.use('/api/roster', rosterImportRouter);
   app.use('/api', keeperPrepRouter);
   app.use('/api/periods', periodsRouter);
+  app.use('/api/seasons', seasonsRouter);
   app.use('/api/players', playersRouter);
   app.use('/api', playerDataRouter);
-
-  // Data Initialization (must run before requests are served)
-  const dataService = DataService.getInstance();
-  await dataService.loadAllData("ogba_player_season_totals_2026.csv");
 
   // Daily MLB player sync at 5:00 AM PT (12:00 UTC during PDT, 13:00 UTC during PST)
   // Using 12:00 UTC as a reasonable default for PT mornings

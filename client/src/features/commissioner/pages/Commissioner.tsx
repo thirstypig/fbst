@@ -18,7 +18,7 @@ import CommissionerRosterTool from "../components/CommissionerRosterTool";
 import CommissionerControls from "../components/CommissionerControls";
 import CommissionerTradeTool from "../components/CommissionerTradeTool";
 import KeeperPrepDashboard from "../../keeper-prep/components/KeeperPrepDashboard";
-import { RulesEditor } from "../../leagues/components/RulesEditor";
+import SeasonManager from "../components/SeasonManager";
 import PageHeader from "../../../components/ui/PageHeader";
 
 // Local types for normalizeOverview (server response has more fields than the api.ts types)
@@ -160,7 +160,7 @@ export default function Commissioner() {
   const [draftName, setDraftName] = useState("");
 
   // Tabs
-  const [activeTab, setActiveTab] = useState<'overview' | 'rosters' | 'trades' | 'keepers' | 'controls' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'season' | 'rosters' | 'trades' | 'keepers' | 'controls'>('overview');
 
   // Hash listener
   useEffect(() => {
@@ -467,7 +467,7 @@ export default function Commissioner() {
 
             {/* Navigation Tabs */}
             <div className="flex gap-2 border-b border-[var(--lg-border-subtle)] pb-4 mb-6 overflow-x-auto">
-                {['overview', 'rosters', 'trades', 'keepers', 'controls', 'settings'].map((tab) => (
+                {['overview', 'season', 'rosters', 'trades', 'keepers', 'controls'].map((tab) => (
                     <button
                         key={tab}
                         onClick={() => {
@@ -741,6 +741,11 @@ export default function Commissioner() {
                 </div>
             )}
 
+            {/* Tab: Season */}
+            {activeTab === 'season' && (
+                <SeasonManager leagueId={lid} />
+            )}
+
             {/* Tab: Rosters */}
             {activeTab === 'rosters' && (
                 <div className="space-y-6">
@@ -785,14 +790,6 @@ export default function Commissioner() {
                 </div>
              )}
 
-             {/* Tab: Settings */}
-             {activeTab === 'settings' && (
-                <div className="space-y-6">
-                    <div className="rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] p-5">
-                        <RulesEditor leagueId={lid} />
-                    </div>
-                </div>
-             )}
           </>
         )}
       </div>

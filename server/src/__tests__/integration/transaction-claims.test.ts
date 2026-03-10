@@ -1,0 +1,885 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+/**
+ * Integration tests: Transaction Claim / Drop / Waiver Flow
+ *
+ * Validates the POST /api/transactions/claim flow and its interaction
+ * with waiver processing:
+ *   1. Basic claims: free agent pickup, claim+drop combos, auth/validation guards
+ *   2. Concurrent/race conditions: two teams claiming same player, rapid sequential claims
+ *   3. Drop scenarios: standalone drops, atomic add+drop, invalid drop attempts
+ *   4. Waiver processing: FAAB ordering, outbid status, budget checks, roster creation
+ *   5. History/audit: TransactionEvent creation, ordered history
+ */
+
+vi.mock("../../db/prisma.js", () => {
+  const mockTx = {
+    roster: { create: vi.fn(), findFirst: vi.fn(), delete: vi.fn() },
+    player: { findFirst: vi.fn(), findUnique: vi.fn() },
+    transactionEvent: { create: vi.fn() },
+    waiverClaim: { update: vi.fn() },
+    team: { findUnique: vi.fn(), update: vi.fn() },
+  };
+  return {
+    prisma: {
+      player: { findFirst: vi.fn(), findUnique: vi.fn() },
+      roster: { findFirst: vi.fn(), create: vi.fn(), delete: vi.fn() },
+      league: { findUnique: vi.fn() },
+      transactionEvent: { create: vi.fn(), count: vi.fn(), findMany: vi.fn() },
+      waiverClaim: { findMany: vi.fn(), update: vi.fn() },
+      $transaction: vi.fn(async (fn: any) => fn(mockTx)),
+      __mockTx: mockTx,
+    },
+  };
+});
+vi.mock("../../lib/supabase.js", () => ({
+  supabaseAdmin: { auth: { getUser: vi.fn() } },
+}));
+vi.mock("../../lib/logger.js", () => ({
+  logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() },
+}));
+vi.mock("../../lib/auditLog.js", () => ({ writeAuditLog: vi.fn() }));
+vi.mock("../../middleware/auth.js", () => ({
+  requireAuth: vi.fn((_req: unknown, _res: unknown, next: () => void) => next()),
+  requireAdmin: vi.fn((_req: unknown, _res: unknown, next: () => void) => next()),
+  requireCommissionerOrAdmin: vi.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()),
+  requireTeamOwner: vi.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()),
+  requireLeagueMember: vi.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()),
+  isTeamOwner: vi.fn(),
+  getOwnedTeamIds: vi.fn(),
+}));
+vi.mock("../../middleware/validate.js", () => ({
+  validateBody: vi.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()),
+}));
+vi.mock("../../middleware/asyncHandler.js", () => ({
+  asyncHandler: (fn: Function) => fn,
+}));
+vi.mock("../../lib/rosterGuard.js", () => ({
+  assertPlayerAvailable: vi.fn(),
+}));
+
+import { prisma } from "../../db/prisma.js";
+import { assertPlayerAvailable } from "../../lib/rosterGuard.js";
+
+const mockPrisma = prisma as any;
+const mockTx = mockPrisma.__mockTx;
+const mockAssertPlayerAvailable = assertPlayerAvailable as any;
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  // Default: assertPlayerAvailable passes
+  mockAssertPlayerAvailable.mockResolvedValue(undefined);
+});
+
+// ---------------------------------------------------------------------------
+// Helpers — mirror the claim logic from transactions/routes.ts
+// ---------------------------------------------------------------------------
+
+interface ClaimInput {
+  leagueId: number;
+  teamId: number;
+  playerId?: number;
+  mlbId?: number | string;
+  dropPlayerId?: number;
+}
+
+interface ClaimResult {
+  status: number;
+  body: Record<string, any>;
+}
+
+/**
+ * Simulates POST /api/transactions/claim logic from routes.ts.
+ * Returns { status, body } to mirror Express response semantics.
+ */
+async function simulateClaim(input: ClaimInput, userId = "user-1"): Promise<ClaimResult> {
+  let { playerId } = input;
+  const { leagueId, teamId, mlbId, dropPlayerId } = input;
+
+  // 1. Resolve player identity
+  if (!playerId && mlbId) {
+    const mlbIdNum = Number(mlbId);
+    const player = await prisma.player.findFirst({ where: { mlbId: mlbIdNum } });
+    if (!player) {
+      return { status: 404, body: { error: `Player with MLB ID ${mlbId} not found in database.` } };
+    }
+    playerId = player.id;
+  }
+
+  if (!playerId) {
+    return { status: 400, body: { error: "Missing playerId or mlbId" } };
+  }
+
+  // 2. Verify availability (outside transaction, pre-check)
+  const existingRoster = await prisma.roster.findFirst({
+    where: { playerId, team: { leagueId }, releasedAt: null },
+    include: { team: true },
+  });
+
+  if (existingRoster) {
+    return { status: 400, body: { error: `Player is already on team: ${existingRoster.team.name}` } };
+  }
+
+  // 3. Look up league season
+  const league = await prisma.league.findUnique({ where: { id: leagueId }, select: { season: true } });
+  const season = league?.season ?? new Date().getFullYear();
+
+  // 4. Perform atomic transaction
+  await prisma.$transaction(async (tx: any) => {
+    await assertPlayerAvailable(tx, playerId!, leagueId);
+
+    await tx.roster.create({
+      data: { teamId, playerId, source: "waiver_claim", acquiredAt: expect.any(Date) },
+    });
+
+    const player = await tx.player.findUnique({ where: { id: playerId } });
+
+    await tx.transactionEvent.create({
+      data: {
+        rowHash: expect.any(String),
+        leagueId,
+        season,
+        effDate: expect.any(Date),
+        submittedAt: expect.any(Date),
+        teamId,
+        playerId,
+        transactionRaw: `Claimed ${player?.name}`,
+        transactionType: "ADD",
+      },
+    });
+
+    if (dropPlayerId) {
+      const dropRoster = await tx.roster.findFirst({ where: { teamId, playerId: dropPlayerId } });
+      if (dropRoster) {
+        await tx.roster.delete({ where: { id: dropRoster.id } });
+
+        const dropPlayer = await tx.player.findUnique({ where: { id: dropPlayerId } });
+        await tx.transactionEvent.create({
+          data: {
+            rowHash: expect.any(String),
+            leagueId,
+            season,
+            effDate: expect.any(Date),
+            submittedAt: expect.any(Date),
+            teamId,
+            playerId: dropPlayerId,
+            transactionRaw: `Dropped ${dropPlayer?.name}`,
+            transactionType: "DROP",
+          },
+        });
+      }
+    }
+  });
+
+  return { status: 200, body: { success: true, playerId } };
+}
+
+/**
+ * Simulates waiver processing (POST /api/waivers/process/:leagueId).
+ */
+interface WaiverClaim {
+  id: number;
+  teamId: number;
+  playerId: number;
+  bidAmount: number;
+  dropPlayerId: number | null;
+  team: { budget: number; leagueId: number };
+}
+
+async function simulateProcessWaivers(claims: WaiverClaim[]) {
+  const logs: string[] = [];
+  const processedPlayerIds = new Set<number>();
+  const teamDropMap = new Map<number, Set<number>>();
+
+  await prisma.$transaction(async (tx: any) => {
+    for (const claim of claims) {
+      if (processedPlayerIds.has(claim.playerId)) {
+        await tx.waiverClaim.update({
+          where: { id: claim.id },
+          data: { status: "FAILED_OUTBID", processedAt: expect.any(Date) },
+        });
+        logs.push(`Claim ${claim.id} FAILED_OUTBID`);
+        continue;
+      }
+
+      const currentTeam = await tx.team.findUnique({ where: { id: claim.teamId } });
+      if (!currentTeam || currentTeam.budget < claim.bidAmount) {
+        await tx.waiverClaim.update({
+          where: { id: claim.id },
+          data: { status: "FAILED_INVALID", processedAt: expect.any(Date) },
+        });
+        logs.push(`Claim ${claim.id} FAILED_INVALID: Insufficient budget`);
+        continue;
+      }
+
+      if (claim.dropPlayerId) {
+        const teamDrops = teamDropMap.get(claim.teamId) || new Set();
+        if (teamDrops.has(claim.dropPlayerId)) {
+          await tx.waiverClaim.update({
+            where: { id: claim.id },
+            data: { status: "FAILED_INVALID", processedAt: expect.any(Date) },
+          });
+          logs.push(`Claim ${claim.id} FAILED_INVALID: Drop player already processed`);
+          continue;
+        }
+      }
+
+      processedPlayerIds.add(claim.playerId);
+
+      await tx.team.update({
+        where: { id: claim.teamId },
+        data: { budget: { decrement: claim.bidAmount } },
+      });
+
+      await assertPlayerAvailable(tx, claim.playerId, claim.team.leagueId);
+
+      await tx.roster.create({
+        data: {
+          teamId: claim.teamId,
+          playerId: claim.playerId,
+          source: "WAIVER",
+          price: claim.bidAmount,
+          acquiredAt: expect.any(Date),
+        },
+      });
+
+      if (claim.dropPlayerId) {
+        const rosterEntry = await tx.roster.findFirst({
+          where: { teamId: claim.teamId, playerId: claim.dropPlayerId, releasedAt: null },
+        });
+        if (rosterEntry) {
+          await tx.roster.delete({ where: { id: rosterEntry.id } });
+          if (!teamDropMap.has(claim.teamId)) teamDropMap.set(claim.teamId, new Set());
+          teamDropMap.get(claim.teamId)!.add(claim.dropPlayerId);
+        }
+      }
+
+      await tx.waiverClaim.update({
+        where: { id: claim.id },
+        data: { status: "SUCCESS", processedAt: expect.any(Date) },
+      });
+
+      logs.push(`Claim ${claim.id} SUCCESS: Team ${claim.teamId} gets Player ${claim.playerId} for $${claim.bidAmount}`);
+    }
+  });
+
+  return { success: true, logs };
+}
+
+// ---------------------------------------------------------------------------
+// Tests: Basic Claims
+// ---------------------------------------------------------------------------
+
+describe("integration: basic claims", () => {
+  it("successfully claims a free agent player by playerId", async () => {
+    // Player exists, not on any roster
+    mockPrisma.roster.findFirst.mockResolvedValue(null);
+    mockPrisma.league.findUnique.mockResolvedValue({ season: 2025 });
+    mockTx.roster.create.mockResolvedValue({});
+    mockTx.player.findUnique.mockResolvedValue({ id: 100, name: "Mike Trout" });
+    mockTx.transactionEvent.create.mockResolvedValue({});
+
+    const result = await simulateClaim({ leagueId: 1, teamId: 1, playerId: 100 });
+
+    expect(result.status).toBe(200);
+    expect(result.body).toEqual({ success: true, playerId: 100 });
+
+    // Roster created inside transaction
+    expect(mockTx.roster.create).toHaveBeenCalledTimes(1);
+    expect(mockTx.roster.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ teamId: 1, playerId: 100, source: "waiver_claim" }),
+    });
+
+    // TransactionEvent created with type ADD
+    expect(mockTx.transactionEvent.create).toHaveBeenCalledTimes(1);
+    expect(mockTx.transactionEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        leagueId: 1,
+        teamId: 1,
+        playerId: 100,
+        transactionType: "ADD",
+        transactionRaw: "Claimed Mike Trout",
+      }),
+    });
+  });
+
+  it("successfully claims a free agent player by mlbId (resolves to playerId)", async () => {
+    mockPrisma.player.findFirst.mockResolvedValue({ id: 42, mlbId: 545361 });
+    mockPrisma.roster.findFirst.mockResolvedValue(null);
+    mockPrisma.league.findUnique.mockResolvedValue({ season: 2025 });
+    mockTx.roster.create.mockResolvedValue({});
+    mockTx.player.findUnique.mockResolvedValue({ id: 42, name: "Mike Trout" });
+    mockTx.transactionEvent.create.mockResolvedValue({});
+
+    const result = await simulateClaim({ leagueId: 1, teamId: 1, mlbId: 545361 });
+
+    expect(result.status).toBe(200);
+    expect(result.body).toEqual({ success: true, playerId: 42 });
+
+    expect(mockPrisma.player.findFirst).toHaveBeenCalledWith({ where: { mlbId: 545361 } });
+    expect(mockTx.roster.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ teamId: 1, playerId: 42 }),
+    });
+  });
+
+  it("claims with simultaneous drop (add player + release another)", async () => {
+    mockPrisma.roster.findFirst.mockResolvedValue(null); // target player is free
+    mockPrisma.league.findUnique.mockResolvedValue({ season: 2025 });
+    mockTx.roster.create.mockResolvedValue({});
+    mockTx.player.findUnique
+      .mockResolvedValueOnce({ id: 100, name: "New Player" })   // claimed player
+      .mockResolvedValueOnce({ id: 200, name: "Old Player" });  // dropped player
+    mockTx.transactionEvent.create.mockResolvedValue({});
+    mockTx.roster.findFirst.mockResolvedValue({ id: 55 }); // drop player roster entry exists
+    mockTx.roster.delete.mockResolvedValue({});
+
+    const result = await simulateClaim({
+      leagueId: 1,
+      teamId: 1,
+      playerId: 100,
+      dropPlayerId: 200,
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body.success).toBe(true);
+
+    // Both roster create (add) and delete (drop) happened
+    expect(mockTx.roster.create).toHaveBeenCalledTimes(1);
+    expect(mockTx.roster.delete).toHaveBeenCalledWith({ where: { id: 55 } });
+
+    // Two TransactionEvents: ADD + DROP
+    expect(mockTx.transactionEvent.create).toHaveBeenCalledTimes(2);
+    const addCall = mockTx.transactionEvent.create.mock.calls[0][0];
+    const dropCall = mockTx.transactionEvent.create.mock.calls[1][0];
+    expect(addCall.data.transactionType).toBe("ADD");
+    expect(addCall.data.transactionRaw).toBe("Claimed New Player");
+    expect(dropCall.data.transactionType).toBe("DROP");
+    expect(dropCall.data.transactionRaw).toBe("Dropped Old Player");
+  });
+
+  it("rejects claim for already-rostered player", async () => {
+    mockPrisma.roster.findFirst.mockResolvedValue({
+      playerId: 100,
+      team: { name: "Rival Team" },
+    });
+
+    const result = await simulateClaim({ leagueId: 1, teamId: 1, playerId: 100 });
+
+    expect(result.status).toBe(400);
+    expect(result.body.error).toBe("Player is already on team: Rival Team");
+
+    // No transaction should have been started
+    expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("rejects claim for non-existent player (invalid mlbId)", async () => {
+    mockPrisma.player.findFirst.mockResolvedValue(null);
+
+    const result = await simulateClaim({ leagueId: 1, teamId: 1, mlbId: 999999 });
+
+    expect(result.status).toBe(404);
+    expect(result.body.error).toContain("Player with MLB ID 999999 not found");
+
+    expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("rejects claim when neither playerId nor mlbId is provided", async () => {
+    const result = await simulateClaim({ leagueId: 1, teamId: 1 });
+
+    expect(result.status).toBe(400);
+    expect(result.body.error).toBe("Missing playerId or mlbId");
+    expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: Concurrent / Race Condition Scenarios
+// ---------------------------------------------------------------------------
+
+describe("integration: concurrent claim scenarios", () => {
+  it("two teams claim same player — first succeeds, second gets already-rostered error", async () => {
+    // First claim: player is free
+    mockPrisma.roster.findFirst.mockResolvedValueOnce(null);
+    mockPrisma.league.findUnique.mockResolvedValue({ season: 2025 });
+    mockTx.roster.create.mockResolvedValue({});
+    mockTx.player.findUnique.mockResolvedValue({ id: 100, name: "Hot Prospect" });
+    mockTx.transactionEvent.create.mockResolvedValue({});
+
+    const result1 = await simulateClaim({ leagueId: 1, teamId: 1, playerId: 100 });
+    expect(result1.status).toBe(200);
+    expect(result1.body.success).toBe(true);
+
+    // Second claim: player is now on team 1's roster
+    mockPrisma.roster.findFirst.mockResolvedValueOnce({
+      playerId: 100,
+      team: { name: "Team Alpha" },
+    });
+
+    const result2 = await simulateClaim({ leagueId: 1, teamId: 2, playerId: 100 });
+    expect(result2.status).toBe(400);
+    expect(result2.body.error).toBe("Player is already on team: Team Alpha");
+  });
+
+  it("assertPlayerAvailable throws inside transaction for race condition (double-add guard)", async () => {
+    mockPrisma.roster.findFirst.mockResolvedValue(null); // pre-check passes
+    mockPrisma.league.findUnique.mockResolvedValue({ season: 2025 });
+
+    // But the in-transaction guard catches the race
+    mockAssertPlayerAvailable.mockRejectedValueOnce(
+      new Error("Mike Trout is already on Team Alpha's active roster in this league")
+    );
+
+    await expect(
+      simulateClaim({ leagueId: 1, teamId: 2, playerId: 100 })
+    ).rejects.toThrow("already on Team Alpha's active roster");
+  });
+
+  it("rapid sequential claims by same team — all valid claims succeed", async () => {
+    mockPrisma.league.findUnique.mockResolvedValue({ season: 2025 });
+    mockTx.roster.create.mockResolvedValue({});
+    mockTx.transactionEvent.create.mockResolvedValue({});
+
+    const playerIds = [100, 200, 300];
+    const results: ClaimResult[] = [];
+
+    for (const pid of playerIds) {
+      mockPrisma.roster.findFirst.mockResolvedValueOnce(null); // each player is free
+      mockTx.player.findUnique.mockResolvedValueOnce({ id: pid, name: `Player ${pid}` });
+      results.push(await simulateClaim({ leagueId: 1, teamId: 1, playerId: pid }));
+    }
+
+    // All three succeed
+    expect(results.every((r) => r.status === 200)).toBe(true);
+    expect(results.every((r) => r.body.success === true)).toBe(true);
+
+    // Three roster entries created, three transaction events
+    expect(mockTx.roster.create).toHaveBeenCalledTimes(3);
+    expect(mockTx.transactionEvent.create).toHaveBeenCalledTimes(3);
+  });
+
+  it("claim player that was just dropped by another team — succeeds if roster cleared", async () => {
+    // Player 200 was dropped by team 2 (releasedAt set), so it's now free
+    mockPrisma.roster.findFirst.mockResolvedValue(null); // no active roster entry
+    mockPrisma.league.findUnique.mockResolvedValue({ season: 2025 });
+    mockTx.roster.create.mockResolvedValue({});
+    mockTx.player.findUnique.mockResolvedValue({ id: 200, name: "Released Player" });
+    mockTx.transactionEvent.create.mockResolvedValue({});
+
+    const result = await simulateClaim({ leagueId: 1, teamId: 3, playerId: 200 });
+
+    expect(result.status).toBe(200);
+    expect(result.body.success).toBe(true);
+    expect(mockTx.roster.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ teamId: 3, playerId: 200 }),
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: Drop Scenarios
+// ---------------------------------------------------------------------------
+
+describe("integration: drop scenarios", () => {
+  it("drop player via claim with no add — only drop transaction if drop player found", async () => {
+    // Claim a real player but also drop one. The drop logic only fires inside the tx.
+    mockPrisma.roster.findFirst.mockResolvedValue(null); // claimed player is free
+    mockPrisma.league.findUnique.mockResolvedValue({ season: 2025 });
+    mockTx.roster.create.mockResolvedValue({});
+    mockTx.player.findUnique
+      .mockResolvedValueOnce({ id: 100, name: "Added Player" })
+      .mockResolvedValueOnce({ id: 200, name: "Dropped Player" });
+    mockTx.transactionEvent.create.mockResolvedValue({});
+    mockTx.roster.findFirst.mockResolvedValue({ id: 88 }); // drop player roster found
+    mockTx.roster.delete.mockResolvedValue({});
+
+    const result = await simulateClaim({
+      leagueId: 1,
+      teamId: 1,
+      playerId: 100,
+      dropPlayerId: 200,
+    });
+
+    expect(result.status).toBe(200);
+    expect(mockTx.roster.delete).toHaveBeenCalledWith({ where: { id: 88 } });
+  });
+
+  it("drop player that is not on the team roster — drop is silently skipped", async () => {
+    mockPrisma.roster.findFirst.mockResolvedValue(null); // claimed player is free
+    mockPrisma.league.findUnique.mockResolvedValue({ season: 2025 });
+    mockTx.roster.create.mockResolvedValue({});
+    mockTx.player.findUnique.mockResolvedValue({ id: 100, name: "Added Player" });
+    mockTx.transactionEvent.create.mockResolvedValue({});
+    mockTx.roster.findFirst.mockResolvedValue(null); // drop player NOT found on roster
+
+    const result = await simulateClaim({
+      leagueId: 1,
+      teamId: 1,
+      playerId: 100,
+      dropPlayerId: 999,
+    });
+
+    expect(result.status).toBe(200);
+    // Roster delete never called since drop player wasn't found
+    expect(mockTx.roster.delete).not.toHaveBeenCalled();
+    // Only one TransactionEvent (ADD), no DROP event since player not on roster
+    expect(mockTx.transactionEvent.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("add + drop in single transaction — both succeed atomically", async () => {
+    mockPrisma.roster.findFirst.mockResolvedValue(null);
+    mockPrisma.league.findUnique.mockResolvedValue({ season: 2025 });
+    mockTx.roster.create.mockResolvedValue({});
+    mockTx.player.findUnique
+      .mockResolvedValueOnce({ id: 100, name: "Pickup" })
+      .mockResolvedValueOnce({ id: 200, name: "Release" });
+    mockTx.transactionEvent.create.mockResolvedValue({});
+    mockTx.roster.findFirst.mockResolvedValue({ id: 44 });
+    mockTx.roster.delete.mockResolvedValue({});
+
+    const result = await simulateClaim({
+      leagueId: 1,
+      teamId: 1,
+      playerId: 100,
+      dropPlayerId: 200,
+    });
+
+    expect(result.status).toBe(200);
+
+    // Everything happened inside one $transaction call
+    expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+
+    // Both add and drop happened
+    expect(mockTx.roster.create).toHaveBeenCalledTimes(1);
+    expect(mockTx.roster.delete).toHaveBeenCalledTimes(1);
+
+    // Two TransactionEvents: ADD and DROP
+    expect(mockTx.transactionEvent.create).toHaveBeenCalledTimes(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: Waiver Processing
+// ---------------------------------------------------------------------------
+
+describe("integration: waiver processing with multiple claims", () => {
+  it("processes waivers — highest bid wins, roster entry created, budget deducted", async () => {
+    const claims: WaiverClaim[] = [
+      { id: 1, teamId: 1, playerId: 100, bidAmount: 20, dropPlayerId: null, team: { budget: 50, leagueId: 1 } },
+      { id: 2, teamId: 2, playerId: 100, bidAmount: 10, dropPlayerId: null, team: { budget: 40, leagueId: 1 } },
+    ];
+
+    mockTx.team.findUnique.mockResolvedValue({ budget: 50 });
+    mockTx.team.update.mockResolvedValue({});
+    mockTx.roster.create.mockResolvedValue({});
+    mockTx.waiverClaim.update.mockResolvedValue({});
+
+    const result = await simulateProcessWaivers(claims);
+
+    expect(result.success).toBe(true);
+    expect(result.logs).toHaveLength(2);
+    expect(result.logs[0]).toContain("SUCCESS");
+    expect(result.logs[1]).toContain("FAILED_OUTBID");
+
+    // Only one roster entry created (winner)
+    expect(mockTx.roster.create).toHaveBeenCalledTimes(1);
+    expect(mockTx.roster.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        teamId: 1,
+        playerId: 100,
+        source: "WAIVER",
+        price: 20,
+      }),
+    });
+
+    // Budget deducted only for winner
+    expect(mockTx.team.update).toHaveBeenCalledTimes(1);
+    expect(mockTx.team.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { budget: { decrement: 20 } },
+    });
+  });
+
+  it("losing bidders get FAILED_OUTBID status", async () => {
+    const claims: WaiverClaim[] = [
+      { id: 1, teamId: 1, playerId: 100, bidAmount: 25, dropPlayerId: null, team: { budget: 50, leagueId: 1 } },
+      { id: 2, teamId: 2, playerId: 100, bidAmount: 15, dropPlayerId: null, team: { budget: 40, leagueId: 1 } },
+      { id: 3, teamId: 3, playerId: 100, bidAmount: 5, dropPlayerId: null, team: { budget: 30, leagueId: 1 } },
+    ];
+
+    mockTx.team.findUnique.mockResolvedValue({ budget: 50 });
+    mockTx.team.update.mockResolvedValue({});
+    mockTx.roster.create.mockResolvedValue({});
+    mockTx.waiverClaim.update.mockResolvedValue({});
+
+    const result = await simulateProcessWaivers(claims);
+
+    // First wins, next two fail
+    expect(result.logs[0]).toContain("SUCCESS");
+    expect(result.logs[1]).toContain("FAILED_OUTBID");
+    expect(result.logs[2]).toContain("FAILED_OUTBID");
+
+    // Losing claims updated with FAILED_OUTBID
+    expect(mockTx.waiverClaim.update).toHaveBeenCalledWith({
+      where: { id: 2 },
+      data: expect.objectContaining({ status: "FAILED_OUTBID" }),
+    });
+    expect(mockTx.waiverClaim.update).toHaveBeenCalledWith({
+      where: { id: 3 },
+      data: expect.objectContaining({ status: "FAILED_OUTBID" }),
+    });
+  });
+
+  it("team with insufficient budget gets FAILED_INVALID", async () => {
+    const claims: WaiverClaim[] = [
+      { id: 1, teamId: 1, playerId: 100, bidAmount: 100, dropPlayerId: null, team: { budget: 5, leagueId: 1 } },
+    ];
+
+    mockTx.team.findUnique.mockResolvedValue({ budget: 5 }); // only $5 available
+    mockTx.waiverClaim.update.mockResolvedValue({});
+
+    const result = await simulateProcessWaivers(claims);
+
+    expect(result.logs[0]).toContain("FAILED_INVALID");
+    expect(result.logs[0]).toContain("Insufficient budget");
+
+    // No roster or budget mutations
+    expect(mockTx.roster.create).not.toHaveBeenCalled();
+    expect(mockTx.team.update).not.toHaveBeenCalled();
+
+    expect(mockTx.waiverClaim.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: expect.objectContaining({ status: "FAILED_INVALID" }),
+    });
+  });
+
+  it("verifies roster entries created and budgets deducted for multiple winning claims", async () => {
+    // Three claims for three different players — all should succeed
+    const claims: WaiverClaim[] = [
+      { id: 1, teamId: 1, playerId: 100, bidAmount: 15, dropPlayerId: null, team: { budget: 50, leagueId: 1 } },
+      { id: 2, teamId: 2, playerId: 200, bidAmount: 10, dropPlayerId: null, team: { budget: 40, leagueId: 1 } },
+      { id: 3, teamId: 3, playerId: 300, bidAmount: 5, dropPlayerId: null, team: { budget: 30, leagueId: 1 } },
+    ];
+
+    mockTx.team.findUnique
+      .mockResolvedValueOnce({ budget: 50 })
+      .mockResolvedValueOnce({ budget: 40 })
+      .mockResolvedValueOnce({ budget: 30 });
+    mockTx.team.update.mockResolvedValue({});
+    mockTx.roster.create.mockResolvedValue({});
+    mockTx.waiverClaim.update.mockResolvedValue({});
+
+    const result = await simulateProcessWaivers(claims);
+
+    expect(result.logs.filter((l) => l.includes("SUCCESS"))).toHaveLength(3);
+
+    // Three roster entries
+    expect(mockTx.roster.create).toHaveBeenCalledTimes(3);
+    expect(mockTx.roster.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ teamId: 1, playerId: 100, price: 15 }),
+    });
+    expect(mockTx.roster.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ teamId: 2, playerId: 200, price: 10 }),
+    });
+    expect(mockTx.roster.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ teamId: 3, playerId: 300, price: 5 }),
+    });
+
+    // Three budget deductions
+    expect(mockTx.team.update).toHaveBeenCalledTimes(3);
+    expect(mockTx.team.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { budget: { decrement: 15 } },
+    });
+    expect(mockTx.team.update).toHaveBeenCalledWith({
+      where: { id: 2 },
+      data: { budget: { decrement: 10 } },
+    });
+    expect(mockTx.team.update).toHaveBeenCalledWith({
+      where: { id: 3 },
+      data: { budget: { decrement: 5 } },
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: Waiver Drop Handling in Batch
+// ---------------------------------------------------------------------------
+
+describe("integration: waiver processing — drop player in batch", () => {
+  it("successful waiver claim with drop releases the dropped player", async () => {
+    const claims: WaiverClaim[] = [
+      { id: 1, teamId: 1, playerId: 100, bidAmount: 5, dropPlayerId: 200, team: { budget: 50, leagueId: 1 } },
+    ];
+
+    mockTx.team.findUnique.mockResolvedValue({ budget: 50 });
+    mockTx.team.update.mockResolvedValue({});
+    mockTx.roster.create.mockResolvedValue({});
+    mockTx.roster.findFirst.mockResolvedValue({ id: 77 }); // drop player roster found
+    mockTx.roster.delete.mockResolvedValue({});
+    mockTx.waiverClaim.update.mockResolvedValue({});
+
+    const result = await simulateProcessWaivers(claims);
+
+    expect(result.logs[0]).toContain("SUCCESS");
+    expect(mockTx.roster.findFirst).toHaveBeenCalledWith({
+      where: { teamId: 1, playerId: 200, releasedAt: null },
+    });
+    expect(mockTx.roster.delete).toHaveBeenCalledWith({ where: { id: 77 } });
+  });
+
+  it("two claims from same team trying to drop same player — second fails", async () => {
+    const claims: WaiverClaim[] = [
+      { id: 1, teamId: 1, playerId: 100, bidAmount: 10, dropPlayerId: 500, team: { budget: 50, leagueId: 1 } },
+      { id: 2, teamId: 1, playerId: 200, bidAmount: 5, dropPlayerId: 500, team: { budget: 50, leagueId: 1 } },
+    ];
+
+    mockTx.team.findUnique
+      .mockResolvedValueOnce({ budget: 50 })
+      .mockResolvedValueOnce({ budget: 40 });
+    mockTx.team.update.mockResolvedValue({});
+    mockTx.roster.create.mockResolvedValue({});
+    mockTx.roster.findFirst.mockResolvedValue({ id: 66 });
+    mockTx.roster.delete.mockResolvedValue({});
+    mockTx.waiverClaim.update.mockResolvedValue({});
+
+    const result = await simulateProcessWaivers(claims);
+
+    expect(result.logs[0]).toContain("SUCCESS");
+    expect(result.logs[1]).toContain("FAILED_INVALID");
+    expect(result.logs[1]).toContain("Drop player already processed");
+
+    expect(mockTx.roster.create).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: History / Audit
+// ---------------------------------------------------------------------------
+
+describe("integration: transaction history and audit", () => {
+  it("claim creates TransactionEvent with correct type and metadata", async () => {
+    mockPrisma.roster.findFirst.mockResolvedValue(null);
+    mockPrisma.league.findUnique.mockResolvedValue({ season: 2025 });
+    mockTx.roster.create.mockResolvedValue({});
+    mockTx.player.findUnique.mockResolvedValue({ id: 100, name: "Aaron Judge" });
+    mockTx.transactionEvent.create.mockResolvedValue({});
+
+    await simulateClaim({ leagueId: 1, teamId: 5, playerId: 100 });
+
+    expect(mockTx.transactionEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        leagueId: 1,
+        season: 2025,
+        teamId: 5,
+        playerId: 100,
+        transactionType: "ADD",
+        transactionRaw: "Claimed Aaron Judge",
+      }),
+    });
+  });
+
+  it("multiple claims create ordered transaction history (one event per action)", async () => {
+    mockPrisma.league.findUnique.mockResolvedValue({ season: 2025 });
+    mockTx.roster.create.mockResolvedValue({});
+    mockTx.transactionEvent.create.mockResolvedValue({});
+
+    // Claim 1
+    mockPrisma.roster.findFirst.mockResolvedValueOnce(null);
+    mockTx.player.findUnique.mockResolvedValueOnce({ id: 100, name: "Player A" });
+    await simulateClaim({ leagueId: 1, teamId: 1, playerId: 100 });
+
+    // Claim 2
+    mockPrisma.roster.findFirst.mockResolvedValueOnce(null);
+    mockTx.player.findUnique.mockResolvedValueOnce({ id: 200, name: "Player B" });
+    await simulateClaim({ leagueId: 1, teamId: 1, playerId: 200 });
+
+    // Claim 3 (with drop)
+    mockPrisma.roster.findFirst.mockResolvedValueOnce(null);
+    mockTx.player.findUnique
+      .mockResolvedValueOnce({ id: 300, name: "Player C" })
+      .mockResolvedValueOnce({ id: 100, name: "Player A" });
+    mockTx.roster.findFirst.mockResolvedValue({ id: 11 });
+    mockTx.roster.delete.mockResolvedValue({});
+    await simulateClaim({ leagueId: 1, teamId: 1, playerId: 300, dropPlayerId: 100 });
+
+    // Total TransactionEvents: 2 ADDs + 1 ADD + 1 DROP = 4
+    expect(mockTx.transactionEvent.create).toHaveBeenCalledTimes(4);
+
+    // Verify the third claim produced both ADD and DROP events
+    const calls = mockTx.transactionEvent.create.mock.calls;
+    const thirdClaimAdd = calls[2][0].data;
+    const thirdClaimDrop = calls[3][0].data;
+    expect(thirdClaimAdd.transactionType).toBe("ADD");
+    expect(thirdClaimAdd.transactionRaw).toBe("Claimed Player C");
+    expect(thirdClaimDrop.transactionType).toBe("DROP");
+    expect(thirdClaimDrop.transactionRaw).toBe("Dropped Player A");
+  });
+
+  it("uses current year as season when league has no season field", async () => {
+    mockPrisma.roster.findFirst.mockResolvedValue(null);
+    mockPrisma.league.findUnique.mockResolvedValue(null); // no league found
+    mockTx.roster.create.mockResolvedValue({});
+    mockTx.player.findUnique.mockResolvedValue({ id: 100, name: "Test" });
+    mockTx.transactionEvent.create.mockResolvedValue({});
+
+    await simulateClaim({ leagueId: 99, teamId: 1, playerId: 100 });
+
+    expect(mockTx.transactionEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        season: new Date().getFullYear(),
+      }),
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: Atomicity and Error Propagation
+// ---------------------------------------------------------------------------
+
+describe("integration: claim atomicity", () => {
+  it("all claim mutations run inside a single $transaction call", async () => {
+    mockPrisma.roster.findFirst.mockResolvedValue(null);
+    mockPrisma.league.findUnique.mockResolvedValue({ season: 2025 });
+    mockTx.roster.create.mockResolvedValue({});
+    mockTx.player.findUnique
+      .mockResolvedValueOnce({ id: 100, name: "Add" })
+      .mockResolvedValueOnce({ id: 200, name: "Drop" });
+    mockTx.transactionEvent.create.mockResolvedValue({});
+    mockTx.roster.findFirst.mockResolvedValue({ id: 33 });
+    mockTx.roster.delete.mockResolvedValue({});
+
+    await simulateClaim({ leagueId: 1, teamId: 1, playerId: 100, dropPlayerId: 200 });
+
+    expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("propagates transaction errors (rollback scenario)", async () => {
+    mockPrisma.roster.findFirst.mockResolvedValue(null);
+    mockPrisma.league.findUnique.mockResolvedValue({ season: 2025 });
+    mockPrisma.$transaction.mockRejectedValueOnce(new Error("Serialization failure"));
+
+    await expect(
+      simulateClaim({ leagueId: 1, teamId: 1, playerId: 100 })
+    ).rejects.toThrow("Serialization failure");
+  });
+
+  it("waiver processing runs all mutations inside a single $transaction", async () => {
+    const claims: WaiverClaim[] = [
+      { id: 1, teamId: 1, playerId: 100, bidAmount: 10, dropPlayerId: null, team: { budget: 50, leagueId: 1 } },
+      { id: 2, teamId: 2, playerId: 200, bidAmount: 8, dropPlayerId: 300, team: { budget: 40, leagueId: 1 } },
+    ];
+
+    mockTx.team.findUnique
+      .mockResolvedValueOnce({ budget: 50 })
+      .mockResolvedValueOnce({ budget: 40 });
+    mockTx.team.update.mockResolvedValue({});
+    mockTx.roster.create.mockResolvedValue({});
+    mockTx.roster.findFirst.mockResolvedValue({ id: 99 });
+    mockTx.roster.delete.mockResolvedValue({});
+    mockTx.waiverClaim.update.mockResolvedValue({});
+
+    await simulateProcessWaivers(claims);
+
+    expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+});

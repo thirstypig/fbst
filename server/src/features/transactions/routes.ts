@@ -4,7 +4,6 @@ import { Router } from "express";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
-import { DataService } from "../players/services/dataService.js";
 import { requireAuth, requireTeamOwner, requireLeagueMember } from "../../middleware/auth.js";
 import { validateBody } from "../../middleware/validate.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
@@ -67,22 +66,7 @@ router.post("/transactions/claim", requireAuth, validateBody(claimSchema), requi
     let player = await prisma.player.findFirst({ where: { mlbId: mlbIdNum }});
 
     if (!player) {
-      const ds = DataService.getInstance();
-      const seasonStats = ds.getSeasonStats();
-      const playerRow = seasonStats.find(p => Number(p.mlb_id || p.mlbId) === mlbIdNum);
-
-      if (playerRow) {
-        const name = playerRow.player_name || playerRow.name || "Unknown";
-        const positions = playerRow.positions || playerRow.pos || "UT";
-        const posPrimary = positions.split(',')[0].trim();
-
-        logger.info({ name, mlbId: mlbIdNum }, "Lazy creating player");
-        player = await prisma.player.create({
-          data: { mlbId: mlbIdNum, name, posPrimary, posList: positions }
-        });
-      } else {
-        return res.status(404).json({ error: `Player with MLB ID ${mlbId} not found in database or stats.` });
-      }
+      return res.status(404).json({ error: `Player with MLB ID ${mlbId} not found in database.` });
     }
     playerId = player.id;
   }

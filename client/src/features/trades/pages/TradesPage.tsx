@@ -336,14 +336,14 @@ function LeagueTradeCard({
   isAdmin?: boolean;
   onViewContext?: () => void;
 }) {
-  const isInvolved = trade.proposingTeam.ownerUserId === currentUserId || trade.acceptingTeam.ownerUserId === currentUserId;
+  const isInvolved = trade.proposingTeam?.ownerUserId === currentUserId || trade.acceptingTeam?.ownerUserId === currentUserId;
 
   return (
     <div className="lg-card p-4">
       <div className="flex justify-between items-start mb-4">
         <div>
           <div className="text-lg font-semibold text-[var(--lg-text-primary)]">
-            {trade.proposingTeam.name} <span className="text-[var(--lg-text-muted)] text-sm">↔</span> {trade.acceptingTeam.name}
+            {trade.proposingTeam?.name ?? "Proposer"} <span className="text-[var(--lg-text-muted)] text-sm">↔</span> {trade.acceptingTeam?.name ?? "Counterparty"}
           </div>
           <div className="text-xs text-[var(--lg-text-muted)]">
             {new Date(trade.createdAt).toLocaleDateString()}
@@ -376,7 +376,7 @@ function LeagueTradeCard({
           </ul>
         </div>
         <div className="bg-[var(--lg-tint)] p-3 rounded-xl">
-          <div className="text-xs text-[var(--lg-text-muted)] uppercase font-semibold mb-2">{trade.acceptingTeam.name} Gives</div>
+          <div className="text-xs text-[var(--lg-text-muted)] uppercase font-semibold mb-2">{trade.acceptingTeam?.name ?? "Counterparty"} Gives</div>
           <ul className="space-y-1 text-sm">
             {trade.items
                .filter((i: any) => i.senderTeamId === trade.acceptingTeamId)

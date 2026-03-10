@@ -34,7 +34,29 @@ export interface TradeProposal {
 }
 
 export async function getTrades(leagueId: number, _view?: "all" | "my"): Promise<{ trades: TradeProposal[] }> {
-    return fetchJsonApi<{ trades: TradeProposal[] }>(`${API_BASE}/trades?leagueId=${leagueId}`);
+    const raw = await fetchJsonApi<{ trades: any[] }>(`${API_BASE}/trades?leagueId=${leagueId}`);
+    const trades: TradeProposal[] = (raw.trades || []).map((t: any) => {
+      // Derive accepting team from items: find the first item where recipientId !== proposerId
+      const acceptingItem = t.items?.find((i: any) => i.recipientId !== t.proposerId);
+      const acceptingTeam = acceptingItem?.recipient ?? null;
+      const acceptingTeamId = acceptingItem?.recipientId ?? null;
+
+      // Map senderTeamId on items for UI compat
+      const items = (t.items || []).map((i: any) => ({
+        ...i,
+        senderTeamId: i.senderId,
+      }));
+
+      return {
+        ...t,
+        proposingTeamId: t.proposerId,
+        proposingTeam: t.proposer ?? null,
+        acceptingTeamId,
+        acceptingTeam,
+        items,
+      };
+    });
+    return { trades };
 }
 
 export async function proposeTrade(payload: {

@@ -201,6 +201,20 @@ router.post("/init", requireAuth, requireAdmin, asyncHandler(async (req, res) =>
   const leagueId = readLeagueId(req);
   if (!leagueId) return res.status(400).json({ error: "Missing leagueId" });
 
+  // Safety net: auto-lock rules and transition Season SETUP → DRAFT if applicable
+  try {
+    const setupSeason = await prisma.season.findFirst({
+      where: { leagueId, status: "SETUP" },
+    });
+    if (setupSeason) {
+      const { transitionStatus } = await import("../seasons/services/seasonService.js");
+      await transitionStatus(setupSeason.id, "DRAFT");
+      logger.info({ leagueId, seasonId: setupSeason.id }, "Auto-transitioned season to DRAFT on auction init");
+    }
+  } catch (err) {
+    logger.warn({ error: String(err), leagueId }, "Season auto-transition on auction init failed (non-blocking)");
+  }
+
   const state = createDefaultState(leagueId);
   auctionStates.set(leagueId, state);
   await refreshTeams(state);

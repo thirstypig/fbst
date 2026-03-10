@@ -51,9 +51,12 @@ export default function TransactionsPage() {
             setLeagueId(league.id);
             setTeams(loadedTeams);
 
-            // Default to first team if available
-            if (loadedTeams.length > 0) {
-                setSelectedTeamId(loadedTeams[0].id);
+            // Default to first owned team (or first team for admins)
+            const userTeams = authUser?.isAdmin
+              ? loadedTeams
+              : loadedTeams.filter((t: any) => t.ownerUserId === authUser?.id);
+            if (userTeams.length > 0) {
+                setSelectedTeamId(userTeams[0].id);
             }
         }
 
@@ -118,14 +121,14 @@ export default function TransactionsPage() {
       return teamsWithRank.sort((a: any, b: any) => b.rank - a.rank);
   }, [teams, standings]);
 
-  if (loading) return <div className="text-center text-[var(--lg-text-muted)] py-20 animate-pulse text-sm">Loading transactions center...</div>;
+  if (loading) return <div className="text-center text-[var(--lg-text-muted)] py-20 animate-pulse text-sm">Loading roster moves...</div>;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 md:px-6 md:py-10">
        <div className="mb-10">
            <PageHeader 
-             title="Transactions Center" 
-             subtitle="Manage moves, waivers, and review history."
+             title="Roster Moves"
+             subtitle="Add, drop, and claim players. Process waivers and review history."
              rightElement={
                   <div className="flex items-center gap-4">
                       {/* Team Selector for Testing/Admin */}
@@ -136,7 +139,10 @@ export default function TransactionsPage() {
                                           onChange={(e) => setSelectedTeamId(Number(e.target.value))}
                                           className="bg-[var(--lg-tint)] border border-[var(--lg-border-subtle)] rounded-xl px-4 py-2 text-xs font-bold text-[var(--lg-text-primary)] outline-none focus:border-[var(--lg-accent)] transition-all"
                                       >
-                                          {teams.map(t => (
+                                          {(authUser?.isAdmin
+                                            ? teams
+                                            : teams.filter((t: any) => t.ownerUserId === authUser?.id)
+                                          ).map((t: any) => (
                                               <option key={t.id} value={t.id} className="text-black">{t.name}</option>
                                           ))}
                                       </select>

@@ -17,10 +17,11 @@ interface PlayerExpandedRowProps {
   onNominate?: (player: PlayerSeasonStat) => void;
   onQueue?: (playerId: string | number) => void;
   isQueued?: (playerId: string | number) => boolean;
+  onViewDetail?: (player: PlayerSeasonStat) => void;
   colSpan?: number;
 }
 
-export default function PlayerExpandedRow({ player, isTaken, ownerName, onNominate, onQueue, isQueued, colSpan = 7 }: PlayerExpandedRowProps) {
+export default function PlayerExpandedRow({ player, isTaken, ownerName, onNominate, onQueue, isQueued, onViewDetail, colSpan = 7 }: PlayerExpandedRowProps) {
   const [careerStats, setCareerStats] = useState<(CareerHittingRow | CareerPitchingRow)[]>([]);
   const [fieldingStats, setFieldingStats] = useState<FieldingStatRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -35,7 +36,7 @@ export default function PlayerExpandedRow({ player, isTaken, ownerName, onNomina
             const mode = player.is_pitcher ? 'pitching' : 'hitting';
             const [cRes, fRes] = await Promise.all([
                 getPlayerCareerStats(player.mlb_id, mode),
-                !player.is_pitcher ? getPlayerFieldingStats(player.mlb_id, 2024) : Promise.resolve([]) 
+                !player.is_pitcher ? getPlayerFieldingStats(player.mlb_id, new Date().getFullYear()) : Promise.resolve([])
             ]);
             
             // Sort Career: Years ASC, then TOT last
@@ -76,7 +77,7 @@ export default function PlayerExpandedRow({ player, isTaken, ownerName, onNomina
                 {/* Fielding Stats (2024) - Hitters Only */}
                 {!isPitcher && fieldingStats.length > 0 && (
                     <div className="flex flex-col gap-1">
-                        <span className="text-xs font-medium uppercase text-[var(--lg-text-muted)]">2024 Defensive Usage</span>
+                        <span className="text-xs font-medium uppercase text-[var(--lg-text-muted)]">{new Date().getFullYear()} Defensive Usage</span>
                         <div className="flex flex-wrap gap-2">
                             {fieldingStats.map((f, i) => (
                                 <div key={i} className="text-xs bg-[var(--lg-glass-bg-hover)] border border-[var(--lg-table-border)] px-2 py-1 rounded flex gap-2 items-center text-[var(--lg-text-primary)]">
@@ -143,6 +144,14 @@ export default function PlayerExpandedRow({ player, isTaken, ownerName, onNomina
 
                 {/* Action Buttons */}
                 <div className="flex justify-end gap-2">
+                    {onViewDetail && (
+                        <button
+                            onClick={() => onViewDetail(player)}
+                            className="text-sm font-semibold bg-[var(--lg-tint)] border border-[var(--lg-border-subtle)] text-[var(--lg-text-primary)] px-4 py-2 rounded shadow-sm hover:bg-[var(--lg-tint-hover)] active:scale-95 transition-all"
+                        >
+                            Full Profile
+                        </button>
+                    )}
                     {!isTaken && onQueue && (
                         <button 
                             onClick={() => onQueue(player.mlb_id || '')}

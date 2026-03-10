@@ -1,7 +1,8 @@
 // client/src/pages/AuctionValues.tsx
 import React, { useEffect, useMemo, useState } from "react";
 
-import { getAuctionValues, type PlayerSeasonStat } from "../../../api";
+import { getAuctionValues, getLeague, type PlayerSeasonStat } from "../../../api";
+import { useLeague } from "../../../contexts/LeagueContext";
 import PlayerDetailModal from "../../../components/PlayerDetailModal";
 import PageHeader from "../../../components/ui/PageHeader";
 import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from "../../../components/ui/ThemedTable";
@@ -51,7 +52,9 @@ function fmt1(v: number): string {
 }
 
 export default function AuctionValues() {
+  const { leagueId } = useLeague();
   const [rows, setRows] = useState<PlayerSeasonStat[]>([]);
+  const [teamNameMap, setTeamNameMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,9 +69,17 @@ export default function AuctionValues() {
       try {
         setLoading(true);
         setError(null);
-        const data = await getAuctionValues();
+        const [data, league] = await Promise.all([
+          getAuctionValues(),
+          getLeague(leagueId).catch(() => null),
+        ]);
         if (!mounted) return;
         setRows(data ?? []);
+        if (league?.league?.teams) {
+          const map: Record<string, string> = {};
+          for (const t of league.league.teams) map[t.code?.toUpperCase() ?? ""] = t.name;
+          setTeamNameMap(map);
+        }
       } catch (e: any) {
         if (!mounted) return;
         setError(e?.message ?? "Failed to load auction values.");
@@ -80,7 +91,7 @@ export default function AuctionValues() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [leagueId]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -193,7 +204,7 @@ export default function AuctionValues() {
                     onClick={() => setSelected(p)}
                   >
                     <ThemedTd>{playerName(p)}</ThemedTd>
-                    <ThemedTd>{ogbaTeam(p) || "FA"}</ThemedTd>
+                    <ThemedTd>{teamNameMap[ogbaTeam(p).toUpperCase()] || ogbaTeam(p) || "FA"}</ThemedTd>
                     <ThemedTd>{posStr(p) || (rowIsPitcher(p) ? "P" : "—")}</ThemedTd>
                     <ThemedTd align="right">{value > 0 ? fmt1(value) : "-"}</ThemedTd>
                     <ThemedTd>

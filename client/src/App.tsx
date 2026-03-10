@@ -14,10 +14,10 @@ import Login from "./features/auth/pages/Login";
 
 import Commissioner from "./features/commissioner/pages/Commissioner";
 import Admin from "./features/admin/pages/Admin";
-import Guide from "./pages/Guide";
 import ArchivePage from "./features/archive/pages/ArchivePage";
 import Auction from "./features/auction/pages/Auction";
 import KeeperSelection from "./features/keeper-prep/pages/KeeperSelection";
+import Rules from "./features/leagues/pages/Rules";
 import Signup from "./features/auth/pages/Signup";
 import ForgotPassword from "./features/auth/pages/ForgotPassword";
 import ResetPassword from "./features/auth/pages/ResetPassword";
@@ -61,12 +61,12 @@ export default function App() {
                 <Route path="/auction" element={<Auction />} />
                 <Route path="/commissioner/:leagueId" element={<Commissioner />} />
                 <Route path="/admin" element={<Admin />} />
-                <Route path="/guide" element={<Guide />} />
+                <Route path="/guide" element={<Navigate to="/rules" replace />} />
                 <Route path="/archive" element={<ArchivePage />} />
                 {/* Redirects for removed routes */}
                 <Route path="/period" element={<Navigate to="/season" replace />} />
                 <Route path="/leagues" element={<Navigate to="/" replace />} />
-                <Route path="/rules" element={<Navigate to="/season" replace />} />
+                <Route path="/rules" element={<Rules />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </AppShell>

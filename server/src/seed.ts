@@ -66,16 +66,17 @@ async function main() {
   console.log(`✅ Created/updated ${teams.length} teams.`);
 
   // --- 3. One active scoring period ---
-  const period = await prisma.period.upsert({
-    where: { name: "Period 1" },
-    update: {},
-    create: {
-      name: "Period 1",
-      startDate: new Date("2025-04-01T00:00:00Z"),
-      endDate: new Date("2025-04-30T23:59:59Z"),
-      status: "active",
-    },
-  });
+  let period = await prisma.period.findFirst({ where: { name: "Period 1" } });
+  if (!period) {
+    period = await prisma.period.create({
+      data: {
+        name: "Period 1",
+        startDate: new Date("2025-04-01T00:00:00Z"),
+        endDate: new Date("2025-04-30T23:59:59Z"),
+        status: "active",
+      },
+    });
+  }
 
   console.log(`✅ Period ready: ${period.name}`);
 

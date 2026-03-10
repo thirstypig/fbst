@@ -50,6 +50,7 @@ const RULE_CONFIGS: Record<string, RuleConfig> = {
   pitcher_count: { type: 'slider', min: 1, max: 20 },
   batter_count: { type: 'slider', min: 1, max: 25 },
   roster_positions: { type: 'json_object_counts', listOptions: POSITIONS },
+  dh_games_threshold: { type: 'slider', min: 1, max: 50, step: 1 },
   hitting_stats: { type: 'checkbox_list', listOptions: HITTING_CATS },
   pitching_stats: { type: 'checkbox_list', listOptions: PITCHING_CATS },
   min_innings: { type: 'select', options: ["10", "20", "30", "40", "50", "60", "70"] },
@@ -91,7 +92,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 // --- Component ---
-export function RulesEditor({ leagueId }: { leagueId: number }) {
+export function RulesEditor({ leagueId, canEdit: canEditProp }: { leagueId: number; canEdit?: boolean }) {
   const { user } = useAuth();
   const [rules, setRules] = useState<LeagueRule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -114,7 +115,7 @@ export function RulesEditor({ leagueId }: { leagueId: number }) {
     return map;
   }, [rules, pendingChanges]);
 
-  const canEdit = user?.isAdmin || false;
+  const canEdit = canEditProp ?? (user?.isAdmin || false);
   const isLocked = rules.some(r => r.isLocked);
 
   useEffect(() => {

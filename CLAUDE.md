@@ -61,7 +61,7 @@ fbst/
 
 The codebase is organized by **domain feature modules**. Each feature encapsulates its own routes, services, pages, components, and API client in a self-contained directory.
 
-### Current Feature Modules (15)
+### Current Feature Modules (16)
 
 | Module | Server | Client | Description |
 |--------|--------|--------|-------------|
@@ -76,7 +76,8 @@ The codebase is organized by **domain feature modules**. Each feature encapsulat
 | `transactions` | routes | 1 page, api | Transaction history |
 | `auction` | routes, auctionImport | 2 pages, 10 components, 2 hooks | Live auction draft |
 | `keeper-prep` | routes, keeperPrepService | 1 page, 1 component, api | Keeper selection workflows |
-| `commissioner` | routes, CommissionerService | 1 page, 4 components | Commissioner admin tools |
+| `commissioner` | routes, CommissionerService | 1 page, 5 components | Commissioner admin tools |
+| `seasons` | routes, seasonService | api only | Season lifecycle (SETUP→DRAFT→IN_SEASON→COMPLETED) |
 | `admin` | routes | 1 page, 2 components | System admin panel (includes league creation + CSV import) |
 | `archive` | routes, 3 archive services | 1 page, api | Historical data import/export |
 | `periods` | routes | 1 page (Season) | Season/period standings with toggle |
@@ -118,10 +119,15 @@ Some features import from other features' services or components.
 - `standings/routes.ts` imports `players/services/dataService`
 - `transactions/routes.ts` imports `players/services/dataService`
 - `commissioner/routes.ts` imports `trades/routes.ts` for `tradeItemSchema`
+- `seasons/services/seasonService` imports `commissioner/services/CommissionerService` (lockRules)
+- `auction/routes.ts` imports `seasons/services/seasonService` (auto-transition on init)
 
 **Client (component imports):**
 - `commissioner/pages/Commissioner` imports `keeper-prep/components/KeeperPrepDashboard`
 - `commissioner/pages/Commissioner` imports `leagues/components/RulesEditor`
+- `commissioner/pages/Commissioner` imports `commissioner/components/SeasonManager`
+- `commissioner/components/SeasonManager` imports `seasons/api`
+- `periods/pages/Season` imports `seasons/api` (getCurrentSeason)
 - `commissioner/components/CommissionerRosterTool` imports `roster/components/`
 - `keeper-prep/pages/KeeperSelection` imports `leagues/api` (getMyRoster, saveKeepers)
 - `transactions/pages/TransactionsPage` imports `roster/components/AddDropTab`
@@ -240,9 +246,9 @@ server/src/__tests__/integration/
 - **DB tests**: Use a test database with Prisma migrations for integration tests (future)
 - **CI**: Run `npm run test` in CI pipeline before deploy
 
-### Current Test Coverage (272 tests: 202 server + 70 client)
+### Current Test Coverage (289 server + 70 client = 359 tests)
 
-**Server (202 tests):**
+**Server (289 tests):**
 - `server/src/lib/__tests__/utils.test.ts` — 35 tests (toNum, toBool, norm, normCode, parseCsv, splitCsvLine, chunk, parseIntParam)
 - `server/src/features/standings/__tests__/standingsService.test.ts` — 26 tests (buildTeamNameMap, CATEGORY_CONFIG, computeCategoryRows, computeStandingsFromStats, rankPoints)
 - `server/src/features/standings/__tests__/standings.integration.test.ts` — 7 tests (full pipeline: 4-team league scenario)
@@ -257,6 +263,8 @@ server/src/__tests__/integration/
 - `server/src/__tests__/integration/auction-roster.test.ts` — 9 tests (finish→roster, budget deduction, queue)
 - `server/src/__tests__/integration/trade-roster.test.ts` — 10 tests (player movement, budget, atomicity)
 - `server/src/__tests__/integration/waiver-roster.test.ts` — 11 tests (FAAB ordering, budget, drop player)
+- `server/src/features/seasons/__tests__/seasonService.test.ts` — 14 tests (transitions, auto-lock, validation)
+- `server/src/features/seasons/__tests__/routes.test.ts` — 5 tests (router export, service integration)
 
 **Client (70 tests):**
 - `client/src/api/__tests__/base.test.ts` — 17 tests (toNum, fmt2, fmt3Avg, fmtRate, yyyyMmDd, addDays)

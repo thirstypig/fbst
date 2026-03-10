@@ -8,6 +8,7 @@ import PageHeader from "../../../components/ui/PageHeader";
 import { PeriodSummaryTable, CategoryPeriodTable, TeamPeriodSummaryRow, CategoryPeriodRow } from "../../../components/StatsTables";
 import { Button } from "../../../components/ui/button";
 import { ThemedTable, ThemedThead, ThemedTr, ThemedTh, ThemedTd } from "../../../components/ui/ThemedTable";
+import { getCurrentSeason, type Season } from "../../seasons/api";
 
 type SeasonStandingsApiRow = {
   teamId: number;
@@ -48,15 +49,6 @@ function normName(s: unknown): string {
   return String(s ?? "").trim().toLowerCase();
 }
 
-/** displayName -> teamCode */
-const DISPLAY_TO_CODE: Record<string, string> = (() => {
-  const out: Record<string, string> = {};
-  for (const [code, name] of Object.entries(OGBA_TEAM_NAMES)) {
-    out[normName(name)] = code;
-  }
-  return out;
-})();
-
 function normalizeSeasonRow(row: SeasonStandingsApiRow, periodIds: number[]): NormalizedSeasonRow {
   let periodPoints: number[] = [];
 
@@ -67,7 +59,7 @@ function normalizeSeasonRow(row: SeasonStandingsApiRow, periodIds: number[]): No
   }
 
   const totalPoints = sumNums(periodPoints);
-  const teamCode = (row as any).teamCode ?? DISPLAY_TO_CODE[normName(row.teamName)] ?? undefined;
+  const teamCode = (row as any).teamCode ?? undefined;
 
   return {
     teamId: row.teamId,
@@ -87,6 +79,7 @@ const SeasonPage: React.FC = () => {
   const [viewMode, setViewMode] = useState<'season' | 'period'>('season');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentSeasonData, setCurrentSeasonData] = useState<Season | null>(null);
 
   // Season Matrix State
   const [periodIds, setPeriodIds] = useState<number[]>([]);
@@ -109,6 +102,8 @@ const SeasonPage: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
+        // Load current season metadata
+        getCurrentSeason(leagueId).then(s => setCurrentSeasonData(s)).catch(() => {});
         const data = await getSeasonStandings(leagueId);
         setPeriodIds(data.periodIds || []);
 
@@ -182,8 +177,17 @@ const SeasonPage: React.FC = () => {
   return (
     <div className="flex-1 min-h-screen">
       <main className="max-w-6xl mx-auto px-4 py-6 md:px-6 md:py-10">
-        <PageHeader 
-          title={viewMode === 'season' ? "Season Standings" : `Period ${selectedPeriodId} Standings`}
+        <PageHeader
+          title={
+            <span className="flex items-center gap-3">
+              {viewMode === 'season' ? "Season Standings" : `Period ${selectedPeriodId} Standings`}
+              {currentSeasonData && (
+                <span className="inline-block rounded-full bg-[var(--lg-accent)]/10 px-3 py-0.5 text-xs font-semibold text-[var(--lg-accent)]">
+                  {currentSeasonData.status.replace("_", " ")}
+                </span>
+              )}
+            </span>
+          }
           subtitle="Roto points distribution for the full season or specific periods. Higher totals indicate stronger performance across categories."
           rightElement={
              <div className="lg-card p-1">

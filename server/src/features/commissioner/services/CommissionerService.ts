@@ -15,6 +15,7 @@ const DEFAULT_RULES = [
   { category: "roster", key: "pitcher_count", value: "9", label: "Pitchers per Team" },
   { category: "roster", key: "batter_count", value: "14", label: "Batters per Team" },
   { category: "roster", key: "roster_positions", value: JSON.stringify({ "C": 2, "1B": 1, "2B": 1, "3B": 1, "SS": 1, "MI": 1, "CI": 1, "OF": 5, "DH": 1 }), label: "Batter Positions" },
+  { category: "roster", key: "dh_games_threshold", value: "20", label: "DH Games Threshold" },
   // Scoring
   { category: "scoring", key: "hitting_stats", value: JSON.stringify(["R", "HR", "RBI", "SB", "AVG", "OPS", "H", "2B", "3B", "BB"]), label: "Hitting Categories" },
   { category: "scoring", key: "pitching_stats", value: JSON.stringify(["W", "SV", "K", "ERA", "WHIP", "QS", "HLD", "IP", "CG", "SHO"]), label: "Pitching Categories" },
@@ -576,13 +577,13 @@ export class CommissionerService {
         throw new Error("Rules are locked for this season");
       }
 
-      // Check for any active or completed periods (season has started)
-      const activePeriods = await prisma.period.findFirst({
-        where: { status: { in: ["active", "completed"] } }
+      // Check if any Season has moved past SETUP (rules locked after draft starts)
+      const activeSeason = await prisma.season.findFirst({
+        where: { leagueId, status: { not: "SETUP" } },
       });
 
-      if (activePeriods) {
-        throw new Error("Rules cannot be changed once the season has started.");
+      if (activeSeason) {
+        throw new Error("Rules cannot be changed after season setup.");
       }
 
       // Verify all rule IDs belong to this league (prevent IDOR)

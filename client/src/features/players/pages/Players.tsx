@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { getPlayerSeasonStats, getPlayerPeriodStats, type PlayerSeasonStat, type PeriodStatRow, fmtRate } from '../../../api';
 import PlayerExpandedRow from '../../auction/components/PlayerExpandedRow';
+import PlayerDetailModal from '../../../components/PlayerDetailModal';
 import { POS_ORDER, getPrimaryPosition } from '../../../lib/baseballUtils';
 import { OGBA_TEAM_NAMES } from '../../../lib/ogbaTeams';
 import PageHeader from '../../../components/ui/PageHeader';
@@ -18,6 +19,7 @@ export default function Players() {
   const [viewMode, setViewMode] = useState<'all' | 'remaining'>('all');
   const [statsMode, setStatsMode] = useState<string>('season');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerSeasonStat | null>(null);
 
   const [periodStats, setPeriodStats] = useState<PeriodStatRow[]>([]);
   const [periods, setPeriods] = useState<number[]>([]);
@@ -390,6 +392,7 @@ export default function Players() {
                                                player={p}
                                                isTaken={isTaken}
                                                ownerName={teamLabel}
+                                               onViewDetail={setSelectedPlayer}
                                                colSpan={10}
                                            />
                                        )}
@@ -408,6 +411,14 @@ export default function Players() {
                     <p className="text-xs font-medium mt-3">Try adjusting your search or filters.</p>
                 </div>
             )}
+
+       {selectedPlayer && (
+         <PlayerDetailModal
+           player={selectedPlayer}
+           open={!!selectedPlayer}
+           onClose={() => setSelectedPlayer(null)}
+         />
+       )}
        </div>
     </div>
   );

@@ -3,6 +3,7 @@ import { Link, useLocation, useParams } from "react-router-dom";
 
 import { getPlayerSeasonStats, type PlayerSeasonStat, getTeamDetails, getTeams } from "../../../api";
 import PlayerDetailModal from "../../../components/PlayerDetailModal";
+import PlayerExpandedRow from "../../auction/components/PlayerExpandedRow";
 import TeamRosterManager from "../components/TeamRosterManager";
 import { useLeague } from "../../../contexts/LeagueContext";
 
@@ -59,48 +60,6 @@ function posEligible(p: any): string {
   return normalizePosList(raw);
 }
 
-function gamesAtPos(p: any, pos: "DH" | "C" | "1B" | "2B" | "3B" | "SS" | "OF"): number {
-  const directKeys = [
-    `G_${pos}`,
-    `g_${pos}`,
-    `GP_${pos}`,
-    `gp_${pos}`,
-    `G${pos}`,
-    `GP${pos}`,
-    `games_${pos}`,
-    `Games_${pos}`,
-    `${pos}_G`,
-    `${pos}_games`,
-  ];
-
-  for (const k of directKeys) {
-    if (p?.[k] != null && String(p[k]).trim() !== "") return asNum(p[k]);
-  }
-
-  const nested =
-    p?.posGames ??
-    p?.gamesByPos ??
-    p?.games_by_pos ??
-    p?.positionGames ??
-    p?.position_games ??
-    null;
-
-  if (nested && typeof nested === "object") {
-    if (nested[pos] != null) return asNum(nested[pos]);
-    const low = String(pos).toLowerCase();
-    if (nested[low] != null) return asNum(nested[low]);
-  }
-
-  if (pos === "OF") {
-    const lf = asNum(p?.G_LF ?? p?.GP_LF ?? p?.games_LF ?? p?.LF_G ?? 0);
-    const cf = asNum(p?.G_CF ?? p?.GP_CF ?? p?.games_CF ?? p?.CF_G ?? 0);
-    const rf = asNum(p?.G_RF ?? p?.GP_RF ?? p?.games_RF ?? p?.RF_G ?? 0);
-    const sum = lf + cf + rf;
-    if (sum > 0) return sum;
-  }
-
-  return 0;
-}
 
 export default function Team() {
   const { teamCode } = useParams();
@@ -119,6 +78,7 @@ export default function Team() {
 
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<PlayerSeasonStat | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     let ok = true;
@@ -286,15 +246,6 @@ export default function Team() {
                     <Th align="center">TM</Th>
                     <Th align="center">PLAYER</Th>
                     <Th align="center">ELIG</Th>
-
-                    <Th align="center">DH</Th>
-                    <Th align="center">C</Th>
-                    <Th align="center">1B</Th>
-                    <Th align="center">2B</Th>
-                    <Th align="center">3B</Th>
-                    <Th align="center">SS</Th>
-                    <Th align="center">OF</Th>
-
                     <Th align="center">R</Th>
                     <Th align="center">HR</Th>
                     <Th align="center">RBI</Th>
@@ -307,13 +258,13 @@ export default function Team() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={16} className="px-4 py-8 text-center text-sm text-slate-400">
+                      <td colSpan={9} className="px-4 py-8 text-center text-sm text-[var(--lg-text-muted)]">
                         Loading roster…
                       </td>
                     </tr>
                   ) : hitters.length === 0 ? (
                     <tr>
-                      <td colSpan={16} className="px-4 py-8 text-center text-sm text-slate-400">
+                      <td colSpan={9} className="px-4 py-8 text-center text-sm text-[var(--lg-text-muted)]">
                         No hitters found for this roster.
                       </td>
                     </tr>
@@ -322,74 +273,54 @@ export default function Team() {
                       const key = rowKey(p);
                       const tm = getMlbTeamAbbr(p);
                       const elig = posEligible(p);
-
-                      const gDH = gamesAtPos(p, "DH");
-                      const gC = gamesAtPos(p, "C");
-                      const g1B = gamesAtPos(p, "1B");
-                      const g2B = gamesAtPos(p, "2B");
-                      const g3B = gamesAtPos(p, "3B");
-                      const gSS = gamesAtPos(p, "SS");
-                      const gOF = gamesAtPos(p, "OF");
+                      const isExpanded = expandedId === key;
 
                       // Grand Slams (supports multiple common key names)
                       const gs = numFromAny(p, "GS", "gs", "GSL", "gsl", "grandSlams", "grand_slams");
 
                       return (
-                        <Tr
-                          key={key}
-                          className="border-t border-[var(--lg-border-faint)] cursor-pointer hover:bg-[var(--lg-tint)] transition-all"
-                          onClick={() => setSelected(p)}
-                          title="Click for player details"
-                        >
-                          <Td align="center">
-                            {tm || "—"}
-                          </Td>
-                          <Td align="center">{p?.player_name ?? p?.name ?? p?.playerName ?? ""}</Td>
-                          <Td align="center">
-                            {elig || "—"}
-                          </Td>
-
-                          <Td align="center">
-                            {gDH ? gDH : "—"}
-                          </Td>
-                          <Td align="center">
-                            {gC ? gC : "—"}
-                          </Td>
-                          <Td align="center">
-                            {g1B ? g1B : "—"}
-                          </Td>
-                          <Td align="center">
-                            {g2B ? g2B : "—"}
-                          </Td>
-                          <Td align="center">
-                            {g3B ? g3B : "—"}
-                          </Td>
-                          <Td align="center">
-                            {gSS ? gSS : "—"}
-                          </Td>
-                          <Td align="center">
-                            {gOF ? gOF : "—"}
-                          </Td>
-
-                          <Td align="center">
-                            {asNum(p?.R)}
-                          </Td>
-                          <Td align="center">
-                            {asNum(p?.HR)}
-                          </Td>
-                          <Td align="center">
-                            {asNum(p?.RBI)}
-                          </Td>
-                          <Td align="center">
-                            {asNum(p?.SB)}
-                          </Td>
-                          <Td align="center">
-                            {formatAvg(p?.AVG)}
-                          </Td>
-                          <Td align="center">
-                            {gs}
-                          </Td>
-                        </Tr>
+                        <React.Fragment key={key}>
+                          <Tr
+                            className={`border-t border-[var(--lg-border-faint)] cursor-pointer transition-all ${isExpanded ? 'bg-[var(--lg-accent)]/10' : 'hover:bg-[var(--lg-tint)]'}`}
+                            onClick={() => setExpandedId(isExpanded ? null : key)}
+                            title="Click to expand player details"
+                          >
+                            <Td align="center">
+                              {tm || "—"}
+                            </Td>
+                            <Td align="center">{p?.player_name ?? p?.name ?? p?.playerName ?? ""}</Td>
+                            <Td align="center">
+                              {elig || "—"}
+                            </Td>
+                            <Td align="center">
+                              {asNum(p?.R)}
+                            </Td>
+                            <Td align="center">
+                              {asNum(p?.HR)}
+                            </Td>
+                            <Td align="center">
+                              {asNum(p?.RBI)}
+                            </Td>
+                            <Td align="center">
+                              {asNum(p?.SB)}
+                            </Td>
+                            <Td align="center">
+                              {formatAvg(p?.AVG)}
+                            </Td>
+                            <Td align="center">
+                              {gs}
+                            </Td>
+                          </Tr>
+                          {isExpanded && (
+                            <PlayerExpandedRow
+                              player={p}
+                              isTaken={true}
+                              ownerName={teamName}
+                              onViewDetail={setSelected}
+                              colSpan={9}
+                            />
+                          )}
+                        </React.Fragment>
                       );
                     })
                   )}
@@ -419,13 +350,13 @@ export default function Team() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={10} className="px-4 py-8 text-center text-sm text-slate-400">
+                      <td colSpan={10} className="px-4 py-8 text-center text-sm text-[var(--lg-text-muted)]">
                         Loading roster…
                       </td>
                     </tr>
                   ) : pitchers.length === 0 ? (
                     <tr>
-                      <td colSpan={10} className="px-4 py-8 text-center text-sm text-slate-400">
+                      <td colSpan={10} className="px-4 py-8 text-center text-sm text-[var(--lg-text-muted)]">
                         No pitchers found for this roster.
                       </td>
                     </tr>
@@ -434,47 +365,58 @@ export default function Team() {
                       const key = rowKey(p);
                       const tm = getMlbTeamAbbr(p);
                       const elig = posEligible(p) || "P";
+                      const isExpanded = expandedId === key;
 
                       // Shutouts (commonly "SHO"; sometimes "SO" in custom datasets)
                       const so = numFromAny(p, "SHO", "sho", "SO", "so", "shutouts", "shut_outs");
 
                       return (
-                        <Tr
-                          key={key}
-                          className="border-t border-[var(--lg-border-faint)] cursor-pointer hover:bg-[var(--lg-tint)] transition-all"
-                          onClick={() => setSelected(p)}
-                          title="Click for player details"
-                        >
-                          <Td align="center">
-                            {tm || "—"}
-                          </Td>
-                          <Td align="center">{p?.player_name ?? p?.name ?? p?.playerName ?? ""}</Td>
-                          <Td align="center">
-                            {elig}
-                          </Td>
+                        <React.Fragment key={key}>
+                          <Tr
+                            className={`border-t border-[var(--lg-border-faint)] cursor-pointer transition-all ${isExpanded ? 'bg-[var(--lg-accent)]/10' : 'hover:bg-[var(--lg-tint)]'}`}
+                            onClick={() => setExpandedId(isExpanded ? null : key)}
+                            title="Click to expand player details"
+                          >
+                            <Td align="center">
+                              {tm || "—"}
+                            </Td>
+                            <Td align="center">{p?.player_name ?? p?.name ?? p?.playerName ?? ""}</Td>
+                            <Td align="center">
+                              {elig}
+                            </Td>
 
-                          <Td align="center">
-                            {asNum(p?.W)}
-                          </Td>
-                          <Td align="center">
-                            {asNum(p?.SV)}
-                          </Td>
-                          <Td align="center">
-                            {asNum(p?.K)}
-                          </Td>
-                          <Td align="center">
-                            {String(p?.IP ?? "").trim() || "—"}
-                          </Td>
-                          <Td align="center">
-                            {String(p?.ERA ?? "").trim() || "—"}
-                          </Td>
-                          <Td align="center">
-                            {String(p?.WHIP ?? "").trim() || "—"}
-                          </Td>
-                          <Td align="center">
-                            {so}
-                          </Td>
-                        </Tr>
+                            <Td align="center">
+                              {asNum(p?.W)}
+                            </Td>
+                            <Td align="center">
+                              {asNum(p?.SV)}
+                            </Td>
+                            <Td align="center">
+                              {asNum(p?.K)}
+                            </Td>
+                            <Td align="center">
+                              {String(p?.IP ?? "").trim() || "—"}
+                            </Td>
+                            <Td align="center">
+                              {String(p?.ERA ?? "").trim() || "—"}
+                            </Td>
+                            <Td align="center">
+                              {String(p?.WHIP ?? "").trim() || "—"}
+                            </Td>
+                            <Td align="center">
+                              {so}
+                            </Td>
+                          </Tr>
+                          {isExpanded && (
+                            <PlayerExpandedRow
+                              player={p}
+                              isTaken={true}
+                              ownerName={teamName}
+                              onViewDetail={setSelected}
+                              colSpan={10}
+                            />
+                          )}
+                        </React.Fragment>
                       );
                     })
                   )}
