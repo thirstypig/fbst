@@ -6,7 +6,7 @@ export interface JsonError {
   message?: string;
 }
 
-export type LeagueRole = "COMMISSIONER" | "OWNER" | "VIEWER";
+export type LeagueRole = "COMMISSIONER" | "OWNER";
 
 export type LeagueSummary = {
   id: number;
@@ -154,15 +154,18 @@ export type PeriodCategoryStandingsResponse = {
 
 export type PlayerSeasonStat = {
   mlb_id: string;
-  row_id: string;
+  row_id?: string;
   player_name?: string;
   mlb_full_name?: string;
   ogba_team_code?: string;
   group?: "H" | "P";
-  is_pitcher?: boolean;
+  is_pitcher?: boolean | number;
   positions?: string;
+  posPrimary?: string;
   mlb_team?: string;
+  mlb_team_abbr?: string;
   mlbTeam?: string;
+  price?: number;
   AB?: number;
   H?: number;
   R?: number;

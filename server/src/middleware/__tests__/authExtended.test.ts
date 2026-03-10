@@ -237,7 +237,7 @@ describe("requireLeagueMember", () => {
   });
 
   it("reads leagueId from query when not in params", async () => {
-    mockPrisma.leagueMembership.findUnique.mockResolvedValue({ role: "VIEWER" });
+    mockPrisma.leagueMembership.findUnique.mockResolvedValue({ role: "OWNER" });
     const req = mockReq({ user: { id: 1, isAdmin: false }, params: {}, query: { leagueId: "2" } });
     const res = mockRes();
     const next = vi.fn();

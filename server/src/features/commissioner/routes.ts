@@ -272,16 +272,15 @@ router.delete("/commissioner/:leagueId/teams/:teamId", requireAuth, requireCommi
 
 /**
  * POST /api/commissioner/:leagueId/members
- * Commissioner can add OWNER/VIEWER. Only admin can add COMMISSIONER.
- * Body: { userId?: number, email?: string, role: "OWNER" | "VIEWER" | "COMMISSIONER" }
+ * Commissioner can add OWNER. Only admin can add COMMISSIONER.
+ * Body: { userId?: number, email?: string, role: "OWNER" | "COMMISSIONER" }
  */
 router.post("/commissioner/:leagueId/members", requireAuth, requireCommissionerOrAdmin(), validateBody(addMemberSchema), asyncHandler(async (req, res) => {
     const leagueId = Number(req.params.leagueId);
 
-    const role = mustOneOf(norm(req.body?.role), ["COMMISSIONER", "OWNER", "VIEWER"], "role") as
+    const role = mustOneOf(norm(req.body?.role), ["COMMISSIONER", "OWNER"], "role") as
       | "COMMISSIONER"
-      | "OWNER"
-      | "VIEWER";
+      | "OWNER";
 
     if (role === "COMMISSIONER" && !req.user?.isAdmin) {
       return res.status(403).json({ error: "Only admin can assign COMMISSIONER" });

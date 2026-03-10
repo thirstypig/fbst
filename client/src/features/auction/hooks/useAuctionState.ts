@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchJsonApi } from '../../../api/base';
+import { supabase } from '../../../lib/supabase';
 
 // Types redefined locally to avoid build issues importing from server
 export type AuctionStatus = "not_started" | "nominating" | "bidding" | "paused" | "completed";
@@ -77,10 +78,11 @@ export function useAuctionState(leagueId?: number | null) {
     const [loading, setLoading] = useState(true);
 
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const wsRef = useRef<WebSocket | null>(null);
     const leagueIdRef = useRef(leagueId);
     leagueIdRef.current = leagueId;
 
-    const fetchState = async () => {
+    const fetchState = useCallback(async () => {
         try {
             const lid = leagueIdRef.current;
             if (!lid) return;
@@ -93,17 +95,90 @@ export function useAuctionState(leagueId?: number | null) {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    // Start polling as fallback
+    const startPolling = useCallback(() => {
+        if (pollRef.current) return; // already polling
+        pollRef.current = setInterval(fetchState, 1000);
+    }, [fetchState]);
+
+    const stopPolling = useCallback(() => {
+        if (pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+        }
+    }, []);
 
     useEffect(() => {
         if (!leagueId) return;
+
+        // Initial fetch
         fetchState();
-        pollRef.current = setInterval(fetchState, 1000);
+
+        // Try WebSocket connection
+        let cancelled = false;
+
+        async function connectWs() {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                const token = session?.access_token;
+                if (!token || cancelled) {
+                    startPolling();
+                    return;
+                }
+
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const host = window.location.host;
+                const wsUrl = `${protocol}//${host}/ws/auction?leagueId=${leagueId}&token=${encodeURIComponent(token)}`;
+
+                const ws = new WebSocket(wsUrl);
+                wsRef.current = ws;
+
+                ws.onopen = () => {
+                    // WebSocket connected — stop polling
+                    stopPolling();
+                };
+
+                ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data) as ClientAuctionState;
+                        setState(data);
+                        setError(null);
+                        setLoading(false);
+                    } catch {
+                        // Ignore malformed messages
+                    }
+                };
+
+                ws.onclose = () => {
+                    wsRef.current = null;
+                    if (!cancelled) {
+                        // Fallback to polling
+                        startPolling();
+                    }
+                };
+
+                ws.onerror = () => {
+                    ws.close();
+                };
+            } catch {
+                // WebSocket setup failed — use polling
+                if (!cancelled) startPolling();
+            }
+        }
+
+        connectWs();
 
         return () => {
-            if (pollRef.current) clearInterval(pollRef.current);
+            cancelled = true;
+            stopPolling();
+            if (wsRef.current) {
+                wsRef.current.close();
+                wsRef.current = null;
+            }
         };
-    }, [leagueId]);
+    }, [leagueId, fetchState, startPolling, stopPolling]);
 
     // Actions — all include leagueId in the body
     const withLeagueId = (payload: Record<string, unknown> = {}) => {
@@ -116,7 +191,8 @@ export function useAuctionState(leagueId?: number | null) {
             method: 'POST',
             body: withLeagueId(payload)
         });
-        fetchState();
+        // State will arrive via WebSocket broadcast; fetch as backup
+        if (!wsRef.current) fetchState();
     };
 
     const bid = async (payload: { bidderTeamId: number, amount: number }) => {
@@ -124,7 +200,7 @@ export function useAuctionState(leagueId?: number | null) {
             method: 'POST',
             body: withLeagueId(payload)
         });
-        fetchState();
+        if (!wsRef.current) fetchState();
     };
 
     const initAuction = async (leagueIdOverride: number) => {
@@ -132,12 +208,12 @@ export function useAuctionState(leagueId?: number | null) {
              method: 'POST',
              body: JSON.stringify({ leagueId: leagueIdOverride })
         });
-        fetchState();
+        if (!wsRef.current) fetchState();
     };
 
     const finishAuction = async () => {
         await fetchJsonApi('/api/auction/finish', { method: 'POST', body: withLeagueId() });
-        fetchState();
+        if (!wsRef.current) fetchState();
     };
 
     return {
@@ -149,9 +225,9 @@ export function useAuctionState(leagueId?: number | null) {
             bid,
             initAuction,
             finishAuction,
-            pause: async () => { await fetchJsonApi('/api/auction/pause', { method: 'POST', body: withLeagueId() }); fetchState(); },
-            resume: async () => { await fetchJsonApi('/api/auction/resume', { method: 'POST', body: withLeagueId() }); fetchState(); },
-            reset: async () => { await fetchJsonApi('/api/auction/reset', { method: 'POST', body: withLeagueId() }); fetchState(); }
+            pause: async () => { await fetchJsonApi('/api/auction/pause', { method: 'POST', body: withLeagueId() }); if (!wsRef.current) fetchState(); },
+            resume: async () => { await fetchJsonApi('/api/auction/resume', { method: 'POST', body: withLeagueId() }); if (!wsRef.current) fetchState(); },
+            reset: async () => { await fetchJsonApi('/api/auction/reset', { method: 'POST', body: withLeagueId() }); if (!wsRef.current) fetchState(); }
         }
     };
 }

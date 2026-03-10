@@ -4,7 +4,6 @@ import {
   proposeTrade,
   respondToTrade,
   cancelTrade,
-  voteOnTrade,
   processTrade,
   TradeProposal,
   getLeagues,
@@ -338,11 +337,6 @@ function LeagueTradeCard({
   onViewContext?: () => void;
 }) {
   const isInvolved = trade.proposingTeam.ownerUserId === currentUserId || trade.acceptingTeam.ownerUserId === currentUserId;
-  const canVote = !isInvolved && trade.status === "ACCEPTED";
-  
-  const myVote = trade.votes?.find((v: any) => v.team?.id && v.team.id === currentUserId);
-  const vetoCount = trade.votes?.filter((v: any) => v.vote === "VETO").length || 0;
-  const approveCount = trade.votes?.filter((v: any) => v.vote === "APPROVE").length || 0;
 
   return (
     <div className="lg-card p-4">
@@ -395,44 +389,6 @@ function LeagueTradeCard({
           </ul>
         </div>
       </div>
-
-      {/* Vote counts */}
-      {trade.status === "ACCEPTED" && (
-        <div className="flex items-center space-x-4 mb-3 text-sm">
-          <span className="text-green-400">✓ {approveCount} Approve</span>
-          <span className="text-red-400">✗ {vetoCount} Veto</span>
-        </div>
-      )}
-
-      {/* Voting Controls */}
-      {canVote && (
-        <div className="flex justify-end space-x-2 mb-2">
-          {myVote ? (
-            <div className="text-sm text-[var(--lg-text-muted)]">You voted: {myVote.vote}</div>
-          ) : (
-            <>
-              <button
-                onClick={async () => {
-                  await voteOnTrade(trade.id, "APPROVE");
-                  onRefresh();
-                }}
-                className="px-3 py-1 bg-[var(--lg-success)]/10 hover:bg-[var(--lg-success)]/20 text-[var(--lg-success)] rounded text-sm"
-              >
-                Approve
-              </button>
-              <button
-                onClick={async () => {
-                  await voteOnTrade(trade.id, "VETO");
-                  onRefresh();
-                }}
-                className="px-3 py-1 bg-[var(--lg-error)]/10 hover:bg-[var(--lg-error)]/20 text-[var(--lg-error)] rounded text-sm"
-              >
-                Veto
-              </button>
-            </>
-          )}
-        </div>
-      )}
 
       {/* Commissioner Controls — accept/reject PROPOSED trades */}
       {isAdmin && trade.status === "PROPOSED" && !isInvolved && (

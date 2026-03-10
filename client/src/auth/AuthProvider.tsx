@@ -12,7 +12,7 @@ type User = {
   isAdmin: boolean;
   memberships: Array<{
     leagueId: string;
-    role: "COMMISSIONER" | "OWNER" | "VIEWER";
+    role: "COMMISSIONER" | "OWNER";
     league?: {
       id: string;
       name: string;
