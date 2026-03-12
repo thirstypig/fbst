@@ -133,44 +133,6 @@ export async function handleUpdateProfile(req: Request, res: Response) {
 router.get("/health", handleAuthHealth);
 router.get("/me", asyncHandler(handleGetMe));
 
-// Temporary debug endpoint — remove after verifying production auth
-router.get("/debug-auth", asyncHandler(async (req: Request, res: Response) => {
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.replace(/^Bearer\s+/i, "") || null;
-  const hasUrl = !!process.env.SUPABASE_URL;
-  const hasKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const keyPrefix = process.env.SUPABASE_SERVICE_ROLE_KEY?.substring(0, 20) || "NOT SET";
-
-  let sbResult: any = null;
-  if (token && hasUrl && hasKey) {
-    try {
-      const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-      sbResult = { email: user?.email || null, error: error?.message || null };
-    } catch (e: any) {
-      sbResult = { error: e.message };
-    }
-  }
-
-  // Test DB connection directly
-  let dbTest: any = null;
-  try {
-    const userCount = await prisma.user.count();
-    const dbUser = await prisma.user.findUnique({ where: { email: "jimmychang316@gmail.com" }, select: { id: true, email: true } });
-    dbTest = { userCount, dbUser, dbUrl: (process.env.DATABASE_URL || "").substring(0, 40) };
-  } catch (e: any) {
-    dbTest = { error: e.message };
-  }
-
-  res.json({
-    hasSupabaseUrl: hasUrl,
-    hasServiceKey: hasKey,
-    keyPrefix,
-    hasToken: !!token,
-    sbResult,
-    dbUser: req.user || null,
-    dbTest,
-  });
-}));
 router.post("/logout", handleLogout);
 router.patch("/profile", requireAuth, validateBody(updateProfileSchema), asyncHandler(handleUpdateProfile));
 
