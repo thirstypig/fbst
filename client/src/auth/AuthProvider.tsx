@@ -10,6 +10,9 @@ type User = {
   name?: string | null;
   avatarUrl?: string | null;
   isAdmin: boolean;
+  venmoHandle?: string | null;
+  zelleHandle?: string | null;
+  paypalHandle?: string | null;
   memberships: Array<{
     leagueId: string;
     role: "COMMISSIONER" | "OWNER";

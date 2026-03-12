@@ -100,11 +100,19 @@ export async function rejectTrade(tradeId: number): Promise<TradeProposal> {
     return respondToTrade(tradeId, "REJECT");
 }
 
-export async function cancelTrade(_tradeId: number): Promise<{ success: boolean }> {
-    throw new Error("Cancel trade is not yet available");
+export async function cancelTrade(tradeId: number): Promise<{ success: boolean }> {
+    return fetchJsonApi(`${API_BASE}/trades/${tradeId}/cancel`, {
+        method: 'POST',
+    });
 }
 
-export async function processTrade(tradeId: number, _action?: "PROCESS" | "VETO"): Promise<{ success: boolean }> {
+export async function vetoTrade(tradeId: number): Promise<{ success: boolean }> {
+    return fetchJsonApi(`${API_BASE}/trades/${tradeId}/veto`, {
+        method: 'POST',
+    });
+}
+
+export async function processTrade(tradeId: number): Promise<{ success: boolean }> {
     return fetchJsonApi(`${API_BASE}/trades/${tradeId}/process`, {
         method: 'POST',
     });

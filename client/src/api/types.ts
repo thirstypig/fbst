@@ -30,6 +30,9 @@ export type AuthUser = {
   name: string | null;
   avatarUrl: string | null;
   isAdmin: boolean;
+  venmoHandle?: string | null;
+  zelleHandle?: string | null;
+  paypalHandle?: string | null;
   memberships: LeagueMembership[];
 };
 
@@ -100,6 +103,15 @@ export type PlayerProfile = {
   weight?: string;
   birthDate?: string;
   mlbDebutDate?: string;
+  currentAge?: number;
+  jerseyNumber?: string;
+  nickName?: string;
+  birthCity?: string;
+  birthStateProvince?: string;
+  birthCountry?: string;
+  draftYear?: number;
+  active?: boolean;
+  pronunciation?: string;
 };
 
 export type RecentHittingRow = {

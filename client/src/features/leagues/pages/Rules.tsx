@@ -25,6 +25,7 @@ export default function Rules() {
   const [rules, setRules] = useState<LeagueRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"overview" | "settings">("overview");
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const isCommissionerOrAdmin = useMemo(() => {
     if (user?.isAdmin) return true;
@@ -52,7 +53,7 @@ export default function Rules() {
       }
     })();
     return () => { mounted = false; };
-  }, [leagueId]);
+  }, [leagueId, refreshKey]);
 
   const teamCount = parseInt(rv(rules, "team_count")) || 8;
   const draftMode = rv(rules, "draft_mode") || "Auction";
@@ -124,7 +125,7 @@ export default function Rules() {
 
       {/* Settings tab — RulesEditor */}
       {tab === "settings" && isCommissionerOrAdmin && (
-        <RulesEditor leagueId={leagueId} canEdit={true} />
+        <RulesEditor leagueId={leagueId} canEdit={true} onSaved={() => setRefreshKey(k => k + 1)} />
       )}
 
       {/* Overview tab — human-readable guide */}

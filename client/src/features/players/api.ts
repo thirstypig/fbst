@@ -40,12 +40,20 @@ function roleFromRow(row: Record<string, unknown>): "H" | "P" {
   return (row?.is_pitcher ?? row?.isPitcher) ? "P" : "H";
 }
 
+/** Ohtani special case: mlb_id 660271 should be DH (hitter) + P (pitcher), never TWP */
+const OHTANI_MLB_ID = "660271";
+
 function normalizeTwoWayRow(row: any): PlayerSeasonStat {
   const mlb_id = String(row?.mlb_id ?? row?.mlbId ?? "").trim();
   const role = roleFromRow(row);
   const is_pitcher = role === "P";
-  const positions = is_pitcher ? "P" : String(row?.positions ?? row?.pos ?? "").trim();
+  let positions = is_pitcher ? "P" : String(row?.positions ?? row?.pos ?? "").trim();
   const player_name = String(row?.player_name ?? row?.name ?? "").trim();
+
+  // Ohtani rule: force DH for hitter row, P for pitcher row (never TWP)
+  if (mlb_id === OHTANI_MLB_ID) {
+    positions = is_pitcher ? "P" : "DH";
+  }
 
   return {
     mlb_id,
@@ -202,6 +210,15 @@ export async function getPlayerProfile(mlbId: string): Promise<PlayerProfile> {
       weight: p?.weight ? String(p.weight) : undefined,
       birthDate: p?.birthDate,
       mlbDebutDate: p?.mlbDebutDate,
+      currentAge: p?.currentAge,
+      jerseyNumber: p?.primaryNumber,
+      nickName: p?.nickName,
+      birthCity: p?.birthCity,
+      birthStateProvince: p?.birthStateProvince,
+      birthCountry: p?.birthCountry,
+      draftYear: p?.draftYear,
+      active: p?.active,
+      pronunciation: p?.pronunciation,
     };
   });
 }

@@ -180,7 +180,7 @@ describe("PlayerDetailModal", () => {
       // "Mike Trout" appears in both header and profile section
       expect(screen.getAllByText("Mike Trout").length).toBeGreaterThanOrEqual(2);
       expect(screen.getByText("Los Angeles Angels")).toBeInTheDocument();
-      expect(screen.getByText("Bats/Throws")).toBeInTheDocument();
+      expect(screen.getByText("Bats / Throws")).toBeInTheDocument();
     });
   });
 

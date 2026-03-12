@@ -20,9 +20,13 @@ vi.mock("../../../lib/logger.js", () => ({
 }));
 vi.mock("../../../middleware/auth.js", () => ({
   evictUserCache: vi.fn(),
+  requireAuth: vi.fn((_req: any, _res: any, next: any) => next()),
 }));
 vi.mock("../../../middleware/asyncHandler.js", () => ({
   asyncHandler: (fn: Function) => fn,
+}));
+vi.mock("../../../middleware/validate.js", () => ({
+  validateBody: () => vi.fn((_req: any, _res: any, next: any) => next()),
 }));
 
 import { handleAuthHealth, handleGetMe, handleDevLogin, handleLogout } from "../routes.js";
@@ -181,6 +185,9 @@ describe("handleGetMe", () => {
         name: "Test User",
         avatarUrl: "https://avatar.example.com/test.jpg",
         isAdmin: false,
+        venmoHandle: undefined,
+        zelleHandle: undefined,
+        paypalHandle: undefined,
         memberships: [
           {
             leagueId: 10,

@@ -34,7 +34,8 @@ export default function CommissionerRosterTool({ leagueId, teams, onUpdate }: Co
   const [rosters, setRosters] = useState<RosterItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+  const [actingAsTeamId, setActingAsTeamId] = useState<number | null>(teams[0]?.id ?? null);
+
   // Refresh trigger to force grid update
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -61,6 +62,20 @@ export default function CommissionerRosterTool({ leagueId, teams, onUpdate }: Co
 
   return (
     <div className="space-y-6">
+       {/* Acting As Team Selector */}
+       <div className="flex items-center gap-3">
+         <label className="text-xs font-medium uppercase text-[var(--lg-text-muted)]">Acting As:</label>
+         <select
+           value={actingAsTeamId ?? ''}
+           onChange={(e) => setActingAsTeamId(Number(e.target.value))}
+           className="bg-[var(--lg-tint)] border border-[var(--lg-border-subtle)] rounded-xl px-4 py-2 text-xs font-bold text-[var(--lg-text-primary)] outline-none focus:border-[var(--lg-accent)] transition-all"
+         >
+           {teams.map((t) => (
+             <option key={t.id} value={t.id} className="text-black">{t.name}</option>
+           ))}
+         </select>
+       </div>
+
        {/* Controls */}
        <RosterControls leagueId={leagueId} teams={teams} onUpdate={handleUpdate} />
 

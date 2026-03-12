@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { getPlayerSeasonStats, getPlayerPeriodStats, type PlayerSeasonStat, type PeriodStatRow, fmtRate } from '../../../api';
 import PlayerExpandedRow from '../../auction/components/PlayerExpandedRow';
 import PlayerDetailModal from '../../../components/PlayerDetailModal';
-import { POS_ORDER, getPrimaryPosition } from '../../../lib/baseballUtils';
+import { POS_ORDER, getPrimaryPosition, getLastName } from '../../../lib/baseballUtils';
 import { OGBA_TEAM_NAMES } from '../../../lib/ogbaTeams';
 import PageHeader from '../../../components/ui/PageHeader';
 import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from '../../../components/ui/ThemedTable';
@@ -121,8 +121,8 @@ export default function Players() {
          let valB: string | number = 0;
 
          if (sortKey === 'name') {
-             valA = a.mlb_full_name || a.player_name || '';
-             valB = b.mlb_full_name || b.player_name || '';
+             valA = getLastName(a.mlb_full_name || a.player_name);
+             valB = getLastName(b.mlb_full_name || b.player_name);
              return sortDesc ? valB.toString().localeCompare(valA.toString()) : valA.toString().localeCompare(valB.toString());
          } else if (sortKey === 'mlb_team') {
              valA = a.mlb_team || a.mlbTeam || 'ZZZ';
@@ -335,7 +335,7 @@ export default function Players() {
                                    <React.Fragment key={p.row_id}>
                                        <ThemedTr 
                                            className={`group cursor-pointer transition-colors duration-300 ${isExpanded ? 'bg-[var(--lg-accent)]/10' : 'hover:bg-[var(--lg-tint)]'}`}
-                                           onClick={() => toggleExpand(p.row_id)}
+                                           onClick={() => toggleExpand(p.row_id ?? '')}
                         >
                                             <ThemedTd className="pl-8 py-3">
                                                 <div className="flex flex-col">

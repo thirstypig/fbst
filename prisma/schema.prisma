@@ -79,6 +79,10 @@ model User {
   resetToken        String?   @unique
   resetTokenExpires DateTime?
 
+  venmoHandle  String?
+  zelleHandle  String?
+  paypalHandle String?
+
   isAdmin Boolean @default(false)
 
   memberships    LeagueMembership[]

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { getPrimaryPosition } from '../../../lib/baseballUtils';
+import { getPrimaryPosition, getLastName } from '../../../lib/baseballUtils';
 import { PlayerSeasonStat, fmtRate } from '../../../api';
 import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from "../../../components/ui/ThemedTable";
 
@@ -42,9 +42,9 @@ export default function AddDropTab({ players, onClaim }: AddDropTabProps) {
              let valB: string | number = '';
 
              switch(sortKey) {
-                 case 'name': 
-                     valA = a.player_name || ''; 
-                     valB = b.player_name || ''; 
+                 case 'name':
+                     valA = getLastName(a.player_name);
+                     valB = getLastName(b.player_name);
                      break;
                  case 'mlb_team':
                      valA = a.mlb_team || '';

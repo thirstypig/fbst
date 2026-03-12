@@ -131,23 +131,6 @@ export default function TransactionsPage() {
              subtitle="Add, drop, and claim players. Process waivers and review history."
              rightElement={
                   <div className="flex items-center gap-4">
-                      {/* Team Selector for Testing/Admin */}
-                                  <div className="flex items-center gap-2">
-                                      <label className="text-xs font-medium uppercase text-[var(--lg-text-muted)]">Acting As:</label>
-                                      <select 
-                                          value={selectedTeamId || ''}
-                                          onChange={(e) => setSelectedTeamId(Number(e.target.value))}
-                                          className="bg-[var(--lg-tint)] border border-[var(--lg-border-subtle)] rounded-xl px-4 py-2 text-xs font-bold text-[var(--lg-text-primary)] outline-none focus:border-[var(--lg-accent)] transition-all"
-                                      >
-                                          {(authUser?.isAdmin
-                                            ? teams
-                                            : teams.filter((t: any) => t.ownerUserId === authUser?.id)
-                                          ).map((t: any) => (
-                                              <option key={t.id} value={t.id} className="text-black">{t.name}</option>
-                                          ))}
-                                      </select>
-                                  </div>
-
                       {/* Navigation Hub */}
                       <div className="lg-card p-1 flex gap-2">
                            <Button 

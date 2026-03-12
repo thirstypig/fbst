@@ -96,5 +96,81 @@ router.get("/season", requireAuth, asyncHandler(async (req, res) => {
   res.json({ periodIds, rows });
 }));
 
+// --- Settlement data: /api/standings/settlement/:leagueId ---
+
+router.get("/standings/settlement/:leagueId", requireAuth, asyncHandler(async (req, res) => {
+  const leagueId = Number(req.params.leagueId);
+  if (!Number.isFinite(leagueId)) return res.status(400).json({ error: "Invalid leagueId" });
+
+  // Get payout rules
+  const rules = await prisma.leagueRule.findMany({
+    where: { leagueId, category: "payouts" },
+  });
+
+  const ruleMap = new Map(rules.map(r => [r.key, r.value]));
+  const entryFee = Number(ruleMap.get("entry_fee") || "0");
+  const payoutPcts: Record<string, number> = {};
+  for (let i = 1; i <= 8; i++) {
+    const pct = Number(ruleMap.get(`payout_${i}st`) || ruleMap.get(`payout_${i}nd`) || ruleMap.get(`payout_${i}rd`) || ruleMap.get(`payout_${i}th`) || "0");
+    if (pct > 0) payoutPcts[String(i)] = pct;
+  }
+
+  // Get teams with owners
+  const teams = await prisma.team.findMany({
+    where: { leagueId },
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      ownerUser: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          venmoHandle: true,
+          zelleHandle: true,
+          paypalHandle: true,
+        },
+      },
+      ownerships: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              venmoHandle: true,
+              zelleHandle: true,
+              paypalHandle: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: { id: "asc" },
+  });
+
+  const totalPot = entryFee * teams.length;
+
+  const teamsData = teams.map(t => {
+    // Combine legacy owner + multi-owner
+    const owners: any[] = [];
+    if (t.ownerUser) owners.push(t.ownerUser);
+    for (const o of t.ownerships) {
+      if (!owners.some(existing => existing.id === o.user.id)) {
+        owners.push(o.user);
+      }
+    }
+    return {
+      id: t.id,
+      name: t.name,
+      code: t.code,
+      owners,
+    };
+  });
+
+  res.json({ leagueId, entryFee, totalPot, payoutPcts, teams: teamsData });
+}));
+
 export const standingsRouter = router;
 export default standingsRouter;

@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { fetchJsonApi } from '../../../api/base';
+import { POS_ORDER } from '../../../lib/baseballUtils';
 
 interface Team {
   id: number;
@@ -108,7 +109,11 @@ export default function RosterGrid({ leagueId, teams: initialTeams, rosters: ini
                            {teamRoster.length === 0 && (
                                <div className="text-center text-xs text-[var(--lg-text-muted)] mt-10">No players</div>
                            )}
-                           {teamRoster.map(r => (
+                           {[...teamRoster].sort((a, b) => {
+                               const ia = POS_ORDER.indexOf(a.player.posPrimary);
+                               const ib = POS_ORDER.indexOf(b.player.posPrimary);
+                               return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+                           }).map(r => (
                                <div key={r.id} className="flex justify-between items-center text-xs p-1.5 hover:bg-[var(--lg-tint)] rounded group">
                                    <div className="flex items-center gap-2 overflow-hidden">
                                        <span className="font-mono text-[var(--lg-text-muted)] w-5 text-center shrink-0">{r.player.posPrimary}</span>

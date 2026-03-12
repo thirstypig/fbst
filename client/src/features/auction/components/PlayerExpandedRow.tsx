@@ -36,7 +36,7 @@ export default function PlayerExpandedRow({ player, isTaken, ownerName, onNomina
             const mode = player.is_pitcher ? 'pitching' : 'hitting';
             const [cRes, fRes] = await Promise.all([
                 getPlayerCareerStats(player.mlb_id, mode),
-                !player.is_pitcher ? getPlayerFieldingStats(player.mlb_id, new Date().getFullYear()) : Promise.resolve([])
+                getPlayerFieldingStats(player.mlb_id, new Date().getFullYear())
             ]);
             
             // Sort Career: Years ASC, then TOT last
@@ -67,28 +67,20 @@ export default function PlayerExpandedRow({ player, isTaken, ownerName, onNomina
             <div className="flex flex-col gap-3">
                 
                 {/* Positional Usage */}
-                <div className="flex items-center gap-2 text-xs">
+                <div className="flex items-center gap-2 text-xs flex-wrap">
                     <span className="font-semibold text-[var(--lg-text-muted)]">POSITIONS:</span>
-                    <span className="font-mono bg-[var(--lg-glass-bg-hover)] px-2 py-0.5 rounded border border-[var(--lg-table-border)] text-[var(--lg-text-primary)]">
-                        {getPrimaryPosition(player.positions) || 'N/A'}
-                    </span>
+                    {fieldingStats.length > 0 ? (
+                        fieldingStats.map((f, i) => (
+                            <span key={i} className="font-mono bg-[var(--lg-glass-bg-hover)] px-2 py-0.5 rounded border border-[var(--lg-table-border)] text-[var(--lg-text-primary)]">
+                                {f.position} <span className="text-[var(--lg-text-muted)]">{f.games} GP</span>
+                            </span>
+                        ))
+                    ) : (
+                        <span className="font-mono bg-[var(--lg-glass-bg-hover)] px-2 py-0.5 rounded border border-[var(--lg-table-border)] text-[var(--lg-text-primary)]">
+                            {getPrimaryPosition(player.positions) || 'N/A'}
+                        </span>
+                    )}
                 </div>
-
-                {/* Fielding Stats (2024) - Hitters Only */}
-                {!isPitcher && fieldingStats.length > 0 && (
-                    <div className="flex flex-col gap-1">
-                        <span className="text-xs font-medium uppercase text-[var(--lg-text-muted)]">{new Date().getFullYear()} Defensive Usage</span>
-                        <div className="flex flex-wrap gap-2">
-                            {fieldingStats.map((f, i) => (
-                                <div key={i} className="text-xs bg-[var(--lg-glass-bg-hover)] border border-[var(--lg-table-border)] px-2 py-1 rounded flex gap-2 items-center text-[var(--lg-text-primary)]">
-                                    <span className="font-semibold">{f.position}</span>
-                                    <span className="text-[var(--lg-text-muted)]">{f.games} G</span>
-                                    <span className="text-[var(--lg-text-muted)]">({f.gamesStarted} GS)</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
 
                 {/* Career Stats Table */}
                 <div className="overflow-x-auto rounded border border-[var(--lg-table-border)]">

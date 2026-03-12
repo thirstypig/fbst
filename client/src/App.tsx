@@ -8,8 +8,7 @@ import Home from "./pages/Home";
 import Season from "./features/periods/pages/Season";
 import Team from "./features/teams/pages/Team";
 import Players from "./features/players/pages/Players";
-import TransactionsPage from "./features/transactions/pages/TransactionsPage";
-import { TradesPage } from "./features/trades/pages/TradesPage";
+import ActivityPage from "./features/transactions/pages/ActivityPage";
 import Login from "./features/auth/pages/Login";
 
 import Commissioner from "./features/commissioner/pages/Commissioner";
@@ -18,6 +17,8 @@ import ArchivePage from "./features/archive/pages/ArchivePage";
 import Auction from "./features/auction/pages/Auction";
 import KeeperSelection from "./features/keeper-prep/pages/KeeperSelection";
 import Rules from "./features/leagues/pages/Rules";
+import Profile from "./features/auth/pages/Profile";
+import Payouts from "./features/periods/pages/Payouts";
 import Signup from "./features/auth/pages/Signup";
 import ForgotPassword from "./features/auth/pages/ForgotPassword";
 import ResetPassword from "./features/auth/pages/ResetPassword";
@@ -55,8 +56,9 @@ export default function App() {
                 <Route path="/season" element={<Season />} />
                 <Route path="/teams/:teamCode" element={<Team />} />
                 <Route path="/players" element={<Players />} />
-                <Route path="/transactions" element={<TransactionsPage />} />
-                <Route path="/trades" element={<TradesPage />} />
+                <Route path="/activity" element={<ActivityPage />} />
+                <Route path="/transactions" element={<Navigate to="/activity" replace />} />
+                <Route path="/trades" element={<Navigate to="/activity" replace />} />
                 <Route path="/leagues/:id/keepers" element={<KeeperSelection />} />
                 <Route path="/auction" element={<Auction />} />
                 <Route path="/commissioner/:leagueId" element={<Commissioner />} />
@@ -66,6 +68,8 @@ export default function App() {
                 {/* Redirects for removed routes */}
                 <Route path="/period" element={<Navigate to="/season" replace />} />
                 <Route path="/leagues" element={<Navigate to="/" replace />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/payouts" element={<Payouts />} />
                 <Route path="/rules" element={<Rules />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>

@@ -1,9 +1,11 @@
 import { Router, Request, Response } from "express";
+import { z } from "zod";
 import { prisma } from "../../db/prisma.js";
 import { supabaseAdmin } from "../../lib/supabase.js";
 import { logger } from "../../lib/logger.js";
-import { evictUserCache } from "../../middleware/auth.js";
+import { evictUserCache, requireAuth } from "../../middleware/auth.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
+import { validateBody } from "../../middleware/validate.js";
 
 const router = Router();
 
@@ -45,6 +47,9 @@ export async function handleGetMe(req: Request, res: Response) {
     name: full.name,
     avatarUrl: full.avatarUrl,
     isAdmin: full.isAdmin,
+    venmoHandle: full.venmoHandle,
+    zelleHandle: full.zelleHandle,
+    paypalHandle: full.paypalHandle,
     memberships: full.memberships.map((m) => ({
       leagueId: m.leagueId,
       role: m.role,
@@ -85,7 +90,7 @@ export async function handleDevLogin(_req: Request, res: Response) {
   }
 
   logger.info({ email: dbUser.email }, "Dev login ready");
-  return res.json({ message: "Dev login ready. Use the password from DEV_LOGIN_PASSWORD env var." });
+  return res.json({ email: dbUser.email, password: DEV_PASSWORD });
 }
 
 export function handleLogout(req: Request, res: Response) {
@@ -97,11 +102,38 @@ export function handleLogout(req: Request, res: Response) {
   return res.json({ success: true });
 }
 
+const updateProfileSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  venmoHandle: z.string().max(100).optional().nullable(),
+  zelleHandle: z.string().max(100).optional().nullable(),
+  paypalHandle: z.string().max(100).optional().nullable(),
+});
+
+export async function handleUpdateProfile(req: Request, res: Response) {
+  const userId = req.user!.id;
+  const { name, venmoHandle, zelleHandle, paypalHandle } = req.body;
+
+  const data: Record<string, any> = {};
+  if (name !== undefined) data.name = name;
+  if (venmoHandle !== undefined) data.venmoHandle = venmoHandle;
+  if (zelleHandle !== undefined) data.zelleHandle = zelleHandle;
+  if (paypalHandle !== undefined) data.paypalHandle = paypalHandle;
+
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    select: { id: true, name: true, venmoHandle: true, zelleHandle: true, paypalHandle: true },
+    data,
+  });
+
+  return res.json({ user: updated });
+}
+
 // --- Route wiring ---
 
 router.get("/health", handleAuthHealth);
 router.get("/me", asyncHandler(handleGetMe));
 router.post("/logout", handleLogout);
+router.patch("/profile", requireAuth, validateBody(updateProfileSchema), asyncHandler(handleUpdateProfile));
 
 if (process.env.ENABLE_DEV_LOGIN === "true") {
   if (!process.env.DEV_LOGIN_PASSWORD) {

@@ -193,6 +193,74 @@ router.post("/:id/reject", requireAuth, asyncHandler(async (req, res) => {
   res.json(updated);
 }));
 
+// POST /api/trades/:id/veto - Commissioner/Admin vetoes an accepted trade
+router.post("/:id/veto", requireAuth, asyncHandler(async (req, res) => {
+  const id = Number(req.params.id);
+
+  const trade = await prisma.trade.findUnique({ where: { id } });
+  if (!trade) return res.status(404).json({ error: "Trade not found" });
+  if (trade.status !== "ACCEPTED" && trade.status !== "PROPOSED") {
+    return res.status(400).json({ error: "Trade cannot be vetoed in its current status" });
+  }
+
+  if (!req.user!.isAdmin) {
+    const isCommish = await isCommissionerOfLeague(req.user!.id, trade.leagueId);
+    if (!isCommish) {
+      return res.status(403).json({ error: "Only commissioner or admin can veto trades" });
+    }
+  }
+
+  const updated = await prisma.trade.update({
+    where: { id },
+    data: { status: "VETOED" },
+  });
+
+  writeAuditLog({
+    userId: req.user!.id,
+    action: "TRADE_VETO",
+    resourceType: "Trade",
+    resourceId: id,
+    metadata: { leagueId: trade.leagueId },
+  });
+
+  res.json(updated);
+}));
+
+// POST /api/trades/:id/cancel - Proposer or Commissioner cancels a trade
+router.post("/:id/cancel", requireAuth, asyncHandler(async (req, res) => {
+  const id = Number(req.params.id);
+
+  const trade = await prisma.trade.findUnique({ where: { id } });
+  if (!trade) return res.status(404).json({ error: "Trade not found" });
+  if (trade.status !== "PROPOSED") {
+    return res.status(400).json({ error: "Only proposed trades can be cancelled" });
+  }
+
+  // Allow proposer, commissioner, or admin
+  if (!req.user!.isAdmin) {
+    const isCommish = await isCommissionerOfLeague(req.user!.id, trade.leagueId);
+    const isProposer = await isTeamOwner(trade.proposerId, req.user!.id);
+    if (!isCommish && !isProposer) {
+      return res.status(403).json({ error: "Only the proposer, commissioner, or admin can cancel" });
+    }
+  }
+
+  const updated = await prisma.trade.update({
+    where: { id },
+    data: { status: "CANCELLED" },
+  });
+
+  writeAuditLog({
+    userId: req.user!.id,
+    action: "TRADE_CANCEL",
+    resourceType: "Trade",
+    resourceId: id,
+    metadata: { leagueId: trade.leagueId },
+  });
+
+  res.json(updated);
+}));
+
 // POST /api/trades/:id/process - Execute (Commissioner/Admin)
 router.post("/:id/process", requireAuth, asyncHandler(async (req, res) => {
   const id = Number(req.params.id);

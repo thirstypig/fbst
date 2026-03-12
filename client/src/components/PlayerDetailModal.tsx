@@ -133,7 +133,6 @@ export default function PlayerDetailModal({ player, onClose, open }: Props) {
   const [careerRows, setCareerRows] = useState<
     Array<CareerHittingRow | CareerPitchingRow>
   >([]);
-
   useEffect(() => {
     setTab("stats");
     setErr("");
@@ -254,49 +253,38 @@ export default function PlayerDetailModal({ player, onClose, open }: Props) {
               <div className="font-medium uppercase text-xs">Loading...</div>
             </div>
           ) : tab === "profile" ? (
-            <div className={sectionCls}>
-              <div className={sectionHeadCls}>
-                <div className={sectionTitleCls}>Player Info</div>
-              </div>
-              <div className="p-8">
-                {profile ? (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-                    <div>
-                      <div className="text-xs font-medium uppercase text-[var(--lg-text-muted)] mb-1">Full Name</div>
-                      <div className="text-sm font-bold text-[var(--lg-text-primary)]">{profile.fullName}</div>
+            <div className="grid grid-cols-1 gap-8">
+              {/* Player Info */}
+              <div className={sectionCls}>
+                <div className={sectionHeadCls}>
+                  <div className={sectionTitleCls}>Player Info</div>
+                  {profile?.active !== undefined && (
+                    <span className={`px-2 py-0.5 rounded-[var(--lg-radius-sm)] text-xs font-medium uppercase ${profile.active ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+                      {profile.active ? "Active" : "Inactive"}
+                    </span>
+                  )}
+                </div>
+                <div className="p-8">
+                  {profile ? (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                      <ProfileField label="Full Name" value={profile.fullName} />
+                      <ProfileField label="Team" value={profile.currentTeam} />
+                      <ProfileField label="Position" value={profile.primaryPosition} />
+                      <ProfileField label="Jersey #" value={profile.jerseyNumber ? `#${profile.jerseyNumber}` : undefined} />
+                      <ProfileField label="Bats / Throws" value={`${profile.bats ?? "—"} / ${profile.throws ?? "—"}`} />
+                      <ProfileField label="Height / Weight" value={`${profile.height ?? "—"} / ${profile.weight ? `${profile.weight} lbs` : "—"}`} />
+                      <ProfileField label="Age" value={profile.currentAge != null ? String(profile.currentAge) : undefined} />
+                      <ProfileField label="Born" value={[profile.birthCity, profile.birthStateProvince, profile.birthCountry].filter(Boolean).join(", ") || undefined} />
+                      <ProfileField label="Birth Date" value={profile.birthDate} />
+                      <ProfileField label="MLB Debut" value={profile.mlbDebutDate} />
+                      {profile.draftYear ? <ProfileField label="Draft Year" value={String(profile.draftYear)} /> : null}
+                      {profile.nickName ? <ProfileField label="Nickname" value={`"${profile.nickName}"`} /> : null}
+                      {profile.pronunciation ? <ProfileField label="Pronunciation" value={profile.pronunciation} /> : null}
                     </div>
-                    <div>
-                      <div className="text-xs font-medium uppercase text-[var(--lg-text-muted)] mb-1">Team</div>
-                      <div className="text-sm font-bold text-[var(--lg-text-primary)]">{profile.currentTeam ?? "—"}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs font-medium uppercase text-[var(--lg-text-muted)] mb-1">Primary Role</div>
-                      <div className="text-sm font-bold text-[var(--lg-text-primary)]">{profile.primaryPosition ?? "—"}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs font-medium uppercase text-[var(--lg-text-muted)] mb-1">Bats/Throws</div>
-                      <div className="text-sm font-bold text-[var(--lg-text-primary)]">
-                        {(profile.bats ?? "—")}/{(profile.throws ?? "—")}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs font-medium uppercase text-[var(--lg-text-muted)] mb-1">Height/Weight</div>
-                      <div className="text-sm font-bold text-[var(--lg-text-primary)]">
-                        {(profile.height ?? "—")} / {(profile.weight ?? "—")}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs font-medium uppercase text-[var(--lg-text-muted)] mb-1">Born</div>
-                      <div className="text-sm font-bold text-[var(--lg-text-primary)]">{profile.birthDate ?? "—"}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs font-medium uppercase text-[var(--lg-text-muted)] mb-1">MLB Debut</div>
-                      <div className="text-sm font-bold text-[var(--lg-text-primary)]">{profile.mlbDebutDate ?? "—"}</div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-sm text-[var(--lg-text-muted)] italic">No profile data available.</div>
-                )}
+                  ) : (
+                    <div className="text-sm text-[var(--lg-text-muted)] italic">No profile data available.</div>
+                  )}
+                </div>
               </div>
             </div>
           ) : (
@@ -347,6 +335,15 @@ export default function PlayerDetailModal({ player, onClose, open }: Props) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ProfileField({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div>
+      <div className="text-xs font-medium uppercase text-[var(--lg-text-muted)] mb-1">{label}</div>
+      <div className="text-sm font-semibold text-[var(--lg-text-primary)]">{value || "—"}</div>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import {
   proposeTrade,
   respondToTrade,
   cancelTrade,
+  vetoTrade,
   processTrade,
   TradeProposal,
   getLeagues,
@@ -63,8 +64,8 @@ export function TradesPage() {
     if(user) loadAllTrades();
   }, [user, loadAllTrades]);
 
-  const myActive = myTrades.filter((t) => ["PENDING", "ACCEPTED"].includes(t.status));
-  const myHistory = myTrades.filter((t) => !["PENDING", "ACCEPTED"].includes(t.status));
+  const myActive = myTrades.filter((t) => ["PROPOSED", "ACCEPTED"].includes(t.status));
+  const myHistory = myTrades.filter((t) => !["PROPOSED", "ACCEPTED"].includes(t.status));
 
   if (!user && !loading) return <div className="p-4">Please log in to trade.</div>;
   if (loading && !myTrades.length) return <div className="p-4">Loading trades...</div>;
@@ -206,7 +207,7 @@ export function TradesPage() {
   );
 }
 
-function TradeCard({
+export function TradeCard({
   trade,
   onRefresh,
   currentUserId,
@@ -217,7 +218,7 @@ function TradeCard({
   currentUserId?: number;
   onViewContext?: () => void;
 }) {
-  const isPending = trade.status === "PENDING";
+  const isPending = trade.status === "PROPOSED";
   const isProposer = trade.proposingTeam?.ownerUserId === currentUserId;
   
   return (
@@ -323,7 +324,7 @@ function TradeCard({
   );
 }
 
-function LeagueTradeCard({
+export function LeagueTradeCard({
   trade,
   onRefresh,
   currentUserId,
@@ -422,7 +423,7 @@ function LeagueTradeCard({
           <button
             onClick={async () => {
               if (!confirm("Veto this trade?")) return;
-              await processTrade(trade.id, "VETO");
+              await vetoTrade(trade.id);
               onRefresh();
             }}
             className="px-3 py-1 bg-red-700 hover:bg-red-600 text-white rounded text-sm font-semibold"
@@ -432,7 +433,7 @@ function LeagueTradeCard({
           <button
             onClick={async () => {
               if (!confirm("Process this trade? Players and budget will be moved.")) return;
-              await processTrade(trade.id, "PROCESS");
+              await processTrade(trade.id);
               onRefresh();
             }}
             className="px-3 py-1 bg-blue-700 hover:bg-blue-600 text-white rounded text-sm font-semibold"
@@ -445,7 +446,7 @@ function LeagueTradeCard({
   );
 }
 
-function CreateTradeForm({ onCancel, onSuccess }: { onCancel: () => void; onSuccess: () => void }) {
+export function CreateTradeForm({ onCancel, onSuccess }: { onCancel: () => void; onSuccess: () => void }) {
   const { me } = useAuth();
   const user = me?.user;
   const [selectedPartnerId, setSelectedPartnerId] = useState<number | null>(null);

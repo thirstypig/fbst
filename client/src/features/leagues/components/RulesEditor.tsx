@@ -92,7 +92,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 // --- Component ---
-export function RulesEditor({ leagueId, canEdit: canEditProp }: { leagueId: number; canEdit?: boolean }) {
+export function RulesEditor({ leagueId, canEdit: canEditProp, onSaved }: { leagueId: number; canEdit?: boolean; onSaved?: () => void }) {
   const { user } = useAuth();
   const [rules, setRules] = useState<LeagueRule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -156,6 +156,7 @@ export function RulesEditor({ leagueId, canEdit: canEditProp }: { leagueId: numb
       setRules(updatedRules);
       setPendingChanges({});
       setEditMode(false);
+      onSaved?.();
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : "Failed to save");
     } finally {

@@ -35,22 +35,24 @@ export default function Auction() {
         try {
             setInitLoading(true);
 
-            // 1. Fetch Players
-            const stats = await getPlayerSeasonStats();
-            if(mounted) setPlayers(stats);
-            
-            // 2. Identify League & User
-            const leaguesRes = await getLeagues();
-            const firstLeague = leaguesRes.leagues[0]; 
-            const meRes = await getMe();
+            // Parallel fetch: players + leagues + me
+            const [stats, leaguesRes, meRes] = await Promise.all([
+                getPlayerSeasonStats(),
+                getLeagues(),
+                getMe(),
+            ]);
+            if (!mounted) return;
+            setPlayers(stats);
+
+            const firstLeague = leaguesRes.leagues[0];
             const myUserId = meRes.user?.id;
 
             if (firstLeague) {
-                if(mounted) setActiveLeagueId(firstLeague.id);
-                // Fetch full league detail to get teams
+                setActiveLeagueId(firstLeague.id);
                 const detail = await getLeague(firstLeague.id);
+                if (!mounted) return;
                 const myTeam = detail.league.teams.find((t: any) => t.ownerUserId === myUserId);
-                if (myTeam && mounted) {
+                if (myTeam) {
                     setMyTeamId(myTeam.id);
                 }
             }
@@ -96,7 +98,7 @@ export default function Auction() {
           startBid: startBid,
           positions: player.positions || (player.is_pitcher ? 'P' : 'UT'),
           team: player.mlb_team || 'FA',
-          isPitcher: player.is_pitcher || false
+          isPitcher: Boolean(player.is_pitcher)
       });
   };
 

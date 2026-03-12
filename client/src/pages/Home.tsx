@@ -49,25 +49,28 @@ export default function Home() {
        try {
          setLoading(true);
 
-         // Use the user's league memberships instead of public leagues
          const lid = user.memberships?.[0]?.leagueId;
          if (!lid) return;
 
-         const leagueRes = await fetchJsonApi<any>(`${API_BASE}/leagues/${lid}`);
+         // Parallel fetch: league detail + rosters + player stats
+         const [leagueRes, rostersRes, statsData] = await Promise.all([
+           fetchJsonApi<any>(`${API_BASE}/leagues/${lid}`),
+           fetchJsonApi<any>(`${API_BASE}/leagues/${lid}/rosters`),
+           getPlayerSeasonStats(),
+         ]);
+         if (!mounted) return;
+
          const teams = leagueRes.league?.teams || [];
          const uid = Number(user.id);
          const mine = teams.find((t: { ownerUserId?: number | null; ownerships?: Array<{ userId: number }> }) =>
            t.ownerUserId === uid || (t.ownerships || []).some((o) => o.userId === uid)
          );
 
-         if (mine && mounted) {
+         if (mine) {
             setMyTeam(mine);
-            const rostersRes = await fetchJsonApi<any>(`${API_BASE}/leagues/${lid}/rosters`);
             const myRoster = (rostersRes.rosters || []).filter((r: { teamId: number }) => r.teamId === mine.id);
-            if (mounted) setRoster(myRoster);
-
-            const statsData = await getPlayerSeasonStats(); 
-            if (mounted) setStats(statsData || []);
+            setRoster(myRoster);
+            setStats(statsData || []);
          }
 
        } catch (err) {
@@ -80,10 +83,11 @@ export default function Home() {
   }, [user]);
 
    const rosterWithStats = useMemo(() => {
-       return roster.map(r => {
-           const stat = stats.find(s => Number(s.mlb_id) === r.player.mlbId); 
-           return { ...r, stat };
-       });
+       const statsMap = new Map(stats.map(s => [Number(s.mlb_id), s]));
+       return roster.map(r => ({
+           ...r,
+           stat: statsMap.get(r.player.mlbId),
+       }));
    }, [roster, stats]);
 
   const hitters = rosterWithStats.filter(r => r.player.posPrimary !== 'P' && r.player.posPrimary !== 'RP' && r.player.posPrimary !== 'SP');

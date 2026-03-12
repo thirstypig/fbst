@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import PlayerExpandedRow from './PlayerExpandedRow';
 import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from "../../../components/ui/ThemedTable";
+import { getLastName } from '../../../lib/baseballUtils';
 
 import {
   PlayerSeasonStat,
@@ -87,9 +88,9 @@ export default function PlayerPoolTab({ players, teams = [], onNominate, onQueue
              valA = Number(a.value || a.dollar_value || 0);
              valB = Number(b.value || b.dollar_value || 0);
          } else if (sortKey === 'name') {
-             return sortDesc 
-                ? (b.player_name || '').localeCompare(a.player_name || '')
-                : (a.player_name || '').localeCompare(b.player_name || '');
+             return sortDesc
+                ? getLastName(b.player_name).localeCompare(getLastName(a.player_name))
+                : getLastName(a.player_name).localeCompare(getLastName(b.player_name));
          } else {
              valA = getStat(a, sortKey);
              valB = getStat(b, sortKey);
@@ -191,7 +192,8 @@ export default function PlayerPoolTab({ players, teams = [], onNominate, onQueue
             <ThemedThead className="sticky top-0 z-10 shadow-lg">
                 <ThemedTr>
                     <ThemedTh onClick={() => handleHeaderClick('name')}>Player</ThemedTh>
-                  
+                    <ThemedTh className="w-[90px]">Team</ThemedTh>
+
                     {viewGroup === 'hitters' ? (
                         <>
                              <ThemedTh align="center" onClick={() => handleHeaderClick('R')}>R</ThemedTh>
@@ -225,7 +227,7 @@ export default function PlayerPoolTab({ players, teams = [], onNominate, onQueue
                         <React.Fragment key={p.row_id}>
                             <ThemedTr 
                                 className={`cursor-pointer ${isExpanded ? 'bg-[var(--lg-tint)]' : ''} ${isTaken ? 'opacity-50' : ''}`}
-                                onClick={() => toggleExpand(p.row_id)}
+                                onClick={() => toggleExpand(p.row_id ?? '')}
                             >
                                 <ThemedTd className="py-3">
                                     <div className="font-semibold text-[var(--lg-text-primary)]">
@@ -245,7 +247,17 @@ export default function PlayerPoolTab({ players, teams = [], onNominate, onQueue
                                         )}
                                     </div>
                                 </ThemedTd>
-                                
+
+                                <ThemedTd>
+                                    {isTaken ? (
+                                        <span className="text-xs font-semibold text-[var(--lg-accent)]">
+                                            {owner?.name ?? p.ogba_team_code ?? "Owned"}
+                                        </span>
+                                    ) : (
+                                        <span className="text-xs text-[var(--lg-text-muted)] opacity-40">FA</span>
+                                    )}
+                                </ThemedTd>
+
                                 {viewGroup === 'hitters' ? (
                                     <>
                                         <ThemedTd align="center">{p.R || '-'}</ThemedTd>
@@ -294,7 +306,7 @@ export default function PlayerPoolTab({ players, teams = [], onNominate, onQueue
                                     onNominate={onNominate}
                                     onQueue={onQueue}
                                     isQueued={isQueued}
-                                    colSpan={8}
+                                    colSpan={9}
                                 />
                             )}
                         </React.Fragment>
