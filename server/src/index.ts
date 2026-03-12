@@ -70,7 +70,21 @@ async function main() {
     })
   );
 
-  app.use(helmet());
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "https://accounts.google.com", "https://apis.google.com"],
+          connectSrc: ["'self'", "https://*.supabase.co", "https://fbst-api.onrender.com", "https://statsapi.mlb.com"],
+          imgSrc: ["'self'", "data:", "https://*.googleusercontent.com"],
+          styleSrc: ["'self'", "'unsafe-inline'", "https:"],
+          fontSrc: ["'self'", "https:", "data:"],
+          frameSrc: ["'self'", "https://accounts.google.com"],
+        },
+      },
+    })
+  );
   app.use(cookieParser());
   app.use(express.json({ limit: "1mb" }));
   app.use(express.urlencoded({ limit: "1mb", extended: true }));
