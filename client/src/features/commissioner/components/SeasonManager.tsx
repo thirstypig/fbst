@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import {
   getSeasons,
   getCurrentSeason,
-  createSeason,
   transitionSeason,
   createPeriod,
   updatePeriod,
@@ -56,9 +55,6 @@ export default function SeasonManager({ leagueId }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Create season form
-  const [newYear, setNewYear] = useState(new Date().getFullYear());
-
   // Create new league/season form
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [allLeagues, setAllLeagues] = useState<LeagueListItem[]>([]);
@@ -96,19 +92,6 @@ export default function SeasonManager({ leagueId }: Props) {
   useEffect(() => {
     load();
   }, [leagueId]);
-
-  async function onCreateSeason() {
-    setBusy(true);
-    setError(null);
-    try {
-      await createSeason(leagueId, newYear);
-      await load();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to create season");
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function onTransition(seasonId: number, nextStatus: SeasonStatus) {
     const warning = TRANSITION_WARNINGS[nextStatus];
@@ -367,27 +350,7 @@ export default function SeasonManager({ leagueId }: Props) {
       ) : (
         <div className="rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] p-5 space-y-4">
           <h3 className="text-lg font-semibold text-[var(--lg-text-heading)]">No Active Season</h3>
-          <p className="text-sm text-[var(--lg-text-muted)]">Create a new season to start managing periods and rules locking.</p>
-          <div className="flex items-center gap-3">
-            <input
-              type="number"
-              min={2020}
-              max={2100}
-              className="w-24 rounded-lg border border-[var(--lg-border-subtle)] bg-[var(--lg-bg-surface)] px-3 py-2 text-sm text-[var(--lg-text-primary)] outline-none"
-              value={newYear}
-              onChange={(e) => setNewYear(Number(e.target.value))}
-            />
-            <button
-              onClick={onCreateSeason}
-              disabled={busy}
-              className={cls(
-                "rounded-lg bg-[var(--lg-accent)] px-4 py-2 text-sm font-semibold text-white",
-                busy && "opacity-60 cursor-not-allowed"
-              )}
-            >
-              Create Season
-            </button>
-          </div>
+          <p className="text-sm text-[var(--lg-text-muted)]">Create a new season below to get started.</p>
         </div>
       )}
 
@@ -410,15 +373,17 @@ export default function SeasonManager({ leagueId }: Props) {
       <div className="rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] p-5">
         <div className="flex items-center justify-between mb-4">
           <h4 className="text-sm font-semibold text-[var(--lg-text-heading)]">Create New Season</h4>
-          <button
-            onClick={() => setShowCreateForm(!showCreateForm)}
-            className="text-xs text-[var(--lg-accent)] hover:underline"
-          >
-            {showCreateForm ? "Cancel" : "+ New Season"}
-          </button>
+          {currentSeason && (
+            <button
+              onClick={() => setShowCreateForm(!showCreateForm)}
+              className="text-xs text-[var(--lg-accent)] hover:underline"
+            >
+              {showCreateForm ? "Cancel" : "+ New Season"}
+            </button>
+          )}
         </div>
 
-        {!showCreateForm ? (
+        {!showCreateForm && currentSeason ? (
           <p className="text-xs text-[var(--lg-text-muted)]">
             Create a new league season with fresh teams and settings. Optionally clone from an existing season.
           </p>

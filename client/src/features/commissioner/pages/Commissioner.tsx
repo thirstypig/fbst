@@ -167,12 +167,12 @@ export default function Commissioner() {
   const [inviteCodeLoading, setInviteCodeLoading] = useState(false);
 
   // Tabs
-  const [activeTab, setActiveTab] = useState<'overview' | 'season' | 'rosters' | 'trades' | 'keepers' | 'controls'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'season' | 'rosters' | 'trades' | 'keepers' | 'auction'>('overview');
 
   // Hash listener
   useEffect(() => {
      const hash = window.location.hash.replace('#', '');
-     if (['overview', 'rosters', 'trades', 'keepers', 'controls', 'settings'].includes(hash)) {
+     if (['overview', 'season', 'rosters', 'trades', 'keepers', 'auction'].includes(hash)) {
          setActiveTab(hash as any);
      }
   }, []);
@@ -480,7 +480,7 @@ export default function Commissioner() {
 
             {/* Navigation Tabs */}
             <div className="flex gap-2 border-b border-[var(--lg-border-subtle)] pb-4 mb-6 overflow-x-auto">
-                {['overview', 'season', 'rosters', 'trades', 'keepers', 'controls'].map((tab) => (
+                {['overview', 'season', 'rosters', 'trades', 'keepers', 'auction'].map((tab) => (
                     <button
                         key={tab}
                         onClick={() => {
@@ -862,8 +862,8 @@ export default function Commissioner() {
                 </div>
             )}
 
-             {/* Tab: Controls */}
-             {activeTab === 'controls' && (
+             {/* Tab: Auction */}
+             {activeTab === 'auction' && (
                 <div className="space-y-6">
                      <CommissionerControls leagueId={lid} />
                 </div>

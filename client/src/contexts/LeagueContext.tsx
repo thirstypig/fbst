@@ -40,6 +40,15 @@ export function LeagueProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
+  // Validate stored leagueId against actual leagues — fall back if invalid
+  useEffect(() => {
+    if (leagues.length > 0 && !leagues.some(l => l.id === leagueId)) {
+      const fallback = leagues[0].id;
+      setLeagueIdState(fallback);
+      localStorage.setItem(STORAGE_KEY, String(fallback));
+    }
+  }, [leagues, leagueId]);
+
   useEffect(() => {
     if (user) {
       getLeagues()
