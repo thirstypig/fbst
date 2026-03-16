@@ -4,6 +4,40 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
+## Session 2026-03-15 (Session 17) — Phase 3: Franchise Schema Refactor
+
+### Completed
+- **Franchise parent table** — Added `Franchise` and `FranchiseMembership` models to Prisma schema as org-level parent above `League`
+- **Two-phase migration** — Additive nullable `franchiseId` column → data migration → non-nullable constraint
+- **Data migration script** (`scripts/migrate-franchises.ts`) — Creates franchise per distinct League name, links leagues, deduplicates memberships
+- **Franchise fix script** (`scripts/fix-franchise-names.ts`) — Merges year-suffixed franchise names (e.g., "OGBA 2025" + "OGBA 2026" → "OGBA")
+- **Franchise routes** (`server/src/features/franchises/`) — GET list, GET detail, PATCH settings (3 endpoints)
+- **Franchise-aware auth** — `requireFranchiseCommissioner()` middleware in `server/src/middleware/auth.ts`
+- **CommissionerService** — `createLeague()` resolves/creates Franchise, links new leagues, creates FranchiseMembership for creator
+- **addMember() + addTeamOwner()** — Now upsert `FranchiseMembership` alongside `LeagueMembership`
+- **Keeper prep** — Prior season lookup uses `franchiseId` FK instead of string name match
+- **League routes** — Include `franchiseId` in response; invite code join creates both FranchiseMembership + LeagueMembership
+- **Auth /me** — Returns `franchiseMemberships` array in user response
+- **Client types** — Added `FranchiseSummary`, `FranchiseMembership`, `franchiseId` to `LeagueSummary`
+- **LeagueContext** — Groups seasons by `franchiseId` (with name fallback)
+- **AppShell** — Season switcher groups by `franchiseId`
+- **Security fixes (P1)** — Explicit `select` clauses exclude `inviteCode` from franchise responses; FK cascade fixed (SET NULL → RESTRICT on NOT NULL column)
+- **Performance (P2)** — Added `@@index([userId])` and `@@index([franchiseId])` on `FranchiseMembership`
+- **Documentation** — Updated CLAUDE.md (feature count, models, cross-feature deps, middleware)
+
+### Pending / Next Steps
+- Deploy and run data migration on production
+- Verify franchise grouping in UI with real data
+- Manual browser testing of season switcher, invite flow, commissioner settings
+
+### Test Results
+- Server: 22 files, 302 tests passing
+- Client: 4 files, 85 tests passing
+- Total: 387 tests, all green
+- TypeScript: server clean; client has 1 pre-existing error (adminDeleteLeague)
+
+---
+
 ## Session 2026-03-15 (Session 16) — Auction Production Hardening & E2E Testing
 
 ### Completed

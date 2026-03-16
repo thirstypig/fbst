@@ -184,11 +184,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   className="w-full h-9 px-3 rounded-lg bg-[var(--lg-tint)] border border-[var(--lg-border-subtle)] text-xs font-semibold text-[var(--lg-text-primary)] outline-none focus:border-[var(--lg-accent)] transition-all cursor-pointer"
                 >
                   {(() => {
+                    // Group by franchiseId when available, fall back to name
                     const grouped = new Map<string, LeagueListItem[]>();
                     for (const l of leagues) {
-                      const arr = grouped.get(l.name) ?? [];
+                      const key = l.franchiseId ? `fid:${l.franchiseId}` : `name:${l.name}`;
+                      const arr = grouped.get(key) ?? [];
                       arr.push(l);
-                      grouped.set(l.name, arr);
+                      grouped.set(key, arr);
                     }
                     // Sort seasons DESC within each group
                     for (const arr of grouped.values()) arr.sort((a, b) => b.season - a.season);
@@ -199,13 +201,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                         <option key={l.id} value={l.id}>{l.name} {l.season}</option>
                       ));
                     }
-                    return [...grouped.entries()].map(([name, items]) => (
-                      <optgroup key={name} label={name}>
-                        {items.map((l) => (
-                          <option key={l.id} value={l.id}>{l.season} Season</option>
-                        ))}
-                      </optgroup>
-                    ));
+                    return [...grouped.entries()].map(([key, items]) => {
+                      const label = items[0].name.replace(/\s+\d{4}$/, '');
+                      return (
+                        <optgroup key={key} label={label}>
+                          {items.map((l) => (
+                            <option key={l.id} value={l.id}>{l.season} Season</option>
+                          ))}
+                        </optgroup>
+                      );
+                    });
                   })()}
                 </select>
               </div>

@@ -157,6 +157,13 @@ describe("handleGetMe", () => {
           league: { id: 10, name: "Test League", season: 2025 },
         },
       ],
+      franchiseMemberships: [
+        {
+          franchiseId: 1,
+          role: "OWNER",
+          franchise: { id: 1, name: "Test League" },
+        },
+      ],
     };
     mockPrisma.user.findUnique.mockResolvedValue(dbUser);
 
@@ -173,6 +180,13 @@ describe("handleGetMe", () => {
             leagueId: true,
             role: true,
             league: { select: { id: true, name: true, season: true } },
+          },
+        },
+        franchiseMemberships: {
+          select: {
+            franchiseId: true,
+            role: true,
+            franchise: { select: { id: true, name: true } },
           },
         },
       },
@@ -193,6 +207,13 @@ describe("handleGetMe", () => {
             leagueId: 10,
             role: "OWNER",
             league: { id: 10, name: "Test League", season: 2025 },
+          },
+        ],
+        franchiseMemberships: [
+          {
+            franchiseId: 1,
+            role: "OWNER",
+            franchise: { id: 1, name: "Test League" },
           },
         ],
       },

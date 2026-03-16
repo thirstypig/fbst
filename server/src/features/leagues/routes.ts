@@ -32,7 +32,7 @@ router.get("/leagues", requireAuth, asyncHandler(async (req, res) => {
     select: {
       role: true,
       league: {
-        select: { id: true, name: true, season: true, draftMode: true, draftOrder: true, isPublic: true, publicSlug: true },
+        select: { id: true, name: true, season: true, draftMode: true, draftOrder: true, isPublic: true, publicSlug: true, franchiseId: true },
       },
     },
     orderBy: [{ league: { name: "asc" } }, { league: { season: "desc" } }],
@@ -45,7 +45,7 @@ router.get("/leagues", requireAuth, asyncHandler(async (req, res) => {
 
   const publicLeaguesRaw = await prisma.league.findMany({
     where: { isPublic: true },
-    select: { id: true, name: true, season: true, draftMode: true, draftOrder: true, isPublic: true, publicSlug: true },
+    select: { id: true, name: true, season: true, draftMode: true, draftOrder: true, isPublic: true, publicSlug: true, franchiseId: true },
     orderBy: [{ season: "desc" }, { name: "asc" }],
   });
 
@@ -271,86 +271,126 @@ const joinLeagueSchema = z.object({
 
 /**
  * POST /api/leagues/join
- * Join a league using an invite code.
+ * Join a franchise using an invite code. Also creates LeagueMembership
+ * for the latest season for backwards compatibility.
  */
 router.post("/leagues/join", requireAuth, validateBody(joinLeagueSchema), asyncHandler(async (req, res) => {
   const userId = Number(req.user!.id);
   const { inviteCode } = req.body;
 
-  const league = await prisma.league.findUnique({
+  // Look up invite code on Franchise first, then fall back to League for backwards compat
+  let franchiseId: number | null = null;
+  let latestLeague: { id: number; name: string; season: number } | null = null;
+
+  const franchise = await prisma.franchise.findUnique({
     where: { inviteCode },
-    select: { id: true, name: true, season: true },
+    select: { id: true, name: true },
   });
 
-  if (!league) {
+  if (franchise) {
+    franchiseId = franchise.id;
+    // Find the latest season in this franchise
+    latestLeague = await prisma.league.findFirst({
+      where: { franchiseId: franchise.id },
+      select: { id: true, name: true, season: true },
+      orderBy: { season: "desc" },
+    });
+  } else {
+    // Fallback: check League.inviteCode for backwards compat
+    const league = await prisma.league.findUnique({
+      where: { inviteCode },
+      select: { id: true, name: true, season: true, franchiseId: true },
+    });
+    if (league) {
+      franchiseId = league.franchiseId;
+      latestLeague = league;
+    }
+  }
+
+  if (!franchiseId || !latestLeague) {
     return res.status(404).json({ error: "Invalid invite code." });
   }
 
-  // Check if already a member
-  const existing = await prisma.leagueMembership.findUnique({
-    where: { leagueId_userId: { leagueId: league.id, userId } },
+  // Create FranchiseMembership
+  await prisma.franchiseMembership.upsert({
+    where: { franchiseId_userId: { franchiseId, userId } },
+    create: { franchiseId, userId, role: "OWNER" },
+    update: {},
   });
 
-  if (existing) {
-    return res.status(409).json({ error: "You are already a member of this league." });
-  }
-
-  await prisma.leagueMembership.create({
-    data: { leagueId: league.id, userId, role: "OWNER" },
+  // Create LeagueMembership for latest season (backwards compat)
+  await prisma.leagueMembership.upsert({
+    where: { leagueId_userId: { leagueId: latestLeague.id, userId } },
+    create: { leagueId: latestLeague.id, userId, role: "OWNER" },
+    update: {},
   });
 
   writeAuditLog({
     userId: req.user!.id,
     action: "LEAGUE_JOIN",
-    resourceType: "League",
-    metadata: { leagueId: league.id, inviteCode },
+    resourceType: "Franchise",
+    metadata: { franchiseId, leagueId: latestLeague.id, inviteCode },
   });
 
-  return res.json({ league });
+  return res.json({ league: latestLeague });
 }));
 
 /**
  * GET /api/leagues/:id/invite-code
- * Get the current invite code for a league (commissioner/admin only).
+ * Get the current invite code for a league (reads from franchise).
  */
 router.get("/leagues/:id/invite-code", requireAuth, requireCommissionerOrAdmin("id"), asyncHandler(async (req, res) => {
   const leagueId = Number(req.params.id);
 
   const league = await prisma.league.findUnique({
     where: { id: leagueId },
-    select: { inviteCode: true },
+    select: { inviteCode: true, franchise: { select: { inviteCode: true } } },
   });
 
   if (!league) return res.status(404).json({ error: "League not found" });
 
-  return res.json({ inviteCode: league.inviteCode });
+  // Prefer franchise-level invite code, fall back to league-level
+  const inviteCode = league.franchise?.inviteCode ?? league.inviteCode;
+  return res.json({ inviteCode });
 }));
 
 /**
  * POST /api/leagues/:id/invite-code/regenerate
- * Generate a new invite code (commissioner/admin only).
+ * Generate a new invite code (updates franchise).
  */
 router.post("/leagues/:id/invite-code/regenerate", requireAuth, requireCommissionerOrAdmin("id"), asyncHandler(async (req, res) => {
   const leagueId = Number(req.params.id);
 
+  const league = await prisma.league.findUnique({
+    where: { id: leagueId },
+    select: { franchiseId: true },
+  });
+  if (!league) return res.status(404).json({ error: "League not found" });
+
   const newCode = randomBytes(4).toString("hex").toUpperCase();
 
-  const league = await prisma.league.update({
+  // Update on franchise
+  await prisma.franchise.update({
+    where: { id: league.franchiseId },
+    data: { inviteCode: newCode },
+  });
+
+  // Also update on league for backwards compat
+  await prisma.league.update({
     where: { id: leagueId },
     data: { inviteCode: newCode },
-    select: { inviteCode: true },
   });
 
   writeAuditLog({
     userId: req.user!.id,
     action: "INVITE_CODE_REGENERATE",
-    resourceType: "League",
-    metadata: { leagueId },
+    resourceType: "Franchise",
+    metadata: { leagueId, franchiseId: league.franchiseId },
   });
 
-  logger.info({ leagueId }, "Invite code regenerated");
+  logger.info({ leagueId, franchiseId: league.franchiseId }, "Invite code regenerated");
 
-  return res.json({ inviteCode: league.inviteCode });
+  return res.json({ inviteCode: newCode });
 }));
 
 export const leaguesRouter = router;

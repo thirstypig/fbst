@@ -6,6 +6,13 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("🌱 Seeding OGBA league, teams, period, stats, and sample roster...");
 
+  // --- 0. Franchise ---
+  const franchise = await prisma.franchise.upsert({
+    where: { name: "OGBA" },
+    update: {},
+    create: { name: "OGBA" },
+  });
+
   // --- 1. League ---
   const league = await prisma.league.upsert({
     where: {
@@ -21,6 +28,7 @@ async function main() {
       season: 2025,
       draftMode: DraftMode.AUCTION,
       draftOrder: DraftOrder.SNAKE,
+      franchiseId: franchise.id,
     },
   });
 

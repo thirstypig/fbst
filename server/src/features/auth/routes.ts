@@ -36,6 +36,13 @@ export async function handleGetMe(req: Request, res: Response) {
           league: { select: { id: true, name: true, season: true } },
         },
       },
+      franchiseMemberships: {
+        select: {
+          franchiseId: true,
+          role: true,
+          franchise: { select: { id: true, name: true } },
+        },
+      },
     },
   });
 
@@ -54,6 +61,11 @@ export async function handleGetMe(req: Request, res: Response) {
       leagueId: m.leagueId,
       role: m.role,
       league: m.league ? { id: m.league.id, name: m.league.name, season: m.league.season } : undefined,
+    })),
+    franchiseMemberships: full.franchiseMemberships.map((m) => ({
+      franchiseId: m.franchiseId,
+      role: m.role,
+      franchise: m.franchise ? { id: m.franchise.id, name: m.franchise.name } : undefined,
     })),
   };
 

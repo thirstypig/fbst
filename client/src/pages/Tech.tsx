@@ -19,12 +19,12 @@ const stats = [
   { label: "Client (React/TS)", value: "19,910", icon: Monitor },
   { label: "Server (Node/TS)", value: "26,960", icon: Server },
   { label: "Test Coverage", value: "7,800+ lines", icon: TestTube },
-  { label: "Database Models", value: "27", icon: Database },
+  { label: "Database Models", value: "30", icon: Database },
   { label: "API Endpoints", value: "116", icon: Plug },
-  { label: "Feature Modules", value: "16", icon: Layers },
+  { label: "Feature Modules", value: "17", icon: Layers },
   { label: "Git Commits", value: "124", icon: GitCommit },
   { label: "Tests Passing", value: "387", icon: TestTube },
-  { label: "DB Schema Lines", value: "688", icon: Braces },
+  { label: "DB Schema Lines", value: "723", icon: Braces },
   { label: "DB Migrations", value: "9", icon: Database },
   { label: "Est. Tokens Used", value: "~60M+", icon: Bot },
 ];
@@ -199,7 +199,7 @@ export default function Tech() {
       {/* Feature Modules */}
       <div>
         <h2 className="text-lg font-semibold text-[var(--lg-text-primary)] mb-4">
-          16 Feature Modules
+          17 Feature Modules
         </h2>
         <p className="text-sm text-[var(--lg-text-secondary)] mb-3">
           The codebase is organized by domain — each module encapsulates its own
@@ -264,7 +264,7 @@ export default function Tech() {
           </div>
           <div className="flex gap-3">
             <span className="font-medium text-[var(--lg-text-primary)] w-24 shrink-0">Mar 2026</span>
-            <span className="text-[var(--lg-text-secondary)]">Season lifecycle, keeper prep, fielding stats, auction hardening (DB persistence, auto-finish, position limits), 387 tests</span>
+            <span className="text-[var(--lg-text-secondary)]">Season lifecycle, keeper prep, fielding stats, auction hardening (DB persistence, auto-finish, position limits), franchise schema refactor, 387 tests</span>
           </div>
         </div>
       </div>

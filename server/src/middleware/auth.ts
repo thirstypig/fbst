@@ -250,6 +250,33 @@ export function requireLeagueMember(leagueIdParam = "leagueId"): RequestHandler 
 }
 
 /**
+ * Middleware factory: requires the user to be a COMMISSIONER of the franchise
+ * (identified by `franchiseIdParam` in req.params) or a site admin.
+ * Must be placed after `requireAuth` in the middleware chain.
+ */
+export function requireFranchiseCommissioner(franchiseIdParam = "franchiseId"): RequestHandler {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const franchiseId = Number(req.params[franchiseIdParam]);
+    if (!Number.isFinite(franchiseId)) {
+      return res.status(400).json({ error: "Invalid franchiseId" });
+    }
+
+    if (req.user!.isAdmin) return next();
+
+    const m = await prisma.franchiseMembership.findUnique({
+      where: { franchiseId_userId: { franchiseId, userId: req.user!.id } },
+      select: { role: true },
+    });
+
+    if (!m || m.role !== "COMMISSIONER") {
+      return res.status(403).json({ error: "Franchise commissioner only" });
+    }
+
+    return next();
+  };
+}
+
+/**
  * Check if a user owns a team (via legacy ownerUserId or TeamOwnership table).
  * Admins bypass ownership checks.
  */

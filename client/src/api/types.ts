@@ -8,6 +8,19 @@ export interface JsonError {
 
 export type LeagueRole = "COMMISSIONER" | "OWNER";
 
+export type FranchiseSummary = {
+  id: number;
+  name: string;
+  isPublic: boolean;
+  publicSlug: string | null;
+};
+
+export type FranchiseMembership = {
+  franchiseId: number;
+  role: LeagueRole;
+  franchise?: FranchiseSummary;
+};
+
 export type LeagueSummary = {
   id: number;
   name: string;
@@ -16,6 +29,7 @@ export type LeagueSummary = {
   draftOrder: "SNAKE" | "LINEAR" | null;
   isPublic: boolean;
   publicSlug: string | null;
+  franchiseId: number;
 };
 
 export type LeagueMembership = {
@@ -34,6 +48,7 @@ export type AuthUser = {
   zelleHandle?: string | null;
   paypalHandle?: string | null;
   memberships: LeagueMembership[];
+  franchiseMemberships?: FranchiseMembership[];
 };
 
 export type AuthMeResponse = { user: AuthUser | null };
