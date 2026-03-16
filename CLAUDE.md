@@ -22,7 +22,7 @@ Fantasy baseball league management tool. Client/server monorepo organized by **f
 ### Shared
 - TypeScript across both client and server
 - Vitest (unit + integration tests)
-- 15 feature modules mirrored client/server
+- 17 feature modules mirrored client/server
 
 ### Infrastructure
 - PostgreSQL (Supabase)
@@ -61,7 +61,7 @@ fbst/
 
 The codebase is organized by **domain feature modules**. Each feature encapsulates its own routes, services, pages, components, and API client in a self-contained directory.
 
-### Current Feature Modules (16)
+### Current Feature Modules (17)
 
 | Module | Server | Client | Description |
 |--------|--------|--------|-------------|
@@ -77,6 +77,7 @@ The codebase is organized by **domain feature modules**. Each feature encapsulat
 | `auction` | routes, auctionImport | 2 pages, 10 components, 2 hooks | Live auction draft |
 | `keeper-prep` | routes, keeperPrepService | 1 page, 1 component, api | Keeper selection workflows |
 | `commissioner` | routes, CommissionerService | 1 page, 5 components | Commissioner admin tools |
+| `franchises` | routes | — | Franchise (org) CRUD, org-level settings |
 | `seasons` | routes, seasonService | api only | Season lifecycle (SETUP→DRAFT→IN_SEASON→COMPLETED) |
 | `admin` | routes | 1 page, 2 components | System admin panel (includes league creation + CSV import) |
 | `archive` | routes, 3 archive services | 1 page, api | Historical data import/export |
@@ -121,6 +122,8 @@ Some features import from other features' services or components.
 - `commissioner/routes.ts` imports `trades/routes.ts` for `tradeItemSchema`
 - `seasons/services/seasonService` imports `commissioner/services/CommissionerService` (lockRules)
 - `auction/routes.ts` imports `seasons/services/seasonService` (auto-transition on init)
+- `leagues/routes.ts` reads `franchise.inviteCode` for invite code endpoints
+- `commissioner/services/CommissionerService` creates/links `Franchise` rows on league creation
 
 **Client (component imports):**
 - `commissioner/pages/Commissioner` imports `keeper-prep/components/KeeperPrepDashboard`
@@ -145,7 +148,7 @@ Some features import from other features' services or components.
 When adding cross-feature imports, document them here to maintain visibility.
 
 ## Shared Infrastructure (do NOT move into features)
-- `server/src/middleware/auth.ts` — global auth (attachUser, requireAuth, requireAdmin, requireLeagueRole)
+- `server/src/middleware/auth.ts` — global auth (attachUser, requireAuth, requireAdmin, requireLeagueRole, requireFranchiseCommissioner)
 - `server/src/lib/` — supabase.ts, prisma.ts, logger.ts, mlbApi.ts, utils.ts, auditLog.ts
 - `server/src/db/prisma.ts` — Prisma singleton
 - `client/src/auth/AuthProvider.tsx` — global React auth context
@@ -179,7 +182,7 @@ When adding cross-feature imports, document them here to maintain visibility.
 ## Database
 - Schema at `prisma/schema.prisma`
 - Never run migrations without explicit confirmation
-- Key models: User, League, LeagueMembership, Team, Player, Roster, Period, TeamStatsPeriod, TeamStatsSeason, Trade, WaiverClaim, AuctionLot, AuctionBid, TransactionEvent, HistoricalSeason, HistoricalStanding, HistoricalPlayerStat
+- Key models: Franchise, FranchiseMembership, User, League, LeagueMembership, Team, Player, Roster, Period, TeamStatsPeriod, TeamStatsSeason, Trade, WaiverClaim, AuctionLot, AuctionBid, TransactionEvent, HistoricalSeason, HistoricalStanding, HistoricalPlayerStat
 
 ## Development
 

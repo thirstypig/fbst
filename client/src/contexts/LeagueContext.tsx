@@ -11,6 +11,7 @@ interface LeagueContextType {
   outfieldMode: string;
   currentLeagueName: string;
   currentSeason: number;
+  currentFranchiseId: number;
   leagueSeasons: LeagueListItem[];
 }
 
@@ -65,10 +66,14 @@ export function LeagueProvider({ children }: { children: React.ReactNode }) {
   const currentLeague = leagues.find(l => l.id === leagueId);
   const currentLeagueName = currentLeague?.name ?? "";
   const currentSeason = currentLeague?.season ?? 0;
-  const leagueSeasons = leagues.filter(l => l.name === currentLeagueName);
+  const currentFranchiseId = currentLeague?.franchiseId ?? 0;
+  // Group by franchiseId when available, fall back to name matching
+  const leagueSeasons = currentFranchiseId
+    ? leagues.filter(l => l.franchiseId === currentFranchiseId)
+    : leagues.filter(l => l.name === currentLeagueName);
 
   return (
-    <LeagueContext.Provider value={{ leagueId, setLeagueId, leagues, outfieldMode, currentLeagueName, currentSeason, leagueSeasons }}>
+    <LeagueContext.Provider value={{ leagueId, setLeagueId, leagues, outfieldMode, currentLeagueName, currentSeason, currentFranchiseId, leagueSeasons }}>
       {children}
     </LeagueContext.Provider>
   );

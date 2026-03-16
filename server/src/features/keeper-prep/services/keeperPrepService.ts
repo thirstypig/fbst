@@ -84,11 +84,11 @@ export class KeeperPrepService {
     const currentLeague = await prisma.league.findUnique({ where: { id: leagueId } });
     if (!currentLeague) throw new Error("League not found.");
 
-    // 2. Find prior-season league (same name, season - 1)
+    // 2. Find prior-season league (same franchise, season - 1)
     const priorLeague = await prisma.league.findFirst({
-      where: { name: currentLeague.name, season: currentLeague.season - 1 },
+      where: { franchiseId: currentLeague.franchiseId, season: currentLeague.season - 1 },
     });
-    if (!priorLeague) throw new Error(`No prior season found for "${currentLeague.name}" season ${currentLeague.season - 1}.`);
+    if (!priorLeague) throw new Error(`No prior season found for franchise ${currentLeague.franchiseId} season ${currentLeague.season - 1}.`);
 
     // 3. Get current-season teams
     const teams = await prisma.team.findMany({ where: { leagueId } });

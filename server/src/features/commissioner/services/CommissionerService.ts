@@ -39,7 +39,37 @@ export class CommissionerService {
     const baseSlug = slugify(publicSlugInput || `${name}-${season}`);
     const publicSlug = isPublic ? baseSlug : null;
 
-    // 1. Create League
+    // 1. Resolve or create Franchise
+    let franchiseId: number;
+    if (copyFromLeagueId && copyFromLeagueId > 0) {
+      // Reuse the source league's franchise
+      const source = await prisma.league.findUnique({
+        where: { id: copyFromLeagueId },
+        select: { franchiseId: true },
+      });
+      if (source) {
+        franchiseId = source.franchiseId;
+      } else {
+        // Source not found — create new franchise
+        const franchise = await prisma.franchise.create({
+          data: { name, isPublic },
+        });
+        franchiseId = franchise.id;
+      }
+    } else {
+      // Check if franchise with this name exists, otherwise create
+      const existing = await prisma.franchise.findUnique({ where: { name } });
+      if (existing) {
+        franchiseId = existing.id;
+      } else {
+        const franchise = await prisma.franchise.create({
+          data: { name, isPublic },
+        });
+        franchiseId = franchise.id;
+      }
+    }
+
+    // 2. Create League with franchise link
     const league = await prisma.league.create({
       data: {
         name,
@@ -48,10 +78,11 @@ export class CommissionerService {
         draftOrder: draftOrder || undefined,
         isPublic,
         publicSlug: publicSlug || undefined,
+        franchiseId,
       },
     });
 
-    // 2. Add Creator as Commissioner
+    // 3. Add Creator as Commissioner (league-level for backwards compat)
     await prisma.leagueMembership.upsert({
       where: {
         leagueId_userId: { leagueId: league.id, userId: creatorUserId },
@@ -66,7 +97,20 @@ export class CommissionerService {
       },
     });
 
-    // 3. Copy Data (if requested)
+    // 4. Ensure FranchiseMembership for creator
+    await prisma.franchiseMembership.upsert({
+      where: {
+        franchiseId_userId: { franchiseId, userId: creatorUserId },
+      },
+      create: {
+        franchiseId,
+        userId: creatorUserId,
+        role: "COMMISSIONER",
+      },
+      update: {},
+    });
+
+    // 5. Copy Data (if requested)
     if (copyFromLeagueId && copyFromLeagueId > 0) {
       await this.copyLeagueData(league.id, copyFromLeagueId, creatorUserId);
     }
@@ -170,6 +214,19 @@ export class CommissionerService {
     const league = await prisma.league.findUnique({ where: { id: leagueId } });
     if (!league) throw new Error("League not found");
 
+    // Ensure FranchiseMembership exists (don't downgrade existing role)
+    await prisma.franchiseMembership.upsert({
+      where: {
+        franchiseId_userId: { franchiseId: league.franchiseId, userId },
+      },
+      create: {
+        franchiseId: league.franchiseId,
+        userId,
+        role,
+      },
+      update: {},
+    });
+
     return await prisma.leagueMembership.upsert({
       where: { leagueId_userId: { leagueId, userId } },
       create: { leagueId, userId, role },
@@ -264,13 +321,31 @@ export class CommissionerService {
       throw new Error("User is already an owner of this team");
     }
 
-    // Ensure membership
+    // Ensure league membership
     await prisma.leagueMembership.upsert({
       where: { leagueId_userId: { leagueId, userId } },
       create: { leagueId, userId, role: "OWNER" },
-      update: {}, // don't downgrade/upgrade implicitly? Or ensure at least OWNER?
+      update: {},
     });
-    // Legacy code forced "OWNER". Let's stick to safe upsert.
+
+    // Ensure franchise membership
+    const league = await prisma.league.findUnique({
+      where: { id: leagueId },
+      select: { franchiseId: true },
+    });
+    if (league) {
+      await prisma.franchiseMembership.upsert({
+        where: {
+          franchiseId_userId: { franchiseId: league.franchiseId, userId },
+        },
+        create: {
+          franchiseId: league.franchiseId,
+          userId,
+          role: "OWNER",
+        },
+        update: {},
+      });
+    }
 
     await prisma.teamOwnership.create({
       data: { teamId, userId },

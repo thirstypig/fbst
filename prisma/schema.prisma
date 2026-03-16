@@ -68,6 +68,37 @@ enum SeasonStatus {
 //  Models
 // ======================
 
+model Franchise {
+  id                 Int       @id @default(autoincrement())
+  name               String    @unique
+  isPublic           Boolean   @default(false)
+  publicSlug         String?   @unique
+  inviteCode         String?   @unique
+  tradeReviewPolicy  String    @default("COMMISSIONER")
+  vetoThreshold      Int       @default(4)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  leagues      League[]
+  memberships  FranchiseMembership[]
+}
+
+model FranchiseMembership {
+  id           Int        @id @default(autoincrement())
+  franchiseId  Int
+  userId       Int
+  role         LeagueRole
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  franchise  Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([franchiseId, userId])
+  @@index([userId])
+  @@index([franchiseId])
+}
+
 model User {
   id           Int     @id @default(autoincrement())
   email        String  @unique
@@ -86,10 +117,11 @@ model User {
 
   isAdmin Boolean @default(false)
 
-  memberships    LeagueMembership[]
-  ownedTeams     Team[]             @relation("TeamOwner")
-  teamOwnerships TeamOwnership[]
-  auditLogs      AuditLog[]
+  memberships            LeagueMembership[]
+  franchiseMemberships   FranchiseMembership[]
+  ownedTeams             Team[]             @relation("TeamOwner")
+  teamOwnerships         TeamOwnership[]
+  auditLogs              AuditLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -110,6 +142,10 @@ model League {
   // Trade Settings
   tradeReviewPolicy String @default("COMMISSIONER") // COMMISSIONER, LEAGUE_VOTE
   vetoThreshold     Int    @default(4)
+
+  // Franchise FK (org-level parent)
+  franchiseId  Int
+  franchise    Franchise @relation(fields: [franchiseId], references: [id])
 
   teams             Team[]
   memberships       LeagueMembership[]
