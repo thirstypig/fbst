@@ -4,6 +4,64 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
+## Session 2026-03-16 (Session 19) — Season-Aware Feature Gating & Code Quality
+
+### Completed
+- **Season-Aware Feature Gating** (TD-F01–F06, complete):
+  - Added `seasonStatus` to `LeagueContext` (fetches current season on league change)
+  - Created `useSeasonGating()` hook — returns `canAuction`, `canTrade`, `canWaiver`, `canEditRules`, `canEditRosters`, `canKeepers`, `isReadOnly`, `phaseGuidance`
+  - Commissioner tab gating — disabled tabs with tooltips based on season status
+  - Phase guidance bar — color-coded status badge + actionable guidance text
+  - AppShell nav gating — Auction nav item hidden when not in DRAFT phase
+  - Server-side `requireSeasonStatus` middleware — auction nominate/bid (DRAFT), trade propose (IN_SEASON), waiver submit (IN_SEASON)
+- **Code quality fixes**:
+  - TD-Q08: Consolidated `playerDisplay.ts` → `sportConfig.ts` (moved `normalizePosition`, `getMlbTeamAbbr`, deleted dead `getGrandSlams`/`getShutouts`)
+  - TD-Q09: Removed orphaned period APIs from `leagues/api.ts`
+  - TD-Q10+Q11: Added `seasons/api` + `waivers/api` to barrel exports
+  - TD-Q04: Typed `isPitcher`, `normalizePosition`, `getMlbTeamAbbr` (removed `any`)
+  - TD-Q05+M05: Typed `LeagueTradeCard` trade prop as `TradeProposal`
+  - TD-I01: `adminDeleteLeague` type mismatch confirmed already resolved
+
+### Pending / Next Steps
+- TD-Q06: Type `archiveImportService.ts` (927 LOC, `any[]` for Excel data)
+- TD-Q01–Q03: Extract oversized route files into services
+- TD-Q07: Audit remaining 80+ files with `: any` annotations
+- TD-T01–T13: Test coverage for untested modules (8 server, 10 client)
+- TD-I02: asyncHandler coverage audit
+
+### Test Results
+- Server: 23 files, 312 tests passing
+- Client: 4 files, 85 tests passing
+- Total: 397 tests, all green
+- TypeScript: clean compile (both client and server)
+
+---
+
+## Session 2026-03-16 (Session 18) — Commissioner Tab Cleanup & Tech Debt Audit
+
+### Completed
+- **PR #33 — Commissioner tab cleanup**:
+  - Merged two redundant season creation forms into one unified flow on Season tab
+  - Removed duplicate period management from Controls tab (now only on Season tab)
+  - Renamed Controls tab → Auction (only auction timer + End Auction remain)
+  - Fixed stale leagueId validation in LeagueContext (auto-fallback when stored ID is invalid)
+  - Added `scripts/fix-memberships.ts` utility
+- **Tech debt audit** — comprehensive codebase analysis covering test coverage, type safety, code quality, and maintenance
+- **TODO.md created** — documented all tech debt items + Season-Aware Feature Gating feature design (lifecycle matrix, implementation plan with breadcrumb guidance)
+
+### Pending / Next Steps
+- Implement Season-Aware Feature Gating (TD-F01 through TD-F06) — see TODO.md
+- Test coverage for untested modules (8 server, 10 client)
+- Extract oversized route files into services (archive, commissioner, auction)
+
+### Test Results
+- Server: 22 files, 302 tests passing
+- Client: 4 files, 85 tests passing
+- Total: 387 tests, all green
+- TypeScript: clean compile
+
+---
+
 ## Session 2026-03-15 (Session 17) — Phase 3: Franchise Schema Refactor
 
 ### Completed

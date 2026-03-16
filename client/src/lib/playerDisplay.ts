@@ -1,40 +1,18 @@
 // client/src/lib/playerDisplay.ts
-// Re-export isPitcher from centralized sportConfig
-export { isPitcher } from "./sportConfig";
+// Thin re-export layer — canonical implementations live in sportConfig.ts.
+// Kept for backwards compatibility with existing imports.
 
-export function normalizePosition(pos: any): string {
-  const s = String(pos ?? "").trim();
-  if (!s) return "";
-  return s.toUpperCase();
-}
+export {
+  isPitcher,
+  normalizePosition,
+  getMlbTeamAbbr,
+} from "./sportConfig";
 
-export function formatAvg(v: any): string {
+import { fmtRate } from "./sportConfig";
+
+/** Format a batting average value, coercing to number. Alias for fmtRate with coercion. */
+export function formatAvg(v: string | number | null | undefined): string {
   const n = Number(v);
   if (!Number.isFinite(n)) return "";
-  const s = n.toFixed(3);
-  return s.startsWith("0") ? s.slice(1) : s;
-}
-
-export function getMlbTeamAbbr(row: any): string {
-  const v =
-    row?.mlb_team ??
-    row?.mlbTeam ??
-    row?.mlb_team_abbr ??
-    row?.mlbTeamAbbr ??
-    row?.team_mlb ??
-    row?.mlbTeamName ??
-    "";
-  return String(v ?? "").trim();
-}
-
-export function getGrandSlams(row: any): number | "" {
-  const v = row?.GS ?? row?.grandSlams ?? row?.grand_slams ?? row?.gslams ?? "";
-  const n = Number(v);
-  return Number.isFinite(n) ? n : "";
-}
-
-export function getShutouts(row: any): number | "" {
-  const v = row?.SO ?? row?.SHO ?? row?.shutouts ?? row?.shut_outs ?? "";
-  const n = Number(v);
-  return Number.isFinite(n) ? n : "";
+  return fmtRate(n);
 }

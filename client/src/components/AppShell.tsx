@@ -6,6 +6,7 @@ import type { LeagueListItem } from "../api";
 import { useAuth } from "../auth/AuthProvider";
 import { useTheme } from "../contexts/ThemeContext";
 import { useLeague } from "../contexts/LeagueContext";
+import { useSeasonGating } from "../hooks/useSeasonGating";
 import { Logo } from "./ui/Logo";
 
 const SIDEBAR_MIN = 64;
@@ -28,6 +29,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const { theme, toggleTheme } = useTheme();
   const { user, loading, logout } = useAuth();
   const { leagueId, setLeagueId, leagues } = useLeague();
+  const gating = useSeasonGating();
 
   // Persisted sidebar width
   const [sidebarWidth, setSidebarWidth] = useState(() => {
@@ -121,7 +123,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       title: "Transactions",
       items: [
         { to: "/activity", label: "Activity", show: true },
-        { to: "/auction", label: "Auction", show: true },
+        { to: "/auction", label: "Auction", show: gating.canAuction },
       ],
     },
     {

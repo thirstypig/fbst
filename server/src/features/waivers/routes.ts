@@ -8,6 +8,7 @@ import { validateBody } from "../../middleware/validate.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { logger } from "../../lib/logger.js";
 import { writeAuditLog } from "../../lib/auditLog.js";
+import { requireSeasonStatus } from "../../middleware/seasonGuard.js";
 import { assertPlayerAvailable } from "../../lib/rosterGuard.js";
 
 export const waiverClaimSchema = z.object({
@@ -50,7 +51,7 @@ router.get("/", requireAuth, asyncHandler(async (req, res) => {
 }));
 
 // POST /api/waivers - Submit a claim
-router.post("/", requireAuth, validateBody(waiverClaimSchema), requireTeamOwner("teamId"), asyncHandler(async (req, res) => {
+router.post("/", requireAuth, validateBody(waiverClaimSchema), requireSeasonStatus(["IN_SEASON"], "body.teamId"), requireTeamOwner("teamId"), asyncHandler(async (req, res) => {
   const { teamId, playerId, dropPlayerId, bidAmount, priority } = req.body;
 
   const claim = await prisma.waiverClaim.create({

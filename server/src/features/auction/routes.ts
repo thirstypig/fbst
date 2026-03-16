@@ -6,6 +6,7 @@ import { requireAuth, requireAdmin, requireTeamOwner, requireLeagueMember } from
 import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { validateBody } from "../../middleware/validate.js";
 import { writeAuditLog } from "../../lib/auditLog.js";
+import { requireSeasonStatus } from "../../middleware/seasonGuard.js";
 import { assertPlayerAvailable } from "../../lib/rosterGuard.js";
 import { broadcastState } from "./services/auctionWsService.js";
 import { saveState, loadState, clearState } from "./services/auctionPersistence.js";
@@ -554,7 +555,7 @@ router.post("/init", requireAuth, requireAdmin, asyncHandler(async (req, res) =>
 }));
 
 // POST /api/auction/nominate
-router.post("/nominate", requireAuth, validateBody(nominateSchema), requireTeamOwner("nominatorTeamId"), asyncHandler(async (req, res) => {
+router.post("/nominate", requireAuth, validateBody(nominateSchema), requireSeasonStatus(["DRAFT"]), requireTeamOwner("nominatorTeamId"), asyncHandler(async (req, res) => {
   const leagueId = readLeagueId(req);
   if (!leagueId) return res.status(400).json({ error: "Missing leagueId" });
   const state = await getState(leagueId);
@@ -618,7 +619,7 @@ router.post("/nominate", requireAuth, validateBody(nominateSchema), requireTeamO
 }));
 
 // POST /api/auction/bid
-router.post("/bid", requireAuth, validateBody(bidSchema), requireTeamOwner("bidderTeamId"), asyncHandler(async (req, res) => {
+router.post("/bid", requireAuth, validateBody(bidSchema), requireSeasonStatus(["DRAFT"]), requireTeamOwner("bidderTeamId"), asyncHandler(async (req, res) => {
   const leagueId = readLeagueId(req);
   if (!leagueId) return res.status(400).json({ error: "Missing leagueId" });
   const state = await getState(leagueId);

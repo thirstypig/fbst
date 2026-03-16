@@ -149,6 +149,7 @@ When adding cross-feature imports, document them here to maintain visibility.
 
 ## Shared Infrastructure (do NOT move into features)
 - `server/src/middleware/auth.ts` — global auth (attachUser, requireAuth, requireAdmin, requireLeagueRole, requireFranchiseCommissioner)
+- `server/src/middleware/seasonGuard.ts` — `requireSeasonStatus(allowedStatuses, leagueIdSource)` — enforces season-phase constraints on write endpoints
 - `server/src/lib/` — supabase.ts, prisma.ts, logger.ts, mlbApi.ts, utils.ts, auditLog.ts
 - `server/src/db/prisma.ts` — Prisma singleton
 - `client/src/auth/AuthProvider.tsx` — global React auth context
@@ -158,8 +159,10 @@ When adding cross-feature imports, document them here to maintain visibility.
 - `client/src/components/AppShell.tsx` — app shell
 - `client/src/components/PlayerDetailModal.tsx` — shared player detail modal (used by teams, auction, players); includes fielding stats (games by position)
 - `client/src/components/StatsTables.tsx` — shared stats tables (used by standings, archive, periods)
-- `client/src/contexts/LeagueContext.tsx` — app-wide league context (leagueId, outfieldMode, leagues list)
-- `client/src/lib/sportConfig.ts` — baseball constants, position utilities, `isPitcher()`, `mapPosition()`, stat formatting
+- `client/src/contexts/LeagueContext.tsx` — app-wide league context (leagueId, outfieldMode, seasonStatus, leagues list)
+- `client/src/hooks/useSeasonGating.ts` — `useSeasonGating()` hook returning feature availability flags based on season status
+- `client/src/lib/sportConfig.ts` — baseball constants, position utilities, `isPitcher()`, `mapPosition()`, `normalizePosition()`, `getMlbTeamAbbr()`, stat formatting
+- `client/src/lib/playerDisplay.ts` — thin re-export layer over `sportConfig.ts` (kept for backwards compatibility)
 - `server/src/lib/sportConfig.ts` — server-side baseball constants, position config, default league rules
 
 ## Conventions
@@ -174,7 +177,8 @@ When adding cross-feature imports, document them here to maintain visibility.
 - Named exports preferred; default exports only for page components
 - **All write endpoints (POST, PATCH, DELETE) MUST use `requireAuth` middleware** — no exceptions
 - **Admin-only endpoints** (waiver processing, trade processing) use `requireAdmin`
-- **Middleware ordering**: `requireAuth → validateBody(schema) → requireTeamOwner/requireLeagueMember → asyncHandler(fn)`. Validation runs before authorization when auth reads from `req.body` (e.g., `requireTeamOwner("proposerTeamId")`), because body must be parsed first. For param-based auth (e.g., `requireCommissionerOrAdmin()`), auth runs before validation.
+- **Middleware ordering**: `requireAuth → validateBody(schema) → requireSeasonStatus([...]) → requireTeamOwner/requireLeagueMember → asyncHandler(fn)`. Validation runs before season guard and authorization because both read from `req.body`. Season guard placed after validation so leagueId/teamId are parsed. For param-based auth (e.g., `requireCommissionerOrAdmin()`), auth runs before validation.
+- **Season-gated endpoints** use `requireSeasonStatus(["DRAFT"])` or `requireSeasonStatus(["IN_SEASON"], "body.teamId")` — auction nominate/bid require DRAFT, trade propose and waiver submit require IN_SEASON
 - **Error responses MUST NOT leak internal details** — return `{ error: "Internal Server Error" }` for 500s; log details server-side via `logger`
 - **Required env vars** (`DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SESSION_SECRET`) validated at startup — server exits if missing
 - **Dev-only endpoints** gated behind explicit env vars (e.g., `ENABLE_DEV_LOGIN=true`), never `NODE_ENV` checks
@@ -255,9 +259,9 @@ server/src/__tests__/integration/
 - **DB tests**: Use a test database with Prisma migrations for integration tests (future)
 - **CI**: Run `npm run test` in CI pipeline before deploy
 
-### Current Test Coverage (302 server + 85 client = 387 tests)
+### Current Test Coverage (312 server + 85 client = 397 tests)
 
-**Server (302 tests):**
+**Server (312 tests):**
 - `server/src/lib/__tests__/utils.test.ts` — 36 tests (toNum, toBool, norm, normCode, parseCsv, splitCsvLine, chunk, parseIntParam)
 - `server/src/features/standings/__tests__/standingsService.test.ts` — 26 tests (buildTeamNameMap, CATEGORY_CONFIG, computeCategoryRows, computeStandingsFromStats, rankPoints)
 - `server/src/features/standings/__tests__/standings.integration.test.ts` — 7 tests (full pipeline: 4-team league scenario)
@@ -265,6 +269,7 @@ server/src/__tests__/integration/
 - `server/src/middleware/__tests__/authExtended.test.ts` — 27 tests (attachUser, requireLeagueRole, requireCommissionerOrAdmin, etc.)
 - `server/src/middleware/__tests__/asyncHandler.test.ts` — 4 tests
 - `server/src/middleware/__tests__/validate.test.ts` — 7 tests
+- `server/src/middleware/__tests__/seasonGuard.test.ts` — 10 tests (requireSeasonStatus: allowed/denied status, no season, team lookup, error forwarding)
 - `server/src/features/auth/__tests__/routes.test.ts` — 16 tests (handleAuthHealth, handleGetMe, handleDevLogin)
 - `server/src/features/auction/__tests__/routes.test.ts` — 23 tests (bid, finish, reset, init, position limits)
 - `server/src/features/auction/__tests__/auctionPersistence.test.ts` — 8 tests (save/load/clear round-trip)

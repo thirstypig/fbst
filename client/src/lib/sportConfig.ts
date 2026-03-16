@@ -45,7 +45,7 @@ export const OHTANI_MLB_ID = "660271";
  * Returns true if the given value represents a pitcher.
  * Accepts a position string, or an object with position/group/isPitcher fields.
  */
-export function isPitcher(v: any): boolean {
+export function isPitcher(v: string | Record<string, unknown> | null | undefined): boolean {
   if (typeof v === "string") {
     const s = v.trim().toUpperCase();
     return s === "P" || s === "SP" || s === "RP";
@@ -108,6 +108,33 @@ export function mapPosition(pos: string, outfieldMode: string = "OF"): string {
     return "OF";
   }
   return pos;
+}
+
+// ─── Position Normalization ───
+
+/**
+ * Normalizes a single position string to uppercase.
+ * For multi-position or semantic normalization, use getPrimaryPosition() instead.
+ */
+export function normalizePosition(pos: string | null | undefined): string {
+  const s = String(pos ?? "").trim();
+  if (!s) return "";
+  return s.toUpperCase();
+}
+
+// ─── Player Display Helpers ───
+
+/** Extract MLB team abbreviation from a player row with various field name conventions. */
+export function getMlbTeamAbbr(row: Record<string, unknown>): string {
+  const v =
+    row?.mlb_team ??
+    row?.mlbTeam ??
+    row?.mlb_team_abbr ??
+    row?.mlbTeamAbbr ??
+    row?.team_mlb ??
+    row?.mlbTeamName ??
+    "";
+  return String(v ?? "").trim();
 }
 
 // ─── Stat Formatting ───

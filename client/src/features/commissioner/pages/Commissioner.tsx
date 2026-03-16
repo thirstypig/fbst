@@ -22,6 +22,7 @@ import CommissionerTradeTool from "../components/CommissionerTradeTool";
 import KeeperPrepDashboard from "../../keeper-prep/components/KeeperPrepDashboard";
 import SeasonManager from "../components/SeasonManager";
 import PageHeader from "../../../components/ui/PageHeader";
+import { useSeasonGating } from "../../../hooks/useSeasonGating";
 
 // Local types for normalizeOverview (server response has more fields than the api.ts types)
 type CommissionerOverviewResponse = {
@@ -166,16 +167,32 @@ export default function Commissioner() {
   const [inviteCodeValue, setInviteCodeValue] = useState<string | null>(null);
   const [inviteCodeLoading, setInviteCodeLoading] = useState(false);
 
-  // Tabs
-  const [activeTab, setActiveTab] = useState<'overview' | 'season' | 'rosters' | 'trades' | 'keepers' | 'auction'>('overview');
+  // Season gating
+  const gating = useSeasonGating();
 
-  // Hash listener
+  // Tab definitions with season-aware gating
+  type TabKey = 'overview' | 'season' | 'rosters' | 'trades' | 'keepers' | 'auction';
+  const TABS: { key: TabKey; label: string; enabled: boolean; reason?: string }[] = [
+    { key: 'overview', label: 'Overview', enabled: true },
+    { key: 'season', label: 'Season', enabled: true },
+    { key: 'rosters', label: 'Rosters', enabled: !gating.isReadOnly, reason: 'Season is completed' },
+    { key: 'trades', label: 'Trades', enabled: gating.canTrade, reason: 'Trades are only available during In Season' },
+    { key: 'keepers', label: 'Keepers', enabled: gating.canKeepers, reason: 'Keepers are available during Setup and Draft' },
+    { key: 'auction', label: 'Auction', enabled: gating.canAuction, reason: 'Auction is only available during Draft' },
+  ];
+
+  // Tabs
+  const [activeTab, setActiveTab] = useState<TabKey>('overview');
+
+  // Hash listener — only navigate to enabled tabs
   useEffect(() => {
-     const hash = window.location.hash.replace('#', '');
-     if (['overview', 'season', 'rosters', 'trades', 'keepers', 'auction'].includes(hash)) {
-         setActiveTab(hash as any);
+     const hash = window.location.hash.replace('#', '') as TabKey;
+     const tab = TABS.find(t => t.key === hash);
+     if (tab?.enabled) {
+         setActiveTab(hash);
      }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gating.seasonStatus]);
 
   const leagueFromList = useMemo(() => (leagues ?? []).find((x) => x.id === lid) ?? null, [leagues, lid]);
 
@@ -478,24 +495,44 @@ export default function Commissioner() {
               </div>
             </div>
 
+            {/* Season Phase Guidance */}
+            <div className="rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] px-4 py-3 flex items-center gap-3">
+              <div className={cls(
+                "shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold",
+                gating.seasonStatus === "SETUP" && "bg-blue-500/15 text-blue-500",
+                gating.seasonStatus === "DRAFT" && "bg-amber-500/15 text-amber-500",
+                gating.seasonStatus === "IN_SEASON" && "bg-green-500/15 text-green-500",
+                gating.seasonStatus === "COMPLETED" && "bg-[var(--lg-text-muted)]/15 text-[var(--lg-text-muted)]",
+                !gating.seasonStatus && "bg-[var(--lg-text-muted)]/15 text-[var(--lg-text-muted)]",
+              )}>
+                {gating.seasonStatus?.replace("_", " ") ?? "No Season"}
+              </div>
+              <span className="text-sm text-[var(--lg-text-secondary)]">{gating.phaseGuidance}</span>
+            </div>
+
             {/* Navigation Tabs */}
             <div className="flex gap-2 border-b border-[var(--lg-border-subtle)] pb-4 mb-6 overflow-x-auto">
-                {['overview', 'season', 'rosters', 'trades', 'keepers', 'auction'].map((tab) => (
+                {TABS.map((tab) => (
                     <button
-                        key={tab}
+                        key={tab.key}
                         onClick={() => {
-                             // Simple hash routing or state? State is fine.
-                             window.history.replaceState(null, '', `#${tab}`);
-                             setActiveTab(tab as any);
+                             if (!tab.enabled) return;
+                             window.history.replaceState(null, '', `#${tab.key}`);
+                             setActiveTab(tab.key);
                         }}
                         className={cls(
-                            "px-4 py-2 text-sm font-semibold rounded-lg capitalize transition-colors",
-                            activeTab === tab
+                            "px-4 py-2 text-sm font-semibold rounded-lg transition-colors",
+                            !tab.enabled && "opacity-40 cursor-not-allowed",
+                            activeTab === tab.key && tab.enabled
                                 ? "bg-[var(--lg-accent)] text-white"
-                                : "text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] hover:bg-[var(--lg-tint)]"
+                                : tab.enabled
+                                  ? "text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] hover:bg-[var(--lg-tint)]"
+                                  : "text-[var(--lg-text-muted)]"
                         )}
+                        title={tab.enabled ? undefined : tab.reason}
+                        disabled={!tab.enabled}
                     >
-                        {tab}
+                        {tab.label}
                     </button>
                 ))}
             </div>

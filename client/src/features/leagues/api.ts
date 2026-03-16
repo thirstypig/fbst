@@ -5,7 +5,6 @@ import {
   LeagueDetail,
   AdminCreateLeagueInput,
   AdminCreateLeagueResponse,
-  PeriodDef,
   LeagueRule
 } from '../../api/types';
 
@@ -28,20 +27,6 @@ export async function adminDeleteLeague(leagueId: number): Promise<{ success: bo
   return fetchJsonApi(`${API_BASE}/admin/league/${leagueId}`, { method: "DELETE" });
 }
 
-export async function getPeriods(): Promise<{ periods: PeriodDef[] }> {
-  return fetchJsonApi<{ periods: PeriodDef[] }>(`${API_BASE}/commissioner/periods/list`);
-}
-
-export async function savePeriod(p: Partial<PeriodDef>): Promise<{ period: PeriodDef }> {
-  return fetchJsonApi(`${API_BASE}/commissioner/periods`, {
-    method: "POST",
-    body: JSON.stringify(p),
-  });
-}
-
-export async function deletePeriod(id: number): Promise<{ success: boolean }> {
-  return fetchJsonApi(`${API_BASE}/commissioner/periods/${id}`, { method: "DELETE" });
-}
 
 export async function getLeagueRules(leagueId: number): Promise<{ rules: LeagueRule[] }> {
     return fetchJsonApi(`${API_BASE}/commissioner/${leagueId}/rules`);

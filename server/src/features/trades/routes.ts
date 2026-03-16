@@ -7,6 +7,7 @@ import { writeAuditLog } from "../../lib/auditLog.js";
 import { assertPlayerAvailable } from "../../lib/rosterGuard.js";
 import { validateBody } from "../../middleware/validate.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
+import { requireSeasonStatus } from "../../middleware/seasonGuard.js";
 
 async function isCommissionerOfLeague(userId: number, leagueId: number): Promise<boolean> {
   const m = await prisma.leagueMembership.findUnique({
@@ -69,7 +70,7 @@ export const tradeProposalSchema = z.object({
 const router = Router();
 
 // POST /api/trades - Propose a new trade
-router.post("/", requireAuth, validateBody(tradeProposalSchema), requireTeamOwner("proposerTeamId"), asyncHandler(async (req, res) => {
+router.post("/", requireAuth, validateBody(tradeProposalSchema), requireSeasonStatus(["IN_SEASON"]), requireTeamOwner("proposerTeamId"), asyncHandler(async (req, res) => {
   const { leagueId, proposerTeamId, items } = req.body;
 
   // Verify proposerTeamId belongs to the specified league

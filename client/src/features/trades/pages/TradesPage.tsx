@@ -342,7 +342,7 @@ export function LeagueTradeCard({
   isAdmin,
   onViewContext,
 }: {
-  trade: any; // TODO: specify type if possible
+  trade: TradeProposal;
   onRefresh: () => void;
   currentUserId?: number;
   isAdmin?: boolean;

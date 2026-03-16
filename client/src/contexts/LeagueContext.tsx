@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { getLeagues } from '../api';
+import { getCurrentSeason, type SeasonStatus } from '../features/seasons/api';
 import { fetchJsonApi, API_BASE } from '../api/base';
 import { useAuth } from '../auth/AuthProvider';
 import type { LeagueListItem } from '../api/types';
@@ -13,6 +14,7 @@ interface LeagueContextType {
   currentSeason: number;
   currentFranchiseId: number;
   leagueSeasons: LeagueListItem[];
+  seasonStatus: SeasonStatus | null;
 }
 
 const LeagueContext = createContext<LeagueContextType | undefined>(undefined);
@@ -67,6 +69,15 @@ export function LeagueProvider({ children }: { children: React.ReactNode }) {
       .catch(() => setOutfieldMode("OF"));
   }, [user, leagueId]);
 
+  // Fetch current season status when league changes
+  const [seasonStatus, setSeasonStatus] = useState<SeasonStatus | null>(null);
+  useEffect(() => {
+    if (!user || !leagueId) return;
+    getCurrentSeason(leagueId)
+      .then((s) => setSeasonStatus(s?.status ?? null))
+      .catch(() => setSeasonStatus(null));
+  }, [user, leagueId]);
+
   const setLeagueId = (id: number) => {
     setLeagueIdState(id);
     localStorage.setItem(STORAGE_KEY, String(id));
@@ -82,7 +93,7 @@ export function LeagueProvider({ children }: { children: React.ReactNode }) {
     : leagues.filter(l => l.name === currentLeagueName);
 
   return (
-    <LeagueContext.Provider value={{ leagueId, setLeagueId, leagues, outfieldMode, currentLeagueName, currentSeason, currentFranchiseId, leagueSeasons }}>
+    <LeagueContext.Provider value={{ leagueId, setLeagueId, leagues, outfieldMode, currentLeagueName, currentSeason, currentFranchiseId, leagueSeasons, seasonStatus }}>
       {children}
     </LeagueContext.Provider>
   );

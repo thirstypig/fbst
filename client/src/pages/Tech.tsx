@@ -22,8 +22,8 @@ const stats = [
   { label: "Database Models", value: "30", icon: Database },
   { label: "API Endpoints", value: "116", icon: Plug },
   { label: "Feature Modules", value: "17", icon: Layers },
-  { label: "Git Commits", value: "124", icon: GitCommit },
-  { label: "Tests Passing", value: "387", icon: TestTube },
+  { label: "Git Commits", value: "138", icon: GitCommit },
+  { label: "Tests Passing", value: "397", icon: TestTube },
   { label: "DB Schema Lines", value: "723", icon: Braces },
   { label: "DB Migrations", value: "9", icon: Database },
   { label: "Est. Tokens Used", value: "~60M+", icon: Bot },
@@ -84,7 +84,7 @@ const techStack = [
       { name: "Vitest", desc: "Fast unit & integration test framework" },
       { name: "React Testing Library", desc: "Component testing" },
       { name: "ESLint", desc: "Code linting with TypeScript rules" },
-      { name: "387 tests", desc: "302 server + 85 client tests" },
+      { name: "397 tests", desc: "312 server + 85 client tests" },
     ],
   },
   {
@@ -264,14 +264,14 @@ export default function Tech() {
           </div>
           <div className="flex gap-3">
             <span className="font-medium text-[var(--lg-text-primary)] w-24 shrink-0">Mar 2026</span>
-            <span className="text-[var(--lg-text-secondary)]">Season lifecycle, keeper prep, fielding stats, auction hardening (DB persistence, auto-finish, position limits), franchise schema refactor, 387 tests</span>
+            <span className="text-[var(--lg-text-secondary)]">Season lifecycle, keeper prep, fielding stats, auction hardening, franchise schema refactor, season-aware feature gating, 397 tests</span>
           </div>
         </div>
       </div>
 
       {/* Footer note */}
       <p className="text-xs text-[var(--lg-text-muted)] text-center pb-4">
-        Built with Claude Code — estimated 60M+ tokens across 16 sessions
+        Built with Claude Code — estimated 65M+ tokens across 19 sessions
       </p>
     </div>
   );
