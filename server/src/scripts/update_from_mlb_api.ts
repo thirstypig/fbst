@@ -15,10 +15,11 @@
 
 import 'dotenv/config';
 import { prisma } from '../db/prisma';
+import { parseYear } from './lib/cli';
 
 const MLB_API_BASE = 'https://statsapi.mlb.com/api/v1';
 
-interface MLBPlayerInfo {
+interface MlbPlayerInfo {
   id: number;
   fullName: string;
   primaryPosition?: { abbreviation: string };
@@ -27,7 +28,7 @@ interface MLBPlayerInfo {
 
 // ── API ────────────────────────────────────────────────────────────────────
 
-async function fetchMLBPlayerInfo(mlbId: number): Promise<MLBPlayerInfo | null> {
+async function fetchMlbPlayerInfo(mlbId: number): Promise<MlbPlayerInfo | null> {
   try {
     const url = `${MLB_API_BASE}/people/${mlbId}`;
     const response = await fetch(url);
@@ -48,7 +49,7 @@ interface UpdateOptions {
   year: number | null;
 }
 
-async function updateFromMLB(options: UpdateOptions) {
+async function updateFromMlb(options: UpdateOptions) {
   const { names, positions, teams, year } = options;
   const fieldsLabel = [names && 'names', positions && 'positions', teams && 'teams']
     .filter(Boolean)
@@ -78,7 +79,7 @@ async function updateFromMLB(options: UpdateOptions) {
   console.log(`  Found ${statsToFetch.length} unique MLB IDs to look up\n`);
 
   // Fetch info for each MLB ID
-  const infoMap = new Map<string, MLBPlayerInfo>();
+  const infoMap = new Map<string, MlbPlayerInfo>();
   let fetched = 0;
   let failed = 0;
 
@@ -88,7 +89,7 @@ async function updateFromMLB(options: UpdateOptions) {
 
     if (i > 0) await new Promise((r) => setTimeout(r, 50));
 
-    const info = await fetchMLBPlayerInfo(mlbId);
+    const info = await fetchMlbPlayerInfo(mlbId);
     if (info) {
       infoMap.set(stat.mlbId!, info);
       fetched++;
@@ -138,17 +139,6 @@ async function updateFromMLB(options: UpdateOptions) {
 
 // ── CLI ────────────────────────────────────────────────────────────────────
 
-function parseYear(): number | null {
-  const idx = process.argv.indexOf('--year');
-  if (idx === -1) return null;
-  const val = parseInt(process.argv[idx + 1]);
-  if (!Number.isFinite(val)) {
-    console.error('Invalid --year value');
-    process.exit(1);
-  }
-  return val;
-}
-
 async function main() {
   const hasNames = process.argv.includes('--names');
   const hasPositions = process.argv.includes('--positions');
@@ -158,7 +148,7 @@ async function main() {
   // If no specific flags, update all fields
   const updateAll = !hasNames && !hasPositions && !hasTeams;
 
-  await updateFromMLB({
+  await updateFromMlb({
     names: updateAll || hasNames,
     positions: updateAll || hasPositions,
     teams: updateAll || hasTeams,

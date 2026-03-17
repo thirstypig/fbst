@@ -14,6 +14,7 @@
 
 import 'dotenv/config';
 import { prisma } from '../db/prisma';
+import { parseYear } from './lib/cli';
 
 const MLB_API_BASE = 'https://statsapi.mlb.com/api/v1';
 
@@ -168,19 +169,8 @@ async function fetchTeamsForYear(year: number, overwrite: boolean) {
 
 // ── CLI ────────────────────────────────────────────────────────────────────
 
-function parseYear(): number {
-  const idx = process.argv.indexOf('--year');
-  if (idx === -1) return 2025;
-  const val = parseInt(process.argv[idx + 1]);
-  if (!Number.isFinite(val)) {
-    console.error('Invalid --year value');
-    process.exit(1);
-  }
-  return val;
-}
-
 async function main() {
-  const year = parseYear();
+  const year = parseYear(2025);
   const overwrite = process.argv.includes('--overwrite');
 
   const total = await fetchTeamsForYear(year, overwrite);

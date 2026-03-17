@@ -672,26 +672,30 @@ export class CommissionerService {
     });
     const leagueSeason = currentLeague?.season ?? new Date().getFullYear();
 
-    let count = 0;
-    for (const r of activeRosters) {
-      await prisma.rosterEntry.create({
-        data: {
-          year: leagueSeason,
-          teamCode: r.team.code || r.team.name.substring(0, 3).toUpperCase(),
-          playerName: r.player.name,
-          position: r.player.posPrimary,
-          mlbTeam: null,
-          acquisitionCost: r.price,
-        },
-      });
-      count++;
-    }
+    const count = await prisma.$transaction(async (tx) => {
+      let created = 0;
+      for (const r of activeRosters) {
+        await tx.rosterEntry.create({
+          data: {
+            year: leagueSeason,
+            teamCode: r.team.code || r.team.name.substring(0, 3).toUpperCase(),
+            playerName: r.player.name,
+            position: r.player.posPrimary,
+            mlbTeam: null,
+            acquisitionCost: r.price,
+          },
+        });
+        created++;
+      }
 
-    await prisma.leagueRule.upsert({
-      where: { leagueId_category_key: { leagueId, category: "status", key: "auction_complete" } },
-      create: { leagueId, category: "status", key: "auction_complete", value: "true", label: "Auction Complete" },
-      update: { value: "true" },
-    });
+      await tx.leagueRule.upsert({
+        where: { leagueId_category_key: { leagueId, category: "status", key: "auction_complete" } },
+        create: { leagueId, category: "status", key: "auction_complete", value: "true", label: "Auction Complete" },
+        update: { value: "true" },
+      });
+
+      return created;
+    }, { timeout: 30_000 });
 
     return { snapshotted: count };
   }
@@ -739,11 +743,11 @@ export class CommissionerService {
               pickRound: item.pickRound ?? undefined,
             })),
           },
-        } as any,
+        } as any, // Prisma nested-create typing limitation: items.create not recognized in strict mode
         include: { items: true },
       });
 
-      for (const item of (trade as any).items) {
+      for (const item of (trade as any).items) { // Prisma nested-create typing limitation: items not typed on return
         if (item.assetType === "PLAYER" && item.playerId) {
           const rosterEntry = await tx.roster.findFirst({
             where: { teamId: item.senderId, playerId: item.playerId, releasedAt: null },
@@ -769,13 +773,25 @@ export class CommissionerService {
             });
           }
         } else if (item.assetType === "BUDGET") {
+          const transferAmount = item.amount || 0;
+          if (transferAmount > 0) {
+            const sender = await tx.team.findUnique({
+              where: { id: item.senderId },
+              select: { budget: true },
+            });
+            if (!sender || sender.budget < transferAmount) {
+              throw new Error(
+                `Insufficient budget: team ${item.senderId} has $${sender?.budget ?? 0} but trade requires $${transferAmount}`,
+              );
+            }
+          }
           await tx.team.update({
             where: { id: item.senderId },
-            data: { budget: { decrement: item.amount || 0 } },
+            data: { budget: { decrement: transferAmount } },
           });
           await tx.team.update({
             where: { id: item.recipientId },
-            data: { budget: { increment: item.amount || 0 } },
+            data: { budget: { increment: transferAmount } },
           });
         }
       }

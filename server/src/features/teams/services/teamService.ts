@@ -111,7 +111,7 @@ export class TeamService {
     let runningTotal = 0;
     const periodSummaries = periodRows.map((row) => {
       // row contains id, teamId, periodId, and *some* points-like field
-      const periodPoints = TeamService.calculatePoints(row as unknown as Record<string, unknown>);
+      const periodPoints = TeamService.calculatePoints({ ...row } as Record<string, unknown>);
       runningTotal += periodPoints;
 
       const p = row.period;
@@ -136,7 +136,7 @@ export class TeamService {
       };
     });
 
-    const seasonTotal = TeamService.calculatePoints(seasonStats) ||
+    const seasonTotal = TeamService.calculatePoints(seasonStats ? { ...seasonStats } as Record<string, unknown> : null) ||
       (periodSummaries.length
         ? periodSummaries[periodSummaries.length - 1].seasonPoints
         : 0);

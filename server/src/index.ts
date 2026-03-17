@@ -226,8 +226,9 @@ async function main() {
   });
 
   // --- 4. Global Error Handler ---
-  app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    logger.error({ error: String(err?.message), path: req.path }, "Unhandled error");
+  app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error({ error: message, path: req.path }, "Unhandled error");
     res.status(500).json({ error: "Internal Server Error" });
   });
 

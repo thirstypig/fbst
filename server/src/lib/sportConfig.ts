@@ -79,6 +79,19 @@ export const DEFAULT_RULES = [
   { category: "payouts", key: "payout_8th", value: "0", label: "8th Place (%)" },
 ] as const;
 
+// ─── Opening Day Dates ───
+
+/** Opening day dates by year — used for MLB API team lookups. */
+export const OPENING_DAYS: Record<number, string> = {
+  2008: '2008-03-25', 2009: '2009-04-05', 2010: '2010-04-04',
+  2011: '2011-03-31', 2012: '2012-03-28', 2013: '2013-03-31',
+  2014: '2014-03-22', 2015: '2015-04-05', 2016: '2016-04-03',
+  2017: '2017-04-02', 2018: '2018-03-29', 2019: '2019-03-20',
+  2020: '2020-07-23', 2021: '2021-04-01', 2022: '2022-04-07',
+  2023: '2023-03-30', 2024: '2024-03-20', 2025: '2025-03-18',
+  2026: '2026-03-25',
+};
+
 // ─── Pitcher Detection ───
 
 export function isPitcher(pos: string): boolean {

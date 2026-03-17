@@ -21,16 +21,32 @@ export default function MermaidDiagram({ chart }: Props) {
       startOnLoad: false,
       theme: theme === "dark" ? "dark" : "default",
       er: { useMaxWidth: true },
-      securityLevel: "loose",
+      securityLevel: "strict",
     });
+
+    let cancelled = false;
 
     // Clear previous render
     el.innerHTML = "";
 
     const id = idRef.current + "-" + Date.now();
-    mermaid.render(id, chart).then(({ svg }) => {
-      el.innerHTML = svg;
-    });
+    mermaid
+      .render(id, chart)
+      .then(({ svg }) => {
+        if (!cancelled) {
+          el.innerHTML = svg;
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error("Mermaid render failed:", err);
+          el.textContent = "Unable to render diagram.";
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [chart, theme]);
 
   return (

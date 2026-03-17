@@ -1,5 +1,6 @@
 import { prisma } from '../../../db/prisma.js';
 import { logger } from '../../../lib/logger.js';
+import { OPENING_DAYS } from '../../../lib/sportConfig.js';
 
 /** Shape of a player returned from the MLB Stats API people/search endpoint. */
 export interface MlbSearchPerson {
@@ -17,16 +18,6 @@ export interface MlbSearchResponse {
 }
 
 export class ArchiveStatsService {
-  private OPENING_DAYS: Record<number, string> = {
-    2008: '2008-03-25', 2009: '2009-04-05', 2010: '2010-04-04',
-    2011: '2011-03-31', 2012: '2012-03-28', 2013: '2013-03-31',
-    2014: '2014-03-22', 2015: '2015-04-05', 2016: '2016-04-03',
-    2017: '2017-04-02', 2018: '2018-03-29', 2019: '2019-03-20',
-    2020: '2020-07-23', 2021: '2021-04-01', 2022: '2022-04-07',
-    2023: '2023-03-30', 2024: '2024-03-20', 2025: '2025-03-18',
-    2026: '2026-03-25',
-  };
-
   async lookupMlbId(name: string): Promise<string | null> {
     try {
       const response = await fetch(`https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(name)}`);
@@ -86,7 +77,7 @@ export class ArchiveStatsService {
   async recalculateYear(year: number, tab?: string, periodNumber?: number, fetchStats = true): Promise<{ updated: number }> {
     await this.syncRosterEntries(year);
 
-    const openingDay = this.OPENING_DAYS[year] || `${year}-03-28`;
+    const openingDay = OPENING_DAYS[year] || `${year}-03-28`;
     
     // Load team abbreviations
     const teamsResponse = await fetch(`https://statsapi.mlb.com/api/v1/teams?sportId=1&season=${year}`);
@@ -323,18 +314,7 @@ export class ArchiveStatsService {
         };
       });
 
-      const categories = ['R', 'HR', 'RBI', 'SB', 'AVG', 'W', 'SV', 'K', 'ERA', 'WHIP'];
-      const teamScores: Record<string, number> = {};
-      teams.forEach(t => (teamScores[t.teamCode] = 0));
-
-      categories.forEach(cat => {
-        const sorted = [...teams].sort((a, b) => {
-          const valA = a[cat as keyof typeof a] as number;
-          const valB = b[cat as keyof typeof b] as number;
-          return cat === 'ERA' || cat === 'WHIP' ? valA - valB : valB - valA;
-        });
-        sorted.forEach((t, i) => { teamScores[t.teamCode] += teams.length - i; });
-      });
+      const teamScores = this.scoreByCategory(teams);
 
       results.push({
         periodNumber: period.periodNumber,
@@ -361,88 +341,7 @@ export class ArchiveStatsService {
 
     if (!period) throw new Error(`Period ${periodNumber} not found for ${year}`);
 
-    // Aggregate stats by team
-    const teamStats: Record<string, {
-        teamCode: string;
-        R: number; HR: number; RBI: number; SB: number;
-        total_h: number; total_ab: number;
-        W: number; SV: number; K: number;
-        total_er: number; total_ip: number; total_whip_comp: number;
-    }> = {};
-
-    for (const stat of period.stats) {
-        if (!teamStats[stat.teamCode]) {
-            teamStats[stat.teamCode] = {
-                teamCode: stat.teamCode,
-                R: 0, HR: 0, RBI: 0, SB: 0, total_h: 0, total_ab: 0,
-                W: 0, SV: 0, K: 0, total_er: 0, total_ip: 0, total_whip_comp: 0
-            };
-        }
-        const t = teamStats[stat.teamCode];
-        
-        // Hitting
-        t.R += (stat.R || 0);
-        t.HR += (stat.HR || 0);
-        t.RBI += (stat.RBI || 0);
-        t.SB += (stat.SB || 0);
-        t.total_h += (stat.H || 0);
-        t.total_ab += (stat.AB || 0);
-        
-        // Pitching
-        t.W += (stat.W || 0);
-        t.SV += (stat.SV || 0);
-        t.K += (stat.K || 0);
-        t.total_er += (stat.ER || 0);
-        t.total_ip += (stat.IP || 0);
-        t.total_whip_comp += ((stat.WHIP || 0) * (stat.IP || 0));
-    }
-
-    const teams = Object.values(teamStats).map(t => ({
-        teamCode: t.teamCode,
-        R: t.R,
-        HR: t.HR,
-        RBI: t.RBI,
-        SB: t.SB,
-        AVG: t.total_ab > 0 ? t.total_h / t.total_ab : 0,
-        W: t.W,
-        SV: t.SV,
-        K: t.K,
-        ERA: t.total_ip > 0 ? (t.total_er * 9) / t.total_ip : 0,
-        WHIP: t.total_ip > 0 ? t.total_whip_comp / t.total_ip : 0
-    }));
-
-    // Calculate Roto Scores (1 to N points)
-    const points: Record<string, number> = {};
-    teams.forEach(t => points[t.teamCode] = 0);
-
-    const categories = ['R', 'HR', 'RBI', 'SB', 'AVG', 'W', 'SV', 'K', 'ERA', 'WHIP'];
-    
-    categories.forEach(cat => {
-        // Sort teams for this category
-        const sorted = [...teams].sort((a: any, b: any) => {
-            if (cat === 'ERA' || cat === 'WHIP') {
-                // ASC is better
-                if (a[cat] === b[cat]) return 0;
-                return a[cat] - b[cat];
-            } else {
-                // DESC is better
-                if (a[cat] === b[cat]) return 0;
-                return b[cat] - a[cat];
-            }
-        });
-
-        // Assign points (simple 1..N rank)
-        sorted.forEach((t: any, i) => {
-             points[t.teamCode] += (teams.length - i);
-        });
-    });
-
-    // Format output
-    return teams.map(t => ({
-        ...t,
-        stats: { R: t.R, HR: t.HR, RBI: t.RBI, SB: t.SB, AVG: t.AVG, W: t.W, SV: t.SV, K: t.K, ERA: t.ERA, WHIP: t.WHIP },
-        totalScore: points[t.teamCode]
-    })).sort((a, b) => b.totalScore - a.totalScore);
+    return this.computeStandingsFromStats(period.stats);
   }
 
   /**
@@ -517,22 +416,36 @@ export class ArchiveStatsService {
       WHIP: t.total_ip > 0 ? t.total_whip_comp / t.total_ip : 0,
     }));
 
-    const points: Record<string, number> = {};
-    teams.forEach(t => points[t.teamCode] = 0);
-
-    const categories = ['R', 'HR', 'RBI', 'SB', 'AVG', 'W', 'SV', 'K', 'ERA', 'WHIP'];
-    categories.forEach(cat => {
-      const sorted = [...teams].sort((a: any, b: any) => {
-        if (cat === 'ERA' || cat === 'WHIP') return a[cat] - b[cat];
-        return b[cat] - a[cat];
-      });
-      sorted.forEach((t: any, i) => { points[t.teamCode] += (teams.length - i); });
-    });
+    const points = this.scoreByCategory(teams);
 
     return teams.map(t => ({
       ...t,
       stats: { R: t.R, HR: t.HR, RBI: t.RBI, SB: t.SB, AVG: t.AVG, W: t.W, SV: t.SV, K: t.K, ERA: t.ERA, WHIP: t.WHIP },
       totalScore: points[t.teamCode]
     })).sort((a, b) => b.totalScore - a.totalScore);
+  }
+
+  /**
+   * Assign roto points (1..N) across 10 categories for a list of team stat rows.
+   * Returns a map of teamCode → total points.
+   */
+  private scoreByCategory(
+    teams: { teamCode: string; R: number; HR: number; RBI: number; SB: number; AVG: number; W: number; SV: number; K: number; ERA: number; WHIP: number }[],
+  ): Record<string, number> {
+    type TeamRow = typeof teams[number];
+    const points: Record<string, number> = {};
+    teams.forEach(t => (points[t.teamCode] = 0));
+
+    const categories: (keyof TeamRow)[] = ['R', 'HR', 'RBI', 'SB', 'AVG', 'W', 'SV', 'K', 'ERA', 'WHIP'];
+    categories.forEach(cat => {
+      const sorted = [...teams].sort((a, b) => {
+        const valA = a[cat] as number;
+        const valB = b[cat] as number;
+        return cat === 'ERA' || cat === 'WHIP' ? valA - valB : valB - valA;
+      });
+      sorted.forEach((t, i) => { points[t.teamCode] += (teams.length - i); });
+    });
+
+    return points;
   }
 }
