@@ -30,12 +30,16 @@ export default function Payouts() {
         setSettlement(settlementData);
 
         // Normalize standings rows
-        const rows = (standingsData.rows || []).map((r: Record<string, unknown>) => {
+        const rows = (standingsData.rows || []).map((r) => {
           let totalPoints = toNum(r.totalPoints);
           if (!totalPoints && Array.isArray(r.periodPoints)) {
-            totalPoints = r.periodPoints.reduce((s: number, v: unknown) => s + toNum(v), 0);
+            totalPoints = (r.periodPoints as unknown[]).reduce((s: number, v: unknown) => s + toNum(v), 0);
           }
-          return { teamId: r.teamId as number, teamName: r.teamName as string, totalPoints };
+          return {
+            teamId: Number(r.teamId),
+            teamName: String(r.teamName ?? ""),
+            totalPoints,
+          };
         });
         setStandingsRows(rows);
       } catch (err: unknown) {

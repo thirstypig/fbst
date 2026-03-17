@@ -15,8 +15,10 @@
 
 import 'dotenv/config';
 import { prisma } from '../db/prisma';
+import { parseYear } from './lib/cli';
+import { OPENING_DAYS } from '../lib/sportConfig';
 
-interface MLBPerson {
+interface MlbPerson {
   id: number;
   fullName: string;
   firstName: string;
@@ -24,16 +26,6 @@ interface MLBPerson {
   primaryPosition?: { abbreviation: string };
   currentTeam?: { abbreviation: string };
 }
-
-// Opening day dates for team lookups
-const OPENING_DAYS: Record<number, string> = {
-  2008: '2008-03-25', 2009: '2009-04-05', 2010: '2010-04-04',
-  2011: '2011-03-31', 2012: '2012-03-28', 2013: '2013-03-31',
-  2014: '2014-03-22', 2015: '2015-04-05', 2016: '2016-04-03',
-  2017: '2017-04-02', 2018: '2018-03-29', 2019: '2019-03-20',
-  2020: '2020-07-23', 2021: '2021-04-01', 2022: '2022-04-07',
-  2023: '2023-03-30', 2024: '2024-03-20', 2025: '2025-03-18',
-};
 
 const PITCHER_CODES = new Set(['P', 'SP', 'RP', 'TWP']);
 
@@ -47,7 +39,7 @@ function parseAbbreviatedName(name: string): { firstInitial: string; lastName: s
 
 // ── API helpers ────────────────────────────────────────────────────────────
 
-async function searchMLBPlayer(lastName: string, season: number): Promise<MLBPerson[]> {
+async function searchMlbPlayer(lastName: string, season: number): Promise<MlbPerson[]> {
   try {
     const url = `https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(lastName)}&sportIds=1&seasons=${season}`;
     const response = await fetch(url);
@@ -59,7 +51,7 @@ async function searchMLBPlayer(lastName: string, season: number): Promise<MLBPer
   }
 }
 
-async function getMLBTeamOnDate(mlbId: string, date: string): Promise<string | null> {
+async function getMlbTeamOnDate(mlbId: string, date: string): Promise<string | null> {
   try {
     const url = `https://statsapi.mlb.com/api/v1/people/${mlbId}?hydrate=currentTeam&date=${date}`;
     const response = await fetch(url);
@@ -140,7 +132,7 @@ async function matchPlayersForYear(
 
       let candidates = nameCache.get(parsed.lastName);
       if (!candidates) {
-        candidates = await searchMLBPlayer(parsed.lastName, year);
+        candidates = await searchMlbPlayer(parsed.lastName, year);
         nameCache.set(parsed.lastName, candidates);
         await new Promise((r) => setTimeout(r, 50));
       }
@@ -174,7 +166,7 @@ async function matchPlayersForYear(
         // Optionally fetch team
         let mlbTeam: string | null = null;
         if (withTeams) {
-          mlbTeam = await getMLBTeamOnDate(mlbId, dateForTeam);
+          mlbTeam = await getMlbTeamOnDate(mlbId, dateForTeam);
           await new Promise((r) => setTimeout(r, 30));
           if (mlbTeam) totalTeamsUpdated++;
         }
@@ -228,17 +220,6 @@ async function matchPlayersForYear(
 }
 
 // ── CLI ────────────────────────────────────────────────────────────────────
-
-function parseYear(): number | null {
-  const idx = process.argv.indexOf('--year');
-  if (idx === -1) return null;
-  const val = parseInt(process.argv[idx + 1]);
-  if (!Number.isFinite(val)) {
-    console.error('Invalid --year value');
-    process.exit(1);
-  }
-  return val;
-}
 
 async function main() {
   const dryRun = process.argv.includes('--dry-run');

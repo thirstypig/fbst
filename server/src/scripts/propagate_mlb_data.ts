@@ -14,6 +14,7 @@
 
 import 'dotenv/config';
 import { prisma } from '../db/prisma';
+import { parseYear } from './lib/cli';
 
 // ── Core logic ─────────────────────────────────────────────────────────────
 
@@ -84,17 +85,6 @@ async function propagateForYear(year: number): Promise<{ updated: number; remain
 }
 
 // ── CLI ────────────────────────────────────────────────────────────────────
-
-function parseYear(): number | null {
-  const idx = process.argv.indexOf('--year');
-  if (idx === -1) return null;
-  const val = parseInt(process.argv[idx + 1]);
-  if (!Number.isFinite(val)) {
-    console.error('Invalid --year value');
-    process.exit(1);
-  }
-  return val;
-}
 
 async function main() {
   const targetYear = parseYear();

@@ -4,12 +4,13 @@
  * Replaces: export_archive_2025.ts (now parameterized by year)
  *
  * Usage:
- *   npx tsx src/scripts/export_archive.ts 2025       # export specific year
- *   npx tsx src/scripts/export_archive.ts             # export all years
+ *   npx tsx src/scripts/export_archive.ts --year 2025  # export specific year
+ *   npx tsx src/scripts/export_archive.ts               # export all years
  */
 
 import 'dotenv/config';
 import { prisma } from '../db/prisma';
+import { parseYear } from './lib/cli';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -120,15 +121,10 @@ async function exportYear(year: number) {
 // ── CLI ────────────────────────────────────────────────────────────────────
 
 async function main() {
-  const yearArg = process.argv[2];
+  const targetYear = parseYear();
 
-  if (yearArg) {
-    const year = parseInt(yearArg);
-    if (!Number.isFinite(year)) {
-      console.error('Usage: npx tsx src/scripts/export_archive.ts [year]');
-      process.exit(1);
-    }
-    await exportYear(year);
+  if (targetYear) {
+    await exportYear(targetYear);
   } else {
     // Export all years
     const seasons = await prisma.historicalSeason.findMany({

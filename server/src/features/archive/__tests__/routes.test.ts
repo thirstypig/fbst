@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Request, Response } from "express";
+import supertest from "supertest";
 
 // ── Mocks (hoisted) ──────────────────────────────────────────────
 
@@ -83,32 +84,7 @@ import fs from "fs";
 const mockPrisma = prisma as any;
 const mockFs = fs as any;
 
-// ── Helpers ──────────────────────────────────────────────────────
-
-function mockReq(overrides: Partial<Request> = {}): Request {
-  return {
-    params: {},
-    query: {},
-    body: {},
-    user: { id: 1, isAdmin: true },
-    ...overrides,
-  } as unknown as Request;
-}
-
-function mockRes(): Response {
-  const res: any = {};
-  res.status = vi.fn().mockReturnValue(res);
-  res.json = vi.fn().mockReturnValue(res);
-  return res as Response;
-}
-
-// We need to import the route handlers. Since they're anonymous on the router,
-// we'll use supertest-style approach by importing the router and using a
-// lightweight route matcher to extract handlers.
-
-// Alternative: import the router and test via supertest-like dispatch.
-// For this codebase, we follow the pattern of extracting handler logic.
-// Since archive routes are all anonymous, we'll test through the router.
+// ── Test app setup ───────────────────────────────────────────────
 
 import express from "express";
 import type { NextFunction } from "express";
@@ -127,16 +103,7 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({ error: "Internal Server Error" });
 });
 
-// Use a lightweight request helper
-async function request(method: string, url: string, body?: any) {
-  const req = mockReq({
-    params: {},
-    query: {},
-    body: body || {},
-  });
-
-  // Use the actual express app for integration-style route tests
-  const { default: supertest } = await import("supertest");
+function request(method: string, url: string, body?: any) {
   const agent = supertest(app);
 
   if (method === "GET") return agent.get(url);
