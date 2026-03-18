@@ -4,6 +4,32 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
+## Session 2026-03-18 (Session 24) — Live Data Integration, Auction Readiness
+
+### Completed
+- **Phase 1: Live standings** — Wired `standings/routes.ts` to use `computeTeamStatsFromDb` + `computeStandingsFromStats` instead of returning zeros (period, category, season endpoints)
+- **Phase 2: Admin stats sync** — `POST /api/admin/sync-stats` for on-demand sync (single period or all active)
+- **Phase 3: All-team player sync** — `syncAllPlayers()` syncs all 30 MLB teams with team-change detection; daily cron updated from NL-only
+- **Auction commissioner controls** — Pause/resume now allowed for commissioners (not just admins)
+- **NL/AL/All player pool filter** — 3-button toggle in auction PlayerPoolTab UI
+- **Team abbreviation updates** — ATH (Athletics 2026), AZ alias (Arizona) added to NL/AL sets
+- **Pre-season setup** — 4 test leagues with 8 teams each, 7 periods, keepers locked, budgets verified ($400 - keeper costs)
+- **Full auction E2E test** — Init, pause, resume, nominate, bid, finish, undo-finish, reset all verified on league 11
+- **20 new tests** — 11 standings routes, 7 mlbSyncService, 2 admin sync-stats
+
+### Pending / Next Steps
+- Sunday March 22 live auction — all infrastructure ready
+- Update Tech.tsx with session 24 notes and test count 664
+- Production deployment of live data changes
+- First real stats sync after March 25 season opener
+
+### Test Results
+- Server: 448 passing
+- Client: 187 passing
+- MCP: 29 passing
+
+---
+
 ## Session 2026-03-17 (Session 23) — Auth Phase 1, Email Invites, Member List Enhancement
 
 ### Completed
