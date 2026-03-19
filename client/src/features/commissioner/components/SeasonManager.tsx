@@ -442,12 +442,14 @@ export default function SeasonManager({ leagueId }: Props) {
               <div>
                 <label className="block text-xs text-[var(--lg-text-muted)] mb-1">League Name</label>
                 <input
-                  className="w-full rounded-lg border border-[var(--lg-border-subtle)] bg-[var(--lg-bg-surface)] px-3 py-2 text-sm text-[var(--lg-text-primary)] outline-none"
+                  className={`w-full rounded-lg border border-[var(--lg-border-subtle)] bg-[var(--lg-bg-surface)] px-3 py-2 text-sm text-[var(--lg-text-primary)] outline-none ${copyFromId ? "opacity-60 cursor-not-allowed" : ""}`}
                   value={newLeagueName}
-                  onChange={(e) => setNewLeagueName(e.target.value)}
+                  onChange={(e) => { if (!copyFromId) setNewLeagueName(e.target.value); }}
+                  readOnly={!!copyFromId}
                   placeholder="e.g. OGBA"
                   required
                 />
+                {copyFromId && <p className="mt-1 text-xs text-[var(--lg-text-muted)]">Inherited from source league.</p>}
               </div>
 
               <div>

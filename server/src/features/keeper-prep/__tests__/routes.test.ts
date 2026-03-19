@@ -46,7 +46,8 @@ vi.mock("../services/keeperPrepService.js", () => {
 });
 
 import { prisma } from "../../../db/prisma.js";
-import { __mockFns } from "../services/keeperPrepService.js";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- vi.mock injects __mockFns at runtime
+const { __mockFns } = await import("../services/keeperPrepService.js") as any;
 
 const mockPrisma = prisma as any;
 const mockService = __mockFns as any;

@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Install all dependencies
+      - run: npm ci
+      - run: cd server && npm ci
+      - run: cd client && npm ci
+
+      # TypeScript checks
+      - name: TypeScript (client)
+        run: cd client && npx tsc --noEmit
+      - name: TypeScript (server)
+        run: cd server && npx tsc --noEmit
+
+      # Tests
+      - name: Server tests
+        run: npm run test:server
+      - name: Client tests
+        run: npm run test:client
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: cd server && npm ci
+      - run: cd client && npm ci
+
+      # Block on critical vulnerabilities
+      - name: Audit root
+        run: npm audit --audit-level=critical
+      - name: Audit server
+        run: cd server && npm audit --audit-level=critical
+      - name: Audit client
+        run: cd client && npm audit --audit-level=critical
+
+  deploy:
+    needs: [test, audit]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "⚠️ RENDER_DEPLOY_HOOK_URL not set — skipping deploy"
+            echo "Set this secret in GitHub repo settings to enable auto-deploy"
+            exit 0
+          fi
+          curl -s -X POST "$RENDER_DEPLOY_HOOK_URL"
+          echo "Deploy triggered on Render"
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}

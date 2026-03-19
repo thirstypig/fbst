@@ -1,15 +1,21 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import * as XLSX from 'xlsx';
 import { prisma } from '../../../db/prisma.js';
 import { parse } from 'csv-parse/sync';
 
-// Fix for XLSX in ESM environments where readFile might be on .default or not exported correctly
-// @ts-ignore
-const readFile = XLSX.readFile || (XLSX as any).default?.readFile;
-// @ts-ignore
-const utils = XLSX.utils || (XLSX as any).default?.utils;
+// Lazy-load xlsx (2.3MB) — only imported when archive import is actually used
+let _xlsxModule: typeof import('xlsx') | null = null;
+let readFile: any = null;
+let utils: any = null;
+
+async function ensureXlsx() {
+  if (_xlsxModule) return;
+  _xlsxModule = await import('xlsx');
+  // Fix for XLSX in ESM environments where readFile might be on .default or not exported correctly
+  readFile = _xlsxModule.readFile || (_xlsxModule as any).default?.readFile;
+  utils = _xlsxModule.utils || (_xlsxModule as any).default?.utils;
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -121,6 +127,8 @@ export class ArchiveImportService {
     const log = (msg: string) => { console.log(msg); logs.push(msg); };
 
     try {
+      // Lazy-load xlsx on first use (2.3MB saved from startup)
+      await ensureXlsx();
       log(`Starting import for year ${this.year}...`);
       
       // Ensure directory exists
@@ -135,13 +143,13 @@ export class ArchiveImportService {
       log(`Found sheets: ${sheetNames.join(', ')}`);
 
       // 2. Identify Sheets
-      const draftSheet = sheetNames.find(s => s.toLowerCase().includes('draft'));
-      const standingsSheet = sheetNames.find(s => {
+      const draftSheet = sheetNames.find((s: string) => s.toLowerCase().includes('draft'));
+      const standingsSheet = sheetNames.find((s: string) => {
           const v = s.toLowerCase();
           return v.includes('standing') || v.includes('final stat') || v.includes('league stats') || v.includes('scoring') || v.includes('cumulative');
       });
-      
-      const potentialPeriodSheets = sheetNames.filter(s => {
+
+      const potentialPeriodSheets = sheetNames.filter((s: string) => {
           const v = s.toLowerCase();
           if (s === draftSheet || s === standingsSheet) return false;
           if (v.includes('transaction') || v.includes('info') || v.includes('salary') || v.includes('traded') || v.includes('keeper') || v.includes('traded')) return false;
@@ -158,7 +166,7 @@ export class ArchiveImportService {
       const openingDay = new Date(getOpeningDay(this.year));
       const seasonEnd = new Date(getSeasonEnd(this.year));
       
-      const parsedDateSheets = potentialPeriodSheets.map(name => {
+      const parsedDateSheets = potentialPeriodSheets.map((name: string) => {
         let date: Date | null = null;
         const normalized = name.toLowerCase().trim();
 
@@ -200,7 +208,7 @@ export class ArchiveImportService {
         
         log(`  [Date Parser] Skipping tab "${name}" (could not parse as date)`);
         return null;
-      }).filter(x => x !== null) as { name: string, date: Date }[];
+      }).filter((x: { name: string; date: Date } | null) => x !== null) as { name: string, date: Date }[];
 
       parsedDateSheets.sort((a, b) => a.date.getTime() - b.date.getTime());
 

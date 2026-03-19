@@ -1,0 +1,30 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Connect this repo to Render and it will auto-create the service.
+
+services:
+  - type: web
+    name: fbst
+    runtime: node
+    region: oregon
+    plan: starter
+    buildCommand: npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "4010"
+      # These must be set manually in the Render dashboard (secrets):
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: CLIENT_URL
+        value: https://fbst.onrender.com
+      - key: ADMIN_EMAILS
+        sync: false

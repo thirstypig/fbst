@@ -67,7 +67,8 @@ vi.mock("../../../lib/schemas.js", () => ({
 import { prisma } from "../../../db/prisma.js";
 import { syncAllPlayers } from "../../players/services/mlbSyncService.js";
 import { syncPeriodStats, syncAllActivePeriods } from "../../players/services/mlbStatsSyncService.js";
-import { __mockFns } from "../../commissioner/services/CommissionerService.js";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- vi.mock injects __mockFns at runtime
+const { __mockFns } = await import("../../commissioner/services/CommissionerService.js") as any;
 
 const mockPrisma = prisma as any;
 const { createLeague: mockCreateLeague, addMember: mockAddMember, importRosters: mockImportRosters } = __mockFns as any;
