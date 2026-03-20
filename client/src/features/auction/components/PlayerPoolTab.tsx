@@ -62,9 +62,91 @@ export default function PlayerPoolTab({ players, teams = [], onNominate, onQueue
   const [filterTeam, setFilterTeam] = useState<string>('ALL'); // Real MLB Team
   const [filterPos, setFilterPos] = useState<string>('ALL');
 
-  // Position limit check: is this position full for MY team? (visual hint only —
-  // nominations are always allowed; position limits are enforced on bids)
+  // My team data for position checks and personalized value
   const myTeamData = useMemo(() => teams.find(t => t.id === myTeamId), [teams, myTeamId]);
+
+  // Personalized "My Value" — adjusts base value by position need and budget pressure
+  const computeMyValue = useMemo(() => {
+    if (!myTeamData || !auctionConfig) return (_p: PlayerSeasonStat) => null;
+
+    const posLimits = auctionConfig.positionLimits ?? {};
+    const pitcherMax = auctionConfig.pitcherCount ?? 9;
+    const batterMax = auctionConfig.batterCount ?? 14;
+    const teamPosCounts = myTeamData.positionCounts ?? {};
+    const teamPitchers = myTeamData.pitcherCount ?? 0;
+    const teamHitters = myTeamData.hitterCount ?? 0;
+    const spotsLeft = myTeamData.spotsLeft ?? 0;
+    const budget = myTeamData.budget ?? 0;
+    const avgPerSpot = spotsLeft > 0 ? budget / spotsLeft : 0;
+
+    // Count how many teams still need each position (scarcity)
+    const positionDemand: Record<string, number> = {};
+    for (const pos of Object.keys(posLimits)) {
+      let teamsNeedingPos = 0;
+      for (const t of teams) {
+        const filled = t.positionCounts?.[pos] ?? 0;
+        const limit = posLimits[pos];
+        if (limit && filled < limit) teamsNeedingPos++;
+      }
+      positionDemand[pos] = teamsNeedingPos;
+    }
+
+    return (player: PlayerSeasonStat): number | null => {
+      const baseVal = player.dollar_value ?? player.value;
+      if (!baseVal) return null;
+
+      const isPitch = player.is_pitcher;
+      const primaryPos = getPrimaryPosition(player.positions).toUpperCase();
+      const slots = positionToSlots(primaryPos);
+
+      // 1. Position need multiplier
+      let needMultiplier = 1.0;
+
+      // Check if type (pitcher/hitter) is full
+      if (isPitch && teamPitchers >= pitcherMax) {
+        needMultiplier = 0.2; // Position full — very low value to me
+      } else if (!isPitch && teamHitters >= batterMax) {
+        needMultiplier = 0.2;
+      } else {
+        // Check specific position slots
+        const openSlots = slots.filter(slot => {
+          const limit = posLimits[slot];
+          if (limit === undefined) return true; // No limit = always open
+          return (teamPosCounts[slot] ?? 0) < limit;
+        });
+
+        if (slots.length > 0 && openSlots.length === 0) {
+          needMultiplier = 0.3; // All position slots full
+        } else if (openSlots.length > 0) {
+          // Boost for positions I need
+          const filledRatio = slots.length > 0
+            ? 1 - (openSlots.length / slots.length)
+            : 0;
+          needMultiplier = 1.0 + (1 - filledRatio) * 0.3; // Up to +30% boost for empty positions
+        }
+      }
+
+      // 2. Budget pressure — can I afford this player?
+      let budgetMultiplier = 1.0;
+      if (baseVal > avgPerSpot * 2) {
+        budgetMultiplier = 0.8; // Expensive relative to my remaining budget
+      } else if (baseVal <= avgPerSpot * 0.5 && baseVal > 0) {
+        budgetMultiplier = 1.1; // Bargain relative to my budget
+      }
+
+      // 3. Scarcity — more teams need this position = higher value
+      let scarcityMultiplier = 1.0;
+      for (const slot of slots) {
+        const demand = positionDemand[slot] ?? 0;
+        if (demand >= 5) scarcityMultiplier = Math.max(scarcityMultiplier, 1.2);
+        else if (demand >= 3) scarcityMultiplier = Math.max(scarcityMultiplier, 1.1);
+      }
+
+      return Math.round(baseVal * needMultiplier * budgetMultiplier * scarcityMultiplier);
+    };
+  }, [myTeamData, auctionConfig, teams]);
+
+  // Position limit check (visual hint only)
 
   const isPositionFullForMyTeam = useMemo(() => {
     if (!myTeamData || !auctionConfig) return () => false;
@@ -110,7 +192,13 @@ export default function PlayerPoolTab({ players, teams = [], onNominate, onQueue
 
   // Helper to get stat value
   const getStat = (p: PlayerSeasonStat, key: StatKey) => {
-      if (key === 'val') return Number(p.dollar_value ?? p.value ?? 0);
+      if (key === 'val') {
+        if (myTeamId) {
+          const myVal = computeMyValue(p);
+          if (myVal != null) return myVal;
+        }
+        return Number(p.dollar_value ?? p.value ?? 0);
+      }
       const val = p[key] ?? 0;
       return Number(val) || 0;
   };
@@ -317,7 +405,7 @@ export default function PlayerPoolTab({ players, teams = [], onNominate, onQueue
                              <ThemedTh align="center" className="px-1 w-10" onClick={() => handleHeaderClick('WHIP')} title="Walks + Hits per Inning Pitched (lower is better)">WHIP{sortArrow('WHIP')}</ThemedTh>
                         </>
                     )}
-                    <ThemedTh align="center" className="px-1 w-10 cursor-help" onClick={() => handleHeaderClick('val')} title="Projected auction value based on pre-season analysis. Green ($10+) = high-value target. Red ($0 or negative) = below replacement level, not worth bidding on. Blank = no projection available. During active bidding, shows surplus (value minus current bid).">Val{sortArrow('val')}</ThemedTh>
+                    <ThemedTh align="center" className="px-1 w-10 cursor-help" onClick={() => handleHeaderClick('val')} title={myTeamId ? "Personalized value based on your roster needs, budget, and position scarcity. Green = high value to your team. Red = low value or position full. Blank = no projection." : "Projected auction value. Green ($10+) = high value. Red ($0 or negative) = below replacement. Blank = no projection."}>{myTeamId ? 'My Val' : 'Val'}{sortArrow('val')}</ThemedTh>
                     <ThemedTh className="w-14 px-1" title="Click Nom to nominate a player for auction"> </ThemedTh>
                 </ThemedTr>
             </ThemedThead>
@@ -380,24 +468,42 @@ export default function PlayerPoolTab({ players, teams = [], onNominate, onQueue
                                     </>
                                 )}
 
-                                {/* Value + Surplus (AUC-05) */}
+                                {/* Value + Surplus (AUC-05) / My Value */}
                                 <ThemedTd align="center" className="px-1">
                                     {(() => {
-                                        const val = p.dollar_value ?? p.value;
-                                        if (!val) return <span className="text-xs text-[var(--lg-text-muted)] opacity-30 cursor-help" title="No projected value available for this player">-</span>;
+                                        const baseVal = p.dollar_value ?? p.value;
+                                        const myVal = myTeamId ? computeMyValue(p) : null;
+                                        const displayVal = myVal ?? baseVal;
+
+                                        if (!displayVal && displayVal !== 0) return <span className="text-xs text-[var(--lg-text-muted)] opacity-30 cursor-help" title="No projected value available for this player">-</span>;
+
                                         const isActiveBid = activeBidPlayerId && String(p.mlb_id) === activeBidPlayerId && activeBidAmount;
                                         if (isActiveBid) {
-                                            const surplus = val - activeBidAmount!;
+                                            const surplus = displayVal - activeBidAmount!;
                                             return (
                                                 <div className="flex flex-col items-center leading-tight">
-                                                    <span className="text-[10px] text-[var(--lg-text-muted)]">${val}</span>
+                                                    <span className="text-[10px] text-[var(--lg-text-muted)]">${displayVal}</span>
                                                     <span className={`text-[10px] font-bold ${surplus > 0 ? 'text-emerald-400' : surplus < 0 ? 'text-red-400' : 'text-[var(--lg-text-muted)]'}`}>
                                                         {surplus > 0 ? '+' : ''}{surplus}
                                                     </span>
                                                 </div>
                                             );
                                         }
-                                        return <span className={`text-xs font-semibold ${val > 10 ? 'text-emerald-400' : val > 0 ? 'text-[var(--lg-text-secondary)]' : 'text-red-400'}`}>${val}</span>;
+
+                                        // Show personalized value with color + tooltip
+                                        const diff = myVal != null && baseVal ? myVal - baseVal : 0;
+                                        const tooltip = myVal != null && baseVal
+                                          ? `Base: $${baseVal} → Your value: $${myVal} (${diff >= 0 ? '+' : ''}${diff} based on roster needs)`
+                                          : `Projected value: $${displayVal}`;
+
+                                        return (
+                                          <span
+                                            className={`text-xs font-semibold cursor-help ${displayVal > 10 ? 'text-emerald-400' : displayVal > 0 ? 'text-[var(--lg-text-secondary)]' : 'text-red-400'}`}
+                                            title={tooltip}
+                                          >
+                                            ${displayVal}
+                                          </span>
+                                        );
                                     })()}
                                 </ThemedTd>
 
