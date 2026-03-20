@@ -1,29 +1,20 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Gavel, Users, BarChart3, TrendingUp, Shield, Zap,
-  Star, MessageCircle, Volume2, Target, Clock, Globe,
-  Layers, Database, Activity, ArrowRight, Smartphone
+  Gavel, Users, BarChart3, TrendingUp, Shield,
+  Star, MessageCircle, Volume2, Target, Clock,
+  Layers, Activity, ArrowRight
 } from 'lucide-react';
 import { Logo } from '../components/ui/Logo';
 
 function FeatureCard({ icon: Icon, title, desc, accent }: { icon: React.ElementType; title: string; desc: string; accent?: string }) {
   return (
-    <div className="p-4 rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] hover:border-[var(--lg-accent)]/30 transition-colors group">
+    <div className="p-4 rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] hover:border-[var(--lg-accent)]/30 transition-colors">
       <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${accent || 'bg-[var(--lg-accent)]/10 text-[var(--lg-accent)]'}`}>
         <Icon size={18} />
       </div>
       <h3 className="font-semibold text-sm text-[var(--lg-text-heading)] mb-1">{title}</h3>
       <p className="text-xs text-[var(--lg-text-muted)] leading-relaxed">{desc}</p>
-    </div>
-  );
-}
-
-function StatBlock({ value, label }: { value: string; label: string }) {
-  return (
-    <div className="text-center">
-      <div className="text-2xl md:text-3xl font-bold text-[var(--lg-accent)] tabular-nums">{value}</div>
-      <div className="text-[10px] font-semibold uppercase text-[var(--lg-text-muted)] tracking-wide mt-0.5">{label}</div>
     </div>
   );
 }
@@ -40,90 +31,83 @@ export default function About() {
           The Fantastic Leagues
         </h1>
         <p className="text-sm md:text-base text-[var(--lg-text-secondary)] max-w-xl mx-auto leading-relaxed">
-          A modern fantasy baseball platform built for competitive leagues that take their auction drafts seriously.
-          Real-time bidding, live MLB data, and tools that make managing your team a pleasure.
+          A fantasy baseball platform built for competitive leagues that take their auction drafts seriously.
+          Real-time bidding, live MLB data, and tools that make managing your team easy.
         </p>
         <div className="flex justify-center gap-3 pt-2">
           <Link
             to="/guide"
             className="inline-flex items-center gap-1.5 px-5 py-2.5 text-sm font-semibold rounded-xl bg-[var(--lg-accent)] text-white hover:opacity-90 transition-opacity"
           >
-            League Guide <ArrowRight size={14} />
+            How It Works <ArrowRight size={14} />
           </Link>
           <Link
-            to="/login"
+            to="/rules"
             className="inline-flex items-center gap-1.5 px-5 py-2.5 text-sm font-semibold rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] text-[var(--lg-text-primary)] hover:bg-[var(--lg-tint-hover)] transition-colors"
           >
-            Sign In
+            League Rules
           </Link>
         </div>
       </div>
 
-      {/* Stats bar */}
-      <div className="flex justify-center gap-8 md:gap-16 py-6 border-y border-[var(--lg-border-subtle)]">
-        <StatBlock value="17" label="Feature Modules" />
-        <StatBlock value="670+" label="Tests Passing" />
-        <StatBlock value="116" label="API Endpoints" />
-        <StatBlock value="30" label="MLB Teams" />
-      </div>
-
-      {/* Core Features */}
+      {/* What You Can Do */}
       <div>
-        <h2 className="text-lg font-semibold text-[var(--lg-text-heading)] mb-4">Core Features</h2>
+        <h2 className="text-lg font-semibold text-[var(--lg-text-heading)] mb-4">What You Can Do</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <FeatureCard
             icon={Gavel}
             title="Live Auction Draft"
-            desc="Real-time WebSocket-powered auction with bid timers, proxy bidding, and auto-nomination queues. Supports 4-16 teams simultaneously."
+            desc="Bid on players in real time with your league. Set proxy bids, build a nomination queue, and compete for the best roster."
             accent="bg-blue-500/10 text-blue-400"
           />
           <FeatureCard
             icon={BarChart3}
-            title="Live Standings"
-            desc="Roto standings computed from real MLB stats across configurable scoring periods. 10 categories: R, HR, RBI, SB, AVG, W, SV, K, ERA, WHIP."
+            title="Track Standings"
+            desc="See how your team stacks up across all scoring categories. Standings update automatically from live MLB stats."
             accent="bg-emerald-500/10 text-emerald-400"
           />
           <FeatureCard
             icon={Users}
-            title="Trade Center"
-            desc="Propose trades involving players and budget. Both parties accept, commissioner processes. Full transaction history with audit trail."
+            title="Make Trades"
+            desc="Propose trades with other owners — swap players, budget, or both. Track every move in the transaction history."
             accent="bg-purple-500/10 text-purple-400"
           />
           <FeatureCard
             icon={Shield}
-            title="Keeper System"
-            desc="End-of-season keeper selection with cost escalation. Commissioner locks keepers, non-keepers release for next year's auction."
+            title="Keep Your Stars"
+            desc="Select your best players as keepers at the end of each season. They carry over to next year's draft at a premium."
             accent="bg-amber-500/10 text-amber-400"
           />
           <FeatureCard
             icon={Activity}
-            title="Waiver Claims (FAAB)"
-            desc="Blind-bid waiver system using Free Agent Acquisition Budget. Remaining auction budget carries over as FAAB for in-season pickups."
+            title="Claim Free Agents"
+            desc="Use your remaining budget to pick up free agents through blind-bid waivers. Highest bid wins."
             accent="bg-red-500/10 text-red-400"
           />
           <FeatureCard
             icon={Clock}
-            title="Season Management"
-            desc="Full lifecycle: SETUP → DRAFT → IN_SEASON → COMPLETED. Commissioner controls phase transitions with gated features per phase."
+            title="Stay in the Loop"
+            desc="Live MLB scores, daily transactions, and real-time updates keep you connected throughout the season."
             accent="bg-cyan-500/10 text-cyan-400"
           />
         </div>
       </div>
 
-      {/* Auction Features */}
+      {/* Auction Draft Tools */}
       <div>
         <h2 className="text-lg font-semibold text-[var(--lg-text-heading)] mb-4">Auction Draft Tools</h2>
+        <p className="text-sm text-[var(--lg-text-secondary)] mb-4">Everything you need for a smooth, competitive draft experience.</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {[
-            { icon: Target, title: "Proxy Bidding", desc: "eBay-style auto-bid up to your max" },
-            { icon: Star, title: "Watchlist", desc: "Star players for quick filtering" },
-            { icon: MessageCircle, title: "Live Chat", desc: "Trash talk during the draft" },
-            { icon: Volume2, title: "Sound Alerts", desc: "Outbid, your turn, win notifications" },
-            { icon: TrendingUp, title: "Value Overlay", desc: "Surplus/deficit vs. projected value" },
-            { icon: BarChart3, title: "Spending Pace", desc: "Budget bars and hot/cold indicators" },
-            { icon: Zap, title: "Custom Opening Bid", desc: "Nominator sets the starting price" },
-            { icon: Layers, title: "Nomination Queue", desc: "Pre-load your picks, auto-nominate" },
-            { icon: Globe, title: "Real-time Sync", desc: "WebSocket + polling fallback" },
+            { icon: Target, title: "Proxy Bidding", desc: "Set a max bid — the system bids for you" },
+            { icon: Star, title: "Watchlist", desc: "Star your targets for quick access" },
+            { icon: MessageCircle, title: "Live Chat", desc: "Talk with other owners during the draft" },
+            { icon: Volume2, title: "Sound Alerts", desc: "Know when you're outbid or it's your turn" },
+            { icon: TrendingUp, title: "Value Tracker", desc: "See if a player is a bargain or overpay" },
+            { icon: BarChart3, title: "Budget Pace", desc: "Track spending across all teams" },
+            { icon: Layers, title: "Auto-Nominate", desc: "Queue up players to nominate automatically" },
+            { icon: Gavel, title: "Custom Bids", desc: "Start nominations at any price, not just $1" },
+            { icon: Clock, title: "Going Once...", desc: "Visual countdown as the timer runs out" },
           ].map(f => (
             <div key={f.title} className="flex gap-2 p-2.5 rounded-lg bg-[var(--lg-tint)] border border-[var(--lg-border-subtle)]">
               <f.icon size={14} className="text-[var(--lg-accent)] shrink-0 mt-0.5" />
@@ -136,33 +120,17 @@ export default function About() {
         </div>
       </div>
 
-      {/* Tech Stack */}
+      {/* For Commissioners */}
       <div>
-        <h2 className="text-lg font-semibold text-[var(--lg-text-heading)] mb-4">Built With</h2>
-        <div className="flex flex-wrap gap-2">
-          {[
-            "React 18", "TypeScript", "Node.js", "Express", "PostgreSQL", "Prisma ORM",
-            "Supabase Auth", "WebSocket", "Tailwind CSS", "Vite", "Vitest",
-            "MLB Stats API", "Web Audio API"
-          ].map(t => (
-            <span key={t} className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--lg-tint)] border border-[var(--lg-border-subtle)] text-[var(--lg-text-secondary)]">
-              {t}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* Commissioner Tools */}
-      <div>
-        <h2 className="text-lg font-semibold text-[var(--lg-text-heading)] mb-4">Commissioner Tools</h2>
+        <h2 className="text-lg font-semibold text-[var(--lg-text-heading)] mb-4">For Commissioners</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
-            { title: "League Rules Editor", desc: "Configure all league settings: roster size, budget, scoring categories, position limits, keeper rules, timers." },
-            { title: "Roster Management", desc: "Assign, release, and import players. Manage keeper selections and locks." },
-            { title: "Season Lifecycle", desc: "Create seasons, transition phases, manage scoring periods." },
-            { title: "Trade & Waiver Processing", desc: "Approve trades, process waiver claims, force-assign players." },
-            { title: "Auction Controls", desc: "Pause/resume, undo last pick, reset, force assign, configurable timers." },
-            { title: "Member Management", desc: "Invite via code, assign teams, manage roles (owner, commissioner)." },
+            { title: "Set the Rules", desc: "Configure budget, roster size, scoring categories, keeper limits, and everything else your league needs." },
+            { title: "Manage Rosters", desc: "Assign and release players, import rosters, handle keeper locks and releases." },
+            { title: "Run the Season", desc: "Create seasons, set up scoring periods, and transition between phases." },
+            { title: "Process Moves", desc: "Approve trades, process waiver claims, pause/resume the auction, and undo mistakes." },
+            { title: "Invite Members", desc: "Send invite codes to owners. Assign teams and roles with a few clicks." },
+            { title: "Control the Draft", desc: "Pause, resume, reset, force-assign players, and configure timers during the live auction." },
           ].map(t => (
             <div key={t.title} className="p-3 rounded-lg border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)]">
               <div className="text-xs font-semibold text-[var(--lg-text-primary)] mb-0.5">{t.title}</div>
@@ -172,21 +140,17 @@ export default function About() {
         </div>
       </div>
 
-      {/* Origin */}
+      {/* Footer */}
       <div className="text-center py-6 border-t border-[var(--lg-border-subtle)]">
         <p className="text-sm text-[var(--lg-text-secondary)] max-w-lg mx-auto leading-relaxed">
           Born from a real fantasy baseball league running since 2004.
-          Built with AI-assisted development across 30+ sessions.
         </p>
         <div className="flex justify-center gap-4 mt-4">
-          <Link to="/tech" className="text-xs font-semibold text-[var(--lg-accent)] hover:opacity-80 transition-opacity">
-            Under the Hood →
+          <Link to="/guide" className="text-xs font-semibold text-[var(--lg-accent)] hover:opacity-80 transition-opacity">
+            How It Works →
           </Link>
-          <Link to="/roadmap" className="text-xs font-semibold text-[var(--lg-accent)] hover:opacity-80 transition-opacity">
-            Roadmap →
-          </Link>
-          <Link to="/changelog" className="text-xs font-semibold text-[var(--lg-accent)] hover:opacity-80 transition-opacity">
-            Changelog →
+          <Link to="/rules" className="text-xs font-semibold text-[var(--lg-accent)] hover:opacity-80 transition-opacity">
+            League Rules →
           </Link>
         </div>
       </div>

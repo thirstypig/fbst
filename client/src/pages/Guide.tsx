@@ -1,14 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchJsonApi } from '../api/base';
-import { useLeague } from '../contexts/LeagueContext';
-import type { LeagueRule } from '../api/types';
-import { ChevronDown, Printer, Gavel, Star, MessageCircle, Volume2, TrendingUp, BarChart3, Target, Clock, Shield, UserPlus, HelpCircle } from 'lucide-react';
+import { ChevronDown, Printer, Gavel, Star, MessageCircle, Volume2, TrendingUp, BarChart3, Target, UserPlus, HelpCircle, LayoutDashboard, Settings, Search } from 'lucide-react';
 
 // ─── Helpers ────────────────────────────────────────────────────────
-function ruleValue(rules: LeagueRule[], key: string): string {
-  return rules.find((r) => r.key === key)?.value ?? '';
-}
 
 function Section({ title, icon: Icon, defaultOpen, children }: { title: string; icon: React.ElementType; defaultOpen?: boolean; children: React.ReactNode }) {
   const [open, setOpen] = useState(defaultOpen ?? false);
@@ -46,7 +40,7 @@ function Step({ num, title, children }: { num: number; title: string; children: 
 function Tip({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex gap-2 px-3 py-2 rounded-lg bg-[var(--lg-accent)]/5 border border-[var(--lg-accent)]/20 text-sm print:bg-gray-50 print:border-gray-200">
-      <span className="shrink-0">Tip:</span>
+      <span className="shrink-0 font-semibold text-[var(--lg-accent)]">Tip:</span>
       <span>{children}</span>
     </div>
   );
@@ -54,50 +48,13 @@ function Tip({ children }: { children: React.ReactNode }) {
 
 // ─── Main Page ──────────────────────────────────────────────────────
 export default function Guide() {
-  const [rules, setRules] = useState<LeagueRule[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { leagueId } = useLeague();
-
-  useEffect(() => {
-    async function load() {
-      if (!leagueId) return;
-      try {
-        const data = await fetchJsonApi<{ rules: LeagueRule[] }>(`/api/leagues/${leagueId}/rules`);
-        setRules(data.rules ?? []);
-      } catch {
-        // Silently fail — guide still works with defaults
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, [leagueId]);
-
-  const teamCount = parseInt(ruleValue(rules, 'team_count')) || 8;
-  const batterCount = parseInt(ruleValue(rules, 'batter_count')) || 14;
-  const pitcherCount = parseInt(ruleValue(rules, 'pitcher_count')) || 9;
-  const budget = ruleValue(rules, 'auction_budget') || '400';
-  const rosterSize = batterCount + pitcherCount;
-  const hittingStats = ruleValue(rules, 'hitting_stats') || 'R, HR, RBI, SB, AVG';
-  const pitchingStats = ruleValue(rules, 'pitching_stats') || 'W, SV, ERA, WHIP, K';
-  const hittingCats = hittingStats.split(',').map(s => s.trim()).filter(Boolean);
-  const pitchingCats = pitchingStats.split(',').map(s => s.trim()).filter(Boolean);
-
-  if (loading) {
-    return (
-      <div className="max-w-3xl mx-auto px-4 py-6 md:px-6 md:py-10">
-        <div className="h-8 w-48 rounded-2xl bg-[var(--lg-tint)] animate-pulse" />
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 md:px-6 md:py-10">
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-semibold text-[var(--lg-text-heading)]">League Guide</h1>
-          <p className="text-sm text-[var(--lg-text-muted)] mt-1">Everything you need to know</p>
+          <h1 className="text-2xl md:text-3xl font-semibold text-[var(--lg-text-heading)]">How to Use TFL</h1>
+          <p className="text-sm text-[var(--lg-text-muted)] mt-1">A guide to navigating the app and its features</p>
         </div>
         <button
           onClick={() => window.print()}
@@ -109,91 +66,90 @@ export default function Guide() {
         </button>
       </div>
 
-      {/* Quick stats bar */}
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-6">
-        {[
-          { label: 'Teams', value: teamCount },
-          { label: 'Budget', value: `$${budget}` },
-          { label: 'Roster', value: rosterSize },
-          { label: 'Hitters', value: batterCount },
-          { label: 'Pitchers', value: pitcherCount },
-          { label: 'Categories', value: hittingCats.length + pitchingCats.length },
-        ].map(s => (
-          <div key={s.label} className="text-center p-2 rounded-lg bg-[var(--lg-tint)] border border-[var(--lg-border-subtle)]">
-            <div className="text-lg font-bold text-[var(--lg-text-heading)]">{s.value}</div>
-            <div className="text-[9px] font-semibold uppercase text-[var(--lg-text-muted)]">{s.label}</div>
-          </div>
-        ))}
-      </div>
-
       <div className="space-y-2.5">
         {/* ─── GETTING STARTED ───────────────────────────────── */}
-        <Section title="Getting Started — Create Your Account" icon={UserPlus} defaultOpen>
+        <Section title="Getting Started" icon={UserPlus} defaultOpen>
           <div className="space-y-4">
             <Step num={1} title="Get Your Invite Code">
-              Your commissioner will send you a <strong>6-character invite code</strong> (e.g., <code className="px-1.5 py-0.5 rounded bg-[var(--lg-tint)] text-[var(--lg-accent)] font-mono text-xs">ABC123</code>). This links you to your league.
+              Your commissioner will send you a <strong>6-character invite code</strong>. This links your account to your league and team.
             </Step>
             <Step num={2} title="Create an Account">
               Go to the <strong>Sign Up</strong> page. Enter your email and password, or sign in with <strong>Google</strong> or <strong>Yahoo</strong>.
             </Step>
             <Step num={3} title="Enter Your Invite Code">
-              After signing up, enter your invite code to join your league and get assigned to your team.
+              After signing in, you'll see an invite code prompt on the Home page. Enter your code to join your league.
             </Step>
             <Step num={4} title="Set Up Your Profile">
-              Click your avatar in the sidebar to add your display name and payment handles (Venmo, Zelle, PayPal).
+              Click your <strong>avatar</strong> in the sidebar to go to your Profile. Add your display name and payment handles (Venmo, Zelle, PayPal) so your league can settle payouts.
             </Step>
           </div>
-          <Tip>Returning owners: just log in — your commissioner will add you to the new season.</Tip>
+          <Tip>Returning from last season? Just log in — your commissioner will add you to the new season automatically.</Tip>
         </Section>
 
-        {/* ─── AUCTION DRAFT ────────────────────────────────── */}
-        <Section title="Auction Draft — How It Works" icon={Gavel} defaultOpen>
-          <p>The auction draft is a <strong>live, real-time event</strong> where all {teamCount} teams bid on players simultaneously.</p>
+        {/* ─── NAVIGATING THE APP ──────────────────────────── */}
+        <Section title="Navigating the App" icon={LayoutDashboard}>
+          <p>The sidebar on the left is your main navigation. Here's what each section contains:</p>
+          <div className="space-y-2 mt-2">
+            {[
+              { label: "Home", desc: "Live MLB scores, daily transactions, and your league dashboard" },
+              { label: "Season", desc: "League standings across all scoring periods" },
+              { label: "Players", desc: "Search and browse all players with stats, positions, and values" },
+              { label: "Auction", desc: "The live auction draft room (only active during draft phase)" },
+              { label: "Activity", desc: "Recent trades, waiver claims, and add/drop transactions" },
+              { label: "Rules", desc: "Your league's specific rules — scoring categories, roster limits, budget, etc." },
+              { label: "Archive", desc: "Historical seasons, draft results, and past standings" },
+            ].map(n => (
+              <div key={n.label} className="flex gap-2">
+                <span className="text-xs font-bold text-[var(--lg-accent)] w-16 shrink-0">{n.label}</span>
+                <span className="text-xs text-[var(--lg-text-secondary)]">{n.desc}</span>
+              </div>
+            ))}
+          </div>
+          <Tip>Click the <strong>chevron button</strong> at the top of the sidebar to collapse it to icon-only mode. Click again to expand.</Tip>
+        </Section>
 
-          <h4 className="font-semibold text-[var(--lg-text-heading)] mt-4 mb-2 text-sm">The Basics</h4>
-          <ul className="list-disc list-inside space-y-1 ml-1 text-sm">
-            <li>Each team starts with <strong>${budget}</strong> and fills <strong>{rosterSize} spots</strong> ({batterCount} hitters + {pitcherCount} pitchers)</li>
-            <li>Teams take turns <strong>nominating</strong> a player — then <strong>all teams can bid</strong></li>
-            <li>Highest bidder when the timer expires <strong>wins the player</strong></li>
-            <li><strong>Max Bid</strong> = budget - $1 per remaining spot (ensures you can always fill your roster)</li>
-          </ul>
+        {/* ─── THE AUCTION DRAFT ────────────────────────────── */}
+        <Section title="The Auction Draft" icon={Gavel} defaultOpen>
+          <p>The auction is a <strong>live, real-time event</strong> where all team owners bid on players simultaneously.</p>
 
-          <h4 className="font-semibold text-[var(--lg-text-heading)] mt-4 mb-2 text-sm">Nominating</h4>
+          <h4 className="font-semibold text-[var(--lg-text-heading)] mt-4 mb-2 text-sm">How Nominating Works</h4>
           <div className="space-y-3">
             <Step num={1} title="Wait for Your Turn">
-              The rotation shows at the bottom. You'll see <span className="text-[var(--lg-accent)] font-semibold">"Your turn"</span> and hear a sound alert.
+              Teams nominate in rotation. You'll see the order at the bottom of the auction panel. When it's your turn, you'll hear a sound and see <span className="text-[var(--lg-accent)] font-semibold">"Your turn"</span>. A countdown timer shows how long you have before your turn is skipped.
             </Step>
             <Step num={2} title="Find a Player">
-              Use the <strong>Player Pool</strong> tab — filter by H/P, position, team, or search by name.
+              Switch to the <strong>Player Pool</strong> tab. Filter by hitters/pitchers, position, team, or search by name.
             </Step>
-            <Step num={3} title="Set Your Opening Bid">
-              Click <strong>Nom</strong>, enter your opening bid (default $1), press <strong>Enter</strong> or click <strong>Go</strong>.
+            <Step num={3} title="Nominate">
+              Click <strong>Nom</strong> next to a player. Enter your opening bid (or leave at $1) and press <strong>Enter</strong>.
             </Step>
           </div>
-          <Tip>Pre-load your <strong>Nomination Queue</strong> — add players from the Player Pool. When it's your turn, the first available player auto-nominates.</Tip>
+          <Tip>Pre-load your <strong>Nomination Queue</strong> — click the expand arrow on a player, then "Add to Queue." When it's your turn, the first available player auto-nominates.</Tip>
 
-          <h4 className="font-semibold text-[var(--lg-text-heading)] mt-4 mb-2 text-sm">Bidding</h4>
+          <h4 className="font-semibold text-[var(--lg-text-heading)] mt-4 mb-2 text-sm">How Bidding Works</h4>
           <div className="space-y-3">
             <Step num={1} title="Place a Bid">
-              Use <strong>+$1</strong> or <strong>+$5</strong> buttons. The timer resets with each bid.
+              Use the <strong>+$1</strong> or <strong>+$5</strong> buttons. Each bid resets the timer.
             </Step>
             <Step num={2} title="Set a Proxy Bid (Optional)">
-              Click <strong>"Set Max Bid"</strong> — the system auto-bids $1 at a time up to your max, like eBay. Your max is private.
+              Click <strong>"Set Max Bid"</strong> to enter your maximum. The system auto-bids $1 at a time up to your max — like eBay. Your max is private.
             </Step>
-            <Step num={3} title="Pass">
-              Click <strong>"Pass"</strong> to sit out. You can rejoin anytime.
+            <Step num={3} title="Winning">
+              When the timer hits zero, the highest bidder wins. You'll see <strong>"Going once... Going twice... SOLD!"</strong> as the timer counts down. The player is added to their roster and the price deducted from their budget.
             </Step>
           </div>
+          <Tip>Don't want to bid? Click <strong>"Pass"</strong> to hide bid buttons. You can rejoin anytime.</Tip>
 
           <h4 className="font-semibold text-[var(--lg-text-heading)] mt-4 mb-2 text-sm">Auction Tools</h4>
+          <p className="mb-2">Toggle these on or off in the <strong>Settings</strong> tab:</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {[
-              { icon: Star, title: "Watchlist", desc: "Star players to create a quick-filter favorites list" },
-              { icon: MessageCircle, title: "Chat", desc: "Real-time chat with other owners" },
-              { icon: Volume2, title: "Sounds", desc: "Audio alerts for nominations, outbids, and wins. Mute in header." },
-              { icon: TrendingUp, title: "Value", desc: "Val column shows projected value and surplus during bidding" },
-              { icon: BarChart3, title: "Pace", desc: "Teams tab shows budget bars and avg cost per player" },
-              { icon: Target, title: "Proxy", desc: "Auto-bid up to your max — system bids $1 at a time for you" },
+              { icon: Star, title: "Watchlist", desc: "Star players to create a favorites filter" },
+              { icon: MessageCircle, title: "Chat", desc: "Message other owners during the draft" },
+              { icon: Volume2, title: "Sounds", desc: "Audio alerts for nominations, outbids, and wins" },
+              { icon: TrendingUp, title: "Value Column", desc: "Shows projected value. Green = bargain, Red = overpay" },
+              { icon: BarChart3, title: "Spending Pace", desc: "Budget progress bars and avg cost per player" },
+              { icon: Target, title: "Proxy Bidding", desc: "Auto-bid up to your max price" },
             ].map(f => (
               <div key={f.title} className="flex gap-2 p-2.5 rounded-lg bg-[var(--lg-tint)] border border-[var(--lg-border-subtle)]">
                 <f.icon size={14} className="text-[var(--lg-accent)] shrink-0 mt-0.5" />
@@ -204,64 +160,46 @@ export default function Guide() {
               </div>
             ))}
           </div>
-
-          <Tip>Budget remaining after the auction becomes your <strong>FAAB</strong> (Free Agent Acquisition Budget) for in-season waiver claims.</Tip>
         </Section>
 
-        {/* ─── SCORING ──────────────────────────────────────── */}
-        <Section title="Scoring & Categories" icon={BarChart3}>
-          <div className="flex flex-wrap gap-4 mb-3">
-            <div>
-              <div className="text-[10px] font-bold uppercase text-[var(--lg-text-muted)] mb-1">Hitting</div>
-              <div className="flex flex-wrap gap-1.5">
-                {hittingCats.map(c => (
-                  <span key={c} className="px-2.5 py-1 bg-blue-500/10 text-blue-400 text-xs font-bold rounded-lg border border-blue-500/20">{c}</span>
-                ))}
-              </div>
-            </div>
-            <div>
-              <div className="text-[10px] font-bold uppercase text-[var(--lg-text-muted)] mb-1">Pitching</div>
-              <div className="flex flex-wrap gap-1.5">
-                {pitchingCats.map(c => (
-                  <span key={c} className="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 text-xs font-bold rounded-lg border border-emerald-500/20">{c}</span>
-                ))}
-              </div>
-            </div>
-          </div>
-          <p>Each category is ranked across all {teamCount} teams. 1st place gets {teamCount} pts, 2nd gets {teamCount - 1}, etc. Points are averaged for ties. Total points across all {hittingCats.length + pitchingCats.length} categories determine the period winner.</p>
-        </Section>
-
-        {/* ─── KEEPERS ──────────────────────────────────────── */}
-        <Section title="Keeper Selection" icon={Shield}>
-          <ul className="list-disc list-inside space-y-1 ml-1">
-            <li>Each team keeps up to <strong>4 players</strong> from last season</li>
-            <li>Keeper cost = <strong>last year's price + $5</strong></li>
-            <li>Your auction budget is reduced by total keeper costs</li>
-            <li>Once keepers are <strong>locked</strong>, non-keepers are released for the auction</li>
+        {/* ─── PLAYER POOL ──────────────────────────────────── */}
+        <Section title="Finding Players" icon={Search}>
+          <p>The <strong>Players</strong> page and the auction <strong>Player Pool</strong> tab both let you browse all available players.</p>
+          <ul className="list-disc list-inside space-y-1 ml-1 mt-2">
+            <li><strong>H / P toggle</strong> — switch between hitters and pitchers</li>
+            <li><strong>All / Avail / ★</strong> — show all players, only available, or your starred watchlist</li>
+            <li><strong>NL / AL / All</strong> — filter by league</li>
+            <li><strong>Pos dropdown</strong> — filter by position (C, 1B, SS, OF, etc.)</li>
+            <li><strong>Team dropdown</strong> — filter by MLB team</li>
+            <li><strong>Search bar</strong> — type a player name</li>
+            <li><strong>Column headers</strong> — click to sort by any stat. Hover for descriptions.</li>
           </ul>
+          <Tip>Click any player row to expand and see full stats, fielding data, and recent transactions.</Tip>
         </Section>
 
-        {/* ─── DURING THE SEASON ─────────────────────────────── */}
-        <Section title="During the Season" icon={Clock}>
-          <h4 className="font-semibold text-[var(--lg-text-heading)] mb-1 text-sm">Trades</h4>
-          <p>Propose trades via the <strong>Activity</strong> page. Trades can include players and/or budget. Both teams must accept.</p>
+        {/* ─── MANAGING YOUR TEAM ───────────────────────────── */}
+        <Section title="Managing Your Team" icon={Settings}>
+          <h4 className="font-semibold text-[var(--lg-text-heading)] mb-2 text-sm">Your Profile</h4>
+          <p>Click your <strong>avatar</strong> in the sidebar to access your profile. Here you can update your name and payment handles (Venmo, Zelle, PayPal). These are visible to other league members for settling payouts.</p>
 
-          <h4 className="font-semibold text-[var(--lg-text-heading)] mt-3 mb-1 text-sm">Waiver Claims (Add/Drop)</h4>
-          <p>Use FAAB to claim free agents with blind bids. Highest bid wins. You must drop a player when adding one.</p>
+          <h4 className="font-semibold text-[var(--lg-text-heading)] mt-3 mb-2 text-sm">Making Trades</h4>
+          <p>Go to <strong>Activity</strong> to propose trades. Select players and/or budget to offer, choose what you want in return, and submit. Both sides must accept before the commissioner processes it.</p>
 
-          <h4 className="font-semibold text-[var(--lg-text-heading)] mt-3 mb-1 text-sm">Standings</h4>
-          <p>Live standings on the <strong>Season</strong> page, computed from real MLB stats across scoring periods.</p>
+          <h4 className="font-semibold text-[var(--lg-text-heading)] mt-3 mb-2 text-sm">Waiver Claims</h4>
+          <p>Use the <strong>Add/Drop</strong> tab in Activity to claim free agents. Submit a blind bid using your FAAB (remaining auction budget). If multiple teams claim the same player, highest bid wins.</p>
         </Section>
 
         {/* ─── FAQ ───────────────────────────────────────────── */}
         <Section title="FAQ" icon={HelpCircle}>
           <div className="space-y-3">
             {[
-              { q: "What if I lose my connection during the auction?", a: "The system auto-reconnects. Proxy bids keep working even if you're disconnected." },
-              { q: "Can I nominate any player?", a: "Yes — even if your team can't use them. Position limits are only enforced on bids, not nominations." },
-              { q: "What if I don't nominate in time?", a: "Your turn is auto-skipped after the nomination timer (default 30s) and the next team goes." },
-              { q: "How does proxy bidding work?", a: "Like eBay — set a max, the system bids $1 at a time. Competing proxies: higher one wins at the lower's amount + $1. Your max is private." },
-              { q: "Can I undo a bid?", a: "No — bids are final. The commissioner can undo the last completed lot if there was an error." },
+              { q: "What if I lose my internet during the auction?", a: "The app automatically reconnects. Your proxy bids keep working even if you're disconnected. When you reconnect, you'll see the latest state." },
+              { q: "Can I nominate any player?", a: "Yes — you can nominate anyone, even players your team can't use. All teams can bid on every nomination." },
+              { q: "What if I don't nominate in time?", a: "Your turn is automatically skipped when the nomination timer expires, and the next team goes." },
+              { q: "How does proxy bidding work?", a: "Set a maximum price. The system bids $1 at a time on your behalf, only as needed. If two proxy bids compete, the higher one wins at the other's max + $1. Your max is always private." },
+              { q: "Can I undo a bid?", a: "No — bids are final. The commissioner can undo the last completed auction result if there was an error." },
+              { q: "Where do I see my league's rules?", a: "Go to the Rules page in the sidebar. That's where scoring categories, roster requirements, keeper rules, and all league-specific settings live." },
+              { q: "How do I change my payment info?", a: "Click your avatar in the sidebar → Profile. Update your Venmo, Zelle, or PayPal handle there." },
             ].map((item, i) => (
               <div key={i}>
                 <div className="font-semibold text-[var(--lg-text-primary)] text-sm">{item.q}</div>
@@ -277,14 +215,16 @@ export default function Guide() {
         <p className="text-[var(--lg-text-muted)] text-[10px] font-semibold uppercase tracking-wide opacity-40">
           The Fantastic Leagues &mdash; {new Date().getFullYear()}
         </p>
-        <p className="text-[var(--lg-text-muted)] text-[10px] mt-1 opacity-30 print:opacity-100">
-          <Link to="/rules" className="hover:text-[var(--lg-accent)] print:hidden">View full league rules</Link>
+        <p className="text-[var(--lg-text-muted)] text-[10px] mt-1 opacity-30 print:hidden">
+          <Link to="/about" className="hover:text-[var(--lg-accent)]">About TFL</Link>
+          {' · '}
+          <Link to="/rules" className="hover:text-[var(--lg-accent)]">League Rules</Link>
         </p>
       </div>
 
-      {/* Print-only footer */}
+      {/* Print footer */}
       <div className="hidden print:block mt-8 pt-4 border-t text-center text-xs text-gray-500">
-        The Fantastic Leagues — League Guide — Printed {new Date().toLocaleDateString()}
+        The Fantastic Leagues — User Guide — {new Date().toLocaleDateString()}
       </div>
     </div>
   );
