@@ -212,10 +212,10 @@ export default function AuctionStage({ serverState, myTeamId, onBid, onFinish, o
                         variant="red"
                         size="sm"
                         onClick={async () => {
-                            if (await confirm('Reset auction? This clears ALL records.')) onReset();
+                            if (await confirm('Reset Auction: This will DELETE all bids, draft picks, and auction rosters. This cannot be undone. Are you sure?')) onReset();
                         }}
                     >
-                        <RotateCcw size={12} /> Reset
+                        <RotateCcw size={12} /> Reset Auction
                     </Button>
                 )}
             </div>

@@ -31,7 +31,7 @@ export default function Auction() {
 
   // Use the Hook
   const { state: auctionState, actions } = useAuctionState(activeLeagueId);
-  const { queue: myQueue, add: addToQueue, remove: removeFromQueue, isQueued } = useNominationQueue(myTeamId);
+  const { queue: myQueue, add: addToQueue, remove: removeFromQueue, isQueued, moveUp: moveQueueUp, moveDown: moveQueueDown } = useNominationQueue(myTeamId);
 
   // Initialization: Fetch Data & Identify User
   useEffect(() => {
@@ -234,6 +234,8 @@ export default function Auction() {
                         players={players}
                         queueIds={myQueue}
                         onRemove={removeFromQueue}
+                        onMoveUp={moveQueueUp}
+                        onMoveDown={moveQueueDown}
                         onNominate={auctionState?.status === 'nominating' ? handleNominate : undefined}
                         isMyTurn={!!isMyTurnToNominate}
                         myTeamId={myTeamId}

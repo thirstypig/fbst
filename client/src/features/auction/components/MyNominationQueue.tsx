@@ -1,18 +1,20 @@
 import React from 'react';
 import { PlayerSeasonStat } from '../../../api';
-import { Trash2, Gavel } from 'lucide-react';
+import { Trash2, Gavel, ChevronUp, ChevronDown } from 'lucide-react';
 import { getPrimaryPosition } from '../../../lib/baseballUtils';
 
 interface MyNominationQueueProps {
     players: PlayerSeasonStat[]; // Full list to lookup details
     queueIds: string[];
     onRemove: (id: string) => void;
+    onMoveUp?: (id: string) => void;
+    onMoveDown?: (id: string) => void;
     onNominate?: (player: PlayerSeasonStat) => void;
     isMyTurn?: boolean;
     myTeamId?: number;
 }
 
-export default function MyNominationQueue({ players, queueIds, onRemove, onNominate, isMyTurn, myTeamId }: MyNominationQueueProps) {
+export default function MyNominationQueue({ players, queueIds, onRemove, onMoveUp, onMoveDown, onNominate, isMyTurn, myTeamId }: MyNominationQueueProps) {
     if (!myTeamId) return null;
 
     const queuedPlayers = queueIds.map(id => players.find(p => String(p.mlb_id) === id)).filter(Boolean) as PlayerSeasonStat[];
@@ -55,9 +57,27 @@ export default function MyNominationQueue({ players, queueIds, onRemove, onNomin
                             </div>
                         </div>
                         
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-0.5">
+                            {onMoveUp && (
+                                <button
+                                    onClick={() => onMoveUp(String(p.mlb_id))}
+                                    className="p-1 text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] rounded"
+                                    title="Move Up"
+                                >
+                                    <ChevronUp size={14} />
+                                </button>
+                            )}
+                            {onMoveDown && (
+                                <button
+                                    onClick={() => onMoveDown(String(p.mlb_id))}
+                                    className="p-1 text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] rounded"
+                                    title="Move Down"
+                                >
+                                    <ChevronDown size={14} />
+                                </button>
+                            )}
                             {onNominate && isMyTurn && (
-                                <button 
+                                <button
                                     onClick={() => onNominate(p)}
                                     className="p-1.5 bg-[var(--lg-accent)] hover:bg-[var(--lg-accent)]/90 text-white rounded shadow-sm"
                                     title="Nominate Now"
@@ -65,7 +85,7 @@ export default function MyNominationQueue({ players, queueIds, onRemove, onNomin
                                     <Gavel size={14} />
                                 </button>
                             )}
-                            <button 
+                            <button
                                 onClick={() => onRemove(String(p.mlb_id))}
                                 className="p-1.5 text-[var(--lg-text-muted)] hover:text-red-400 hover:bg-red-900/20 rounded"
                                 title="Remove from Queue"

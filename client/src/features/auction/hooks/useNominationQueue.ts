@@ -51,5 +51,23 @@ export function useNominationQueue(teamId: number | undefined) {
         else add(playerId);
     };
 
-    return { queue, add, remove, isQueued, toggle };
+    const moveUp = (playerId: string | number) => {
+        const sid = String(playerId);
+        const idx = queue.indexOf(sid);
+        if (idx <= 0) return;
+        const next = [...queue];
+        [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+        save(next);
+    };
+
+    const moveDown = (playerId: string | number) => {
+        const sid = String(playerId);
+        const idx = queue.indexOf(sid);
+        if (idx < 0 || idx >= queue.length - 1) return;
+        const next = [...queue];
+        [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+        save(next);
+    };
+
+    return { queue, add, remove, isQueued, toggle, moveUp, moveDown };
 }

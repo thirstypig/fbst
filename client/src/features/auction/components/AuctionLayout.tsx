@@ -22,7 +22,7 @@ export default function AuctionLayout({ stage, context }: AuctionLayoutProps) {
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden bg-[var(--lg-glass-bg)] text-[var(--lg-text-primary)]">
       {/* Compact header with layout toggle */}
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-[var(--lg-table-border)] bg-[var(--lg-bg-secondary)] shrink-0">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--lg-table-border)] bg-[var(--lg-bg-secondary)] shrink-0">
         <div className="text-xs font-semibold uppercase tracking-wide text-[var(--lg-text-muted)]">Auction Draft</div>
         <div className="hidden md:flex bg-[var(--lg-tint)] rounded-md p-0.5 border border-[var(--lg-border-subtle)]">
           <button
@@ -46,7 +46,7 @@ export default function AuctionLayout({ stage, context }: AuctionLayoutProps) {
         /* Stacked: nomination on top, player pool below */
         <div className="flex flex-col h-full overflow-hidden">
           <section className="shrink-0 border-b border-[var(--lg-table-border)] bg-[var(--lg-bg-secondary)] overflow-y-auto max-h-[45vh]">
-            <div className="p-3">{stage}</div>
+            <div className="p-4">{stage}</div>
           </section>
           <section className="flex-1 overflow-hidden flex flex-col">
             {context}
@@ -56,7 +56,7 @@ export default function AuctionLayout({ stage, context }: AuctionLayoutProps) {
         /* Side-by-side: nomination left, player pool right */
         <div className="flex flex-col md:flex-row h-full overflow-hidden">
           <section className="shrink-0 md:w-[380px] border-b md:border-b-0 md:border-r border-[var(--lg-table-border)] bg-[var(--lg-bg-secondary)] overflow-y-auto">
-            <div className="p-3">{stage}</div>
+            <div className="p-4">{stage}</div>
           </section>
           <section className="flex-1 overflow-hidden flex flex-col">
             {context}
