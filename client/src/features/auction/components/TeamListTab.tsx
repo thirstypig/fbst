@@ -14,6 +14,9 @@ interface Team {
   maxBid: number;
   rosterCount: number;
   spotsLeft?: number;
+  pitcherCount?: number;
+  hitterCount?: number;
+  positionCounts?: Record<string, number>;
   roster?: { id: number; playerId: number; price: number; assignedPosition?: string | null }[];
   isMe?: boolean;
 }
@@ -37,9 +40,14 @@ interface TeamListTabProps {
   budgetCap?: number;
   rosterSize?: number;
   showPace?: boolean;
+  positionLimits?: Record<string, number> | null;
+  showPositionMatrix?: boolean;
 }
 
-export default function TeamListTab({ teams = [], players = [], budgetCap = 400, rosterSize = 23, showPace = true }: TeamListTabProps) {
+// Position order for the matrix display
+const MATRIX_POSITIONS = ["C", "1B", "2B", "3B", "SS", "MI", "CI", "OF", "DH", "P"];
+
+export default function TeamListTab({ teams = [], players = [], budgetCap = 400, rosterSize = 23, showPace = true, positionLimits, showPositionMatrix = true }: TeamListTabProps) {
   const { toast } = useToast();
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [detailedRoster, setDetailedRoster] = useState<RosterEntry[] | null>(null);
@@ -121,6 +129,44 @@ export default function TeamListTab({ teams = [], players = [], budgetCap = 400,
             <span>Avg ${leagueAvg.toFixed(1)}/player</span>
           </div>
         )}
+
+        {/* Position Needs Matrix (AUC-07) */}
+        {showPositionMatrix && teams.length > 0 && (
+          <div className="overflow-x-auto border-b border-[var(--lg-divide)]">
+            <table className="w-full text-[9px]">
+              <thead>
+                <tr className="bg-[var(--lg-glass-bg-hover)]">
+                  <th className="text-left px-2 py-1.5 font-semibold text-[var(--lg-text-muted)] uppercase tracking-wide sticky left-0 bg-[var(--lg-glass-bg-hover)] z-10 min-w-[80px]">Team</th>
+                  {MATRIX_POSITIONS.map(pos => (
+                    <th key={pos} className="px-1 py-1.5 text-center font-bold text-[var(--lg-text-muted)] uppercase" title={`${pos} — ${positionLimits?.[pos] ?? '∞'} max`}>{pos}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {teams.map(team => (
+                  <tr key={team.id} className={team.isMe ? 'bg-[var(--lg-accent)]/5' : ''}>
+                    <td className="px-2 py-1 font-semibold text-[var(--lg-text-primary)] truncate max-w-[80px] sticky left-0 bg-inherit z-10">{team.name.split(' ').pop()}</td>
+                    {MATRIX_POSITIONS.map(pos => {
+                      const filled = team.positionCounts?.[pos] ?? 0;
+                      const limit = positionLimits?.[pos];
+                      const isFull = limit != null && filled >= limit;
+                      return (
+                        <td key={pos} className="px-1 py-1 text-center tabular-nums">
+                          <span className={`inline-block min-w-[20px] px-0.5 rounded ${
+                            isFull ? 'bg-red-500/15 text-red-400 font-bold' : filled > 0 ? 'text-emerald-400 font-semibold' : 'text-[var(--lg-text-muted)] opacity-30'
+                          }`}>
+                            {filled}{limit != null ? `/${limit}` : ''}
+                          </span>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
         <div className="divide-y divide-[var(--lg-divide)]">
             {teams.map((team: Team, idx: number) => {
                 const isExpanded = expandedId === team.id;
