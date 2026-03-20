@@ -11,9 +11,10 @@ if (!supabaseUrl || !supabaseServiceKey) {
   logger.warn({}, "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in server environment.");
 }
 
+// Lazy-create to avoid crashing in CI/test environments without Supabase credentials
 export const supabaseAdmin = createClient(
-  supabaseUrl || "",
-  supabaseServiceKey || "",
+  supabaseUrl || "https://placeholder.supabase.co",
+  supabaseServiceKey || "placeholder-key",
   {
     auth: {
       autoRefreshToken: false,
