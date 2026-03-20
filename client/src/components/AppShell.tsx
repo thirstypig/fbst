@@ -157,6 +157,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         { to: "/roadmap", label: "Roadmap", show: Boolean(user?.isAdmin) },
         { to: "/tech", label: "Under the Hood", show: Boolean(user?.isAdmin) },
         { to: "/analytics", label: "Analytics", show: Boolean(user?.isAdmin) },
+        { to: "/docs", label: "Docs", show: Boolean(user?.isAdmin) },
       ],
     },
   ];

@@ -30,6 +30,7 @@ import Roadmap from "./pages/Roadmap";
 import Changelog from "./pages/Changelog";
 import Status from "./pages/Status";
 import Analytics from "./pages/Analytics";
+import Docs from "./pages/Docs";
 import { useAuth } from "./auth/AuthProvider";
 
 export default function App() {
@@ -83,6 +84,7 @@ export default function App() {
                 <Route path="/changelog" element={<Changelog />} />
                 <Route path="/status" element={<Status />} />
                 <Route path="/analytics" element={<Analytics />} />
+                <Route path="/docs" element={<Docs />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </AppShell>
