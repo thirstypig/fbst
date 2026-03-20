@@ -396,7 +396,7 @@ export default function PlayerPoolTab({ players, teams = [], onNominate, onQueue
                                                 </div>
                                             );
                                         }
-                                        return <span className="text-xs text-[var(--lg-text-secondary)]">${val}</span>;
+                                        return <span className={`text-xs font-semibold ${val > 10 ? 'text-emerald-400' : val > 0 ? 'text-[var(--lg-text-secondary)]' : 'text-red-400'}`}>${val}</span>;
                                     })()}
                                 </ThemedTd>
 
