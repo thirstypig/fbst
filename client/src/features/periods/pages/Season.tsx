@@ -6,7 +6,7 @@ import { OGBA_TEAM_NAMES } from "../../../lib/ogbaTeams";
 import { useTheme } from "../../../contexts/ThemeContext";
 import { useLeague } from "../../../contexts/LeagueContext";
 import PageHeader from "../../../components/ui/PageHeader";
-import { PeriodSummaryTable, CategoryPeriodTable, TeamPeriodSummaryRow, CategoryPeriodRow } from "../../../components/StatsTables";
+import { PeriodSummaryTable, CategoryPeriodTable, TeamPeriodSummaryRow, CategoryPeriodRow } from "../../../components/shared/StatsTables";
 import { Button } from "../../../components/ui/button";
 import { ThemedTable, ThemedThead, ThemedTr, ThemedTh, ThemedTd } from "../../../components/ui/ThemedTable";
 import { getCurrentSeason, type Season } from "../../seasons/api";

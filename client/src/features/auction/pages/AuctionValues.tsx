@@ -5,7 +5,7 @@ import { getAuctionValues, getLeague, type PlayerSeasonStat } from "../../../api
 import { toNum } from "../../../api/base";
 import { useLeague } from "../../../contexts/LeagueContext";
 import { mapPosition } from "../../../lib/sportConfig";
-import PlayerDetailModal from "../../../components/PlayerDetailModal";
+import PlayerDetailModal from "../../../components/shared/PlayerDetailModal";
 import PageHeader from "../../../components/ui/PageHeader";
 import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from "../../../components/ui/ThemedTable";
 

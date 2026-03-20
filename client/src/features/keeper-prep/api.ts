@@ -1,5 +1,5 @@
 // client/src/features/keeper-prep/api.ts
-import { API_BASE, fetchJsonApi } from "../../api/base";
+import { API_BASE, fetchJsonApi, fetchWithAuth } from "../../api/base";
 
 export interface TeamKeeperStatus {
   teamId: number;
@@ -51,5 +51,58 @@ export async function saveKeepersCommish(leagueId: number, teamId: number, keepe
   return fetchJsonApi(`${API_BASE}/commissioner/${leagueId}/keeper-prep/save`, {
     method: "POST",
     body: JSON.stringify({ teamId, keeperIds }),
+  });
+}
+
+export async function updateRosterPrice(leagueId: number, rosterId: number, price: number): Promise<{ success: boolean }> {
+  return fetchJsonApi(`${API_BASE}/commissioner/${leagueId}/keeper-prep/roster/${rosterId}/price`, {
+    method: "PATCH",
+    body: JSON.stringify({ price }),
+  });
+}
+
+// ─── Player Values ───────────────────────────────────────────────────────────
+
+export interface UploadValuesResponse {
+  success: boolean;
+  matched: number;
+  unmatched: number;
+  total: number;
+  unmatchedNames: string[];
+}
+
+export async function uploadPlayerValues(leagueId: number, file: File): Promise<UploadValuesResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetchWithAuth(`${API_BASE}/commissioner/${leagueId}/keeper-prep/upload-values`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error || `Upload failed (HTTP ${res.status})`);
+  }
+
+  return res.json();
+}
+
+export interface PlayerValueItem {
+  id: number;
+  playerName: string;
+  value: number;
+  position: string | null;
+  playerId: number | null;
+  player: { id: number; name: string; posPrimary: string; mlbTeam: string | null } | null;
+}
+
+export async function getPlayerValues(leagueId: number): Promise<{ values: PlayerValueItem[] }> {
+  return fetchJsonApi(`${API_BASE}/commissioner/${leagueId}/keeper-prep/values`);
+}
+
+export async function clearPlayerValues(leagueId: number): Promise<{ success: boolean; cleared: number }> {
+  return fetchJsonApi(`${API_BASE}/commissioner/${leagueId}/keeper-prep/values`, {
+    method: "DELETE",
   });
 }

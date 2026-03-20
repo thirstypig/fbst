@@ -1,7 +1,6 @@
 // server/src/seed.ts
-import { PrismaClient, DraftMode, DraftOrder } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { DraftMode, DraftOrder } from "@prisma/client";
+import { prisma } from "./db/prisma.js";
 
 async function main() {
   console.log("🌱 Seeding OGBA league, teams, period, stats, and sample roster...");

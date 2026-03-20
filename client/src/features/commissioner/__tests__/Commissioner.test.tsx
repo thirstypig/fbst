@@ -48,6 +48,11 @@ vi.mock("../../../hooks/useSeasonGating", () => ({
   }),
 }));
 
+// Mock LeagueContext
+vi.mock("../../../contexts/LeagueContext", () => ({
+  useLeague: () => ({ leagueId: 1, setLeagueId: vi.fn(), leagues: [], outfieldMode: "OF", seasonStatus: "IN_SEASON" }),
+}));
+
 // Mock child components
 vi.mock("../components/CommissionerRosterTool", () => ({
   default: () => <div data-testid="roster-tool" />,

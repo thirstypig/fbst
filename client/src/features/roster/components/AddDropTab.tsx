@@ -5,7 +5,7 @@ import { NL_TEAMS, AL_TEAMS } from '../../../lib/sportConfig';
 import { OGBA_TEAM_NAMES } from '../../../lib/ogbaTeams';
 import { getMlbTeamAbbr } from '../../../lib/playerDisplay';
 import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from "../../../components/ui/ThemedTable";
-import PlayerDetailModal from '../../../components/PlayerDetailModal';
+import PlayerDetailModal from '../../../components/shared/PlayerDetailModal';
 import PlayerExpandedRow from '../../auction/components/PlayerExpandedRow';
 import { useLeague } from '../../../contexts/LeagueContext';
 

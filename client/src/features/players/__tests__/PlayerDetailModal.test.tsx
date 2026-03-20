@@ -16,7 +16,7 @@ vi.mock("../../../contexts/LeagueContext", () => ({
 }));
 
 import { getPlayerProfile, getPlayerRecentStats, getPlayerCareerStats, getPlayerFieldingStats, getPlayerNews } from "../../../api";
-import PlayerDetailModal from "../../../components/PlayerDetailModal";
+import PlayerDetailModal from "../../../components/shared/PlayerDetailModal";
 
 const mockPlayer = {
   mlb_id: "545361",

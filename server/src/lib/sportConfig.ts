@@ -7,9 +7,25 @@
 
 export const POS_ORDER = ["C", "1B", "2B", "3B", "SS", "MI", "CI", "OF", "SP", "RP", "P", "DH"] as const;
 
-export const PITCHER_CODES = ["P", "SP", "RP"] as const;
+export const PITCHER_CODES = ["P", "SP", "RP", "TWP"] as const;
 
 export const POSITIONS = ["C", "1B", "2B", "3B", "SS", "MI", "CI", "OF", "DH", "P", "SP", "RP", "BN", "IL"] as const;
+
+// ─── Position-to-Slot Mapping ───
+
+/** Map a player's MLB position to the roster slot(s) it can fill. */
+export function positionToSlots(pos: string): string[] {
+  const p = pos.trim().toUpperCase();
+  if (p === "C") return ["C"];
+  if (p === "1B") return ["1B", "CI"];
+  if (p === "2B") return ["2B", "MI"];
+  if (p === "3B") return ["3B", "CI"];
+  if (p === "SS") return ["SS", "MI"];
+  if (p === "LF" || p === "CF" || p === "RF" || p === "OF") return ["OF"];
+  if (p === "DH") return ["DH"];
+  if (p === "P" || p === "SP" || p === "RP" || p === "TWP") return ["P"];
+  return [];
+}
 
 // ─── Category Configuration ───
 
@@ -110,5 +126,5 @@ export const TWO_WAY_PLAYERS: ReadonlyMap<number, { hitterPos: string; name: str
 
 export function isPitcher(pos: string): boolean {
   const s = pos.trim().toUpperCase();
-  return s === "P" || s === "SP" || s === "RP";
+  return s === "P" || s === "SP" || s === "RP" || s === "TWP";
 }

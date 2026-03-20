@@ -7,12 +7,29 @@ vi.mock("../../../db/prisma.js", () => ({
   prisma: {
     team: { findUnique: vi.fn() },
     roster: { findMany: vi.fn() },
+    playerValue: { findMany: vi.fn().mockResolvedValue([]) },
   },
 }));
 vi.mock("../../../lib/logger.js", () => ({
   logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() },
 }));
 vi.mock("../../../lib/auditLog.js", () => ({ writeAuditLog: vi.fn() }));
+vi.mock("multer", () => {
+  const multerFn: any = () => ({
+    single: () => (_req: any, _res: any, next: () => void) => next(),
+  });
+  return { default: multerFn };
+});
+vi.mock("fs", () => ({
+  default: {
+    existsSync: vi.fn().mockReturnValue(true),
+    mkdirSync: vi.fn(),
+    unlinkSync: vi.fn(),
+  },
+  existsSync: vi.fn().mockReturnValue(true),
+  mkdirSync: vi.fn(),
+  unlinkSync: vi.fn(),
+}));
 vi.mock("../../../middleware/auth.js", () => ({
   requireAuth: vi.fn((_req: unknown, _res: unknown, next: () => void) => next()),
   requireCommissionerOrAdmin: vi.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()),
@@ -22,6 +39,14 @@ vi.mock("../../../middleware/validate.js", () => ({
 }));
 vi.mock("../../../middleware/asyncHandler.js", () => ({
   asyncHandler: (fn: Function) => fn,
+}));
+vi.mock("../services/playerValueService.js", () => ({
+  PlayerValueService: class {
+    getValueMap = vi.fn().mockResolvedValue(new Map());
+    getValues = vi.fn().mockResolvedValue([]);
+    clearValues = vi.fn().mockResolvedValue(0);
+    importFromFile = vi.fn().mockResolvedValue({ matched: 10, unmatched: 2, total: 12, unmatchedNames: [] });
+  },
 }));
 vi.mock("../services/keeperPrepService.js", () => {
   const populateRostersFromPriorSeason = vi.fn().mockResolvedValue({ teamsPopulated: 8, playersAdded: 184 });

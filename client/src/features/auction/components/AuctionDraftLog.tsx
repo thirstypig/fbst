@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { fetchJsonApi } from '../../../api/base';
 import { mapPosition } from '../../../lib/sportConfig';
 import { useLeague } from '../../../contexts/LeagueContext';
+import { ThemedTable, ThemedThead, ThemedTbody, ThemedTh, ThemedTr, ThemedTd } from '../../../components/ui/ThemedTable';
+import type { AuctionLogEvent } from '../hooks/useAuctionState';
 
 interface BidEntry {
   teamId: number;
@@ -25,28 +27,20 @@ interface LotEntry {
   bids: BidEntry[];
 }
 
-interface AuctionLogEvent {
-  type: string;
-  teamId?: number;
-  teamName?: string;
-  playerName?: string;
-  amount?: number;
-  timestamp: number;
-  message: string;
-}
-
 interface Props {
   log: AuctionLogEvent[];
   teams: { id: number; name: string; code: string }[];
 }
 
 export default function AuctionDraftLog({ log, teams }: Props) {
-  const { leagueId } = useLeague();
+  const { leagueId, outfieldMode } = useLeague();
   const [lots, setLots] = useState<LotEntry[]>([]);
   const [expandedLot, setExpandedLot] = useState<number | null>(null);
   const [view, setView] = useState<'board' | 'feed'>('board');
 
-  // Fetch bid history from DB
+  // Only re-fetch when a WIN event is added (not on every BID/NOMINATION)
+  const winCount = useMemo(() => log.filter(e => e.type === 'WIN').length, [log]);
+
   useEffect(() => {
     if (!leagueId) return;
     let mounted = true;
@@ -54,14 +48,11 @@ export default function AuctionDraftLog({ log, teams }: Props) {
       .then(data => { if (mounted) setLots(data.lots); })
       .catch(() => {});
     return () => { mounted = false; };
-  }, [leagueId, log.length]); // re-fetch when log grows (new WIN events)
+  }, [leagueId, winCount]);
 
-  const { outfieldMode } = useLeague();
+  const teamMap = useMemo(() => new Map(teams.map(t => [t.id, t])), [teams]);
 
-  const teamMap = new Map(teams.map(t => [t.id, t]));
-
-  // Build bid tendency summary: which teams bid on which lots
-  const completedLots = lots.filter(l => l.status === 'completed');
+  const completedLots = useMemo(() => lots.filter(l => l.status === 'completed'), [lots]);
 
   return (
     <div className="h-full flex flex-col bg-[var(--lg-glass-bg)]">
@@ -97,17 +88,17 @@ export default function AuctionDraftLog({ log, teams }: Props) {
                 No players drafted yet.
               </div>
             )}
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 z-10 bg-[var(--lg-glass-bg-hover)] border-b border-[var(--lg-table-border)]">
-                <tr>
-                  <th className="text-center px-1.5 py-1.5 text-[10px] font-semibold uppercase text-[var(--lg-text-muted)] w-8">#</th>
-                  <th className="text-left px-2 py-1.5 text-[10px] font-semibold uppercase text-[var(--lg-text-muted)]">Player</th>
-                  <th className="text-left px-2 py-1.5 text-[10px] font-semibold uppercase text-[var(--lg-text-muted)]">Team</th>
-                  <th className="text-center px-2 py-1.5 text-[10px] font-semibold uppercase text-[var(--lg-text-muted)] w-12">$</th>
-                  <th className="text-center px-1 py-1.5 text-[10px] font-semibold uppercase text-[var(--lg-text-muted)] w-10">Bids</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--lg-table-border)]">
+            <ThemedTable bare compact>
+              <ThemedThead className="sticky top-0 z-10 bg-[var(--lg-glass-bg-hover)]">
+                <ThemedTr>
+                  <ThemedTh align="center" className="w-8">#</ThemedTh>
+                  <ThemedTh className="px-2">Player</ThemedTh>
+                  <ThemedTh className="px-2">Team</ThemedTh>
+                  <ThemedTh align="center" className="w-12">$</ThemedTh>
+                  <ThemedTh align="center" className="w-10 px-1">Bids</ThemedTh>
+                </ThemedTr>
+              </ThemedThead>
+              <ThemedTbody className="divide-y divide-[var(--lg-table-border)]">
                 {completedLots.map((lot) => {
                   const winner = lot.winnerTeamId ? teamMap.get(lot.winnerTeamId) : null;
                   const isExpanded = expandedLot === lot.lotNumber;
@@ -116,14 +107,14 @@ export default function AuctionDraftLog({ log, teams }: Props) {
 
                   return (
                     <React.Fragment key={lot.lotNumber}>
-                      <tr
-                        className={`cursor-pointer hover:bg-[var(--lg-tint)] ${isExpanded ? 'bg-[var(--lg-tint)]' : ''}`}
+                      <ThemedTr
+                        className={isExpanded ? 'bg-[var(--lg-tint)]' : ''}
                         onClick={() => setExpandedLot(isExpanded ? null : lot.lotNumber)}
                       >
-                        <td className="text-center text-xs tabular-nums text-[var(--lg-text-muted)] px-1.5">
+                        <ThemedTd align="center" className="text-xs text-[var(--lg-text-muted)]">
                           {lot.lotNumber}
-                        </td>
-                        <td className="px-2 py-1.5">
+                        </ThemedTd>
+                        <ThemedTd className="px-2">
                           <div className="font-semibold text-sm text-[var(--lg-text-primary)] leading-tight">
                             {lot.playerName}
                           </div>
@@ -132,27 +123,27 @@ export default function AuctionDraftLog({ log, teams }: Props) {
                             <span className="opacity-30 mx-1">·</span>
                             <span>{lot.mlbTeam || 'FA'}</span>
                           </div>
-                        </td>
-                        <td className="px-2 text-sm text-[var(--lg-text-secondary)]">
+                        </ThemedTd>
+                        <ThemedTd className="px-2 text-[var(--lg-text-secondary)]">
                           {winner?.name || '—'}
-                        </td>
-                        <td className="text-center text-sm font-semibold text-[var(--lg-accent)] tabular-nums px-2">
+                        </ThemedTd>
+                        <ThemedTd align="center" className="font-semibold text-[var(--lg-accent)] px-2">
                           ${lot.finalPrice}
-                        </td>
-                        <td className="text-center text-xs tabular-nums text-[var(--lg-text-muted)] px-1">
+                        </ThemedTd>
+                        <ThemedTd align="center" className="text-xs text-[var(--lg-text-muted)] px-1">
                           {bidCount}
                           {uniqueBidders > 1 && (
-                            <span className="text-[var(--lg-text-muted)] opacity-50 ml-0.5">
+                            <span className="opacity-50 ml-0.5">
                               ({uniqueBidders})
                             </span>
                           )}
-                        </td>
-                      </tr>
+                        </ThemedTd>
+                      </ThemedTr>
 
                       {/* Expanded bid history */}
                       {isExpanded && (
-                        <tr>
-                          <td colSpan={5} className="bg-[var(--lg-bg-secondary)]/30 px-4 py-2">
+                        <ThemedTr>
+                          <ThemedTd colSpan={5} className="bg-[var(--lg-bg-secondary)]/30 px-4 py-2">
                             <div className="text-[10px] font-semibold uppercase text-[var(--lg-text-muted)] mb-1.5 tracking-wide">
                               Bid History
                             </div>
@@ -173,14 +164,14 @@ export default function AuctionDraftLog({ log, teams }: Props) {
                                 );
                               })}
                             </div>
-                          </td>
-                        </tr>
+                          </ThemedTd>
+                        </ThemedTr>
                       )}
                     </React.Fragment>
                   );
                 })}
-              </tbody>
-            </table>
+              </ThemedTbody>
+            </ThemedTable>
           </div>
         ) : (
           /* Live Feed — real-time event stream (existing log) */

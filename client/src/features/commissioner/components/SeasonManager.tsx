@@ -18,7 +18,7 @@ function cls(...xs: Array<string | false | null | undefined>) {
 }
 
 const STATUS_STEPS: SeasonStatus[] = ["SETUP", "DRAFT", "IN_SEASON", "COMPLETED"];
-const STATUS_LABELS: Record<SeasonStatus, string> = {
+const STATUS_LABELS_BASE: Record<SeasonStatus, string> = {
   SETUP: "Setup",
   DRAFT: "Draft",
   IN_SEASON: "In Season",
@@ -45,10 +45,12 @@ const TRANSITION_WARNINGS: Record<string, string> = {
 
 interface Props {
   leagueId: number;
+  draftMode?: "AUCTION" | "DRAFT";
 }
 
-export default function SeasonManager({ leagueId }: Props) {
+export default function SeasonManager({ leagueId, draftMode }: Props) {
   const { confirm, toast } = useToast();
+  const STATUS_LABELS = { ...STATUS_LABELS_BASE, DRAFT: draftMode === "AUCTION" ? "Auction Draft" : "Draft" };
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [currentSeason, setCurrentSeason] = useState<Season | null>(null);
   const [loading, setLoading] = useState(true);
@@ -436,7 +438,7 @@ export default function SeasonManager({ leagueId }: Props) {
                     <option key={l.id} value={l.id}>{l.name} {l.season}</option>
                   ))}
                 </select>
-                {copyFromId && <p className="mt-1 text-xs text-[var(--lg-accent)]">Settings, members, and rules will be cloned.</p>}
+                {copyFromId && <p className="mt-1 text-xs text-[var(--lg-accent)]">Teams, members, rules, and rosters will be copied from the source season.</p>}
               </div>
 
               <div>

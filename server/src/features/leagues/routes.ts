@@ -3,6 +3,7 @@ import { Router } from "express";
 import { randomBytes } from "node:crypto";
 import { prisma } from "../../db/prisma.js";
 import { KeeperPrepService } from "../keeper-prep/services/keeperPrepService.js";
+import { PlayerValueService } from "../keeper-prep/services/playerValueService.js";
 import { requireAuth, requireCommissionerOrAdmin } from "../../middleware/auth.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { validateBody } from "../../middleware/validate.js";
@@ -15,6 +16,7 @@ const keepersSchema = z.object({
 });
 
 const keeperPrepService = new KeeperPrepService();
+const playerValueService = new PlayerValueService();
 
 const router = Router();
 
@@ -182,7 +184,14 @@ router.get("/leagues/:id/my-roster", requireAuth, asyncHandler(async (req, res) 
   const isLocked = await keeperPrepService.isKeepersLocked(leagueId);
   const keeperLimit = await keeperPrepService.getKeeperLimit(leagueId);
 
-  return res.json({ team, roster, isLocked, keeperLimit });
+  // Enrich with projected values
+  const valueMap = await playerValueService.getValueMap(leagueId);
+  const enrichedRoster = roster.map((r) => ({
+    ...r,
+    projectedValue: r.player?.id ? (valueMap.get(r.player.id) ?? null) : null,
+  }));
+
+  return res.json({ team, roster: enrichedRoster, isLocked, keeperLimit });
 }));
 
 /**

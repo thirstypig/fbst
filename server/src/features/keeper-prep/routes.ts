@@ -3,12 +3,40 @@
 
 import { Router } from "express";
 import { z } from "zod";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
+import multer from "multer";
 import { KeeperPrepService } from "./services/keeperPrepService.js";
+import { PlayerValueService } from "./services/playerValueService.js";
 import { prisma } from "../../db/prisma.js";
 import { requireAuth, requireCommissionerOrAdmin } from "../../middleware/auth.js";
 import { validateBody } from "../../middleware/validate.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { writeAuditLog } from "../../lib/auditLog.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Configure multer for value file uploads
+const MAX_UPLOAD_SIZE = 10 * 1024 * 1024; // 10 MB
+const uploadDir = path.join(__dirname, "../../data/uploads/");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+const upload = multer({
+  dest: uploadDir,
+  limits: { fileSize: MAX_UPLOAD_SIZE },
+  fileFilter: (_req, file, cb) => {
+    const allowed = [
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-excel",
+      "text/csv",
+      "application/csv",
+    ];
+    cb(null, allowed.includes(file.mimetype));
+  },
+});
 
 const keeperPrepSaveSchema = z.object({
   teamId: z.number().int().positive(),
@@ -18,6 +46,7 @@ const keeperPrepSaveSchema = z.object({
 
 const router = Router();
 const keeperPrepService = new KeeperPrepService();
+const playerValueService = new PlayerValueService();
 
 // ─── Routes ─────────────────────────────────────────────────────────────────
 
@@ -86,7 +115,14 @@ router.get(
     const keeperLimit = await keeperPrepService.getKeeperLimit(leagueId);
     const isLocked = await keeperPrepService.isKeepersLocked(leagueId);
 
-    return res.json({ team, roster, keeperLimit, isLocked });
+    // Enrich with projected values
+    const valueMap = await playerValueService.getValueMap(leagueId);
+    const enrichedRoster = roster.map((r) => ({
+      ...r,
+      projectedValue: r.player?.id ? (valueMap.get(r.player.id) ?? null) : null,
+    }));
+
+    return res.json({ team, roster: enrichedRoster, keeperLimit, isLocked });
   })
 );
 
@@ -164,6 +200,126 @@ router.post(
     });
 
     return res.json({ success: true, locked: false });
+  })
+);
+
+/**
+ * PATCH /api/commissioner/:leagueId/keeper-prep/roster/:rosterId/price
+ * Update the keeper price for a single roster entry.
+ * Body: { price: number }
+ */
+const updatePriceSchema = z.object({
+  price: z.number().int().min(0),
+});
+router.patch(
+  "/commissioner/:leagueId/keeper-prep/roster/:rosterId/price",
+  requireAuth,
+  requireCommissionerOrAdmin(),
+  validateBody(updatePriceSchema),
+  asyncHandler(async (req, res) => {
+    const leagueId = Number(req.params.leagueId);
+    const rosterId = Number(req.params.rosterId);
+    const { price } = req.body;
+
+    // Verify roster belongs to a team in this league
+    const roster = await prisma.roster.findUnique({
+      where: { id: rosterId },
+      include: { team: { select: { leagueId: true } } },
+    });
+    if (!roster || roster.team.leagueId !== leagueId) {
+      return res.status(404).json({ error: "Roster entry not found" });
+    }
+
+    const updated = await prisma.roster.update({
+      where: { id: rosterId },
+      data: { price },
+    });
+
+    writeAuditLog({
+      userId: req.user!.id,
+      action: "KEEPER_PRICE_UPDATE",
+      resourceType: "Roster",
+      resourceId: String(rosterId),
+      metadata: { leagueId, oldPrice: roster.price, newPrice: price },
+    });
+
+    return res.json({ success: true, roster: updated });
+  })
+);
+
+// ─── Player Value Routes ─────────────────────────────────────────────────────
+
+/**
+ * POST /api/commissioner/:leagueId/keeper-prep/upload-values
+ * Upload an Excel/CSV file of projected player values.
+ */
+router.post(
+  "/commissioner/:leagueId/keeper-prep/upload-values",
+  requireAuth,
+  requireCommissionerOrAdmin(),
+  upload.single("file"),
+  asyncHandler(async (req, res) => {
+    const leagueId = Number(req.params.leagueId);
+    const file = req.file;
+    if (!file) return res.status(400).json({ error: "No file uploaded" });
+
+    try {
+      const result = await playerValueService.importFromFile(leagueId, file.path);
+
+      writeAuditLog({
+        userId: req.user!.id,
+        action: "VALUES_UPLOAD",
+        resourceType: "PlayerValue",
+        metadata: { leagueId, ...result },
+      });
+
+      return res.json({ success: true, ...result });
+    } finally {
+      // Clean up temp file
+      try {
+        fs.unlinkSync(file.path);
+      } catch {
+        // ignore cleanup errors
+      }
+    }
+  })
+);
+
+/**
+ * GET /api/commissioner/:leagueId/keeper-prep/values
+ * Get all projected player values for a league.
+ */
+router.get(
+  "/commissioner/:leagueId/keeper-prep/values",
+  requireAuth,
+  requireCommissionerOrAdmin(),
+  asyncHandler(async (req, res) => {
+    const leagueId = Number(req.params.leagueId);
+    const values = await playerValueService.getValues(leagueId);
+    return res.json({ values });
+  })
+);
+
+/**
+ * DELETE /api/commissioner/:leagueId/keeper-prep/values
+ * Clear all projected player values for a league.
+ */
+router.delete(
+  "/commissioner/:leagueId/keeper-prep/values",
+  requireAuth,
+  requireCommissionerOrAdmin(),
+  asyncHandler(async (req, res) => {
+    const leagueId = Number(req.params.leagueId);
+    const count = await playerValueService.clearValues(leagueId);
+
+    writeAuditLog({
+      userId: req.user!.id,
+      action: "VALUES_CLEAR",
+      resourceType: "PlayerValue",
+      metadata: { leagueId, cleared: count },
+    });
+
+    return res.json({ success: true, cleared: count });
   })
 );
 

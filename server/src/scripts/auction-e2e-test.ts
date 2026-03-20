@@ -19,8 +19,7 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import { prisma } from "../db/prisma.js";
 
 const API = "http://localhost:4010/api";
 let adminToken = "";

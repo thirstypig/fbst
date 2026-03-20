@@ -1,7 +1,5 @@
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../src/db/prisma.js';
 
 async function main() {
   const years = [2004, 2009, 2016];

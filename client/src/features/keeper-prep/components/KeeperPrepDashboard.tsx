@@ -7,6 +7,10 @@ import {
   unlockKeepers,
   getTeamRosterForKeeperPrep,
   saveKeepersCommish,
+  updateRosterPrice,
+  uploadPlayerValues,
+  clearPlayerValues,
+  getPlayerValues,
   type TeamKeeperStatus
 } from "../api";
 import { useToast } from "../../../contexts/ToastContext";
@@ -26,18 +30,28 @@ export default function KeeperPrepDashboard({ leagueId }: KeeperPrepDashboardPro
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Player values
+  const [valuesCount, setValuesCount] = useState(0);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   // Per-team management
   const [editingTeamId, setEditingTeamId] = useState<number | null>(null);
   const [teamRoster, setTeamRoster] = useState<any[]>([]);
   const [selectedKeeperIds, setSelectedKeeperIds] = useState<Set<number>>(new Set());
   const [keeperLimit, setKeeperLimit] = useState(4);
+  const [editingPriceId, setEditingPriceId] = useState<number | null>(null);
+  const [editingPriceValue, setEditingPriceValue] = useState("");
 
   const fetchStatus = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await getKeeperPrepStatus(leagueId);
+      const [data, valData] = await Promise.all([
+        getKeeperPrepStatus(leagueId),
+        getPlayerValues(leagueId).catch(() => ({ values: [] })),
+      ]);
       setStatuses(data.statuses);
       setIsLocked(data.isLocked);
+      setValuesCount(valData.values.length);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -108,6 +122,55 @@ export default function KeeperPrepDashboard({ leagueId }: KeeperPrepDashboardPro
     setSelectedKeeperIds(next);
   };
 
+  const handlePriceSave = async (rosterId: number) => {
+    const newPrice = parseInt(editingPriceValue, 10);
+    if (isNaN(newPrice) || newPrice < 0) {
+      toast("Price must be a non-negative number.", "warning");
+      return;
+    }
+    try {
+      setBusy(true);
+      await updateRosterPrice(leagueId, rosterId, newPrice);
+      setTeamRoster(prev => prev.map(r => r.id === rosterId ? { ...r, price: newPrice } : r));
+      setEditingPriceId(null);
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : "Failed to update price", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleUploadValues = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setBusy(true);
+      const res = await uploadPlayerValues(leagueId, file);
+      const msg = `Imported ${res.total} values: ${res.matched} matched, ${res.unmatched} unmatched`;
+      toast(msg, res.unmatched > 0 ? "warning" : "success");
+      fetchStatus();
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : "Upload failed", "error");
+    } finally {
+      setBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleClearValues = async () => {
+    if (!await confirm("Clear all uploaded player values?")) return;
+    try {
+      setBusy(true);
+      await clearPlayerValues(leagueId);
+      toast("Values cleared.", "success");
+      fetchStatus();
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : "Failed to clear", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleSaveKeepers = async () => {
     if (editingTeamId === null) return;
     try {
@@ -146,8 +209,34 @@ export default function KeeperPrepDashboard({ leagueId }: KeeperPrepDashboardPro
           >
             {isLocked ? "Unlock Selections" : "Lock All Selections"}
           </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={busy}
+            className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-50"
+          >
+            Upload Values
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleUploadValues}
+            className="hidden"
+          />
         </div>
-        <div className="text-sm text-[var(--lg-text-muted)]">
+        <div className="flex items-center gap-4 text-sm text-[var(--lg-text-muted)]">
+          {valuesCount > 0 ? (
+            <span>
+              <span className="text-violet-400">{valuesCount} values loaded</span>
+              {" · "}
+              <button onClick={handleClearValues} className="text-[var(--lg-text-muted)] underline hover:text-red-400">
+                Clear
+              </button>
+            </span>
+          ) : (
+            <span>No values uploaded</span>
+          )}
+          <span className="text-[var(--lg-border-subtle)]">|</span>
           Keeper Limit: <span className="text-[var(--lg-text-primary)]">{statuses[0]?.keeperLimit || 4}</span>
         </div>
       </div>
@@ -235,7 +324,8 @@ export default function KeeperPrepDashboard({ leagueId }: KeeperPrepDashboardPro
                     <th className="pb-2 text-[var(--lg-text-muted)] font-medium">Keep?</th>
                     <th className="pb-2 text-[var(--lg-text-muted)] font-medium">Player</th>
                     <th className="pb-2 text-[var(--lg-text-muted)] font-medium">Pos</th>
-                    <th className="pb-2 text-[var(--lg-text-muted)] font-medium text-right">Price</th>
+                    <th className="pb-2 text-[var(--lg-text-muted)] font-medium text-right">Cost</th>
+                    {valuesCount > 0 && <th className="pb-2 text-[var(--lg-text-muted)] font-medium text-right">Value</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--lg-divide)]">
@@ -251,7 +341,40 @@ export default function KeeperPrepDashboard({ leagueId }: KeeperPrepDashboardPro
                       </td>
                       <td className="py-2 text-[var(--lg-text-primary)]">{r.player.name}</td>
                       <td className="py-2 text-[var(--lg-text-muted)]">{mapPosition(r.player.posPrimary, outfieldMode)}</td>
-                      <td className="py-2 text-right font-mono text-amber-400">${r.price}</td>
+                      <td className="py-2 text-right font-mono text-amber-400">
+                        {editingPriceId === r.id ? (
+                          <input
+                            type="number"
+                            min="0"
+                            autoFocus
+                            value={editingPriceValue}
+                            onChange={(e) => setEditingPriceValue(e.target.value)}
+                            onBlur={() => handlePriceSave(r.id)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handlePriceSave(r.id);
+                              if (e.key === "Escape") setEditingPriceId(null);
+                            }}
+                            className="w-16 rounded border border-[var(--lg-border-subtle)] bg-[var(--lg-bg-surface)] px-2 py-0.5 text-right text-sm font-mono text-amber-400 outline-none focus:border-sky-500"
+                          />
+                        ) : (
+                          <button
+                            onClick={() => { setEditingPriceId(r.id); setEditingPriceValue(String(r.price)); }}
+                            className="hover:text-sky-400 hover:underline cursor-pointer"
+                            title="Click to edit price"
+                          >
+                            ${r.price}
+                          </button>
+                        )}
+                      </td>
+                      {valuesCount > 0 && (
+                        <td className={`py-2 text-right font-mono ${
+                          r.projectedValue != null
+                            ? r.projectedValue > r.price ? "text-emerald-500" : r.projectedValue < r.price ? "text-red-400" : "text-[var(--lg-text-primary)]"
+                            : "text-[var(--lg-text-muted)]"
+                        }`}>
+                          {r.projectedValue != null ? `$${r.projectedValue}` : "—"}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

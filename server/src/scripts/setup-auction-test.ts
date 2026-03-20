@@ -4,8 +4,7 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import { prisma } from "../db/prisma.js";
 
 async function main() {
   console.log("=== STEP 1: Assign owners to league 2 teams ===");

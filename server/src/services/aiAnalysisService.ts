@@ -1,10 +1,16 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { prisma } from '../db/prisma.js';
 import { logger } from '../lib/logger.js';
 
-// Initialize Gemini
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
+// Lazy-load @google/generative-ai (1.2MB) — only imported when AI analysis is actually requested
+let _genAI: any = null;
+async function ensureGenAI(): Promise<any> {
+  if (_genAI) return _genAI;
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+  if (!GEMINI_API_KEY) return null;
+  const { GoogleGenerativeAI } = await import('@google/generative-ai');
+  _genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+  return _genAI;
+}
 
 interface AnalysisResult {
   success: boolean;
@@ -13,13 +19,18 @@ interface AnalysisResult {
 }
 
 export class AIAnalysisService {
-  private model = genAI?.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+  private async getModel() {
+    const genAI = await ensureGenAI();
+    if (!genAI) return null;
+    return genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+  }
 
   /**
    * Analyze team's period-over-period performance trends
    */
   async analyzeTeamTrends(year: number, teamCode: string): Promise<AnalysisResult> {
-    if (!this.model) {
+    const model = await this.getModel();
+    if (!model) {
       return { success: false, error: 'AI analysis is not available' };
     }
 
@@ -106,7 +117,7 @@ Provide a concise analysis (2-3 paragraphs) covering:
 
 Keep it conversational and insightful. Use specific numbers.`;
 
-      const result = await this.model.generateContent(prompt);
+      const result = await model.generateContent(prompt);
       const response = result.response;
       const text = response.text();
 
@@ -121,7 +132,8 @@ Keep it conversational and insightful. Use specific numbers.`;
    * Analyze team's auction draft strategy
    */
   async analyzeDraft(year: number, teamCode: string): Promise<AnalysisResult> {
-    if (!this.model) {
+    const model = await this.getModel();
+    if (!model) {
       return { success: false, error: 'AI analysis is not available' };
     }
 
@@ -199,7 +211,7 @@ Provide a concise analysis (2-3 paragraphs) covering:
 
 Keep it conversational. Highlight specific players and prices.`;
 
-      const result = await this.model.generateContent(prompt);
+      const result = await model.generateContent(prompt);
       const response = result.response;
       const text = response.text();
 

@@ -8,7 +8,7 @@ import {
   TeamSeasonSummaryTable,
   TeamPeriodHittersTable,
   TeamPeriodPitchersTable,
-} from "../../../components/StatsTables";
+} from "../../../components/shared/StatsTables";
 import type {
   PeriodSummaryTableProps,
   CategoryPeriodTableProps,
@@ -16,7 +16,7 @@ import type {
   TeamSeasonSummaryProps,
   TeamPeriodHittersProps,
   TeamPeriodPitchersProps,
-} from "../../../components/StatsTables";
+} from "../../../components/shared/StatsTables";
 
 // Wrap in MemoryRouter since components use <Link>
 function renderWithRouter(ui: React.ReactElement) {

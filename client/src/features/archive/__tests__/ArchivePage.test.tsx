@@ -65,7 +65,7 @@ vi.mock("../../../components/ui/PageHeader", () => ({
     </div>
   ),
 }));
-vi.mock("../../../components/StatsTables", () => ({
+vi.mock("../../../components/shared/StatsTables", () => ({
   SeasonTable: ({ rows }: any) => (
     <div data-testid="season-table">{rows?.length ?? 0} rows</div>
   ),

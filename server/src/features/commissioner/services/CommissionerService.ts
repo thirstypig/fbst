@@ -111,7 +111,16 @@ export class CommissionerService {
       update: {},
     });
 
-    // 5. Copy Data (if requested)
+    // 5. Create Season record in SETUP status
+    try {
+      await prisma.season.create({
+        data: { leagueId: league.id, year: season, status: "SETUP" },
+      });
+    } catch (e) {
+      logger.warn({ error: String(e), leagueId: league.id, season }, "Season record already exists or failed to create");
+    }
+
+    // 6. Copy Data (if requested)
     if (copyFromLeagueId && copyFromLeagueId > 0) {
       await this.copyLeagueData(league.id, copyFromLeagueId, creatorUserId);
     }
@@ -126,13 +135,22 @@ export class CommissionerService {
   ) {
     logger.info({ sourceLeagueId, targetLeagueId }, "Copying league data");
 
-    // 1. Copy Teams
+    // 1. Copy Teams — build source→target mapping for roster copy
     const sourceTeams = await prisma.team.findMany({
       where: { leagueId: sourceLeagueId },
+      include: {
+        rosters: {
+          where: { releasedAt: null },
+          select: { playerId: true, price: true, source: true },
+        },
+        ownerships: { select: { userId: true } },
+      },
     });
+
+    const teamIdMap = new Map<number, number>(); // sourceTeamId → targetTeamId
     for (const t of sourceTeams) {
       try {
-        await prisma.team.create({
+        const newTeam = await prisma.team.create({
           data: {
             leagueId: targetLeagueId,
             name: t.name,
@@ -140,8 +158,21 @@ export class CommissionerService {
             owner: t.owner,
             ownerUserId: t.ownerUserId,
             budget: t.budget,
+            priorTeamId: t.id,
           },
         });
+        teamIdMap.set(t.id, newTeam.id);
+
+        // Copy TeamOwnership entries
+        for (const o of t.ownerships) {
+          try {
+            await prisma.teamOwnership.create({
+              data: { teamId: newTeam.id, userId: o.userId },
+            });
+          } catch {
+            // Ignore duplicates or FK issues
+          }
+        }
       } catch (e) {
         logger.warn({ error: String(e), teamName: t.name }, "Failed to copy team");
       }
@@ -181,6 +212,48 @@ export class CommissionerService {
           isLocked: false,
         })),
       });
+    }
+
+    // 4. Copy Rosters directly from source teams using the team ID map
+    // This is more reliable than populateRostersFromPriorSeason() which
+    // re-discovers the source league via franchiseId + season - 1.
+    let playersAdded = 0;
+    const rosterErrors: string[] = [];
+    for (const sourceTeam of sourceTeams) {
+      const targetTeamId = teamIdMap.get(sourceTeam.id);
+      if (!targetTeamId) continue; // Team copy failed earlier
+
+      for (const roster of sourceTeam.rosters) {
+        try {
+          // No assertPlayerAvailable guard here: source data is already validated,
+          // and two-way players (e.g. Ohtani as DH + P) legitimately appear on 2 teams.
+          await prisma.roster.create({
+            data: {
+              teamId: targetTeamId,
+              playerId: roster.playerId,
+              source: "prior_season",
+              price: roster.price,
+              isKeeper: false,
+            },
+          });
+          playersAdded++;
+        } catch (e) {
+          const msg = `Team ${sourceTeam.name}, playerId ${roster.playerId}: ${e instanceof Error ? e.message : String(e)}`;
+          rosterErrors.push(msg);
+          logger.warn(
+            { error: String(e), sourceTeamId: sourceTeam.id, playerId: roster.playerId },
+            "Failed to copy roster entry during season copy",
+          );
+        }
+      }
+    }
+
+    logger.info(
+      { targetLeagueId, sourceLeagueId, teamsCopied: teamIdMap.size, playersAdded, rosterErrors: rosterErrors.length },
+      "Season copy complete",
+    );
+    if (rosterErrors.length > 0) {
+      logger.warn({ rosterErrors }, "Roster copy errors during season copy");
     }
   }
 

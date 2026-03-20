@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 
 import { getPlayerSeasonStats, type PlayerSeasonStat, getTeamDetails, getTeams } from "../../../api";
-import PlayerDetailModal from "../../../components/PlayerDetailModal";
+import PlayerDetailModal from "../../../components/shared/PlayerDetailModal";
 import PlayerExpandedRow from "../../auction/components/PlayerExpandedRow";
 import TeamRosterManager from "../components/TeamRosterManager";
 import { useLeague } from "../../../contexts/LeagueContext";

@@ -13,7 +13,7 @@ vi.mock("../../../contexts/LeagueContext", () => ({
 }));
 
 // Mock PlayerDetailModal (avoid deep dependency tree)
-vi.mock("../../../components/PlayerDetailModal", () => ({
+vi.mock("../../../components/shared/PlayerDetailModal", () => ({
   default: ({ player, onClose, open }: any) =>
     open && player ? <div data-testid="player-modal">{player.player_name}</div> : null,
 }));

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import PlayerExpandedRow from './PlayerExpandedRow';
-import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from "../../../components/ui/ThemedTable";
 import { getLastName } from '../../../lib/baseballUtils';
+import { ThemedTable, ThemedThead, ThemedTbody, ThemedTh, ThemedTr, ThemedTd } from '../../../components/ui/ThemedTable';
 
 import {
   PlayerSeasonStat,
@@ -25,28 +25,8 @@ interface PlayerPoolTabProps {
 }
 
 import { POS_ORDER, getPrimaryPosition } from '../../../lib/baseballUtils';
-import { mapPosition } from '../../../lib/sportConfig';
+import { mapPosition, positionToSlots, NL_TEAMS, AL_TEAMS } from '../../../lib/sportConfig';
 import { useLeague } from '../../../contexts/LeagueContext';
-
-/** Map a player's MLB position to the roster slot(s) it can fill. */
-function positionToSlots(pos: string): string[] {
-  const p = pos.trim().toUpperCase();
-  if (p === "C") return ["C"];
-  if (p === "1B") return ["1B", "CI"];
-  if (p === "2B") return ["2B", "MI"];
-  if (p === "3B") return ["3B", "CI"];
-  if (p === "SS") return ["SS", "MI"];
-  if (p === "LF" || p === "CF" || p === "RF" || p === "OF") return ["OF"];
-  if (p === "DH") return ["DH"];
-  if (p === "P" || p === "SP" || p === "RP" || p === "TWP") return ["P"];
-  return [];
-}
-
-const PITCHER_POS = new Set(["P", "SP", "RP", "TWP"]);
-
-// MLB league team sets for NL/AL/All filter
-const NL_TEAMS = new Set(["ARI", "AZ", "ATL", "CHC", "CIN", "COL", "LAD", "MIA", "MIL", "NYM", "PHI", "PIT", "SD", "SF", "STL", "WSH"]);
-const AL_TEAMS = new Set(["BAL", "BOS", "CLE", "DET", "HOU", "KC", "LAA", "MIN", "NYY", "ATH", "OAK", "SEA", "TB", "TEX", "TOR", "CWS"]);
 
 export default function PlayerPoolTab({ players, teams = [], onNominate, onQueue, isQueued, myTeamId, auctionConfig }: PlayerPoolTabProps) {
   const { outfieldMode } = useLeague();
@@ -58,7 +38,8 @@ export default function PlayerPoolTab({ players, teams = [], onNominate, onQueue
   const [viewMode, setViewMode] = useState<'all' | 'remaining'>('remaining');
 
   // Sort State
-  const [sortKey, setSortKey] = useState<string>('name');
+  type StatKey = 'name' | 'R' | 'HR' | 'RBI' | 'SB' | 'AVG' | 'W' | 'SV' | 'K' | 'ERA' | 'WHIP';
+  const [sortKey, setSortKey] = useState<StatKey>('name');
   const [sortDesc, setSortDesc] = useState(false);
 
   // Filters
@@ -114,8 +95,7 @@ export default function PlayerPoolTab({ players, teams = [], onNominate, onQueue
   const uniquePositions = POS_ORDER;
 
   // Helper to get stat value
-  const getStat = (p: PlayerSeasonStat, key: string) => {
-      // @ts-expect-error key access
+  const getStat = (p: PlayerSeasonStat, key: StatKey) => {
       const val = p[key] ?? 0;
       return Number(val) || 0;
   };
@@ -174,7 +154,7 @@ export default function PlayerPoolTab({ players, teams = [], onNominate, onQueue
     setExpandedId(prev => (prev === id ? null : id));
   };
 
-  const handleHeaderClick = (key: string) => {
+  const handleHeaderClick = (key: StatKey) => {
       if (sortKey === key) {
           setSortDesc(!sortDesc);
       } else {
@@ -185,11 +165,11 @@ export default function PlayerPoolTab({ players, teams = [], onNominate, onQueue
   };
 
   /** Sort indicator arrow */
-  const sortArrow = (key: string) =>
+  const sortArrow = (key: StatKey) =>
     sortKey === key ? (sortDesc ? ' ▾' : ' ▴') : '';
 
-  // Column count for expanded row colspan
-  const colCount = viewGroup === 'hitters' ? 9 : 9;
+  // Column count for expanded row colspan (name + 5 stats + action)
+  const colCount = 7;
 
   return (
     <div className="h-full flex flex-col bg-[var(--lg-glass-bg)]">
@@ -284,31 +264,31 @@ export default function PlayerPoolTab({ players, teams = [], onNominate, onQueue
 
       {/* Table */}
       <div className="flex-1 overflow-auto">
-        <table className="w-full text-sm">
-            <thead className="sticky top-0 z-10 bg-[var(--lg-glass-bg-hover)] border-b border-[var(--lg-table-border)]">
-                <tr>
-                    <th className="text-left px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--lg-text-muted)] cursor-pointer" onClick={() => handleHeaderClick('name')}>Player{sortArrow('name')}</th>
+        <ThemedTable bare compact>
+            <ThemedThead className="sticky top-0 z-10 bg-[var(--lg-glass-bg-hover)]">
+                <ThemedTr>
+                    <ThemedTh className="px-2 tracking-wide" onClick={() => handleHeaderClick('name')}>Player{sortArrow('name')}</ThemedTh>
                     {viewGroup === 'hitters' ? (
                         <>
-                             <th className="text-center px-1 py-1.5 text-[10px] font-semibold uppercase text-[var(--lg-text-muted)] cursor-pointer w-8" onClick={() => handleHeaderClick('R')}>R{sortArrow('R')}</th>
-                             <th className="text-center px-1 py-1.5 text-[10px] font-semibold uppercase text-[var(--lg-text-muted)] cursor-pointer w-8" onClick={() => handleHeaderClick('HR')}>HR{sortArrow('HR')}</th>
-                             <th className="text-center px-1 py-1.5 text-[10px] font-semibold uppercase text-[var(--lg-text-muted)] cursor-pointer w-8" onClick={() => handleHeaderClick('RBI')}>RBI{sortArrow('RBI')}</th>
-                             <th className="text-center px-1 py-1.5 text-[10px] font-semibold uppercase text-[var(--lg-text-muted)] cursor-pointer w-8" onClick={() => handleHeaderClick('SB')}>SB{sortArrow('SB')}</th>
-                             <th className="text-center px-1 py-1.5 text-[10px] font-semibold uppercase text-[var(--lg-text-muted)] cursor-pointer w-10" onClick={() => handleHeaderClick('AVG')}>AVG{sortArrow('AVG')}</th>
+                             <ThemedTh align="center" className="px-1 w-8" onClick={() => handleHeaderClick('R')}>R{sortArrow('R')}</ThemedTh>
+                             <ThemedTh align="center" className="px-1 w-8" onClick={() => handleHeaderClick('HR')}>HR{sortArrow('HR')}</ThemedTh>
+                             <ThemedTh align="center" className="px-1 w-8" onClick={() => handleHeaderClick('RBI')}>RBI{sortArrow('RBI')}</ThemedTh>
+                             <ThemedTh align="center" className="px-1 w-8" onClick={() => handleHeaderClick('SB')}>SB{sortArrow('SB')}</ThemedTh>
+                             <ThemedTh align="center" className="px-1 w-10" onClick={() => handleHeaderClick('AVG')}>AVG{sortArrow('AVG')}</ThemedTh>
                         </>
                     ) : (
                         <>
-                             <th className="text-center px-1 py-1.5 text-[10px] font-semibold uppercase text-[var(--lg-text-muted)] cursor-pointer w-8" onClick={() => handleHeaderClick('W')}>W{sortArrow('W')}</th>
-                             <th className="text-center px-1 py-1.5 text-[10px] font-semibold uppercase text-[var(--lg-text-muted)] cursor-pointer w-8" onClick={() => handleHeaderClick('SV')}>SV{sortArrow('SV')}</th>
-                             <th className="text-center px-1 py-1.5 text-[10px] font-semibold uppercase text-[var(--lg-text-muted)] cursor-pointer w-8" onClick={() => handleHeaderClick('K')}>K{sortArrow('K')}</th>
-                             <th className="text-center px-1 py-1.5 text-[10px] font-semibold uppercase text-[var(--lg-text-muted)] cursor-pointer w-10" onClick={() => handleHeaderClick('ERA')}>ERA{sortArrow('ERA')}</th>
-                             <th className="text-center px-1 py-1.5 text-[10px] font-semibold uppercase text-[var(--lg-text-muted)] cursor-pointer w-10" onClick={() => handleHeaderClick('WHIP')}>WHIP{sortArrow('WHIP')}</th>
+                             <ThemedTh align="center" className="px-1 w-8" onClick={() => handleHeaderClick('W')}>W{sortArrow('W')}</ThemedTh>
+                             <ThemedTh align="center" className="px-1 w-8" onClick={() => handleHeaderClick('SV')}>SV{sortArrow('SV')}</ThemedTh>
+                             <ThemedTh align="center" className="px-1 w-8" onClick={() => handleHeaderClick('K')}>K{sortArrow('K')}</ThemedTh>
+                             <ThemedTh align="center" className="px-1 w-10" onClick={() => handleHeaderClick('ERA')}>ERA{sortArrow('ERA')}</ThemedTh>
+                             <ThemedTh align="center" className="px-1 w-10" onClick={() => handleHeaderClick('WHIP')}>WHIP{sortArrow('WHIP')}</ThemedTh>
                         </>
                     )}
-                    <th className="w-14 px-1 py-1.5"></th>
-                </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--lg-table-border)]">
+                    <ThemedTh className="w-14 px-1"> </ThemedTh>
+                </ThemedTr>
+            </ThemedThead>
+            <ThemedTbody className="divide-y divide-[var(--lg-table-border)]">
                 {filteredPlayers.map((p: PlayerSeasonStat) => {
                     const isExpanded = expandedId === p.row_id;
                     const isTaken = !!p.ogba_team_code || !!p.team;
@@ -316,11 +296,11 @@ export default function PlayerPoolTab({ players, teams = [], onNominate, onQueue
 
                     return (
                         <React.Fragment key={p.row_id}>
-                            <tr
-                                className={`cursor-pointer hover:bg-[var(--lg-tint)] ${isExpanded ? 'bg-[var(--lg-tint)]' : ''} ${isTaken ? 'opacity-40' : ''}`}
+                            <ThemedTr
+                                className={`${isExpanded ? 'bg-[var(--lg-tint)]' : ''} ${isTaken ? 'opacity-40' : ''}`}
                                 onClick={() => toggleExpand(p.row_id ?? '')}
                             >
-                                <td className="px-2 py-1.5">
+                                <ThemedTd className="px-2">
                                     <div className="font-semibold text-sm text-[var(--lg-text-primary)] leading-tight">
                                         {p.mlb_full_name || p.player_name}
                                     </div>
@@ -335,27 +315,27 @@ export default function PlayerPoolTab({ players, teams = [], onNominate, onQueue
                                             </>
                                         )}
                                     </div>
-                                </td>
+                                </ThemedTd>
 
                                 {viewGroup === 'hitters' ? (
                                     <>
-                                        <td className="text-center text-xs tabular-nums text-[var(--lg-text-secondary)] px-1">{p.R || '-'}</td>
-                                        <td className="text-center text-xs tabular-nums text-[var(--lg-text-secondary)] px-1">{p.HR || '-'}</td>
-                                        <td className="text-center text-xs tabular-nums text-[var(--lg-text-secondary)] px-1">{p.RBI || '-'}</td>
-                                        <td className="text-center text-xs tabular-nums text-[var(--lg-text-secondary)] px-1">{p.SB || '-'}</td>
-                                        <td className="text-center text-xs tabular-nums text-[var(--lg-text-secondary)] px-1">{typeof p.AVG === 'number' ? fmtRate(p.AVG) : '-'}</td>
+                                        <ThemedTd align="center" className="text-xs text-[var(--lg-text-secondary)] px-1">{p.R || '-'}</ThemedTd>
+                                        <ThemedTd align="center" className="text-xs text-[var(--lg-text-secondary)] px-1">{p.HR || '-'}</ThemedTd>
+                                        <ThemedTd align="center" className="text-xs text-[var(--lg-text-secondary)] px-1">{p.RBI || '-'}</ThemedTd>
+                                        <ThemedTd align="center" className="text-xs text-[var(--lg-text-secondary)] px-1">{p.SB || '-'}</ThemedTd>
+                                        <ThemedTd align="center" className="text-xs text-[var(--lg-text-secondary)] px-1">{typeof p.AVG === 'number' ? fmtRate(p.AVG) : '-'}</ThemedTd>
                                     </>
                                 ) : (
                                     <>
-                                        <td className="text-center text-xs tabular-nums text-[var(--lg-text-secondary)] px-1">{p.W || '-'}</td>
-                                        <td className="text-center text-xs tabular-nums text-[var(--lg-text-secondary)] px-1">{p.SV || '-'}</td>
-                                        <td className="text-center text-xs tabular-nums text-[var(--lg-text-secondary)] px-1">{p.K || '-'}</td>
-                                        <td className="text-center text-xs tabular-nums text-[var(--lg-text-secondary)] px-1">{p.ERA ? Number(p.ERA).toFixed(2) : '-'}</td>
-                                        <td className="text-center text-xs tabular-nums text-[var(--lg-text-secondary)] px-1">{p.WHIP ? Number(p.WHIP).toFixed(2) : '-'}</td>
+                                        <ThemedTd align="center" className="text-xs text-[var(--lg-text-secondary)] px-1">{p.W || '-'}</ThemedTd>
+                                        <ThemedTd align="center" className="text-xs text-[var(--lg-text-secondary)] px-1">{p.SV || '-'}</ThemedTd>
+                                        <ThemedTd align="center" className="text-xs text-[var(--lg-text-secondary)] px-1">{p.K || '-'}</ThemedTd>
+                                        <ThemedTd align="center" className="text-xs text-[var(--lg-text-secondary)] px-1">{p.ERA ? Number(p.ERA).toFixed(2) : '-'}</ThemedTd>
+                                        <ThemedTd align="center" className="text-xs text-[var(--lg-text-secondary)] px-1">{p.WHIP ? Number(p.WHIP).toFixed(2) : '-'}</ThemedTd>
                                     </>
                                 )}
 
-                                <td className="px-1 text-center">
+                                <ThemedTd align="center" className="px-1">
                                     {!isTaken && onNominate && (
                                         <button
                                             onClick={(e) => {
@@ -372,8 +352,8 @@ export default function PlayerPoolTab({ players, teams = [], onNominate, onQueue
                                             Nom
                                         </button>
                                     )}
-                                </td>
-                            </tr>
+                                </ThemedTd>
+                            </ThemedTr>
 
                             {isExpanded && (
                                 <PlayerExpandedRow
@@ -389,8 +369,8 @@ export default function PlayerPoolTab({ players, teams = [], onNominate, onQueue
                         </React.Fragment>
                     );
                 })}
-            </tbody>
-        </table>
+            </ThemedTbody>
+        </ThemedTable>
         {filteredPlayers.length === 0 && (
             <div className="py-12 text-center text-xs font-medium text-[var(--lg-text-muted)] uppercase">
                 No players found

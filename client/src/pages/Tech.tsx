@@ -18,7 +18,15 @@ import {
   Lightbulb,
   BookOpen,
   Workflow,
+  ArrowRight,
+  Package,
+  Shield,
+  Activity,
+  Lock,
+  Globe,
+  Search,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import MermaidDiagram from "../components/MermaidDiagram";
 
 /* ── Data ────────────────────────────────────────────────────────── */
@@ -31,11 +39,11 @@ const stats = [
   { label: "Database Models", value: "30", icon: Database },
   { label: "API Endpoints", value: "116", icon: Plug },
   { label: "Feature Modules", value: "17", icon: Layers },
-  { label: "Git Commits", value: "138", icon: GitCommit },
+  { label: "Git Commits", value: "140+", icon: GitCommit },
   { label: "Tests Passing", value: "670", icon: TestTube },
   { label: "DB Schema Lines", value: "723", icon: Braces },
   { label: "DB Migrations", value: "10", icon: Database },
-  { label: "Est. Tokens Used", value: "~65M+", icon: Bot },
+  { label: "Est. Tokens Used", value: "~68M+", icon: Bot },
 ];
 
 const techStack = [
@@ -51,6 +59,7 @@ const techStack = [
       { name: "Radix UI", desc: "Accessible UI primitives (shadcn-style)" },
       { name: "Headless UI", desc: "Unstyled accessible components" },
       { name: "dnd-kit", desc: "Drag-and-drop for auction & roster management" },
+      { name: "PostHog", desc: "Product analytics — pageviews, user identity, event tracking (lazy-loaded)" },
     ],
   },
   {
@@ -107,6 +116,7 @@ const techStack = [
       { name: "Supabase", desc: "Managed PostgreSQL + Auth + Storage" },
       { name: "Git / GitHub", desc: "Version control, PRs, CI" },
       { name: "MCP (Model Context Protocol)", desc: "Tool server for Claude Code CLI integration" },
+      { name: "PostHog Cloud", desc: "Product analytics hosting" },
     ],
   },
 ];
@@ -501,6 +511,16 @@ const buildJournal = [
     title: "Session 26: 2025 Stats & Auction Bid Tracking",
     detail: "Players page and auction Player Pool now show real 2025 season stats fetched from MLB Stats API (batched requests for all 1,652 players, 30-day SQLite cache, CSV fallback). All stat columns sortable. Auction bid history tracked via AuctionLot/AuctionBid models — Draft Board log shows completed auctions in nomination order with expandable per-lot bid history for owner tendency analysis.",
   },
+  {
+    date: "Mar 2026",
+    title: "Session 27: 6-Agent Code Review, Fixes & Roadmap",
+    detail: "Ran a comprehensive code review using 6 parallel agents (TypeScript, Security, Performance, Architecture, Simplicity, Pattern Recognition) on PR #43. Synthesized 16 findings across P1/P2/P3. Fixed all 3 P1s (awaited AuctionLot.update, winCount-based re-fetch, in-memory checkPositionLimit) and 5 P2s (leagueId validation, error logging, positionToSlots/PITCHER_CODES/NL_TEAMS consolidated into sportConfig.ts). Built visual /roadmap page with project health scorecard (8.5/10), audit recommendations, progress tracking, and cross-links to /tech.",
+  },
+  {
+    date: "Mar 2026",
+    title: "Session 28: Meta Pages, Analytics & Full Tech Debt Cleanup",
+    detail: "Built 3 new pages (/changelog, /status, /analytics) and added 4 new sections to /tech. Added to /roadmap: Velocity chart, Risk Register, Session planner. Fixed all remaining P2s (CR-09 type import, CR-10 StatKey union). Completed all P3s: extracted statsService.ts (CR-15), added compact ThemedTable variant via React context and migrated auction tables (CR-16), lazy-loaded xlsx + generative-ai saving 3.5MB startup (RD-01), enforced Prisma singleton across 8 scripts (RD-02), npm audit in CI (RD-03), moved shared components to components/shared/ (RD-04). 68 of 69 total items resolved — only TD-Q03 intentionally deferred.",
+  },
 ];
 
 const workflowSteps = [
@@ -549,7 +569,485 @@ const lessons = [
   },
 ];
 
+const costComparison = {
+  aiCost: {
+    tokens: "~68M+",
+    apiCost: "$150–250",
+    subscriptionCost: "$100–200/mo",
+    totalRange: "$200–$2,400",
+    note: "Claude Code subscription + API tokens over 27 sessions (Nov 2025–Mar 2026)",
+  },
+  usDevShop: {
+    rateRange: "$150–250/hr",
+    hoursLow: 800,
+    hoursHigh: 1200,
+    totalLow: "$120K",
+    totalHigh: "$300K",
+    timeline: "6–12 months",
+    note: "Full-stack agency (NY/SF/Austin). Includes PM, design, frontend, backend, QA, DevOps. Based on 17 feature modules, 116 API endpoints, 30 DB models, real-time WebSocket, OAuth, live MLB data integration.",
+  },
+  offshore: {
+    rateRange: "$25–60/hr",
+    hoursLow: 800,
+    hoursHigh: 1200,
+    totalLow: "$20K",
+    totalHigh: "$72K",
+    timeline: "4–9 months",
+    note: "Offshore team (India/China). Lower hourly rate but often requires more hours due to communication overhead, timezone gaps, and iteration cycles. PM/QA often separate line items.",
+  },
+  scope: [
+    "46,870+ lines of TypeScript (strict mode)",
+    "17 mirrored client/server feature modules",
+    "116 REST API endpoints + WebSocket real-time auction",
+    "30 Prisma database models with 10 migrations",
+    "670 automated tests (unit + integration)",
+    "OAuth integration (Google/Yahoo via Supabase)",
+    "Live MLB Stats API integration with caching proxy",
+    "MCP server with 8 tools, rate limiter, circuit breaker",
+    "Excel/CSV import, AI-powered player analysis",
+    "Full design system with light/dark mode",
+  ],
+};
+
+// ─── API Explorer Data ───
+
+interface ApiRoute {
+  method: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+  path: string;
+  auth: string;
+  description: string;
+}
+
+interface ApiModule {
+  name: string;
+  prefix: string;
+  routes: ApiRoute[];
+}
+
+const apiModules: ApiModule[] = [
+  {
+    name: "auth", prefix: "/api/auth",
+    routes: [
+      { method: "GET", path: "/me", auth: "requireAuth", description: "Get current user profile" },
+      { method: "GET", path: "/health", auth: "none", description: "Health check" },
+      { method: "POST", path: "/dev-login", auth: "none", description: "Dev-only login (gated)" },
+      { method: "POST", path: "/register", auth: "none", description: "Email/password registration" },
+    ],
+  },
+  {
+    name: "leagues", prefix: "/api/leagues",
+    routes: [
+      { method: "GET", path: "/", auth: "requireAuth", description: "List user's leagues" },
+      { method: "GET", path: "/:id", auth: "requireLeagueMember", description: "League detail" },
+      { method: "GET", path: "/:id/rules", auth: "requireLeagueMember", description: "League rules" },
+      { method: "PATCH", path: "/:id/rules", auth: "requireCommissioner", description: "Update rules" },
+      { method: "POST", path: "/join", auth: "requireAuth", description: "Join via invite code" },
+    ],
+  },
+  {
+    name: "teams", prefix: "/api/teams",
+    routes: [
+      { method: "GET", path: "/", auth: "requireLeagueMember", description: "List league teams" },
+      { method: "GET", path: "/:teamCode", auth: "requireLeagueMember", description: "Team detail + roster" },
+      { method: "PATCH", path: "/:id", auth: "requireTeamOwner", description: "Update team" },
+    ],
+  },
+  {
+    name: "players", prefix: "/api/players",
+    routes: [
+      { method: "GET", path: "/", auth: "requireAuth", description: "Search/filter players" },
+      { method: "GET", path: "/:id", auth: "requireAuth", description: "Player detail" },
+      { method: "GET", path: "/:id/fielding", auth: "requireAuth", description: "Fielding stats" },
+      { method: "GET", path: "/season-stats", auth: "requireAuth", description: "Season stats with roster info" },
+      { method: "GET", path: "/period-stats", auth: "requireAuth", description: "Period stats" },
+      { method: "GET", path: "/auction-values", auth: "requireAuth", description: "Auction values" },
+    ],
+  },
+  {
+    name: "auction", prefix: "/api/auction",
+    routes: [
+      { method: "POST", path: "/init", auth: "requireAdmin", description: "Initialize auction" },
+      { method: "POST", path: "/nominate", auth: "requireAuth", description: "Nominate player" },
+      { method: "POST", path: "/bid", auth: "requireAuth", description: "Place bid" },
+      { method: "POST", path: "/finish", auth: "requireAdmin", description: "Finish current lot" },
+      { method: "POST", path: "/pause", auth: "requireCommissioner", description: "Pause auction" },
+      { method: "POST", path: "/resume", auth: "requireCommissioner", description: "Resume auction" },
+      { method: "POST", path: "/reset", auth: "requireAdmin", description: "Reset auction" },
+      { method: "GET", path: "/bid-history", auth: "requireAuth", description: "Bid history" },
+    ],
+  },
+  {
+    name: "trades", prefix: "/api/trades",
+    routes: [
+      { method: "GET", path: "/", auth: "requireLeagueMember", description: "List trades" },
+      { method: "POST", path: "/", auth: "requireAuth", description: "Propose trade" },
+      { method: "POST", path: "/:id/vote", auth: "requireAuth", description: "Vote on trade" },
+      { method: "POST", path: "/:id/process", auth: "requireAdmin", description: "Process trade" },
+    ],
+  },
+  {
+    name: "waivers", prefix: "/api/waivers",
+    routes: [
+      { method: "GET", path: "/", auth: "requireLeagueMember", description: "List claims" },
+      { method: "POST", path: "/", auth: "requireAuth", description: "Submit claim" },
+      { method: "POST", path: "/process", auth: "requireAdmin", description: "Process claims" },
+      { method: "DELETE", path: "/:id", auth: "requireAuth", description: "Cancel claim" },
+    ],
+  },
+  {
+    name: "commissioner", prefix: "/api/commissioner",
+    routes: [
+      { method: "GET", path: "/overview", auth: "requireCommissioner", description: "League overview" },
+      { method: "POST", path: "/roster-lock", auth: "requireCommissioner", description: "Lock/unlock rosters" },
+      { method: "POST", path: "/trade", auth: "requireCommissioner", description: "Commissioner trade" },
+      { method: "POST", path: "/invite", auth: "requireCommissioner", description: "Send invite" },
+    ],
+  },
+  {
+    name: "admin", prefix: "/api/admin",
+    routes: [
+      { method: "POST", path: "/leagues", auth: "requireAdmin", description: "Create league" },
+      { method: "POST", path: "/import-rosters", auth: "requireAdmin", description: "Import CSV rosters" },
+      { method: "POST", path: "/sync-mlb", auth: "requireAdmin", description: "Sync MLB players" },
+      { method: "POST", path: "/sync-stats", auth: "requireAdmin", description: "Sync period stats" },
+      { method: "GET", path: "/audit-log", auth: "requireAdmin", description: "View audit log" },
+    ],
+  },
+];
+
+// ─── Bundle Size Data ───
+
+interface BundleDep {
+  name: string;
+  diskSize: string;
+  gzipSize: string;
+  note: string;
+  concern: "none" | "watch" | "optimize";
+}
+
+const bundleDeps: BundleDep[] = [
+  { name: "mermaid", diskSize: "70 MB", gzipSize: "~250 KB", note: "ERD diagrams on /tech only — consider lazy-loading", concern: "optimize" },
+  { name: "lucide-react", diskSize: "44 MB", gzipSize: "~8 KB", note: "Tree-shaken — only imported icons are bundled", concern: "none" },
+  { name: "posthog-js", diskSize: "34 MB", gzipSize: "~35 KB", note: "Lazy-loaded via dynamic import()", concern: "none" },
+  { name: "@supabase/supabase-js", diskSize: "12 MB", gzipSize: "~25 KB", note: "Auth + realtime client", concern: "none" },
+  { name: "react-dom", diskSize: "6.3 MB", gzipSize: "~42 KB", note: "Core React rendering", concern: "none" },
+  { name: "@dnd-kit/core", diskSize: "2.8 MB", gzipSize: "~12 KB", note: "Drag-and-drop (auction + roster)", concern: "none" },
+  { name: "@radix-ui/*", diskSize: "5.2 MB", gzipSize: "~15 KB", note: "Accessible UI primitives (shadcn)", concern: "none" },
+  { name: "xlsx (server)", diskSize: "2.3 MB", gzipSize: "N/A", note: "Server-only — archive Excel parsing. Consider lazy-load", concern: "watch" },
+  { name: "@google/generative-ai (server)", diskSize: "1.2 MB", gzipSize: "N/A", note: "Server-only — AI player analysis. Consider lazy-load", concern: "watch" },
+];
+
+// ─── Dependency Health Data ───
+
+interface DepHealth {
+  name: string;
+  current: string;
+  latest: string;
+  status: "current" | "minor-behind" | "major-behind";
+  category: string;
+}
+
+const depHealth: DepHealth[] = [
+  { name: "react", current: "18.3", latest: "19.x", status: "major-behind", category: "Frontend" },
+  { name: "typescript", current: "5.3", latest: "5.7", status: "minor-behind", category: "Tooling" },
+  { name: "vite", current: "5.x", latest: "6.x", status: "major-behind", category: "Tooling" },
+  { name: "prisma", current: "5.x", latest: "6.x", status: "major-behind", category: "Backend" },
+  { name: "express", current: "4.x", latest: "5.x", status: "major-behind", category: "Backend" },
+  { name: "vitest", current: "1.x", latest: "3.x", status: "major-behind", category: "Testing" },
+  { name: "tailwindcss", current: "3.x", latest: "4.x", status: "major-behind", category: "Frontend" },
+  { name: "react-router-dom", current: "6.x", latest: "7.x", status: "major-behind", category: "Frontend" },
+  { name: "@supabase/supabase-js", current: "2.x", latest: "2.x", status: "current", category: "Auth" },
+  { name: "zod", current: "3.x", latest: "3.x", status: "current", category: "Validation" },
+];
+
 /* ── Sub-Components ──────────────────────────────────────────────── */
+
+function ApiExplorer() {
+  const [open, setOpen] = useState(false);
+  const [expandedModule, setExpandedModule] = useState<string | null>(null);
+  const totalRoutes = apiModules.reduce((s, m) => s + m.routes.length, 0);
+
+  const methodColor: Record<string, string> = {
+    GET: "text-emerald-400 bg-emerald-500/10",
+    POST: "text-blue-400 bg-blue-500/10",
+    PATCH: "text-amber-400 bg-amber-500/10",
+    DELETE: "text-red-400 bg-red-500/10",
+    PUT: "text-purple-400 bg-purple-500/10",
+  };
+
+  return (
+    <div className="rounded-lg border border-[var(--lg-border-faint)] bg-[var(--lg-bg-card)] overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full px-5 py-4 flex items-center gap-3 text-left hover:bg-[var(--lg-tint)] transition-colors"
+      >
+        <Search className="w-5 h-5 text-[var(--lg-accent)]" />
+        <div className="flex-1">
+          <h3 className="text-sm font-semibold text-[var(--lg-text-primary)]">
+            API Explorer
+          </h3>
+          <p className="text-xs text-[var(--lg-text-muted)]">
+            {totalRoutes} endpoints across {apiModules.length} modules
+          </p>
+        </div>
+        {open ? <ChevronUp className="w-5 h-5 text-[var(--lg-text-muted)]" /> : <ChevronDown className="w-5 h-5 text-[var(--lg-text-muted)]" />}
+      </button>
+
+      {open && (
+        <div className="px-5 pb-5 space-y-2">
+          {apiModules.map((mod) => {
+            const isExpanded = expandedModule === mod.name;
+            return (
+              <div key={mod.name} className="rounded-lg border border-[var(--lg-border-faint)] overflow-hidden">
+                <button
+                  onClick={() => setExpandedModule(isExpanded ? null : mod.name)}
+                  className="w-full px-3 py-2 flex items-center gap-2 text-left hover:bg-[var(--lg-tint)] transition-colors"
+                >
+                  <code className="text-xs font-medium text-[var(--lg-accent)]">{mod.name}</code>
+                  <span className="text-[10px] text-[var(--lg-text-muted)] flex-1">{mod.prefix}</span>
+                  <span className="text-[10px] text-[var(--lg-text-muted)] tabular-nums">{mod.routes.length} routes</span>
+                  {isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-[var(--lg-text-muted)]" /> : <ChevronDown className="w-3.5 h-3.5 text-[var(--lg-text-muted)]" />}
+                </button>
+                {isExpanded && (
+                  <div className="px-3 pb-2 space-y-1">
+                    {mod.routes.map((route, idx) => (
+                      <div key={idx} className="flex items-center gap-2 text-xs py-1 px-2 rounded bg-[var(--lg-tint)]">
+                        <span className={`font-semibold w-12 text-center px-1 py-0.5 rounded text-[10px] ${methodColor[route.method]}`}>
+                          {route.method}
+                        </span>
+                        <code className="text-[var(--lg-text-primary)] font-mono flex-1">{mod.prefix}{route.path}</code>
+                        <span className="text-[10px] text-[var(--lg-text-muted)] bg-[var(--lg-bg-card)] px-1.5 py-0.5 rounded border border-[var(--lg-border-faint)]">
+                          {route.auth}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BundleSize() {
+  const [open, setOpen] = useState(false);
+
+  const concernColor: Record<string, string> = {
+    none: "text-emerald-400",
+    watch: "text-amber-400",
+    optimize: "text-red-400",
+  };
+
+  return (
+    <div className="rounded-lg border border-[var(--lg-border-faint)] bg-[var(--lg-bg-card)] overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full px-5 py-4 flex items-center gap-3 text-left hover:bg-[var(--lg-tint)] transition-colors"
+      >
+        <Package className="w-5 h-5 text-[var(--lg-accent)]" />
+        <div className="flex-1">
+          <h3 className="text-sm font-semibold text-[var(--lg-text-primary)]">
+            Bundle Size & Dependencies
+          </h3>
+          <p className="text-xs text-[var(--lg-text-muted)]">
+            Key dependencies by size — {bundleDeps.length} packages tracked
+          </p>
+        </div>
+        {open ? <ChevronUp className="w-5 h-5 text-[var(--lg-text-muted)]" /> : <ChevronDown className="w-5 h-5 text-[var(--lg-text-muted)]" />}
+      </button>
+
+      {open && (
+        <div className="px-5 pb-5">
+          <div className="space-y-1.5">
+            {bundleDeps.map((dep) => (
+              <div key={dep.name} className="flex items-center gap-3 text-sm py-2 px-3 rounded-md bg-[var(--lg-tint)]">
+                <span className={`w-2 h-2 rounded-full shrink-0 ${dep.concern === "none" ? "bg-emerald-500" : dep.concern === "watch" ? "bg-amber-500" : "bg-red-500"}`} />
+                <span className="font-medium text-[var(--lg-text-primary)] w-48 shrink-0">{dep.name}</span>
+                <span className="text-xs text-[var(--lg-text-muted)] tabular-nums w-16 shrink-0">{dep.diskSize}</span>
+                <span className="text-xs text-[var(--lg-text-muted)] tabular-nums w-16 shrink-0">{dep.gzipSize}</span>
+                <span className={`text-xs flex-1 ${concernColor[dep.concern]}`}>{dep.note}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex items-center gap-4 text-[10px] text-[var(--lg-text-muted)]">
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Good</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" /> Watch</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" /> Optimize</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DependencyHealth() {
+  const [open, setOpen] = useState(false);
+
+  const statusConfig: Record<string, { label: string; color: string }> = {
+    current: { label: "Current", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
+    "minor-behind": { label: "Minor", color: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
+    "major-behind": { label: "Major", color: "text-red-400 bg-red-500/10 border-red-500/20" },
+  };
+
+  const currentCount = depHealth.filter((d) => d.status === "current").length;
+  const majorCount = depHealth.filter((d) => d.status === "major-behind").length;
+
+  return (
+    <div className="rounded-lg border border-[var(--lg-border-faint)] bg-[var(--lg-bg-card)] overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full px-5 py-4 flex items-center gap-3 text-left hover:bg-[var(--lg-tint)] transition-colors"
+      >
+        <Shield className="w-5 h-5 text-[var(--lg-accent)]" />
+        <div className="flex-1">
+          <h3 className="text-sm font-semibold text-[var(--lg-text-primary)]">
+            Dependency Health
+          </h3>
+          <p className="text-xs text-[var(--lg-text-muted)]">
+            {currentCount} current · {majorCount} major versions behind
+          </p>
+        </div>
+        {open ? <ChevronUp className="w-5 h-5 text-[var(--lg-text-muted)]" /> : <ChevronDown className="w-5 h-5 text-[var(--lg-text-muted)]" />}
+      </button>
+
+      {open && (
+        <div className="px-5 pb-5">
+          <div className="space-y-1.5">
+            {depHealth.map((dep) => {
+              const cfg = statusConfig[dep.status];
+              return (
+                <div key={dep.name} className="flex items-center gap-3 text-sm py-2 px-3 rounded-md bg-[var(--lg-tint)]">
+                  <span className="font-medium text-[var(--lg-text-primary)] w-40 shrink-0">{dep.name}</span>
+                  <span className="text-xs text-[var(--lg-text-muted)] tabular-nums w-12 shrink-0">{dep.current}</span>
+                  <span className="text-[var(--lg-text-muted)]">→</span>
+                  <span className="text-xs text-[var(--lg-text-primary)] tabular-nums w-12 shrink-0">{dep.latest}</span>
+                  <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded border ${cfg.color}`}>
+                    {cfg.label}
+                  </span>
+                  <span className="text-xs text-[var(--lg-text-muted)] flex-1 text-right">{dep.category}</span>
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-3 text-[10px] text-[var(--lg-text-muted)] leading-relaxed">
+            Major version upgrades are tracked but not urgent — the current versions are stable and well-tested.
+            React 19, Vite 6, and Prisma 6 upgrades planned for off-season.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CostEstimate() {
+  const [open, setOpen] = useState(false);
+  const c = costComparison;
+
+  return (
+    <div className="rounded-lg border border-[var(--lg-border-faint)] bg-[var(--lg-bg-card)] overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full px-5 py-4 flex items-center gap-3 text-left hover:bg-[var(--lg-tint)] transition-colors"
+      >
+        <Cpu className="w-5 h-5 text-[var(--lg-accent)]" />
+        <div className="flex-1">
+          <h3 className="text-sm font-semibold text-[var(--lg-text-primary)]">
+            What Would This Cost to Build?
+          </h3>
+          <p className="text-xs text-[var(--lg-text-muted)]">
+            AI-assisted vs. US dev shop vs. offshore — estimated cost comparison
+          </p>
+        </div>
+        {open ? (
+          <ChevronUp className="w-5 h-5 text-[var(--lg-text-muted)]" />
+        ) : (
+          <ChevronDown className="w-5 h-5 text-[var(--lg-text-muted)]" />
+        )}
+      </button>
+
+      {open && (
+        <div className="px-5 pb-5 space-y-5">
+          {/* Comparison cards */}
+          <div className="grid gap-3 md:grid-cols-3">
+            {/* AI */}
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
+              <div className="text-[10px] font-semibold uppercase text-emerald-400 tracking-wide mb-2">
+                AI-Assisted (Claude Code)
+              </div>
+              <div className="text-2xl font-semibold text-emerald-400 tabular-nums mb-1">
+                {c.aiCost.totalRange}
+              </div>
+              <div className="text-xs text-[var(--lg-text-muted)] mb-3">
+                {c.aiCost.tokens} tokens &middot; 27 sessions &middot; 5 months
+              </div>
+              <div className="text-[10px] text-[var(--lg-text-secondary)] leading-relaxed">
+                {c.aiCost.note}
+              </div>
+            </div>
+
+            {/* US Dev Shop */}
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+              <div className="text-[10px] font-semibold uppercase text-amber-400 tracking-wide mb-2">
+                US Dev Shop
+              </div>
+              <div className="text-2xl font-semibold text-amber-400 tabular-nums mb-1">
+                {c.usDevShop.totalLow}–{c.usDevShop.totalHigh}
+              </div>
+              <div className="text-xs text-[var(--lg-text-muted)] mb-3">
+                {c.usDevShop.rateRange} &middot; {c.usDevShop.hoursLow}–{c.usDevShop.hoursHigh} hrs &middot; {c.usDevShop.timeline}
+              </div>
+              <div className="text-[10px] text-[var(--lg-text-secondary)] leading-relaxed">
+                {c.usDevShop.note}
+              </div>
+            </div>
+
+            {/* Offshore */}
+            <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-4">
+              <div className="text-[10px] font-semibold uppercase text-blue-400 tracking-wide mb-2">
+                Offshore (India/China)
+              </div>
+              <div className="text-2xl font-semibold text-blue-400 tabular-nums mb-1">
+                {c.offshore.totalLow}–{c.offshore.totalHigh}
+              </div>
+              <div className="text-xs text-[var(--lg-text-muted)] mb-3">
+                {c.offshore.rateRange} &middot; {c.offshore.hoursLow}–{c.offshore.hoursHigh} hrs &middot; {c.offshore.timeline}
+              </div>
+              <div className="text-[10px] text-[var(--lg-text-secondary)] leading-relaxed">
+                {c.offshore.note}
+              </div>
+            </div>
+          </div>
+
+          {/* Scope */}
+          <div>
+            <div className="text-[10px] font-semibold uppercase text-[var(--lg-text-muted)] mb-2 tracking-wide">
+              Scope Used for Estimates
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+              {c.scope.map((item) => (
+                <div key={item} className="flex items-start gap-2 text-xs text-[var(--lg-text-secondary)] py-0.5">
+                  <span className="text-[var(--lg-accent)] mt-0.5">•</span>
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Disclaimer */}
+          <p className="text-[10px] text-[var(--lg-text-muted)] leading-relaxed border-t border-[var(--lg-border-faint)] pt-3">
+            These are rough estimates based on industry rates (2025-2026). Actual costs vary significantly based on team
+            experience, project management overhead, design requirements, and iteration cycles. The AI-assisted approach
+            required domain expertise to direct — Claude Code wrote ~95% of the code, but architectural decisions,
+            design choices, and domain knowledge came from 20 years of running this league.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function DatabaseERD() {
   const [openIdx, setOpenIdx] = useState<number | null>(null);
@@ -605,13 +1103,24 @@ export default function Tech() {
     <div className="px-4 py-6 md:px-6 md:py-10 max-w-5xl mx-auto space-y-12">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-semibold text-[var(--lg-text-primary)]">
-          Under the Hood
-        </h1>
+        <div className="flex items-baseline justify-between flex-wrap gap-2">
+          <h1 className="text-2xl font-semibold text-[var(--lg-text-primary)]">
+            Under the Hood
+          </h1>
+          <Link
+            to="/roadmap"
+            className="text-xs font-medium text-[var(--lg-accent)] hover:underline flex items-center gap-1"
+          >
+            Roadmap <ArrowRight className="w-3 h-3" />
+          </Link>
+        </div>
         <p className="mt-2 text-sm text-[var(--lg-text-secondary)]">
           A look at what it took to build The Fantastic Leagues — the tools, the process,
           the decisions, and the numbers. Built from November 2025 to present across
-          25 sessions, 46,870+ lines of TypeScript, and an estimated 65 million+ AI tokens.
+          27 sessions, 46,870+ lines of TypeScript, and an estimated 68 million+ AI tokens.
+        </p>
+        <p className="mt-1 text-xs text-[var(--lg-text-muted)]">
+          Last updated: March 19, 2026
         </p>
       </div>
 
@@ -710,6 +1219,18 @@ export default function Tech() {
           ))}
         </div>
       </div>
+
+      {/* Cost Estimate */}
+      <CostEstimate />
+
+      {/* API Explorer */}
+      <ApiExplorer />
+
+      {/* Bundle Size */}
+      <BundleSize />
+
+      {/* Dependency Health */}
+      <DependencyHealth />
 
       {/* Tech Stack */}
       <div>
@@ -856,7 +1377,10 @@ export default function Tech() {
 
       {/* Footer note */}
       <p className="text-xs text-[var(--lg-text-muted)] text-center pb-4">
-        Built with Claude Code — estimated 68M+ tokens across 26 sessions
+        Built with Claude Code — estimated 68M+ tokens across 27 sessions |{" "}
+        <Link to="/roadmap" className="text-[var(--lg-accent)] hover:underline">
+          Roadmap
+        </Link>
       </p>
     </div>
   );

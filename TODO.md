@@ -1,135 +1,168 @@
 # FBST — Technical Debt & Feature Roadmap
 
-Tracked items from tech debt audit (2026-03-16) and feature planning.
-Items are grouped by category and prioritized within each section.
+Tracked items from tech debt audits (Sessions 7-26) and 6-agent code review (Session 27).
+Items grouped by priority. P1 = fix before live auction (Mar 22), P2 = fix soon, P3 = when convenient.
 
 ---
 
-## Feature: Season-Aware Feature Gating
+## P1 — Critical (fix before Sunday auction)
 
-Commissioner tabs and owner-facing features should be enabled/disabled based on the current season's status. When a season is COMPLETED (e.g., 2025), features like Auction and Keepers should be grayed out. The UI should show breadcrumb-style guidance showing what's available now and what's next.
+### Auction Reliability
 
-### Season Lifecycle & Feature Availability Matrix
+- [x] **CR-01**: Await `AuctionLot.update` in `finishCurrentLot` — currently fire-and-forget, lot stays "active" in DB if update fails while roster entry is already created. Data integrity risk for bid-history endpoint.
+  - File: `server/src/features/auction/routes.ts:391-394`
+  - Fix: `await` the Prisma call or wrap roster+lot in a transaction
+  - Effort: Small
 
-| Feature | SETUP | DRAFT | IN_SEASON | COMPLETED | No Season |
-|---------|-------|-------|-----------|-----------|-----------|
-| **Rules Editor** | Edit | Locked (view only) | Locked | Locked | N/A |
-| **Team Management** | Full access | Full access | Full access | View only | N/A |
-| **Member Management** | Full access | Full access | Full access | View only | N/A |
-| **Period Setup** | Add/edit/delete | Add/edit/delete | Status changes only | View only | N/A |
-| **Auction** | Disabled | Full access | Disabled | Disabled | Disabled |
-| **Keepers** | Disabled | Disabled | Disabled | Disabled* | Disabled |
-| **Trades** | Disabled | Disabled | Full access | Disabled | Disabled |
-| **Waivers** | Disabled | Disabled | Full access | Disabled | Disabled |
-| **Roster Mgmt** | Manual only | Via auction | Add/Drop | View only | Disabled |
-| **Create Season** | Available | Available | Available | Available | Available |
+- [x] **CR-02**: `AuctionDraftLog` re-fetches bid history on every log event — useEffect depends on `log.length` but only WIN events add new data. Causes 3-5x unnecessary API calls during live auction, multiplied by concurrent viewers.
+  - File: `client/src/features/auction/components/AuctionDraftLog.tsx:57`
+  - Fix: Derive `winCount` from log, use `[leagueId, winCount]` as dependency
+  - Effort: Small
 
-*Keepers: enabled only when preparing NEXT season (i.e., a new season exists in SETUP while prior is COMPLETED).
-
-### Implementation Plan
-
-- [x] **TD-F01**: Add `seasonStatus` to LeagueContext (fetch current season status alongside league data)
-- [x] **TD-F02**: Create `useSeasonGating()` hook that returns `{ canAuction, canTrade, canWaiver, canEditRules, canEditRosters, canKeepers, isReadOnly }` based on season status
-- [x] **TD-F03**: Commissioner tab gating — disable/gray out tabs based on season status with tooltip explaining why (e.g., "Auction is only available during DRAFT phase")
-- [x] **TD-F04**: Breadcrumb status bar on Commissioner page — show current phase + next action needed
-- [x] **TD-F05**: Owner-facing feature gating — hide Auction nav item when not in DRAFT phase
-- [x] **TD-F06**: Server-side guards — `requireSeasonStatus` middleware on auction nominate/bid (DRAFT), trade propose (IN_SEASON), waiver submit (IN_SEASON). 10 tests.
+- [x] **CR-03**: `checkPositionLimit` re-queries DB on every bid — data already exists in `state.teams[].pitcherCount/hitterCount` and `state.config.pitcherCount/batterCount`. ~690 unnecessary queries per full auction.
+  - File: `server/src/features/auction/routes.ts:259-288`
+  - Fix: Use in-memory state instead of Prisma query; also skip redundant `loadLeagueConfig` call
+  - Effort: Small
 
 ---
 
-## Tech Debt: Test Coverage
+## P2 — Important (fix soon)
 
-### Server (8 modules with zero tests)
+### Security
 
-- [x] **TD-T01**: `archive/routes.ts` — 38 tests (GET seasons/standings/periods/stats, PUT team, PATCH stat, POST sync/recalculate, AI endpoints, archive-current)
-- [x] **TD-T02**: `admin/routes.ts` — 19 tests (league CRUD, members, import-rosters, reset-rosters, delete, team-codes, sync-mlb, audit-log)
-- [x] **TD-T03**: `roster/routes.ts` + `rosterImport-routes.ts` — 14 tests (add-player, delete, get roster, ownership checks, admin bypass, CSV import, template)
-- [x] **TD-T04**: `keeper-prep/routes.ts` — 8 tests (populate, status, roster, save, lock/unlock)
-- [x] **TD-T05**: `players/routes.ts` — 13 tests (list/filter/detail, fielding, season-stats, period-stats, auction-values)
-- [x] **TD-T06**: `periods/routes.ts` — 10 tests (list, create, update, delete with auth checks)
-- [x] **TD-T07**: `transactions/routes.ts` — 8 tests (list/filter/paginate, claim by playerId/mlbId, drop, errors)
-- [x] **TD-T08**: `franchises/routes.ts` — 6 tests (list, detail, update settings)
+- [x] **CR-04**: `player-season-stats` defaults `leagueId: 1` without membership check — any authenticated user can view any league's roster composition and auction prices.
+  - File: `server/src/features/players/routes.ts:478`
+  - Fix: Require `leagueId` param (400 if missing) and add `requireLeagueMember`, or strip roster fields for non-members
+  - Effort: Small
 
-### Client (10 modules with zero tests)
+- [x] **CR-05**: `persistState` swallows errors with `.catch(() => {})` — silent auction state loss if DB connection drops. Server restart would lose auction progress with no warning.
+  - File: `server/src/features/auction/routes.ts:135`
+  - Fix: Change to `.catch((err) => logger.error({ error: String(err), leagueId }, "Failed to persist auction state"))`
+  - Effort: Small
 
-- [x] **TD-T09**: `auction/` — 10 tests (AuctionValues page: rendering, tabs, search, sorting, modal)
-- [x] **TD-T10**: `trades/pages/TradesPage.tsx` — 23 tests (trade list, status badges, accept/reject/cancel, commissioner controls, veto/process)
-- [x] **TD-T11**: `teams/` — 17 tests (Teams page: 8 tests; Team page: 9 tests)
-- [x] **TD-T12**: `archive/pages/ArchivePage.tsx` — 16 tests (season selector, tabs, standings, player stats, draft results, admin controls)
-- [x] **TD-T13**: Remaining modules — 36 tests (KeeperSelection: 8, Season: 8, Commissioner: 8, ActivityPage: 6, Admin: 6)
+### Code Duplication
 
----
+- [x] **CR-06**: `positionToSlots()` duplicated in `auction/routes.ts` (server) and `PlayerPoolTab.tsx` (client) — identical logic. Should live in `sportConfig.ts` on both sides.
+  - Files: `server/src/features/auction/routes.ts:233-244`, `client/src/features/auction/components/PlayerPoolTab.tsx:32-43`
+  - Fix: Add to `server/src/lib/sportConfig.ts` and `client/src/lib/sportConfig.ts` (or `baseballUtils.ts`), import from there
+  - Effort: Small
 
-## Tech Debt: Code Quality
+- [x] **CR-07**: `NL_TEAMS`/`AL_TEAMS` redefined locally in `PlayerPoolTab.tsx` instead of importing from `sportConfig.ts`. Local version also has extra `"AZ"` alias not in canonical set.
+  - File: `client/src/features/auction/components/PlayerPoolTab.tsx:48-49`
+  - Fix: Import from `client/src/lib/sportConfig.ts`, add `"AZ"` to canonical set if needed
+  - Effort: Small
 
-### Oversized Route Files (extract to services)
-
-- [x] **TD-Q01**: `archive/routes.ts` (992→~800 LOC) — extracted `autoMatchPlayersForYear` + `calculateCumulativePeriodResults` into `archiveStatsService.ts`
-- [x] **TD-Q02**: `commissioner/routes.ts` (877→779 LOC) — extracted `endAuction` + `executeTrade` into `CommissionerService.ts`
-- [ ] **TD-Q03**: `auction/routes.ts` (844 LOC) — deferred: real-time stateful system with in-memory state + timers; 72 tests pass; extraction risk outweighs benefit
+- [x] **CR-08**: `PITCHER_CODES` vs `PITCHER_POS` naming inconsistency — same set under different names. Canonical `sportConfig.ts` also missing `"TWP"` (two-way player).
+  - Files: `PlayerPoolTab.tsx:45` (`PITCHER_POS`), `auction/routes.ts:246` (`PITCHER_CODES`), `sportConfig.ts` (both sides)
+  - Fix: Add `"TWP"` to canonical `PITCHER_CODES`, import everywhere, remove local copies
+  - Effort: Small
 
 ### Type Safety
 
-- [x] **TD-Q04**: `playerDisplay.ts` functions typed — `isPitcher` accepts union type, `normalizePosition` typed, `getMlbTeamAbbr` accepts `Record<string, unknown>`
-- [x] **TD-Q05**: `TradesPage.tsx` `LeagueTradeCard` — `trade: any` → `trade: TradeProposal` (type already existed)
-- [x] **TD-Q06**: `archiveImportService.ts` — typed output interfaces (StandardizedPlayerRow, StandingsRowObj, PlayerKnowledge, FuzzyEntry), replaced `any` accumulators, typed CSV records as `Record<string, string>`, fixed `catch (err: any)` → `unknown`
-- [x] **TD-Q07**: Audited `: any` annotations — fixed 8 high-priority files (commissioner routes, teamService, mlbTeamCache, index.ts, Payouts, Teams, Profile, players/api). ~60 fixable → ~40 remaining (mostly justified: Prisma JSON, MLB API, XLSX parsing)
+- [x] **CR-09**: `AuctionLogEvent` redeclared in `AuctionDraftLog.tsx` with `type: string` instead of importing the union type (`'NOMINATION' | 'BID' | 'WIN' | ...`) from `types.ts`.
+  - File: `client/src/features/auction/components/AuctionDraftLog.tsx:28-36`
+  - Fix: Import from auction types (already available on client side via `useAuctionState.ts`)
+  - Effort: Small
 
-### Duplicate Code
-
-- [x] **TD-Q08**: Consolidated `playerDisplay.ts` → `sportConfig.ts`. Moved `normalizePosition` + `getMlbTeamAbbr`, deleted dead code (`getGrandSlams`, `getShutouts`), `playerDisplay.ts` is now a thin re-export layer
-- [x] **TD-Q09**: Duplicate period APIs — removed orphaned `getPeriods`, `savePeriod`, `deletePeriod` from `leagues/api.ts` (seasons/api.ts is canonical)
-
-### API Barrel Exports
-
-- [x] **TD-Q10**: `client/src/features/waivers/api.ts` re-exported in `client/src/api/index.ts`
-- [x] **TD-Q11**: `client/src/features/seasons/api.ts` re-exported in `client/src/api/index.ts`
+- [x] **CR-10**: `@ts-expect-error` for dynamic stat key access in `PlayerPoolTab.tsx` — should use a `StatKey` union type for `sortKey` state.
+  - File: `client/src/features/auction/components/PlayerPoolTab.tsx:117-121`
+  - Fix: Define `type StatKey = 'name' | 'R' | 'HR' | 'RBI' | 'SB' | 'AVG' | 'W' | 'SV' | 'K' | 'ERA' | 'WHIP'`, type `sortKey` and `getStat` with it
+  - Effort: Small
 
 ---
 
-## Tech Debt: Maintenance
+## P3 — Nice-to-Have (when convenient)
 
-### Scripts Cleanup
+### Dead Code & Cleanup
 
-- [x] **TD-M01**: Deleted 29 completed one-off scripts from `server/src/scripts/` (67→39 files). Removed year-specific imports (2020-2025), permission fix scripts, duplicate period imports.
-- [x] **TD-M02**: Consolidated 15 scripts into 6 parameterized utilities (39→30 files). DB diagnostics (6→1), MLB propagation (2→1), team fetching (2→1), player info (2→1), name matching (2→1), archive export (1→1 parameterized)
+- [x] **CR-11**: Unused imports in `PlayerPoolTab.tsx` — `ThemedTable`, `ThemedThead`, `ThemedTh`, `ThemedTr`, `ThemedTd` (line 3) and `PITCHER_POS` constant (line 45). Remove.
+  - Effort: Trivial
 
-### Console Logging
+- [x] **CR-12**: Double `useLeague()` call in `AuctionDraftLog.tsx` (lines 44 & 59) — merge into single destructure.
+  - Effort: Trivial
 
-- [x] **TD-M03**: Migrated 8 production files from `console.*` to structured `logger` — data/, archive services, supabase.ts. Scripts (67 files) left as-is (one-off tools)
+- [x] **CR-13**: Dead ternary `colCount = viewGroup === 'hitters' ? 9 : 9` — always 9. Inline or simplify.
+  - File: `client/src/features/auction/components/PlayerPoolTab.tsx:192`
+  - Effort: Trivial
 
-### Open TODOs in Code
+- [x] **CR-14**: Missing `useMemo` on `teamMap` and `completedLots` in `AuctionDraftLog.tsx` — recomputed on every render (tab switch, expand/collapse, WebSocket updates).
+  - File: `client/src/features/auction/components/AuctionDraftLog.tsx:61,64`
+  - Effort: Small
 
-- [x] **TD-M04**: Archive matrix optimization — new `GET /api/archive/:year/standings-matrix` endpoint returns all period standings in one request (was N+1 queries). Client updated to use single fetch.
-- [x] **TD-M05**: `trades/pages/TradesPage.tsx:345` — `trade: any` TODO resolved (typed as `TradeProposal`)
+### Architecture
+
+- [x] **CR-15**: Stats fetching logic (~140 LOC) inline in `players/routes.ts` — violates feature-module pattern. Should extract to `players/services/statsService.ts`.
+  - File: `server/src/features/players/routes.ts:25-140`
+  - Effort: Medium
+
+- [x] **CR-16**: Raw `<table>` instead of ThemedTable in `AuctionDraftLog.tsx` and `PlayerPoolTab.tsx` — added `compact` variant to ThemedTable via React context, migrated both files.
+  - Effort: Medium
+
+### Existing Open Items
+
+- [ ] **TD-Q03**: `auction/routes.ts` (874 LOC) — extraction deferred; real-time stateful system with in-memory state + timers; 72+ tests pass. Revisit after auction season.
+
+- [x] **RD-01**: Lazy-load heavy modules — `xlsx` (2.3MB) and `@google/generative-ai` (1.2MB) loaded eagerly
+- [x] **RD-02**: Prisma singleton enforcement — 8 scripts converted to import from `db/prisma.ts`
+- [x] **RD-03**: npm audit in CI — `.github/workflows/ci.yml` blocks on critical vulnerabilities
+- [x] **RD-04**: Shared component extraction — moved `PlayerDetailModal` and `StatsTables` to `client/src/components/shared/`
 
 ---
 
-## Tech Debt: Infrastructure
+## Completed (all sessions)
 
-- [x] **TD-I01**: Pre-existing TypeScript error in client (`adminDeleteLeague` type mismatch) — already resolved
-- [x] **TD-I02**: Route handler error handling — audited all 17 feature modules, all async handlers wrapped with `asyncHandler()`. Sync-only handlers (template download, static data) correctly omit it
-- [x] **TD-I03**: Zero circular deps — extracted auction types to `types.ts` (was routes↔services cycle), verified with madge
+<details>
+<summary>Click to expand completed items (47 items across Sessions 5-26)</summary>
 
----
+### Session 27 Code Review — Findings addressed inline above
 
-## Completed (from prior sessions)
+### Feature: Season-Aware Feature Gating (Sessions 18-20)
+- [x] TD-F01: Add `seasonStatus` to LeagueContext
+- [x] TD-F02: `useSeasonGating()` hook
+- [x] TD-F03: Commissioner tab gating
+- [x] TD-F04: Breadcrumb status bar
+- [x] TD-F05: Owner-facing feature gating
+- [x] TD-F06: Server-side `requireSeasonStatus` middleware (10 tests)
 
-- [x] `001` Hardcoded DB credentials — fixed Session 8
-- [x] `002` Archive + roster import missing auth — fixed Session 8
-- [x] `003` Auction ownership checks — fixed Session 8
-- [x] `004` Roster ownership checks — fixed Session 8
-- [x] `005` Type standings service — fixed Session 9
-- [x] `006` Cache standings computation — fixed Session 9
-- [x] `007` Auth migration (raw fetch → fetchJsonApi) — fixed Session 9
-- [x] `008` Test files testing copied logic — fixed Session 9
-- [x] `009` Document cross-feature deps — fixed Session 9
-- [x] `010` Waivers info disclosure — fixed Session 8
-- [x] `011` AppShell cleanup — fixed Session 10
-- [x] `012` RulesEditor derive grouped — fixed Session 10
-- [x] `013` Commissioner design tokens — fixed Session 10
-- [x] `014` parseIntParam move — fixed Session 10
-- [x] Duplicate season creation forms — fixed Session 18 (PR #33)
-- [x] Duplicate period management (Controls + Season tabs) — fixed Session 18 (PR #33)
-- [x] Controls tab renamed to Auction — fixed Session 18 (PR #33)
-- [x] LeagueContext stale ID validation — fixed Session 18 (PR #33)
+### Test Coverage (Sessions 19-24)
+- [x] TD-T01: archive/routes — 38 tests
+- [x] TD-T02: admin/routes — 19 tests
+- [x] TD-T03: roster/routes — 14 tests
+- [x] TD-T04: keeper-prep/routes — 8 tests
+- [x] TD-T05: players/routes — 13 tests
+- [x] TD-T06: periods/routes — 10 tests
+- [x] TD-T07: transactions/routes — 8 tests
+- [x] TD-T08: franchises/routes — 6 tests
+- [x] TD-T09: auction (client) — 10 tests
+- [x] TD-T10: trades (client) — 23 tests
+- [x] TD-T11: teams (client) — 17 tests
+- [x] TD-T12: archive (client) — 16 tests
+- [x] TD-T13: remaining modules (client) — 36 tests
+
+### Code Quality (Sessions 9-21)
+- [x] TD-Q01: archive/routes extraction
+- [x] TD-Q02: commissioner/routes extraction
+- [x] TD-Q04–Q07: Type safety improvements
+- [x] TD-Q08: playerDisplay → sportConfig consolidation
+- [x] TD-Q09: Duplicate period APIs removed
+- [x] TD-Q10–Q11: API barrel exports
+
+### Maintenance (Sessions 15-16)
+- [x] TD-M01: Deleted 29 one-off scripts
+- [x] TD-M02: Consolidated 15 scripts into 6
+- [x] TD-M03: console.* → logger migration
+- [x] TD-M04: Archive matrix N+1 optimization
+- [x] TD-M05: trade: any → TradeProposal
+
+### Infrastructure (Sessions 5-10)
+- [x] TD-I01: TypeScript build error
+- [x] TD-I02: asyncHandler audit
+- [x] TD-I03: Zero circular deps
+- [x] 001–004, 010: Security fixes (auth, ownership, credentials)
+- [x] 005–009: Code quality (typing, caching, auth migration, test fixes, cross-feature docs)
+- [x] 011–014: Cleanup (AppShell, RulesEditor, design tokens, parseIntParam)
+- [x] Duplicate season/period forms — Session 18
+- [x] Controls tab → Auction — Session 18
+- [x] LeagueContext stale ID — Session 18
+
+</details>

@@ -2,6 +2,13 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+// Context for compact table mode — tighter padding for embedded panels (auction, etc.)
+const TableCompactContext = React.createContext(false);
+export const useTableCompact = () => React.useContext(TableCompactContext);
+export function TableCompactProvider({ compact, children }: { compact: boolean; children: React.ReactNode }) {
+  return <TableCompactContext.Provider value={compact}>{children}</TableCompactContext.Provider>;
+}
+
 const Table = React.forwardRef<
   HTMLTableElement,
   React.HTMLAttributes<HTMLTableElement>
@@ -61,46 +68,60 @@ TableFooter.displayName = "TableFooter"
 const TableRow = React.forwardRef<
   HTMLTableRowElement,
   React.HTMLAttributes<HTMLTableRowElement>
->(({ className, ...props }, ref) => (
-  <tr
-    ref={ref}
-    className={cn(
-      "border-b border-[var(--lg-table-border)] transition-colors hover:bg-[var(--lg-table-row-hover)] data-[state=selected]:bg-[var(--lg-table-row-hover)]",
-      className
-    )}
-    {...props}
-  />
-))
+>(({ className, ...props }, ref) => {
+  const compact = useTableCompact();
+  return (
+    <tr
+      ref={ref}
+      className={cn(
+        "border-b border-[var(--lg-table-border)] transition-colors hover:bg-[var(--lg-table-row-hover)] data-[state=selected]:bg-[var(--lg-table-row-hover)]",
+        compact && "hover:bg-[var(--lg-tint)]",
+        className
+      )}
+      {...props}
+    />
+  );
+})
 TableRow.displayName = "TableRow"
 
 const TableHead = React.forwardRef<
   HTMLTableCellElement,
   React.ThHTMLAttributes<HTMLTableCellElement>
->(({ className, ...props }, ref) => (
-  <th
-    ref={ref}
-    className={cn(
-      "h-10 px-3 text-left align-middle text-xs font-semibold uppercase tracking-wide text-[var(--lg-text-muted)] [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
-      className
-    )}
-    {...props}
-  />
-))
+>(({ className, ...props }, ref) => {
+  const compact = useTableCompact();
+  return (
+    <th
+      ref={ref}
+      className={cn(
+        compact
+          ? "px-1.5 py-1.5 text-left align-middle text-[10px] font-semibold uppercase text-[var(--lg-text-muted)]"
+          : "h-10 px-3 text-left align-middle text-xs font-semibold uppercase tracking-wide text-[var(--lg-text-muted)] [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        className
+      )}
+      {...props}
+    />
+  );
+})
 TableHead.displayName = "TableHead"
 
 const TableCell = React.forwardRef<
   HTMLTableCellElement,
   React.TdHTMLAttributes<HTMLTableCellElement>
->(({ className, ...props }, ref) => (
-  <td
-    ref={ref}
-    className={cn(
-      "px-3 py-2.5 align-middle text-sm text-[var(--lg-text-primary)] tabular-nums [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
-      className
-    )}
-    {...props}
-  />
-))
+>(({ className, ...props }, ref) => {
+  const compact = useTableCompact();
+  return (
+    <td
+      ref={ref}
+      className={cn(
+        compact
+          ? "px-1.5 py-1 align-middle text-sm text-[var(--lg-text-primary)] tabular-nums"
+          : "px-3 py-2.5 align-middle text-sm text-[var(--lg-text-primary)] tabular-nums [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        className
+      )}
+      {...props}
+    />
+  );
+})
 TableCell.displayName = "TableCell"
 
 const TableCaption = React.forwardRef<

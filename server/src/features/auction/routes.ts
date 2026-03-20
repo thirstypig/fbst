@@ -8,6 +8,7 @@ import { validateBody } from "../../middleware/validate.js";
 import { writeAuditLog } from "../../lib/auditLog.js";
 import { requireSeasonStatus } from "../../middleware/seasonGuard.js";
 import { assertPlayerAvailable } from "../../lib/rosterGuard.js";
+import { positionToSlots, PITCHER_CODES as SPORT_PITCHER_CODES } from "../../lib/sportConfig.js";
 import { broadcastState } from "./services/auctionWsService.js";
 import { saveState, loadState, clearState } from "./services/auctionPersistence.js";
 
@@ -132,7 +133,9 @@ function advanceQueue(state: AuctionState): boolean {
 
 /** Persist state to DB (fire-and-forget). */
 function persistState(leagueId: number, state: AuctionState): void {
-  saveState(leagueId, state).catch(() => {});
+  saveState(leagueId, state).catch((err) =>
+    logger.error({ error: String(err), leagueId }, "Failed to persist auction state")
+  );
 }
 
 const refreshTeams = async (state: AuctionState) => {
@@ -229,21 +232,7 @@ async function loadPositionLimits(leagueId: number): Promise<Record<string, numb
   try { return JSON.parse(rule.value); } catch { return null; }
 }
 
-/** Map a player's MLB position to the roster slot(s) it can fill. */
-function positionToSlots(pos: string): string[] {
-  const p = pos.trim().toUpperCase();
-  if (p === "C") return ["C"];
-  if (p === "1B") return ["1B", "CI"];
-  if (p === "2B") return ["2B", "MI"];
-  if (p === "3B") return ["3B", "CI"];
-  if (p === "SS") return ["SS", "MI"];
-  if (p === "LF" || p === "CF" || p === "RF" || p === "OF") return ["OF"];
-  if (p === "DH") return ["DH"];
-  if (p === "P" || p === "SP" || p === "RP" || p === "TWP") return ["P"];
-  return [];
-}
-
-const PITCHER_CODES = new Set(["P", "SP", "RP", "TWP"]);
+const PITCHER_CODES = new Set<string>(SPORT_PITCHER_CODES);
 
 /**
  * Check if a team can roster another player at the given position.
@@ -255,33 +244,26 @@ const PITCHER_CODES = new Set(["P", "SP", "RP", "TWP"]);
  * Per-position limits (C:2, OF:5, etc.) are NOT enforced during the draft —
  * they are informational for planning and enforced during in-season roster moves.
  * Only the total pitcher count (9) and hitter count (14) are hard limits.
+ *
+ * Uses in-memory auction state (refreshed after each lot finishes) instead of
+ * querying the DB on every bid.
  */
-async function checkPositionLimit(
-  leagueId: number,
+function checkPositionLimit(
   teamId: number,
-  _playerPositions: string,
   isPitcher: boolean,
   state: AuctionState,
-): Promise<string | null> {
-  const { pitcherCount, batterCount } = await loadLeagueConfig(leagueId);
-
+): string | null {
   const teamObj = state.teams.find(t => t.id === teamId);
   if (!teamObj) return null;
 
-  // Count current pitchers/hitters on roster via DB positions
-  const rosterPlayers = await prisma.roster.findMany({
-    where: { teamId, releasedAt: null },
-    include: { player: { select: { posPrimary: true } } },
-  });
+  const pitcherMax = state.config.pitcherCount;
+  const batterMax = state.config.batterCount;
 
-  const currentPitchers = rosterPlayers.filter(r => PITCHER_CODES.has((r.player.posPrimary ?? "").toUpperCase())).length;
-  const currentHitters = rosterPlayers.length - currentPitchers;
-
-  if (isPitcher && currentPitchers >= pitcherCount) {
-    return `Team already has ${pitcherCount} pitchers (max)`;
+  if (isPitcher && teamObj.pitcherCount >= pitcherMax) {
+    return `Team already has ${pitcherMax} pitchers (max)`;
   }
-  if (!isPitcher && currentHitters >= batterCount) {
-    return `Team already has ${batterCount} hitters (max)`;
+  if (!isPitcher && teamObj.hitterCount >= batterMax) {
+    return `Team already has ${batterMax} hitters (max)`;
   }
 
   return null;
@@ -388,10 +370,10 @@ async function finishCurrentLot(leagueId: number, userId?: number): Promise<Auct
 
     // Update AuctionLot with final results
     if (lotId) {
-      prisma.auctionLot.update({
+      await prisma.auctionLot.update({
         where: { id: lotId },
         data: { status: "completed", endTs: new Date(), finalPrice: currentBid, winnerTeamId: highBidderTeamId },
-      }).catch((err) => logger.error({ error: String(err) }, "Failed to update auction lot"));
+      });
     }
 
     await refreshTeams(state);
@@ -611,8 +593,8 @@ router.post("/bid", requireAuth, validateBody(bidSchema), requireSeasonStatus(["
   if (bidder.maxBid < amount) return res.status(400).json({ error: "Not enough budget" });
 
   // Guard: check position limits for the bidding team
-  const posError = await checkPositionLimit(
-    leagueId, bidderTeamId, state.nomination.positions, state.nomination.isPitcher, state
+  const posError = checkPositionLimit(
+    bidderTeamId, state.nomination.isPitcher, state
   );
   if (posError) return res.status(400).json({ error: posError });
 

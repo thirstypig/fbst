@@ -12,7 +12,7 @@
 // - SEASON defaults to 2025
 // - INFILE attempts common relative paths if not provided
 
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../db/prisma.js";
 import fs from "fs";
 import path from "path";
 
@@ -82,8 +82,6 @@ function resolveInfile(explicit?: string): string {
 }
 
 async function main() {
-  const prisma = new PrismaClient();
-
   const season = Number(process.env.SEASON || "2025");
 
   // You said: league name in DB should be "OGBA" (season-specific row is League.season)

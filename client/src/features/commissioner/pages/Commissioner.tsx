@@ -28,6 +28,7 @@ import KeeperPrepDashboard from "../../keeper-prep/components/KeeperPrepDashboar
 import SeasonManager from "../components/SeasonManager";
 import PageHeader from "../../../components/ui/PageHeader";
 import { useSeasonGating } from "../../../hooks/useSeasonGating";
+import { useLeague } from "../../../contexts/LeagueContext";
 
 // Local types for normalizeOverview (server response has more fields than the api.ts types)
 type CommissionerOverviewResponse = {
@@ -129,6 +130,12 @@ export default function Commissioner() {
   const { leagueId } = useParams();
   const lid = Number(leagueId);
   const { toast, confirm } = useToast();
+  const { setLeagueId: syncLeagueContext } = useLeague();
+
+  // Sync LeagueContext to the URL league so gating matches the page
+  useEffect(() => {
+    if (lid && Number.isFinite(lid)) syncLeagueContext(lid);
+  }, [lid, syncLeagueContext]);
 
   const [me, setMe] = useState<any>(null);
   const [leagues, setLeagues] = useState<LeagueListItem[]>([]);
@@ -184,9 +191,9 @@ export default function Commissioner() {
     { key: 'overview', label: 'Overview', enabled: true },
     { key: 'season', label: 'Season', enabled: true },
     { key: 'rosters', label: 'Rosters', enabled: !gating.isReadOnly, reason: 'Season is completed' },
-    { key: 'trades', label: 'Trades', enabled: gating.canTrade, reason: 'Trades are only available during In Season' },
+    { key: 'trades', label: 'Trades', enabled: !gating.isReadOnly, reason: 'Season is completed' },
     { key: 'keepers', label: 'Keepers', enabled: gating.canKeepers, reason: 'Keepers are available during Setup and Draft' },
-    { key: 'auction', label: 'Auction', enabled: gating.canAuction, reason: 'Auction is only available during Draft' },
+    { key: 'auction', label: 'Auction', enabled: gating.canKeepers || gating.canAuction, reason: 'Auction is available during Setup and Draft' },
   ];
 
   // Tabs
@@ -1009,7 +1016,7 @@ export default function Commissioner() {
 
             {/* Tab: Season */}
             {activeTab === 'season' && (
-                <SeasonManager leagueId={lid} />
+                <SeasonManager leagueId={lid} draftMode={overview.league?.draftMode} />
             )}
 
             {/* Tab: Rosters */}
@@ -1052,6 +1059,16 @@ export default function Commissioner() {
              {/* Tab: Auction */}
              {activeTab === 'auction' && (
                 <div className="space-y-6">
+                     <div className="rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] p-5">
+                       <h3 className="text-lg font-semibold text-[var(--lg-text-heading)] mb-2">Live Auction Draft</h3>
+                       <p className="text-sm text-[var(--lg-text-muted)] mb-4">Start and manage the live auction draft from the Auction page.</p>
+                       <Link
+                         to={`/leagues/${lid}/auction`}
+                         className="inline-block rounded-xl bg-sky-500 px-6 py-3 text-sm font-semibold text-white hover:bg-sky-600 transition-colors"
+                       >
+                         Go to Auction Draft
+                       </Link>
+                     </div>
                      <CommissionerControls leagueId={lid} />
                 </div>
              )}

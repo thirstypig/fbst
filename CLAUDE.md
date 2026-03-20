@@ -139,10 +139,10 @@ Some features import from other features' services or components.
 - `keeper-prep/pages/KeeperSelection` imports `leagues/api` (getMyRoster, saveKeepers)
 - `transactions/pages/TransactionsPage` imports `roster/components/AddDropTab`
 - `trades/pages/TradesPage` imports `teams/components/TeamRosterView`
-- `auction/pages/AuctionValues` imports `components/PlayerDetailModal` (shared)
-- `teams/pages/Team` imports `components/PlayerDetailModal` (shared)
-- `archive/pages/ArchivePage` imports `players/components/EditPlayerNameModal`, `teams/components/EditTeamNameModal`, `admin/components/ArchiveAdminPanel`, `components/StatsTables` (shared)
-- `periods/pages/Season` imports `components/StatsTables` (shared)
+- `auction/pages/AuctionValues` imports `components/shared/PlayerDetailModal`
+- `teams/pages/Team` imports `components/shared/PlayerDetailModal`
+- `archive/pages/ArchivePage` imports `players/components/EditPlayerNameModal`, `teams/components/EditTeamNameModal`, `admin/components/ArchiveAdminPanel`, `components/shared/StatsTables`
+- `periods/pages/Season` imports `components/shared/StatsTables`
 - `commissioner/components/CommissionerTradeTool` imports `trades/components/TradeAssetSelector`
 - `admin/components/AdminLeagueTools` imports `leagues/api` (adminCreateLeague, adminImportRosters, getLeagues)
 - `periods/pages/Season` uses `useLeague()` from `contexts/LeagueContext` (outfieldMode for position mapping)
@@ -161,8 +161,8 @@ When adding cross-feature imports, document them here to maintain visibility.
 - `client/src/api/types.ts` — shared API response/request types
 - `client/src/components/ui/` — shadcn-style UI primitives
 - `client/src/components/AppShell.tsx` — app shell
-- `client/src/components/PlayerDetailModal.tsx` — shared player detail modal (used by teams, auction, players); includes fielding stats (games by position)
-- `client/src/components/StatsTables.tsx` — shared stats tables (used by standings, archive, periods)
+- `client/src/components/shared/PlayerDetailModal.tsx` — shared player detail modal (used by teams, auction, players); includes fielding stats (games by position)
+- `client/src/components/shared/StatsTables.tsx` — shared stats tables (used by standings, archive, periods)
 - `client/src/contexts/LeagueContext.tsx` — app-wide league context (leagueId, outfieldMode, seasonStatus, leagues list)
 - `client/src/hooks/useSeasonGating.ts` — `useSeasonGating()` hook returning feature availability flags based on season status
 - `client/src/lib/sportConfig.ts` — baseball constants, position utilities, `isPitcher()`, `mapPosition()`, `normalizePosition()`, `getMlbTeamAbbr()`, stat formatting

@@ -26,6 +26,10 @@ import ResetPassword from "./features/auth/pages/ResetPassword";
 
 import Landing from "./features/auth/pages/Landing";
 import Tech from "./pages/Tech";
+import Roadmap from "./pages/Roadmap";
+import Changelog from "./pages/Changelog";
+import Status from "./pages/Status";
+import Analytics from "./pages/Analytics";
 import { useAuth } from "./auth/AuthProvider";
 
 export default function App() {
@@ -75,6 +79,10 @@ export default function App() {
                 <Route path="/payouts" element={<Payouts />} />
                 <Route path="/rules" element={<Rules />} />
                 <Route path="/tech" element={<Tech />} />
+                <Route path="/roadmap" element={<Roadmap />} />
+                <Route path="/changelog" element={<Changelog />} />
+                <Route path="/status" element={<Status />} />
+                <Route path="/analytics" element={<Analytics />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </AppShell>

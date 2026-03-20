@@ -18,7 +18,23 @@ export const POS_SCORE: Record<string, number> = Object.fromEntries(
 export const POSITIONS: string[] = ["C", "1B", "2B", "3B", "SS", "MI", "CI", "OF", "DH", "P", "SP", "RP", "BN", "IL"];
 
 /** Position codes that indicate a pitcher. */
-export const PITCHER_CODES = ["P", "SP", "RP"] as const;
+export const PITCHER_CODES = ["P", "SP", "RP", "TWP"] as const;
+
+// ─── Position-to-Slot Mapping ───
+
+/** Map a player's MLB position to the roster slot(s) it can fill. */
+export function positionToSlots(pos: string): string[] {
+  const p = pos.trim().toUpperCase();
+  if (p === "C") return ["C"];
+  if (p === "1B") return ["1B", "CI"];
+  if (p === "2B") return ["2B", "MI"];
+  if (p === "3B") return ["3B", "CI"];
+  if (p === "SS") return ["SS", "MI"];
+  if (p === "LF" || p === "CF" || p === "RF" || p === "OF") return ["OF"];
+  if (p === "DH") return ["DH"];
+  if (p === "P" || p === "SP" || p === "RP" || p === "TWP") return ["P"];
+  return [];
+}
 
 // ─── Category Configuration ───
 
@@ -37,7 +53,7 @@ export const PITCHING_CATS: string[] = [
 // ─── MLB League Team Sets ───
 
 /** National League team abbreviations. */
-export const NL_TEAMS = new Set(["ARI","ATL","CHC","CIN","COL","LAD","MIA","MIL","NYM","PHI","PIT","SD","SF","STL","WSH"]);
+export const NL_TEAMS = new Set(["ARI","AZ","ATL","CHC","CIN","COL","LAD","MIA","MIL","NYM","PHI","PIT","SD","SF","STL","WSH"]);
 
 /** American League team abbreviations (includes ATH/OAK). */
 export const AL_TEAMS = new Set(["BAL","BOS","CLE","DET","HOU","KC","LAA","MIN","NYY","OAK","ATH","SEA","TB","TEX","TOR","CWS"]);
@@ -56,7 +72,7 @@ export const OHTANI_MLB_ID = "660271";
 export function isPitcher(v: string | Record<string, unknown> | null | undefined): boolean {
   if (typeof v === "string") {
     const s = v.trim().toUpperCase();
-    return s === "P" || s === "SP" || s === "RP";
+    return s === "P" || s === "SP" || s === "RP" || s === "TWP";
   }
   if (v && typeof v === "object") {
     if (v.is_pitcher != null) return !!v.is_pitcher;
@@ -67,7 +83,7 @@ export function isPitcher(v: string | Record<string, unknown> | null | undefined
     if (group === "H") return false;
 
     const pos = String(v.positions ?? v.pos ?? v.posPrimary ?? "").trim().toUpperCase();
-    if (pos === "P" || pos === "SP" || pos === "RP") return true;
+    if (pos === "P" || pos === "SP" || pos === "RP" || pos === "TWP") return true;
   }
   return false;
 }

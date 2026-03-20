@@ -4,6 +4,67 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
+## Session 2026-03-19 (Session 28) — Meta Pages, Analytics, Code Review Fixes & P3 Cleanup
+
+### Completed
+- **/changelog page** — Release history with 11 versions, expandable change details, type badges (feat/fix/perf/refactor/test/docs/security)
+- **/status page** — Live health checks for API server, database, Supabase Auth, MLB Stats API with latency timing, refresh button, overall status banner
+- **/analytics page** — PostHog integration overview, development velocity chart (155 items across 27 sessions), product metrics tracking grid, key questions to answer
+- **/tech improvements** — API Explorer (48 routes across 9 modules, expandable per-module), Bundle Size tracker (9 deps with concern levels), Dependency Health matrix (10 deps with version status)
+- **/roadmap improvements** — Session Velocity chart (bar chart of items per session group), Risk Register (7 risks with impact/likelihood/mitigation/status), Next Session planner card
+- **Admin quick links** — Links to all 5 meta pages: Roadmap, Under the Hood, Changelog, Status, Analytics
+- **App.tsx routes** — Added /changelog, /status, /analytics routes
+- **Tech.tsx build journal** — Session 28 entry added
+- **Reusable prompts** — Provided prompts for generating /tech, /roadmap, /changelog, /status, /analytics pages on other projects
+- **CR-09** (P2) — Imported `AuctionLogEvent` type from `useAuctionState` into `AuctionDraftLog.tsx`
+- **CR-10** (P2) — Added `StatKey` union type, removed `@ts-expect-error` in `PlayerPoolTab.tsx`
+- **CR-15** (P3) — Extracted ~195 LOC stats logic from `players/routes.ts` into `players/services/statsService.ts`
+- **RD-01** (P3) — Lazy-loaded `xlsx` (2.3MB) and `@google/generative-ai` (1.2MB) via dynamic `import()`
+- **RD-02** (P3) — Converted 8 scripts from `new PrismaClient()` to singleton import from `db/prisma.ts`
+- **RD-04** (P3) — Moved `PlayerDetailModal` and `StatsTables` to `client/src/components/shared/`, updated 11 import paths
+- **CR-16** (P3) — Added `compact` variant to ThemedTable via React context (`TableCompactProvider`), migrated both `AuctionDraftLog.tsx` and `PlayerPoolTab.tsx` from raw `<table>` to ThemedTable components
+- **RD-03** (P3) — Created `.github/workflows/ci.yml` with test + audit jobs, blocks on critical vulnerabilities
+- **Documentation** — Updated CLAUDE.md paths, TODO.md checkboxes, Roadmap.tsx counts, Tech.tsx build journal, FEEDBACK.md
+
+### Pending / Next Steps
+- TD-Q03: auction/routes.ts extraction (intentionally deferred to post-auction season)
+- Sunday March 22 live auction — all infrastructure ready, all tech debt resolved
+
+### Test Results
+- Server: 454 passing
+- Client: 187 passing
+- MCP: 29 passing
+- **Total: 670 tests**
+
+---
+
+## Session 2026-03-19 (Session 27) — 6-Agent Code Review, P1/P2 Fixes & Roadmap
+
+### Completed
+- **6-agent code review** — Ran TypeScript, Security, Performance, Architecture, Simplicity, and Pattern Recognition agents in parallel on PR #43. Synthesized 16 findings (3 P1, 7 P2, 6 P3)
+- **All 3 P1 fixes** — (1) Awaited AuctionLot.update for data integrity, (2) Changed DraftLog re-fetch from log.length to winCount (eliminates 3-5x unnecessary API calls), (3) Switched checkPositionLimit from async DB query to sync in-memory check (eliminates ~690 DB queries per auction)
+- **5 of 7 P2 fixes** — (4) leagueId now required (no default to 1), (5) persistState logs errors instead of swallowing, (6) positionToSlots consolidated into sportConfig.ts, (7) NL_TEAMS/AL_TEAMS imported from sportConfig, (8) PITCHER_CODES + TWP added to both sportConfig files
+- **4 P3 fixes** — (11) Removed unused ThemedTable imports, (12) Merged double useLeague() call, (13) Fixed dead ternary colCount, (14) Added useMemo for teamMap/completedLots
+- **Roadmap page** — Visual dashboard with project health scorecard (8.5/10 SVG ring), audit recommendations section, progress tracking, severity badges, completed items archive, cross-links to /tech
+- **Consolidated TODO.md** — Merged ROADMAP.md items, archived 47 completed items, added 16 CR-## findings
+- **Updated Tech.tsx** — Session 27 build journal entry, cross-links to /roadmap
+
+### Pending / Next Steps
+- CR-09: Import AuctionLogEvent type from types.ts (P2)
+- CR-10: Replace @ts-expect-error with proper StatKey union type (P2)
+- CR-15: Extract stats fetching logic to statsService.ts (P3)
+- CR-16: Migrate AuctionDraftLog/PlayerPoolTab to ThemedTable (P3)
+- TD-Q03: auction/routes.ts extraction (deferred to post-auction season)
+- Sunday March 22 live auction — all P1 infrastructure fixes done
+
+### Test Results
+- Server: 454 passing
+- Client: 187 passing
+- MCP: 29 passing
+- **Total: 670 tests**
+
+---
+
 ## Session 2026-03-19 (Session 26) — 2025 Stats from MLB API, Auction Bid Tracking
 
 ### Completed

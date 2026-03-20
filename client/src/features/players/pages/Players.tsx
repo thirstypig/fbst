@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { getPlayerSeasonStats, getPlayerPeriodStats, type PlayerSeasonStat, type PeriodStatRow, fmtRate } from '../../../api';
 import PlayerExpandedRow from '../../auction/components/PlayerExpandedRow';
-import PlayerDetailModal from '../../../components/PlayerDetailModal';
+import PlayerDetailModal from '../../../components/shared/PlayerDetailModal';
 import { POS_ORDER, getPrimaryPosition, getLastName } from '../../../lib/baseballUtils';
 import { NL_TEAMS, AL_TEAMS } from '../../../lib/sportConfig';
 import { OGBA_TEAM_NAMES } from '../../../lib/ogbaTeams';

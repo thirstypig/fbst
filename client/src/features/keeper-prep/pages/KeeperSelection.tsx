@@ -66,6 +66,7 @@ export default function KeeperSelection() {
 
   const remaining = budget - totalCost;
   const count = selectedIds.size;
+  const hasValues = roster.some(r => r.projectedValue != null);
 
   // Handlers
   const toggleKeeper = (rosterId: number) => {
@@ -148,6 +149,7 @@ export default function KeeperSelection() {
                           <th className="px-6 py-4">Player</th>
                           <th className="px-6 py-4">MLB</th>
                           <th className="px-6 py-4 text-right">Cost</th>
+                          {hasValues && <th className="px-6 py-4 text-right">Value</th>}
                           <th className="px-6 py-4 text-center">Keep?</th>
                       </tr>
                   </thead>
@@ -155,8 +157,8 @@ export default function KeeperSelection() {
                       {roster.map(r => {
                           const isSelected = selectedIds.has(r.id);
                           return (
-                              <tr 
-                                key={r.id} 
+                              <tr
+                                key={r.id}
                                 className={`transition-colors hover:bg-[var(--lg-tint)] ${isSelected ? "bg-sky-900/10" : ""}`}
                                 onClick={() => toggleKeeper(r.id)}
                               >
@@ -164,10 +166,19 @@ export default function KeeperSelection() {
                                   <td className="px-6 py-4 font-medium text-[var(--lg-text-primary)]">{r.player?.name || "Unknown"}</td>
                                   <td className="px-6 py-4 text-[var(--lg-text-muted)] opacity-60">{r.player?.mlbTeam || (r.player as any)?.mlb_team}</td>
                                   <td className="px-6 py-4 text-right font-mono text-[var(--lg-text-primary)]">{fmtMoney(r.price)}</td>
+                                  {hasValues && (
+                                    <td className={`px-6 py-4 text-right font-mono ${
+                                      r.projectedValue != null
+                                        ? r.projectedValue > r.price ? "text-emerald-500" : r.projectedValue < r.price ? "text-red-400" : "text-[var(--lg-text-primary)]"
+                                        : "text-[var(--lg-text-muted)] opacity-60"
+                                    }`}>
+                                      {r.projectedValue != null ? `$${r.projectedValue}` : "—"}
+                                    </td>
+                                  )}
                                   <td className="px-6 py-4 text-center">
-                                      <input 
-                                        type="checkbox" 
-                                        checked={isSelected} 
+                                      <input
+                                        type="checkbox"
+                                        checked={isSelected}
                                         disabled={isLocked}
                                         onChange={() => {}} // handled by row click
                                         className="h-5 w-5 rounded border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] text-sky-500 focus:ring-sky-500/50 disabled:opacity-30"
@@ -177,7 +188,7 @@ export default function KeeperSelection() {
                           );
                       })}
                       {roster.length === 0 && (
-                          <tr><td colSpan={5} className="p-8 text-center text-[var(--lg-text-muted)] opacity-60">No players on roster.</td></tr>
+                          <tr><td colSpan={hasValues ? 6 : 5} className="p-8 text-center text-[var(--lg-text-muted)] opacity-60">No players on roster.</td></tr>
                       )}
                   </tbody>
               </table>

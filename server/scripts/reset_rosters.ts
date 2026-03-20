@@ -1,7 +1,5 @@
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../src/db/prisma.js';
 
 async function resetRosters() {
   console.log("Resetting Rosters and Auction Data...");
