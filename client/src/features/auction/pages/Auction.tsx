@@ -388,7 +388,7 @@ export default function Auction() {
                         key: 'teams',
                         label: 'Teams',
                         count: displayTeams.length,
-                        content: <TeamListTab teams={displayTeams} players={players} budgetCap={auctionState?.config?.budgetCap} rosterSize={auctionState?.config?.rosterSize} showPace={auctionPrefs.spendingPace} />
+                        content: <TeamListTab teams={displayTeams} players={players} budgetCap={auctionState?.config?.budgetCap} rosterSize={auctionState?.config?.rosterSize} showPace={auctionPrefs.spendingPace} positionLimits={auctionState?.config?.positionLimits} />
                     },
                     {
                         key: 'log',

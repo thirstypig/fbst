@@ -122,14 +122,14 @@ Future auction enhancements, roughly ordered by impact.
 ### Medium Impact
 - [x] **AUC-05**: Value Over Replacement in Player Pool — "Val" column showing $dollar_value, surplus (value - current bid) with green/red color coding during active bidding. Sortable. *(Session 30)*
 - [x] **AUC-06**: Spending Pace Tracker — league summary bar (total drafted, spent, avg price), per-team budget progress bars (green/amber/red), hot/cold indicators (Flame/Snowflake when avg differs >25% from league avg). *(Session 30)*
-- [ ] **AUC-07**: Position Needs Matrix — grid showing each team's filled/open positions in Team List tab. Reveals who needs the current player.
-- [ ] **AUC-08**: Nomination Timer Countdown — visible countdown when it's your turn to nominate (30s default). Auto-skip exists but UX could be clearer.
-- [ ] **AUC-09**: "Going Once, Going Twice" Visual — escalating visual flourish at 5s/3s/1s (border pulse, text callout, "SOLD!" animation).
+- [x] **AUC-07**: Position Needs Matrix — compact grid in Teams tab showing filled/limit per position per team. Green = has players, Red = full. *(Session 31)*
+- [x] **AUC-08**: Nomination Timer Countdown — visible 30s countdown during nominating phase, pulses red at <10s. *(Session 31)*
+- [x] **AUC-09**: "Going Once, Going Twice, SOLD!" Visual — "Going once" at 5s (amber), "Going twice" at 3s (red), "SOLD!" at 1s (bounce). Red glow border on nominee card. *(Session 31)*
 
 ### Nice-to-Have
 - [ ] **AUC-10**: Pre-Draft Rankings Import — owners upload personal player rankings (CSV) as a private column in Player Pool.
 - [ ] **AUC-11**: Post-Auction Trade Block — immediately after draft, owners flag players they'd trade.
-- [ ] **AUC-12**: Keeper Cost Preview — during bidding, show next year's keeper cost ("If you keep next year: $bid + $5").
+- [x] **AUC-12**: Keeper Cost Preview — shows "Keeper next year: $bid+5" when you're the high bidder. *(Session 31)*
 
 ---
 
