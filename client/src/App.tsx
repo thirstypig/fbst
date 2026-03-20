@@ -100,6 +100,11 @@ export default function App() {
           ) : (
             <Routes>
               <Route path="/" element={<Landing />} />
+              <Route path="/guide" element={<GuidePage />} />
+              <Route path="/guide/account" element={<GuideAccount />} />
+              <Route path="/guide/auction" element={<GuideAuction />} />
+              <Route path="/guide/faq" element={<GuideFaq />} />
+              <Route path="/about" element={<About />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           )
