@@ -32,8 +32,9 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(request)
       .then((response) => {
-        // Cache successful responses for navigation and static assets
-        if (response.ok && (request.mode === 'navigate' || request.url.match(/\.(js|css|png|svg|woff2?)$/))) {
+        // Cache successful same-origin responses for navigation and static assets
+        const isSameOrigin = new URL(request.url).origin === self.location.origin;
+        if (response.ok && isSameOrigin && (request.mode === 'navigate' || request.url.match(/\.(js|css|png|svg|woff2?)$/))) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
         }

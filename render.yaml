@@ -7,6 +7,7 @@ services:
     runtime: node
     region: oregon
     plan: starter
+    nodeVersion: "20"
     buildCommand: npm run build
     startCommand: npm start
     healthCheckPath: /api/health
