@@ -4,10 +4,10 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
-## Session 2026-03-20 (Session 31) — 14 PRs, Auction UX, MLB Home, Guide Rewrite, Code Review, CI Fix
+## Session 2026-03-20 (Session 31) — 19 PRs, Auction UX, My Val, MLB Home, Guide Rewrite, Code Review, CI Fix
 
 ### Summary
-Massive session with 14 PRs merged (#46 through #59), completing 10 of 12 auction enhancements, adding MLB-powered Home page, rewriting the Guide, running a full code review, and fixing CI.
+Massive session with 19 PRs merged (#46 through #64), completing 10 of 12 auction enhancements, adding personalized My Val (roster-aware valuation with 4 factors), MLB-powered Home page, rewriting the Guide, running a full code review, and fixing CI.
 
 ### Completed — Auction Enhancements (10 of 12 done)
 - **AUC-01**: Opening bid picker (inline $ input on Nom button)
@@ -36,6 +36,14 @@ Massive session with 14 PRs merged (#46 through #59), completing 10 of 12 auctio
 - Bid timer dropdown (15s increments)
 - Print/PDF styles for Guide
 - Tooltips on auction column headers
+
+### Completed — My Val & Later PRs (#60-#64)
+- Resource page audit (#60)
+- Val column colors (green/red) + public guide pages (no login required) (#61)
+- Val tooltips (base vs adjusted breakdown), default league filter, compact tabs (#62)
+- Personalized My Val — roster-aware player valuation with 4 factors: position need (+30%/-70%), budget pressure (+10%/-20%), position scarcity (+10-20%), market pressure (#63)
+- Market pressure factor + multi-user test script for My Val validation (#64)
+- My Val section added to Auction Guide
 
 ### Completed — Infrastructure
 - New mlb-feed server module (3 endpoints: scores, transactions, my-players-today)

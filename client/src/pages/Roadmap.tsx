@@ -272,8 +272,14 @@ interface CompletedGroup {
 
 const completedFeatures: CompletedGroup[] = [
   {
-    label: "Session 31 (14 PRs merged)",
+    label: "Session 31 (19 PRs merged)",
     items: [
+      { title: "Personalized My Val", description: "Roster-aware player valuation with 4 factors: position need, budget pressure, scarcity, market pressure.", session: "31" },
+      { title: "Val Column Colors & Tooltips", description: "Green for bargains, red for overpay. Hover tooltips show base vs adjusted value breakdown.", session: "31" },
+      { title: "Public Guide Pages", description: "Guide pages accessible without login. Default league filter improvements.", session: "31" },
+      { title: "Market Pressure Factor", description: "League-wide budget/spots ratio adjusts all My Val values dynamically.", session: "31" },
+      { title: "Multi-User Test Script", description: "Automated test script for validating My Val across multiple users.", session: "31" },
+      { title: "Resource Page Audit", description: "Cleanup and audit of resource pages.", session: "31" },
       { title: "Position Needs Matrix", description: "Compact grid in Teams tab showing filled/limit per position per team.", session: "31" },
       { title: "Nomination Timer Countdown", description: "Visible 30s countdown during nominating phase, pulses red at <10s.", session: "31" },
       { title: "'Going Once, Going Twice, SOLD!' Visual", description: "Escalating visual at 5s/3s/1s with amber/red/bounce sequence and red glow border.", session: "31" },
