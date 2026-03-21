@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Gavel, Star, MessageCircle, Volume2, TrendingUp, BarChart3, Target, Search, Settings } from 'lucide-react';
+import { Gavel, Star, MessageCircle, Volume2, TrendingUp, BarChart3, Target, Search, Settings, Calculator } from 'lucide-react';
 import { GuideHeader, Section, Step, Tip, Screenshot } from './shared';
 
 export default function GuideAuction() {
@@ -91,6 +91,23 @@ export default function GuideAuction() {
               </div>
             ))}
           </div>
+        </Section>
+
+        <Section title="How My Val Works" icon={Calculator}>
+          <p><strong>My Val</strong> shows a personalized player value based on YOUR team's specific needs. It adjusts the base projected value using 4 factors:</p>
+
+          <ol className="list-decimal list-inside space-y-2 ml-1 mt-3">
+            <li><strong>Position Need</strong> — Players at positions you still need are worth more (+30%). Players at positions you've already filled are worth less (-70%).</li>
+            <li><strong>Budget Pressure</strong> — If a player costs more than 2x your average remaining $/spot, their value is deflated (-20%). Bargains get a boost (+10%).</li>
+            <li><strong>Position Scarcity</strong> — When 3-5+ other teams also need that position, competition drives the value up (+10-20%).</li>
+            <li><strong>Market Pressure</strong> — League-wide budget/spots ratio affects all values. When teams are flush, values inflate. When budgets are tight, values deflate.</li>
+          </ol>
+
+          <p className="mt-3">Hover over any My Val number to see: <em>"Base: $24 → Your value: $31 (+7 based on roster needs)"</em></p>
+
+          <p className="mt-2">The minimum value is always $1 — no player shows $0 or negative.</p>
+
+          <p className="mt-2">Values update in real-time as you draft players and your roster composition changes.</p>
         </Section>
 
         <Section title="Finding Players" icon={Search}>
