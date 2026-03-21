@@ -29,6 +29,13 @@ Production deployment readiness for Render with 6-agent code review. All P2/P3 f
 - 2 P2 findings resolved: scoped wss: CSP, aligned shutdown timeout
 - 5 P3 findings resolved: static caching, SW origin check, Node pinning, HSTS, Express cleanup
 
+### Completed — Production Hotfixes (PRs #72, #73)
+- **CSP wss:// fix (PR #72)** — explicit `wss://thefantasticleagues.com` in CSP connectSrc; browser `'self'` doesn't reliably map `https:` → `wss:` across all browsers. Fixed "Reconnecting to auction server" on live site.
+- **Design contrast (PR #73)** — light mode: darker backgrounds (#d6dde7), darker muted text (#4b5563), stronger table headers. Dark mode: lighter muted text (#8b9bb5 vs #64748b which was identical to light mode). Home game cards: "Final" visible, W-L records inline next to team abbr. Season "Cumulative results" subheader readable. Sidebar labels opacity 0.6→0.85.
+
+### Completed — Roadmap Update
+- Expanded long-term vision: SaaS Phase 1 (baseball platform for other leagues) and Phase 2 (multi-sport: football, March Madness, pick'em, game calculators, SaaS pricing)
+
 ### Test Results
 - Server: 473 passing (+11 retrospective)
 - Client: 187 passing
@@ -36,9 +43,9 @@ Production deployment readiness for Render with 6-agent code review. All P2/P3 f
 - **Total: 710 tests**
 
 ### Pending / Next Steps
-- Verify Render deploy succeeded (auto-triggered by merge to main)
 - Post-deploy smoke test: health check, auth, WebSocket, PostHog
-- Sunday March 22 live auction
+- Sunday March 22 live auction — pre-auction testing tomorrow
+- SaaS Phase 1 planning (post-auction)
 - TD-Q03 (auction/routes.ts extraction) — intentionally deferred
 
 ---

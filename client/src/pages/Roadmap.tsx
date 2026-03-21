@@ -25,11 +25,14 @@ import {
   Wifi,
   Download,
   PlayCircle,
+  Trophy,
+  DollarSign,
+  Search,
 } from "lucide-react";
 
 /* ── Data ────────────────────────────────────────────────────────── */
 
-const LAST_UPDATED = "March 21, 2026 (Session 33)";
+const LAST_UPDATED = "March 21, 2026 (Session 33 — Extended)";
 
 // ─── Product Roadmap ───
 
@@ -336,13 +339,37 @@ const productRoadmap: RoadmapPhase[] = [
     ],
   },
   {
-    label: "Long Term",
-    timeframe: "July 2026+ (Off-Season & Beyond)",
+    label: "SaaS Phase 1 — Baseball Platform",
+    timeframe: "Summer 2026 (Post-Season Launch)",
     color: "text-blue-400",
     borderColor: "border-blue-500/30",
     bgColor: "bg-blue-500/5",
-    icon: Calendar,
+    icon: Rocket,
     items: [
+      {
+        title: "Multi-League Support",
+        description: "Full franchise-level dashboard: manage multiple leagues from one view, compare rosters across leagues, unified transaction history.",
+        icon: Layers,
+        effort: "Large",
+        status: "planned",
+        tags: ["franchise", "saas"],
+      },
+      {
+        title: "Snake Draft Mode",
+        description: "Support snake draft format alongside auction. Draft order management, pick trading, live draft board with auto-pick timer.",
+        icon: Target,
+        effort: "Large",
+        status: "planned",
+        tags: ["draft"],
+      },
+      {
+        title: "Public League Directory & Self-Service Onboarding",
+        description: "Commissioners create leagues publicly. Join via invite code or discovery. Self-service signup, league creation, and team management.",
+        icon: Globe,
+        effort: "Large",
+        status: "planned",
+        tags: ["growth", "saas"],
+      },
       {
         title: "Mobile-Responsive Redesign",
         description: "Full mobile experience for auction bidding, standings checking, and trade management on phones.",
@@ -350,14 +377,6 @@ const productRoadmap: RoadmapPhase[] = [
         effort: "Large",
         status: "planned",
         tags: ["mobile", "design"],
-      },
-      {
-        title: "Multi-League Support",
-        description: "Full franchise-level dashboard: manage multiple leagues from one view, compare rosters across leagues, unified transaction history.",
-        icon: Layers,
-        effort: "Large",
-        status: "planned",
-        tags: ["franchise"],
       },
       {
         title: "Historical Analytics & Trends",
@@ -376,20 +395,70 @@ const productRoadmap: RoadmapPhase[] = [
         tags: ["ai", "commissioner"],
       },
       {
-        title: "Snake Draft Mode",
-        description: "Support snake draft format alongside auction. Draft order management, pick trading, live draft board with auto-pick timer.",
+        title: "SEO & Marketing",
+        description: "Search engine optimization for organic discovery. Landing pages, blog content, social media presence. Target fantasy baseball community.",
+        icon: Search,
+        effort: "Medium",
+        status: "planned",
+        tags: ["growth", "marketing"],
+      },
+    ],
+  },
+  {
+    label: "SaaS Phase 2 — Multi-Sport Expansion",
+    timeframe: "2027+ (Platform Evolution)",
+    color: "text-purple-400",
+    borderColor: "border-purple-500/30",
+    bgColor: "bg-purple-500/5",
+    icon: Trophy,
+    items: [
+      {
+        title: "Fantasy Football (Head-to-Head)",
+        description: "Head-to-head fantasy football with weekly matchups, snake/auction drafts, waiver wire, and trade system. Compete with Yahoo Fantasy.",
         icon: Target,
         effort: "Large",
         status: "planned",
-        tags: ["draft"],
+        tags: ["football", "multi-sport"],
       },
       {
-        title: "Public League Directory",
-        description: "Allow commissioners to list leagues publicly. Join via invite code or discovery. Onboarding flow for new owners.",
-        icon: Globe,
+        title: "March Madness Brackets",
+        description: "NCAA tournament bracket challenges. Group pools, scoring rules, live bracket updates, upset tracking.",
+        icon: Trophy,
+        effort: "Large",
+        status: "planned",
+        tags: ["basketball", "multi-sport"],
+      },
+      {
+        title: "Pick'em Games",
+        description: "Weekly pick'em contests across sports — straight picks, spreads, confidence pools. Season-long leaderboards.",
+        icon: BarChart3,
         effort: "Medium",
         status: "planned",
-        tags: ["growth"],
+        tags: ["pick-em", "multi-sport"],
+      },
+      {
+        title: "Game Calculators & Scoreboards",
+        description: "Live game calculators, scoring tools, and interactive scoreboards. Real-time stats dashboards across sports.",
+        icon: Activity,
+        effort: "Medium",
+        status: "planned",
+        tags: ["tools", "multi-sport"],
+      },
+      {
+        title: "SaaS Pricing & Monetization",
+        description: "Tiered pricing model: free tier (basic leagues), premium (AI features, analytics, priority support), enterprise (custom branding, API access).",
+        icon: DollarSign,
+        effort: "Medium",
+        status: "planned",
+        tags: ["business", "saas"],
+      },
+      {
+        title: "Sport-Agnostic Engine",
+        description: "Abstract the core engine (drafts, rosters, trades, standings, scoring) to support any sport via configuration. Pluggable data providers per sport.",
+        icon: Layers,
+        effort: "Large",
+        status: "planned",
+        tags: ["architecture", "saas"],
       },
     ],
   },
