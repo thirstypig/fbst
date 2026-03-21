@@ -74,11 +74,12 @@ async function main() {
 
   app.use(
     helmet({
+      hsts: { maxAge: 31536000, includeSubDomains: true },
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
           scriptSrc: ["'self'", "https://accounts.google.com", "https://apis.google.com", "https://us-assets.i.posthog.com"],
-          connectSrc: ["'self'", "wss:", "https://*.supabase.co", "https://us.i.posthog.com", "https://us.posthog.com", "https://statsapi.mlb.com"],
+          connectSrc: ["'self'", "wss://*.supabase.co", "https://*.supabase.co", "https://us.i.posthog.com", "https://us.posthog.com", "https://statsapi.mlb.com"],
           imgSrc: ["'self'", "data:", "https://*.googleusercontent.com"],
           styleSrc: ["'self'", "'unsafe-inline'", "https:"],
           fontSrc: ["'self'", "https:", "data:"],
@@ -210,13 +211,13 @@ async function main() {
   
   if (fs.existsSync(clientDistPath)) {
     logger.info({ path: clientDistPath }, "Serving static frontend assets");
-    app.use(express.static(clientDistPath));
+    app.use(express.static(clientDistPath, { maxAge: '1y', immutable: true, index: false }));
   } else {
     // try alternative (repo root)
     const altPath = path.resolve(process.cwd(), 'client/dist');
     if (fs.existsSync(altPath)) {
         logger.info({ path: altPath }, "Serving static frontend assets (alt path)");
-        app.use(express.static(altPath));
+        app.use(express.static(altPath, { maxAge: '1y', immutable: true, index: false }));
     } else {
        logger.warn({ checked: [clientDistPath, altPath] }, "⚠️ Frontend build not found. API mode only.");
     }
@@ -299,7 +300,7 @@ async function main() {
     server.close(() => {
       prisma.$disconnect().then(() => process.exit(0));
     });
-    setTimeout(() => process.exit(1), 10_000);
+    setTimeout(() => process.exit(1), 55_000); // 5s margin before Render's 60s SIGKILL
   }
   process.on("SIGTERM", () => shutdown("SIGTERM"));
   process.on("SIGINT", () => shutdown("SIGINT"));
