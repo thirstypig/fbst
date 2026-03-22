@@ -287,9 +287,9 @@ export default function AuctionStage({ serverState, myTeamId, onBid, onFinish, o
                           }
                         }}
                         disabled={bidAdviceLoading}
-                        className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs text-[var(--lg-text-muted)] hover:text-[var(--lg-accent)] transition-colors"
+                        className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs text-[var(--lg-text-muted)] hover:text-[var(--lg-accent)] transition-colors"
                       >
-                        {bidAdviceLoading ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                        {bidAdviceLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
                         AI Bid Advice
                       </button>
                     )}
@@ -330,9 +330,9 @@ export default function AuctionStage({ serverState, myTeamId, onBid, onFinish, o
                 {myTeam && !isHighBidder && nomination.status === 'running' && (
                     <button
                         onClick={() => setIsDeclined(true)}
-                        className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs text-[var(--lg-text-muted)] hover:text-[var(--lg-warning)] transition-colors"
+                        className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs text-[var(--lg-text-muted)] hover:text-[var(--lg-warning)] transition-colors"
                     >
-                        <HandMetal size={12} />
+                        <HandMetal size={14} />
                         Pass (sit out this player)
                     </button>
                 )}

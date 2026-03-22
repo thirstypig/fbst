@@ -280,7 +280,7 @@
     font-size: var(--lg-font-size-base);
     color: var(--lg-text-primary);
     position: relative;
-    min-height: 100vh;
+    min-height: 100svh;
     overflow-x: hidden;
     background: var(--lg-bg-page);
   }
@@ -410,10 +410,10 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 5px 8px;
+    padding: 10px 12px;
     border-radius: var(--lg-radius-md);
     color: var(--lg-text-secondary);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
     text-transform: none;
     letter-spacing: normal;
@@ -596,7 +596,7 @@
      ============================================ */
 
   .lg-auth-container {
-    min-height: 100vh;
+    min-height: 100svh;
     display: flex;
     flex-direction: column;
   }

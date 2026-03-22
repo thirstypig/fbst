@@ -30,6 +30,23 @@ interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: "0.34.1",
+    date: "Mar 21, 2026",
+    session: "Session 34b",
+    title: "Mobile Readiness & Activity Sticky Headers",
+    highlights: [
+      "Activity page sticky table headers — Add/Drop and History tabs",
+      "iOS Safari viewport fix — 100vh→100svh prevents address bar content clipping",
+      "Touch target improvements — sidebar, auction buttons, tabs all 44px+ for accessibility",
+    ],
+    changes: [
+      { type: "feat", description: "Activity page sticky headers on Add/Drop and History tables with viewport height constraint" },
+      { type: "fix", description: "iOS viewport — all pages use 100svh instead of 100vh/100dvh (prevents address bar clipping)" },
+      { type: "fix", description: "Touch targets — sidebar items 44px+, auction Pass/AI buttons, ContextDeck tabs, icon buttons" },
+      { type: "fix", description: "Sidebar nav items — padding 5px→10px, font 13px→14px for readability" },
+    ],
+  },
+  {
     version: "0.34.0",
     date: "Mar 21, 2026",
     session: "Session 34",

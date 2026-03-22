@@ -124,8 +124,8 @@ export default function TransactionsPage() {
   if (loading) return <div className="text-center text-[var(--lg-text-muted)] py-20 animate-pulse text-sm">Loading roster moves...</div>;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6 md:px-6 md:py-10">
-       <div className="mb-10">
+    <div className="h-[100svh] flex flex-col overflow-hidden">
+       <div className="max-w-6xl mx-auto px-4 pt-6 md:px-6 md:pt-10 w-full">
            <PageHeader 
              title="Roster Moves"
              subtitle="Add, drop, and claim players. Process waivers and review history."
@@ -163,8 +163,7 @@ export default function TransactionsPage() {
            />
        </div>
 
-
-      <div className="mt-6">
+      <div className="flex-1 overflow-auto max-w-6xl mx-auto px-4 pb-6 md:px-6 md:pb-10 w-full">
           {activeTab === 'add_drop' && (
               <div className="liquid-glass rounded-3xl p-1 bg-[var(--lg-tint)]">
                 <AddDropTab players={players} onClaim={handleClaim} />
@@ -235,10 +234,9 @@ export default function TransactionsPage() {
           )}
 
           {activeTab === 'history' && (
-              <div className="lg-card p-0 overflow-hidden">
-                <div className="overflow-x-auto">
+              <div className="lg-card p-0">
                 <ThemedTable bare>
-                    <ThemedThead>
+                    <ThemedThead sticky>
                       <ThemedTr>
                         <ThemedTh className="pl-8">Date</ThemedTh>
                         <ThemedTh>Team</ThemedTh>
@@ -272,7 +270,6 @@ export default function TransactionsPage() {
                       )}
                     </tbody>
                 </ThemedTable>
-                </div>
               </div>
           )}
       </div>

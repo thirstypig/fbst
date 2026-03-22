@@ -39,10 +39,19 @@ Sticky table headers on Players page (hitters + pitchers) and Auction PlayerPool
 - Client: 187 passing
 - **Total: 660 tests** (MCP: 50 additional)
 
-### Pending / Next Steps
-- **Dark mode hardcoded color audit** — 26+ files use hardcoded Tailwind colors (text-red-400, bg-green-500/10) bypassing design tokens. Separate PR.
-- Post-deploy smoke test on production
-- End-to-end auction test in production
+### Completed — Mobile Readiness (PR #77)
+- **Activity page sticky headers** — `<ThemedThead sticky>` on Add/Drop + History tables, viewport height constraint, removed overflow blockers
+- **Viewport height: 100vh/dvh → 100svh** — AuctionLayout, Players, Docs, index.css body + auth container (fixes iOS Safari address bar clipping)
+- **Touch targets** — sidebar nav items 5px→10px padding (44px+), auction Pass/AI buttons py-1.5→py-2.5, ContextDeck tabs text-[10px]→text-[11px] + px-3 py-2.5, AppShell icon buttons p-1.5→p-2.5
+- **Mobile verified** — Activity + Players pages at 390px viewport (Playwright screenshots)
+
+### Pending / Next Steps — Priority Order
+1. **Post-deploy smoke test** — health check, auth, WebSocket, PostHog on thefantasticleagues.com
+2. **End-to-end auction test in production** — create test auction, verify WS, bid, nominate, timer
+3. **Design contrast spot-check** — verify new status colors and sticky headers on live site
+4. **Dark mode hardcoded color audit** — 26+ files use hardcoded Tailwind colors (text-red-400, bg-green-500/10) bypassing design tokens. Separate PR.
+5. **Post-auction retrospective** — review logs, bid patterns, UX issues from real usage
+6. **SaaS Phase 1 planning** — multi-league, snake draft, public directory
 
 ---
 

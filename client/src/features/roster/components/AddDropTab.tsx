@@ -259,9 +259,8 @@ export default function AddDropTab({ players, myTeamRoster, onClaim, onDrop }: A
             </div>
 
             {/* Results Table */}
-            <div className="overflow-x-auto">
                 <ThemedTable bare>
-                    <ThemedThead>
+                    <ThemedThead sticky>
                         <ThemedTr>
                             <ThemedTh className="pl-8 py-3" onClick={() => handleSort('name')}>
                                 Name {sortKey === 'name' && (sortDesc ? '▼' : '▲')}
@@ -386,7 +385,6 @@ export default function AddDropTab({ players, myTeamRoster, onClaim, onDrop }: A
                         })}
                     </tbody>
                 </ThemedTable>
-            </div>
 
             {filteredPlayers.length === 0 && (
                 <div className="flex flex-col items-center justify-center p-32 text-center opacity-40">
