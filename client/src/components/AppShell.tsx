@@ -221,7 +221,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <div className={`flex items-center gap-0.5 ${!sidebarOpen && 'flex-col mx-auto'}`}>
                 <button
                   onClick={toggleTheme}
-                  className="p-1.5 rounded-lg hover:bg-[var(--lg-tint)] text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] transition-all"
+                  className="p-2.5 rounded-lg hover:bg-[var(--lg-tint)] text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] transition-all"
                   title="Toggle Theme"
                   aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                 >
@@ -229,7 +229,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 </button>
                 <button
                   onClick={() => setSidebarOpen(!sidebarOpen)}
-                  className="p-1.5 rounded-lg hover:bg-[var(--lg-tint)] text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] transition-all"
+                  className="p-2.5 rounded-lg hover:bg-[var(--lg-tint)] text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] transition-all"
                   title={sidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}
                   aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
                 >

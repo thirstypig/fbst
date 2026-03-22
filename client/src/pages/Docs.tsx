@@ -323,7 +323,7 @@ export default function Docs() {
   const charCount = currentDoc ? currentDoc.content.length : 0;
 
   return (
-    <div className="flex h-[calc(100vh-64px)]">
+    <div className="flex h-[calc(100svh-64px)]">
       {/* Sidebar */}
       <div className={`${sidebarOpen ? "w-72" : "w-0"} transition-all duration-200 overflow-hidden border-r border-[var(--lg-border-faint)] bg-[var(--lg-bg-card)] flex-shrink-0`}>
         <div className="p-4 space-y-4 w-72">

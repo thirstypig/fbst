@@ -165,7 +165,7 @@ export default function Players() {
   );
 
   return (
-    <div className="h-[100dvh] flex flex-col overflow-hidden scrollbar-hide">
+    <div className="h-[100svh] flex flex-col overflow-hidden scrollbar-hide">
        {/* Page Header */}
        <div className="max-w-6xl mx-auto px-4 pt-6 md:px-6 md:pt-10">
          <PageHeader 
