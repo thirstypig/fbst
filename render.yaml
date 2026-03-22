@@ -39,6 +39,8 @@ services:
         sync: false
       - key: VITE_POSTHOG_KEY
         sync: false
+      - key: VITE_WS_HOST
+        value: fbst-api.onrender.com
       # Optional integrations:
       - key: RESEND_API_KEY
         sync: false

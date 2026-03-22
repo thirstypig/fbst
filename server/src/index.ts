@@ -79,7 +79,7 @@ async function main() {
         directives: {
           defaultSrc: ["'self'"],
           scriptSrc: ["'self'", "https://accounts.google.com", "https://apis.google.com", "https://us-assets.i.posthog.com"],
-          connectSrc: ["'self'", "wss://thefantasticleagues.com", "wss://*.supabase.co", "https://*.supabase.co", "https://us.i.posthog.com", "https://us.posthog.com", "https://statsapi.mlb.com"],
+          connectSrc: ["'self'", "wss://thefantasticleagues.com", "wss://fbst-api.onrender.com", "wss://*.supabase.co", "https://*.supabase.co", "https://us.i.posthog.com", "https://us.posthog.com", "https://statsapi.mlb.com"],
           imgSrc: ["'self'", "data:", "https://*.googleusercontent.com"],
           styleSrc: ["'self'", "'unsafe-inline'", "https:"],
           fontSrc: ["'self'", "https:", "data:"],
