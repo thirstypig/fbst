@@ -2,7 +2,7 @@ import { prisma } from '../db/prisma.js';
 import { logger } from '../lib/logger.js';
 import { z } from 'zod';
 
-// Lazy-load @google/generative-ai (1.2MB) — only imported when AI analysis is actually requested
+// Lazy-load @google/generative-ai — only imported when AI analysis is actually requested
 let _genAI: any = null;
 async function ensureGenAI(): Promise<any> {
   if (_genAI) return _genAI;
@@ -13,17 +13,87 @@ async function ensureGenAI(): Promise<any> {
   return _genAI;
 }
 
+/** Unified model interface — wraps Gemini or Anthropic behind a common generateContent API. */
+interface AIModel {
+  generateContent(prompt: string): Promise<{ response: { text(): string } }>;
+}
+
+/** Create Anthropic-backed model using raw fetch (no SDK dependency). */
+function createAnthropicModel(apiKey: string): AIModel {
+  return {
+    async generateContent(prompt: string) {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 4096,
+          messages: [{ role: 'user', content: prompt }],
+        }),
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`Anthropic API error ${res.status}: ${body}`);
+      }
+      const data = await res.json() as any;
+      const text = data.content?.[0]?.text ?? '';
+      return { response: { text: () => text } };
+    },
+  };
+}
+
 interface AnalysisResult {
   success: boolean;
   analysis?: string;
   error?: string;
 }
 
+// Track Gemini availability — once it fails, use Anthropic for the rest of the process lifetime
+let _geminiDisabled = false;
+
 export class AIAnalysisService {
-  private async getModel() {
-    const genAI = await ensureGenAI();
-    if (!genAI) return null;
-    return genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+  /** Try Gemini first, fall back to Anthropic Claude. */
+  private async getModel(): Promise<AIModel | null> {
+    // Try Gemini (unless previously disabled by quota/error)
+    if (!_geminiDisabled) {
+      const genAI = await ensureGenAI();
+      if (genAI) {
+        const geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+        // Wrap Gemini model to detect quota errors and auto-fallback
+        const anthropicKey = process.env.ANTHROPIC_API_KEY || '';
+        if (anthropicKey) {
+          return {
+            async generateContent(prompt: string) {
+              try {
+                return await geminiModel.generateContent(prompt);
+              } catch (err: any) {
+                const msg = String(err?.message ?? err);
+                if (msg.includes('429') || msg.includes('quota') || msg.includes('RESOURCE_EXHAUSTED')) {
+                  logger.warn({}, "Gemini quota exceeded, switching to Anthropic for this session");
+                  _geminiDisabled = true;
+                  return createAnthropicModel(anthropicKey).generateContent(prompt);
+                }
+                throw err;
+              }
+            },
+          };
+        }
+        return geminiModel;
+      }
+    }
+
+    // Fallback: Anthropic Claude
+    const anthropicKey = process.env.ANTHROPIC_API_KEY || '';
+    if (anthropicKey) {
+      return createAnthropicModel(anthropicKey);
+    }
+
+    return null;
   }
 
   /**
