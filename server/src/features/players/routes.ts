@@ -351,15 +351,22 @@ dataRouter.get("/player-season-stats", requireAuth, asyncHandler(async (req, res
   // Expand two-way players (e.g. Ohtani → DH hitter row + P pitcher row)
   const expandedStats = expandTwoWayPlayers(stats);
 
-  // For expanded pitcher rows, look up pitcher-specific dollar value
+  // For two-way players, split stats: hitter row keeps hitting stats only, pitcher row keeps pitching stats only
   for (const s of expandedStats) {
-    if (s.is_pitcher && TWO_WAY_PLAYERS.has(Number(s.mlb_id))) {
+    if (!TWO_WAY_PLAYERS.has(Number(s.mlb_id))) continue;
+    if (s.is_pitcher) {
+      // Pitcher row: zero out hitting stats, keep pitching stats
+      s.AB = 0; s.H = 0; s.R = 0; s.HR = 0; s.RBI = 0; s.SB = 0; s.AVG = 0;
+      // Look up pitcher-specific dollar value
       const nameKey = s.player_name.toLowerCase();
       const pitcherPv = valuesMap.get(`${nameKey}::P`) ?? valuesMap.get(`${normalizeName(s.player_name)}::P`);
       if (pitcherPv) {
         s.dollar_value = pitcherPv.value;
         s.value = pitcherPv.value;
       }
+    } else {
+      // Hitter row: zero out pitching stats, keep hitting stats
+      s.W = 0; s.SV = 0; s.K = 0; s.ERA = 0; s.WHIP = 0;
     }
   }
 
