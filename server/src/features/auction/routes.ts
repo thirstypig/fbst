@@ -990,6 +990,63 @@ router.post("/reset", requireAuth, requireAdmin, asyncHandler(async (req, res) =
     res.json(state);
 }));
 
+// POST /api/auction/complete
+// Commissioner/admin action to manually end the auction.
+// If a nomination is in progress, it is canceled (not awarded).
+router.post("/complete", requireAuth, requireCommissionerOrAdmin("leagueId"), asyncHandler(async (req, res) => {
+    const leagueId = readLeagueId(req);
+    if (!leagueId) return res.status(400).json({ error: "Missing leagueId" });
+
+    const state = auctionStates.get(leagueId);
+    if (!state) return res.status(404).json({ error: "No active auction" });
+
+    if (state.status === "completed") {
+      return res.status(400).json({ error: "Auction is already completed" });
+    }
+    if (state.status === "not_started") {
+      return res.status(400).json({ error: "Auction has not started" });
+    }
+
+    // Clear all timers
+    clearAutoFinishTimer(leagueId);
+    clearNominationTimer(leagueId);
+
+    // Mark as completed — cancel any in-progress nomination (don't award it)
+    state.status = "completed";
+    state.nomination = null;
+    state.lastUpdate = Date.now();
+
+    broadcastState(leagueId, state);
+    persistState(leagueId, state);
+
+    writeAuditLog({
+      userId: req.user!.id,
+      action: "AUCTION_COMPLETE",
+      resourceType: "Auction",
+      metadata: { leagueId, manualEnd: true },
+    });
+
+    logger.info({ leagueId, userId: req.user!.id }, "Auction manually completed by commissioner/admin");
+
+    res.json({ success: true, status: state.status });
+}));
+
+// POST /api/auction/refresh-teams
+// Triggers a refresh of team data (rosters, budgets, position counts) and broadcasts to all clients.
+// Used after position assignments or roster changes to sync the auction matrix.
+router.post("/refresh-teams", requireAuth, requireLeagueMember("leagueId"), asyncHandler(async (req, res) => {
+    const leagueId = readLeagueId(req);
+    if (!leagueId) return res.status(400).json({ error: "Missing leagueId" });
+
+    const state = auctionStates.get(leagueId);
+    if (!state) return res.status(404).json({ error: "No active auction" });
+
+    await refreshTeams(state);
+    broadcastState(leagueId, state);
+
+    res.json({ success: true });
+}));
+
 // GET /api/auction/bid-history?leagueId=N
 // Returns all completed auction lots with their bid history, ordered by nomination time.
 router.get("/bid-history", requireAuth, requireLeagueMember("leagueId"), asyncHandler(async (req, res) => {
