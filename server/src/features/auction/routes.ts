@@ -1120,16 +1120,96 @@ router.get("/retrospective", requireAuth, requireLeagueMember("leagueId"), async
     orderBy: { startTs: "asc" },
   });
 
-  if (lots.length === 0) {
-    return res.status(404).json({ error: "No completed auction data found" });
-  }
-
   // PlayerValue for bargain/overpay analysis
   const playerValues = await prisma.playerValue.findMany({
     where: { leagueId, playerId: { not: null } },
     select: { playerId: true, value: true },
   });
   const valueMap = new Map(playerValues.map(v => [v.playerId!, v.value]));
+
+  // ── Fallback: build from roster data when no AuctionLot records exist ──
+  if (lots.length === 0) {
+    const league = await prisma.league.findUnique({ where: { id: leagueId }, select: { season: true } });
+    const auctionSource = `auction_${league?.season ?? new Date().getFullYear()}`;
+    const rosterTeams = await prisma.team.findMany({
+      where: { leagueId },
+      include: {
+        rosters: {
+          where: { releasedAt: null },
+          include: { player: { select: { id: true, name: true, posPrimary: true, mlbTeam: true } } },
+        },
+      },
+      orderBy: { id: "asc" },
+    });
+
+    function normPos(pos: string): string {
+      const p = pos.trim().toUpperCase();
+      if (["LF", "CF", "RF"].includes(p)) return "OF";
+      return p;
+    }
+
+    const allRosters = rosterTeams.flatMap(t => t.rosters.map(r => ({ ...r, teamId: t.id, teamName: t.name })));
+    const prices = allRosters.map(r => r.price).filter(p => p > 0);
+    const totalLots = prices.length;
+    const totalSpent = prices.reduce((s, p) => s + p, 0);
+    const avgPrice = totalLots > 0 ? Math.round((totalSpent / totalLots) * 10) / 10 : 0;
+    const sorted = [...prices].sort((a, b) => a - b);
+    const medianPrice = sorted.length === 0 ? 0 : sorted.length % 2 === 0
+      ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+      : sorted[Math.floor(sorted.length / 2)];
+
+    const mostExp = allRosters.reduce((max, r) => r.price > (max?.price ?? 0) ? r : max, allRosters[0]);
+    const mostExpensivePlayer = mostExp ? { playerName: mostExp.player.name, position: mostExp.player.posPrimary, price: mostExp.price } : null;
+    const nonOne = allRosters.filter(r => r.price > 1);
+    const cheapest = nonOne.reduce((min, r) => r.price < (min?.price ?? Infinity) ? r : min, nonOne[0]);
+    const cheapestWin = cheapest ? { playerName: cheapest.player.name, position: cheapest.player.posPrimary, price: cheapest.price } : null;
+
+    // Bargains/overpays from PlayerValue
+    const surplusEntries = allRosters
+      .filter(r => valueMap.has(r.player.id))
+      .map(r => ({
+        playerName: r.player.name, position: r.player.posPrimary, price: r.price,
+        projectedValue: valueMap.get(r.player.id)!, surplus: valueMap.get(r.player.id)! - r.price,
+      }));
+    const bargains = [...surplusEntries].sort((a, b) => b.surplus - a.surplus).slice(0, 5).filter(e => e.surplus > 0);
+    const overpays = [...surplusEntries].sort((a, b) => a.surplus - b.surplus).slice(0, 5).filter(e => e.surplus < 0);
+
+    // Position spending
+    const posMap = new Map<string, { totalSpent: number; playerCount: number }>();
+    for (const r of allRosters) {
+      const pos = normPos(r.player.posPrimary);
+      const entry = posMap.get(pos) ?? { totalSpent: 0, playerCount: 0 };
+      entry.totalSpent += r.price;
+      entry.playerCount++;
+      posMap.set(pos, entry);
+    }
+    const positionSpending = [...posMap.entries()]
+      .map(([position, d]) => ({ position, totalSpent: d.totalSpent, avgPrice: Math.round((d.totalSpent / d.playerCount) * 10) / 10, playerCount: d.playerCount }))
+      .sort((a, b) => b.totalSpent - a.totalSpent);
+
+    // Team efficiency
+    const teamEfficiency = rosterTeams.map(team => {
+      const spent = team.rosters.reduce((s, r) => s + r.price, 0);
+      const withValues = team.rosters.filter(r => valueMap.has(r.player.id));
+      const bargainCount = withValues.filter(r => valueMap.get(r.player.id)! > r.price).length;
+      const overpayCount = withValues.filter(r => valueMap.get(r.player.id)! < r.price).length;
+      const totalSurplus = withValues.reduce((s, r) => s + (valueMap.get(r.player.id)! - r.price), 0);
+      return {
+        teamId: team.id, teamName: team.name, totalSpent: spent, playersAcquired: team.rosters.length,
+        avgPrice: team.rosters.length > 0 ? Math.round((spent / team.rosters.length) * 10) / 10 : 0,
+        budgetRemaining: team.budget, bargainCount, overpayCount, totalSurplus,
+      };
+    }).sort((a, b) => b.totalSurplus - a.totalSurplus);
+
+    return res.json({
+      league: { totalLots, totalSpent, avgPrice, medianPrice, mostExpensivePlayer, cheapestWin, totalBidsPlaced: 0, avgBidsPerLot: 0 },
+      bargains, overpays, positionSpending,
+      mostContested: [], // No bid history available
+      teamEfficiency,
+      spendingPace: [], // No lot ordering available
+      source: "roster", // Indicates fallback mode
+    });
+  }
 
   // ── League-level metrics ──
   const prices = lots.map(l => l.finalPrice!);

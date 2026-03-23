@@ -12,6 +12,7 @@ vi.mock("../../../db/prisma.js", () => ({
     auctionBid: { create: vi.fn() },
     auctionSession: { findUnique: vi.fn(), upsert: vi.fn() },
     playerValue: { findMany: vi.fn() },
+    league: { findUnique: vi.fn() },
     leagueMembership: { findUnique: vi.fn() },
     financeLedger: { create: vi.fn() },
     season: { findFirst: vi.fn() },
@@ -101,12 +102,18 @@ describe("GET /retrospective", () => {
     expect(res.body.error).toBe("Missing leagueId");
   });
 
-  it("returns 404 when no completed lots exist", async () => {
-    mockPrisma.team.findMany.mockResolvedValue(TEAMS);
+  it("falls back to roster-based report when no completed lots exist", async () => {
+    mockPrisma.team.findMany.mockResolvedValue(TEAMS.map(t => ({
+      ...t, rosters: [{ price: 25, player: { id: 10, name: "Player A", posPrimary: "SS", mlbTeam: "NYY" }, playerId: 10 }],
+    })));
     mockPrisma.auctionLot.findMany.mockResolvedValue([]);
+    mockPrisma.league.findUnique.mockResolvedValue({ season: 2026 });
+    mockPrisma.playerValue.findMany.mockResolvedValue([]);
 
     const res = await supertest(app).get("/retrospective?leagueId=1");
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(200);
+    expect(res.body.source).toBe("roster");
+    expect(res.body.league.totalLots).toBeGreaterThan(0);
   });
 
   it("computes correct league-level metrics", async () => {
