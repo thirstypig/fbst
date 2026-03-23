@@ -5,6 +5,7 @@ import PlayerExpandedRow from './PlayerExpandedRow';
 import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from "../../../components/ui/ThemedTable";
 import { useToast } from "../../../contexts/ToastContext";
 import { Flame, Snowflake } from 'lucide-react';
+import { positionToSlots } from '../../../lib/sportConfig';
 
 interface Team {
   id: number;
@@ -298,12 +299,23 @@ export default function TeamListTab({ teams = [], players = [], budgetCap = 400,
                                                                     onChange={(e) => handlePositionSwap(team.id, entry.id, e.target.value)}
                                                                 >
                                                                     {(() => {
-                                                                        const rawList = entry.posList || entry.posPrimary || entry.player?.posList || entry.player?.posPrimary || stat?.positions || 'BN';
+                                                                        const rawList = entry.posList || entry.posPrimary || entry.player?.posList || entry.player?.posPrimary || stat?.positions || '';
                                                                         const statList = stat?.positions || '';
                                                                         const combined = [rawList, statList].join(',');
-                                                                        const opts = combined.split(',').map((s: string) => s.trim()).filter(Boolean);
-                                                                        const distinct = Array.from(new Set([...opts, 'BN', 'UTIL', 'P'])); 
-                                                                        return distinct.map(p => <option key={p} value={p} className="text-black">{p}</option>);
+                                                                        const positions = combined.split(',').map((s: string) => s.trim()).filter(Boolean);
+                                                                        // Derive eligible roster slots from each position (includes MI, CI)
+                                                                        const slots = new Set<string>();
+                                                                        for (const pos of positions) {
+                                                                            for (const slot of positionToSlots(pos)) {
+                                                                                slots.add(slot);
+                                                                            }
+                                                                        }
+                                                                        // Add DH for all hitters, P for pitchers
+                                                                        if (!isPitcher && slots.size > 0) slots.add('DH');
+                                                                        if (isPitcher) slots.add('P');
+                                                                        const slotOrder = ["C", "1B", "2B", "3B", "SS", "MI", "CI", "OF", "DH", "P"];
+                                                                        const sorted = slotOrder.filter(s => slots.has(s));
+                                                                        return sorted.map(p => <option key={p} value={p} className="text-black">{p}</option>);
                                                                     })()}
                                                                 </select>
                                                               </div>
