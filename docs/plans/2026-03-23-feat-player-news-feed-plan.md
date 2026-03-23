@@ -33,27 +33,58 @@ Add a per-player news feed combining three free sources into a unified timeline 
 - [ ] Store in `PlayerNews` table (dedup by guid)
 - [ ] Serve via API: `GET /api/players/:mlbId/news?source=rotowire`
 
-### Source 2: ESPN Player News (Undocumented API)
+### Source 2: ESPN Player News (Undocumented Public API)
 
-**URL pattern:** `https://site.api.espn.com/apis/common/v3/sports/baseball/mlb/athletes/{espnId}/news`
-- JSON response with per-player news articles
-- Includes: headline, description, published date, images, links
-- No auth required (public API)
-- Needs ESPN player ID mapping (different from MLB ID)
+**Best endpoint (confirmed working):**
+```
+GET https://site.web.api.espn.com/apis/common/v3/sports/baseball/mlb/athletes/{espnId}/overview
+```
 
-**Alternative ESPN endpoint:** `https://site.web.api.espn.com/apis/common/v3/sports/baseball/mlb/news?player={espnId}`
+Returns per-player:
+- **`news[]`** — up to 13 player-specific articles with headline, description, published date, images, web links
+- **`rotowire`** — fantasy-relevant blurb (headline + story) — bonus data from RotoWire via ESPN
+- `statistics`, `nextGame`, `awards`
 
-**ESPN ID mapping challenge:**
-- ESPN uses its own player IDs (not MLB IDs)
-- Options: (a) build a mapping table, (b) search ESPN API by name, (c) scrape ESPN player pages
-- Simplest: `https://site.api.espn.com/apis/common/v3/sports/baseball/mlb/athletes?search={playerName}` — returns ESPN athlete ID
+**Article fields:**
+- `id` (ESPN article ID, e.g., 48285317)
+- `headline`, `description`, `linkText`
+- `published` / `lastModified` / `categorized` (timestamps)
+- `type`: "HeadlineNews" | "Media" | "Story"
+- `images[]`: URL, width, height, credit, alt
+- `categories[]`: includes `{ type: "athlete", athleteId: 39832 }`
+- `links.web.href`: full ESPN article URL
+- `premium`: boolean (some articles are ESPN+ only)
+
+**ESPN ID Mapping (critical):**
+- ESPN uses its own player IDs (NOT MLB Stats API IDs)
+- No `mlbId` field exists in ESPN responses
+- **Solution: Build lookup table from ESPN roster API**
+  - `GET /apis/site/v2/sports/baseball/mlb/teams/{1-30}/roster` — returns all players per team with ESPN ID, name, jersey, position
+  - Cross-reference against MLB Stats API rosters by `fullName` + `jersey` + `team`
+  - One-time build, refresh when rosters change (monthly during season)
+
+**Known ESPN IDs:**
+| Player | ESPN ID | MLB ID |
+|--------|---------|--------|
+| Shohei Ohtani | 39832 | 660271 |
+| Mookie Betts | 33039 | 605141 |
+
+**Non-working endpoints (tested, confirmed 404):**
+- `athletes/{id}/news` — 404
+- `news?player={id}` — 404
+- `athletes?search=Name` — 400 (broken)
+
+**What works for team-level news:**
+- `GET /apis/site/v2/sports/baseball/mlb/news?team={espnTeamId}` — filtered by team
+- `?limit=N` controls count
 
 **Integration:**
-- [ ] Add `espnId` field to Player model (optional, populated on first lookup)
-- [ ] On first news request, search ESPN for player name → cache ESPN ID
-- [ ] Fetch per-player news from ESPN API
-- [ ] Parse JSON, normalize into unified news format
-- [ ] Cache in `PlayerNews` table or in-memory with TTL
+- [ ] Add `espnId` column to Player model (nullable Int)
+- [ ] Build ESPN ID lookup: scrape all 30 team rosters, match by name to Player table, populate `espnId`
+- [ ] Create `POST /api/admin/sync-espn-ids` admin endpoint for the initial build
+- [ ] On news fetch: `GET .../athletes/{espnId}/overview` → extract `news[]` + `rotowire`
+- [ ] Normalize into `PlayerNewsItem` format, store in `PlayerNews` table
+- [ ] Cache ESPN responses (TTL: 30 min per player)
 
 ### Source 3: MLB Stats API Transactions (Existing)
 
