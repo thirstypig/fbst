@@ -238,10 +238,95 @@ Quick wins (Phase 1) can all run in parallel. Table work (Phase 3) is the larges
 
 ---
 
+---
+
+## Research Insights (Deepened 2026-03-23)
+
+### Table Performance (React 18 Patterns)
+
+**useMemo splitting — the biggest single win:**
+Split `Players.tsx` from 1 giant useMemo (14 deps) into 3 stages:
+1. `filteredPlayers` — depends on filters only
+2. `withStats` — depends on filtered + stats mode
+3. `sortedPlayers` — depends on withStats + sort key/direction
+
+Use `useDeferredValue(searchQuery)` so typing stays responsive. Add `isStale` boolean to dim table during deferred recompute.
+
+**Density via React context:**
+Extend existing `TableCompactContext` to three-tier `TableDensityContext`. Maps:
+- `compact`: `px-1.5 py-1 text-sm` (auction panels)
+- `default`: `px-3 py-3 text-[15px]` (current — keep for now)
+- `comfortable`: `px-4 py-4 text-base` (summaries)
+
+Set from `<TableDensityProvider density="default">` — no prop drilling.
+
+**SortableHeader:**
+- `aria-sort` attribute on interactive element
+- Stacked ▲/▼ indicators (active one uses `--lg-accent`, inactive faded)
+- `role="button"` + `tabIndex={0}` + `onKeyDown` for keyboard access
+- `onSort` handler toggles direction, defaults descending for stats
+
+**Sticky first column (CSS-only):**
+- Three-tier z-index: cells (auto) → sticky column (z-20) → sticky header (z-30) → corner (z-40)
+- MUST use opaque backgrounds on sticky cells (not rgba)
+- Add `--lg-table-row-alt-opaque` token for zebra rows
+- Shadow on sticky column edge: `linear-gradient(to right, rgba(0,0,0,0.06), transparent)`
+
+**Virtual scrolling (@tanstack/react-virtual):**
+Only if profiling shows DOM node count (1500×10 = 15,000 cells) is the bottleneck. The useMemo split alone should handle it.
+
+### SaaS Phase 1 Research
+
+**Multi-tenancy: Row-level isolation (your schema is already set up).**
+- `Franchise` model = tenant boundary, `leagueId` scopes every query
+- Do NOT use schema-per-tenant or DB-per-tenant — overkill for 8-team leagues
+- Application-level filtering first; PostgreSQL RLS as optional hardening later
+
+**Pricing: Freemium per-franchise, seasonal billing.**
+
+| Tier | Price | Features |
+|------|-------|----------|
+| Free | $0 | 1 league, snake draft, basic standings |
+| Pro | $49/season or $79/year | Unlimited leagues, auction draft, keepers, AI, archive, custom scoring |
+
+- Auction draft is the premium differentiator (ESPN/Yahoo/Sleeper all offer snake free)
+- Per-franchise pricing (not per-league or per-user) — aligns with Franchise model
+- Seasonal billing (not monthly) — fantasy baseball is March-October
+
+**Snake draft: Extend existing auction module, not a separate module.**
+- 60-70% shared infrastructure (state machine, WebSocket, timers, player availability)
+- Add `mode: "AUCTION" | "SNAKE"` to draft state
+- Snake core: `getPickingTeamId(order, round, pick)` reverses on even rounds
+- Auto-pick on timer expiry (select highest-ranked available)
+- No budget, no bidding, no nomination queue
+
+**Implementation priority order:**
+1. Snake draft (unlocks free tier — cannot acquire users without it)
+2. Onboarding flow (create/join league in 3 clicks)
+3. Public league directory (SEO + organic growth)
+4. Stripe billing (per-franchise seasonal)
+5. Astro marketing site (separate from React app — faster, SEO-friendly)
+6. Multi-tenant hardening (RLS)
+7. Feature gating (free vs pro)
+
+**Payment: Stripe Checkout + Customer Portal + Webhooks.**
+- Add `stripeCustomerId`, `subscriptionStatus`, `subscriptionEndsAt` to Franchise model
+- `requirePro` middleware gates premium endpoints
+- Do NOT gate basic functionality — free tier must feel complete
+
+**Marketing: Separate Astro site, not in the Vite SPA.**
+- Static HTML loads in ~50ms vs ~800ms for SPA
+- Google indexes immediately (no JS rendering required)
+- Can deploy/update independently of the app
+- Path-based: `fantastic-leagues.com/` → Astro, `fantastic-leagues.com/app/*` → Vite
+
 ## Sources
 
 - Session 36 code review findings (PR #84) — P2-4 type safety, P3 cleanup items
-- Session 37 deepened plan — Phase 4 table design research (FanGraphs, Baseball Reference, ESPN patterns)
+- Session 37 deepened plan — Phase 4 table design research
 - AI features visibility plan — `docs/plans/2026-03-23-feat-ai-features-visibility-plan.md`
 - Past learnings: `docs/solutions/ui-bugs/css-sticky-fails-nested-overflow-containers.md`
 - Memory: `project_saas_vision.md` — SaaS vision notes
+- React 18: `useDeferredValue` docs, TanStack Virtual, CSS-Tricks sticky patterns
+- SaaS: Stripe subscriptions, CBS/Fantrax/Ottoneu pricing, Yahoo/Sleeper league directory
+- Astro vs Next.js for marketing sites (Makers' Den, Contentful comparisons)
