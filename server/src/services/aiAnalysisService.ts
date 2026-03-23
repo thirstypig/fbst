@@ -73,12 +73,9 @@ export class AIAnalysisService {
                 return await geminiModel.generateContent(prompt);
               } catch (err: any) {
                 const msg = String(err?.message ?? err);
-                if (msg.includes('429') || msg.includes('quota') || msg.includes('RESOURCE_EXHAUSTED')) {
-                  logger.warn({}, "Gemini quota exceeded, switching to Anthropic for this session");
-                  _geminiDisabled = true;
-                  return createAnthropicModel(anthropicKey).generateContent(prompt);
-                }
-                throw err;
+                logger.warn({ error: msg.substring(0, 200) }, "Gemini failed, switching to Anthropic");
+                _geminiDisabled = true;
+                return createAnthropicModel(anthropicKey).generateContent(prompt);
               }
             },
           };

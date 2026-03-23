@@ -4,71 +4,91 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
-## Session 2026-03-22 (Session 36) — Position Eligibility, Prospects, Code Review
+## Session 2026-03-22 (Session 36) — Position Eligibility, Prospects, Auction Lifecycle, Sidebar, Ohtani
 
 ### Summary
-Major data quality session: position eligibility from MLB fielding stats, AAA prospect sync, Ohtani pitcher eligibility fix, auction budget fix for trades, CI→CM rename, and a 6-agent code review with all P1/P2 findings resolved. 5 PRs merged (#81-#85).
+Marathon session covering data quality, auction lifecycle, UI condensing, Ohtani two-way stats, and AI provider fallback. 8 PRs merged (#81-#87), plus multiple direct commits. Season transitioned to IN_SEASON. 15 commits total.
 
 ### Completed — Position Eligibility (PR #81)
 - **`syncPositionEligibility()`** — fetches MLB fielding stats in batch, updates `Player.posList` for all positions with GP >= threshold (configurable, default 20)
 - **New league rule `position_eligibility_gp`** — commissioner-configurable via slider (1-50)
 - **New admin endpoint** `POST /api/admin/sync-position-eligibility`
 - **199 players** updated with multi-position eligibility (e.g., Burleson: 1B→1B,DH,LF,RF)
-- **Auction budget fix** — `refreshTeams()` now uses `Team.budget` (per-team, reflects trades) instead of `budgetCap`. DLC correctly shows $475, DVD $325 after $75 trade.
+- **Auction budget fix** — `refreshTeams()` now uses `Team.budget` (per-team, reflects trades) instead of `budgetCap`
 
 ### Completed — AAA Prospect Sync (PR #82)
 - **`syncAAARosters()`** — fetches all ~30 Triple-A team rosters, creates players not already in DB
 - Maps AAA teams to MLB parent orgs via `parentOrgId`
-- Skips players already on 40-man rosters (preserves authoritative data)
 - **622 new prospects** created (total players: 1,652→2,274)
 - **New admin endpoint** `POST /api/admin/sync-prospects`
 
-### Completed — Ohtani Pitcher Eligibility (PR #83)
-- `syncAllPlayers()` now sets `posList="DH,P"` for TWO_WAY_PLAYERS entries (was "DH" only)
+### Completed — Ohtani Two-Way Player Fixes (PR #83 + direct commits)
+- `syncAllPlayers()` sets `posList="DH,P"` for TWO_WAY_PLAYERS entries
 - `syncPositionEligibility()` adds "P" for two-way players even without fielding data
-- Ohtani now selectable as P in roster position dropdown
+- **Team page**: uses `assignedPosition` (not `posPrimary`) for `is_pitcher` determination — SKD Ohtani (P) now shows pitching stats
+- **Standings**: `computeTeamStatsFromDb` splits hitting/pitching stats by assigned role — SKD gets pitching stats only, DLC gets hitting stats only, no double-counting
 
 ### Completed — 6-Agent Code Review + Fixes (PR #84)
-- **P1-1**: Fixed `undefined` fielding iteration crash for two-way players (null guard)
-- **P1-2**: Removed unscoped `leagueRule.findFirst` — now defaults to 20 GP
+- **P1-1**: Fixed `undefined` fielding iteration crash for two-way players
+- **P1-2**: Removed unscoped `leagueRule.findFirst`
 - **P2-3**: Replaced N+1 `findFirst` with batch `buildPlayerLookup()` (~2,400→3 DB round-trips)
-- **P2-5**: Added two-way player `posList` logic to `syncNLPlayers` via shared `buildPosList()`
-- **P2-6**: Extracted shared `fetchPlayerBatch()` — deduplicated `fetchPlayerStats`/`fetchPlayerFieldingStats`
-- **P3**: Removed unused `parentOrgName`, promoted `normalizePos` to module level, reused `isTwoWay`
+- **P2-5/6**: Shared `buildPosList()` and `fetchPlayerBatch()` helpers
+- **P3**: Cleanup (unused `parentOrgName`, `normalizePos` to module level, `isTwoWay` reuse)
 
 ### Completed — CI → CM Rename (PR #85)
 - Renamed Corner Infield (CI) to Corner Man (CM) across all code + DB
-- 6 files changed, DB migration: 4 roster entries + 2 league rules updated
 
-### Completed — Manual Player Fixes
-- **Konnor Griffin** (mlbId 804606) — created in DB, added to Los Doyers roster at $150 as SS
-- **Walker Buehler** (mlbId 621111) — updated team BOS→SD (now on Padres AAA affiliate)
+### Completed — End Auction + Matrix Refresh (PR #86)
+- **`POST /api/auction/complete`** — commissioner/admin can manually end auction without full rosters
+- **`POST /api/auction/refresh-teams`** — triggers `refreshTeams()` + broadcast; TeamListTab calls this after position PATCH so matrix updates for all clients
+
+### Completed — Sidebar Nav Condensing (PR #87)
+- Primary items (Home, Season, Players, Auction, Activity) always visible, no section header
+- League/Manage/Dev sections collapsible with persisted state in localStorage
+- Auction item disabled (greyed out) outside DRAFT phase via `useSeasonGating()`
+- `aria-current="page"` on active links, Escape closes mobile drawer, Cmd+B toggles sidebar
+
+### Completed — Auction Lifecycle Operations
+- Auction ended via `POST /api/auction/complete`
+- 5 periods created for 2026 (March 25 – September 27)
+- Season transitioned DRAFT → IN_SEASON
+- Roster-based auction analysis generated (all 8 teams)
+
+### Completed — AI Provider Fallback
+- Gemini model updated `gemini-2.0-flash-exp` → `gemini-2.0-flash`
+- **Anthropic Claude fallback** — auto-detects Gemini 429/quota errors, switches to Claude API for the session
+- Uses raw `fetch` (no SDK dependency), Zod validation on LLM output
+- Requires `ANTHROPIC_API_KEY` env var (added to local .env + Render)
+
+### Completed — Manual Data Fixes
+- **Konnor Griffin** (mlbId 804606) — created, added to Los Doyers at $150 as SS
+- **Walker Buehler** (mlbId 621111) — team updated BOS→SD
+
+### Module Isolation Audit
+- 9 server cross-feature imports — all documented in CLAUDE.md
+- 0 undocumented client cross-feature imports
+- No circular dependencies
+- 1 missing index.ts: `client/src/features/seasons/` (no page component, API imported directly)
 
 ### Test Results
-- Server: 492 passing (+19 new)
+- Server: 492 passing
 - Client: 187 passing
 - **Total: 679 tests** (MCP: 50 additional)
 - TypeScript: clean (client + server)
 
-### Next Session Plan (Session 37)
-1. **Add "End Auction" endpoint** — manual complete action that marks auction as `completed` without requiring full rosters; currently only ends automatically when all rosters full
-2. **Create 2026 periods** — needed before DRAFT→IN_SEASON transition; use Commissioner Season Manager
-3. **Run AI auction retrospective** — endpoint + service already exist (`retrospective.test.ts` has 11 tests); analyze bargains/overpays, position spending, team efficiency
-4. **Fix Teams tab position save + matrix refresh** — PATCH saves to DB but auction state matrix doesn't update (needs WebSocket refresh or `refreshTeams()` trigger after save)
-5. **Sidebar nav condensing** — current nav is too expanded; research best practices (collapsible groups, icon-only mode, progressive disclosure) and implement a more compact layout
-6. **Table design evaluation + refresh** — CE-level review of all table designs across the app (Players, Standings, Auction, Teams, Archive, Periods); evaluate consistency, information density, visual hierarchy; provide design options/mockups
-7. **Confirm feature module isolation** — verify all 18 feature modules follow conventions, no circular deps, proper index.ts exports
-
-### Pending (Lower Priority)
-- **Stabilize `enrichedPlayers` dependency** — P3; use `rosterFingerprint` to prevent unnecessary re-renders
-- **Extract `expandAndSplitTwoWayStats()`** — P3; fold stat zeroing into expansion helper
-- **Type `mlbGetJson` return** — P2-4 from code review; add generics to eliminate `any` chain
-- **SaaS Phase 1 planning** — multi-league, snake draft, public directory
+### Pending / Next Session
+1. **Table design evaluation + refresh** — deepened plan ready at `docs/plans/2026-03-22-feat-session-37-mega-plan.md` Phase 4
+2. **Fund AI API** — Gemini needs paid plan, Anthropic needs credits for draft grades to work
+3. **Stabilize `enrichedPlayers` dependency** — P3; rosterFingerprint
+4. **Extract `expandAndSplitTwoWayStats()`** — P3; fold stat zeroing into expansion helper
+5. **Type `mlbGetJson` return** — P2-4 from code review; add generics
+6. **SaaS Phase 1 planning** — multi-league, snake draft, public directory
 
 ### Concerns / Tech Debt
 - `Player.posList` is global (not per-league) — if leagues diverge on GP threshold, would need per-league eligibility model
-- `syncNLPlayers` is effectively superseded by `syncAllPlayers` — consider removing
-- Archive import service keeps both CM and CI in position sets for backwards compat with old data
+- `syncNLPlayers` effectively superseded by `syncAllPlayers` — consider removing
+- Gemini API key on free tier with 0 quota — needs billing enabled
+- `requireCommissionerOrAdmin` reads from `req.params` but auction endpoints use `req.body/query` — used `requireAdmin` as workaround for `/complete`
 
 ---
 
