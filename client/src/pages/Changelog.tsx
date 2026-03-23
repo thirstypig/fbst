@@ -30,6 +30,37 @@ interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: "0.36.0",
+    date: "Mar 22-23, 2026",
+    session: "Session 36",
+    title: "Position Eligibility, Prospects, AI Hub, Sidebar, Ohtani Stats",
+    highlights: [
+      "Position eligibility from MLB fielding stats — 199 players updated with multi-position eligibility",
+      "AAA prospect sync — 622 new minor league players added (2,274 total)",
+      "AI Insights hub page (/ai) — all 9 AI features visible with Available/Locked states",
+      "Sidebar condensed — collapsible sections, season-gated nav, Cmd+B toggle",
+      "Ohtani two-way stats fixed end-to-end — Team page, standings, position eligibility",
+    ],
+    changes: [
+      { type: "feat", description: "syncPositionEligibility() — updates Player.posList from MLB fielding stats (GP >= configurable threshold)" },
+      { type: "feat", description: "syncAAARosters() — fetches Triple-A rosters, tags prospects with parent org (PR #82)" },
+      { type: "feat", description: "POST /api/auction/complete — commissioner can manually end auction (PR #86)" },
+      { type: "feat", description: "POST /api/auction/refresh-teams — triggers matrix refresh after position changes (PR #86)" },
+      { type: "feat", description: "AI Insights hub page (/ai) — 9 AI features with Generate/Locked/Cached states (PR #88)" },
+      { type: "feat", description: "Sidebar collapsible sections with localStorage persistence + Cmd+B shortcut (PR #87)" },
+      { type: "feat", description: "Anthropic Claude fallback for AI when Gemini fails + model updated to gemini-2.5-flash" },
+      { type: "feat", description: "Retrospective falls back to roster data when no AuctionLot records exist" },
+      { type: "fix", description: "Auction budget uses Team.budget (reflects trades) instead of league-wide budgetCap (PR #81)" },
+      { type: "fix", description: "Ohtani pitcher row shows pitching stats on Team page (uses assignedPosition)" },
+      { type: "fix", description: "Ohtani standings — split hitting/pitching stats by assigned role (no double-counting)" },
+      { type: "fix", description: "Auction nav accessible during IN_SEASON for viewing results" },
+      { type: "refactor", description: "CI renamed to CM (Corner Man) across all code + DB (PR #85)" },
+      { type: "refactor", description: "6-agent code review — P1/P2 findings resolved: batch lookups, shared helpers, null guards (PR #84)" },
+      { type: "refactor", description: "N+1 queries eliminated via buildPlayerLookup() in all sync functions" },
+      { type: "docs", description: "5 implementation-ready plans: tables, news feed, AI visibility, backlog, SaaS Phase 1" },
+    ],
+  },
+  {
     version: "0.35.0",
     date: "Mar 22, 2026",
     session: "Session 35",

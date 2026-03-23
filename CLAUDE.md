@@ -64,7 +64,7 @@ fbst/
 
 The codebase is organized by **domain feature modules**. Each feature encapsulates its own routes, services, pages, components, and API client in a self-contained directory.
 
-### Current Feature Modules (18)
+### Current Feature Modules (19)
 
 | Module | Server | Client | Description |
 |--------|--------|--------|-------------|
@@ -86,6 +86,7 @@ The codebase is organized by **domain feature modules**. Each feature encapsulat
 | `archive` | routes, 3 archive services | 1 page, api | Historical data import/export |
 | `periods` | routes | 1 page (Season) | Season/period standings with toggle |
 | `mlb-feed` | routes | — | Live MLB scores, transactions, my-players-today |
+| `ai` | — | 1 page | AI Insights hub — all 9 AI features with availability status |
 
 ### Feature Module Pattern
 ```
@@ -265,9 +266,9 @@ server/src/__tests__/integration/
 - **DB tests**: Use a test database with Prisma migrations for integration tests (future)
 - **CI**: Run `npm run test` in CI pipeline before deploy
 
-### Current Test Coverage (473 server + 187 client + 50 MCP = 710 tests)
+### Current Test Coverage (492 server + 187 client + 50 MCP = 729 tests)
 
-**Server (473 tests):**
+**Server (492 tests):**
 - `server/src/lib/__tests__/utils.test.ts` — 36 tests (toNum, toBool, norm, normCode, parseCsv, splitCsvLine, chunk, parseIntParam)
 - `server/src/features/standings/__tests__/standingsService.test.ts` — 26 tests (buildTeamNameMap, CATEGORY_CONFIG, computeCategoryRows, computeStandingsFromStats, rankPoints)
 - `server/src/features/standings/__tests__/standings.integration.test.ts` — 7 tests (full pipeline: 4-team league scenario)
