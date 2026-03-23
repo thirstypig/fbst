@@ -37,6 +37,7 @@ vi.mock("../../middleware/auth.js", () => ({
   requireAdmin: vi.fn((_req: unknown, _res: unknown, next: () => void) => next()),
   requireTeamOwner: vi.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()),
   requireLeagueMember: vi.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()),
+  requireCommissionerOrAdmin: vi.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()),
 }));
 vi.mock("../../middleware/asyncHandler.js", () => ({
   asyncHandler: (fn: Function) => fn,

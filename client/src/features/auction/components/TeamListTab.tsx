@@ -4,6 +4,7 @@ import { fetchJsonApi, API_BASE } from '../../../api/base';
 import PlayerExpandedRow from './PlayerExpandedRow';
 import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from "../../../components/ui/ThemedTable";
 import { useToast } from "../../../contexts/ToastContext";
+import { useLeague } from "../../../contexts/LeagueContext";
 import { Flame, Snowflake } from 'lucide-react';
 import { positionToSlots } from '../../../lib/sportConfig';
 
@@ -53,6 +54,7 @@ const MATRIX_POSITIONS = ["C", "1B", "2B", "3B", "SS", "MI", "CM", "OF", "DH", "
 
 export default function TeamListTab({ teams = [], players = [], budgetCap = 400, rosterSize = 23, pitcherMax, hitterMax, showPace = true, positionLimits, showPositionMatrix = true }: TeamListTabProps) {
   const { toast } = useToast();
+  const { leagueId } = useLeague();
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [detailedRoster, setDetailedRoster] = useState<RosterEntry[] | null>(null);
   const [loadingIds, setLoadingIds] = useState<Set<number>>(new Set());
@@ -103,8 +105,14 @@ export default function TeamListTab({ teams = [], players = [], budgetCap = 400,
                body: JSON.stringify({ assignedPosition: newPos })
            });
 
+           // Refresh local roster display
            const data = await fetchJsonApi<{ currentRoster: RosterEntry[] }>(`${API_BASE}/teams/${teamId}/summary`);
            setDetailedRoster(data.currentRoster);
+
+           // Trigger auction state refresh so position matrix updates for all clients
+           if (leagueId) {
+             fetchJsonApi(`${API_BASE}/auction/refresh-teams?leagueId=${leagueId}`, { method: 'POST' }).catch(() => {});
+           }
 
       } catch(err) {
           console.error("Failed to swap pos", err);
