@@ -87,7 +87,7 @@ router.get("/ai-insights", requireAuth, requireLeagueMember("leagueId"), asyncHa
     where: { type_leagueId_teamId_weekKey: { type: "weekly", leagueId, teamId, weekKey } },
   });
   if (persisted) {
-    return res.json(persisted.data);
+    return res.json({ ...(persisted.data as any), generatedAt: persisted.createdAt.toISOString(), weekKey: persisted.weekKey });
   }
 
   // Check in-memory cache (for sub-hour re-requests)
@@ -258,8 +258,9 @@ router.get("/ai-insights", requireAuth, requireLeagueMember("leagueId"), asyncHa
       }
     });
 
-    insightsCache.set(cacheKey, { data: result.result, expiresAt: Date.now() + INSIGHTS_CACHE_TTL });
-    res.json(result.result);
+    const enriched = { ...result.result, generatedAt: new Date().toISOString(), weekKey };
+    insightsCache.set(cacheKey, { data: enriched, expiresAt: Date.now() + INSIGHTS_CACHE_TTL });
+    res.json(enriched);
   } finally {
     insightsInFlight.delete(inflightKey);
   }

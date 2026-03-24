@@ -13,7 +13,7 @@ import { isPitcher, normalizePosition, formatAvg, getMlbTeamAbbr } from "../../.
 import { mapPosition } from "../../../lib/sportConfig";
 import { TableCard, Table, THead, Tr, Th, Td } from "../../../components/ui/TableCard";
 import { Button } from "../../../components/ui/button";
-import { Sparkles, Loader2, ArrowLeftRight } from "lucide-react";
+import { Sparkles, Loader2, ArrowLeftRight, ChevronDown, ChevronUp } from "lucide-react";
 
 function normCode(v: any): string {
   return String(v ?? "").trim().toUpperCase();
@@ -87,6 +87,7 @@ export default function Team() {
   const [aiInsights, setAiInsights] = useState<TeamInsightsResult | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [aiExpanded, setAiExpanded] = useState(true);
 
   // Trade block state
   const [tradeBlockIds, setTradeBlockIds] = useState<Set<number>>(new Set());
@@ -278,7 +279,7 @@ export default function Team() {
 
         {/* AI Insights Section — auto-generates weekly */}
         {aiLoading && !aiInsights && (
-          <div className="mb-8 flex items-center justify-center gap-2 py-4 text-xs text-[var(--lg-text-muted)] animate-pulse">
+          <div className="mb-6 flex items-center justify-center gap-2 py-6 text-xs text-[var(--lg-text-muted)] animate-pulse">
             <Sparkles size={14} className="text-blue-400" />
             Generating weekly insights...
           </div>
@@ -287,10 +288,14 @@ export default function Team() {
           <div className="mb-4 text-center text-xs text-red-400">{aiError}</div>
         )}
         {aiInsights && (
-          <div className="mb-8 rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Sparkles size={14} className="text-[var(--lg-accent)]" />
+          <div className="mb-8 rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] overflow-hidden">
+            {/* Header — always visible, acts as toggle */}
+            <button
+              onClick={() => setAiExpanded(prev => !prev)}
+              className="w-full flex items-center justify-between p-4 md:p-5 hover:bg-[var(--lg-bg-card)]/30 transition-colors text-left"
+            >
+              <div className="flex items-center gap-2 flex-wrap min-w-0">
+                <Sparkles size={14} className="text-[var(--lg-accent)] flex-shrink-0" />
                 <span className="text-xs font-semibold uppercase text-[var(--lg-text-muted)]">Weekly Insights</span>
                 {(aiInsights as any).mode && (
                   <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
@@ -301,32 +306,55 @@ export default function Team() {
                     {(aiInsights as any).mode}
                   </span>
                 )}
+                {(aiInsights as any).generatedAt && (
+                  <span className="text-[10px] text-[var(--lg-text-muted)] opacity-60">
+                    {new Date((aiInsights as any).generatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  </span>
+                )}
               </div>
-              {aiInsights.overallGrade && (
-                <span className="px-2 py-1 rounded text-xs font-bold uppercase bg-[var(--lg-accent)]/10 text-[var(--lg-accent)] border border-[var(--lg-accent)]/20">
-                  Grade: {aiInsights.overallGrade}
-                </span>
-              )}
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {(aiInsights.insights || []).map((insight: any, idx: number) => (
-                <div key={idx} className="p-3 rounded-xl bg-[var(--lg-bg-card)] border border-[var(--lg-border-faint)]">
-                  <div className="flex items-center gap-2 mb-1">
-                    {insight.priority && (
-                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                        insight.priority === "high" ? "bg-red-400" :
-                        insight.priority === "medium" ? "bg-amber-400" : "bg-[var(--lg-text-muted)]"
-                      }`} />
-                    )}
-                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-[var(--lg-accent)]/10 text-[var(--lg-accent)]">
-                      {insight.category}
-                    </span>
-                    <span className="text-xs font-semibold text-[var(--lg-text-primary)]">{insight.title}</span>
-                  </div>
-                  <p className="text-xs text-[var(--lg-text-secondary)] leading-relaxed">{insight.detail}</p>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {aiInsights.overallGrade && (
+                  <span className="px-2 py-1 rounded text-xs font-bold uppercase bg-[var(--lg-accent)]/10 text-[var(--lg-accent)] border border-[var(--lg-accent)]/20">
+                    {aiInsights.overallGrade}
+                  </span>
+                )}
+                {aiExpanded ? <ChevronUp size={14} className="text-[var(--lg-text-muted)]" /> : <ChevronDown size={14} className="text-[var(--lg-text-muted)]" />}
+              </div>
+            </button>
+
+            {/* Expandable content */}
+            {aiExpanded && (
+              <div className="px-4 pb-4 md:px-5 md:pb-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {(aiInsights.insights || []).map((insight: any, idx: number) => (
+                    <div key={idx} className="p-3 rounded-xl bg-[var(--lg-bg-card)] border border-[var(--lg-border-faint)]">
+                      <div className="flex items-start gap-2 mb-1">
+                        {insight.priority && (
+                          <span className={`mt-1 w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                            insight.priority === "high" ? "bg-red-400" :
+                            insight.priority === "medium" ? "bg-amber-400" : "bg-[var(--lg-text-muted)]"
+                          }`} />
+                        )}
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-[var(--lg-accent)]/10 text-[var(--lg-accent)]">
+                              {insight.category}
+                            </span>
+                            <span className="text-xs font-semibold text-[var(--lg-text-primary)] leading-tight">{insight.title}</span>
+                          </div>
+                          <p className="text-xs text-[var(--lg-text-secondary)] leading-relaxed mt-1">{insight.detail}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+                {(aiInsights as any).weekKey && (
+                  <div className="mt-3 text-center text-[10px] text-[var(--lg-text-muted)] opacity-50">
+                    Week {(aiInsights as any).weekKey} · Powered by Gemini / Claude
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
