@@ -11,6 +11,18 @@ const router = Router();
 
 // ─── Types ───
 
+/** Narrow type for AiInsight.data on league_digest rows. */
+interface DigestData {
+  votes?: Record<string, string>;
+  [key: string]: unknown;
+}
+
+/** Narrow type for League.rules JSON. */
+interface LeagueRulesPartial {
+  leagueType?: string;
+  [key: string]: unknown;
+}
+
 interface GameScore {
   gamePk: number;
   status: string;
@@ -295,31 +307,31 @@ router.get("/league-digest", requireAuth, requireLeagueMember("leagueId"), async
     where: { type: "league_digest", leagueId, weekKey },
   });
   if (persisted) {
-    const data = persisted.data as any;
+    const data = (persisted.data ?? {}) as DigestData & Record<string, unknown>;
     const voteData = extractVotes(data, req.user!.id);
     return res.json({ ...data, generatedAt: persisted.createdAt.toISOString(), weekKey, votes: undefined, voteResults: voteData });
   }
 
-  // Build context from league data
-  const league = await prisma.league.findUnique({
-    where: { id: leagueId },
-    select: { name: true, season: true, rules: true },
-  });
+  // Build context — parallelize independent queries
+  const prevWeekKey = getWeekKey(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+  const [league, teams, prevDigest] = await Promise.all([
+    prisma.league.findUnique({ where: { id: leagueId }, select: { name: true, season: true, rules: true } }),
+    prisma.team.findMany({
+      where: { leagueId },
+      include: {
+        rosters: {
+          where: { releasedAt: null },
+          include: { player: { select: { name: true, posPrimary: true } } },
+          orderBy: { price: "desc" },
+        },
+      },
+      orderBy: { name: "asc" },
+    }),
+    prisma.aiInsight.findFirst({ where: { type: "league_digest", leagueId, weekKey: prevWeekKey } }),
+  ]);
   if (!league) return res.status(404).json({ error: "League not found" });
 
-  const teams = await prisma.team.findMany({
-    where: { leagueId },
-    include: {
-      rosters: {
-        where: { releasedAt: null },
-        include: { player: { select: { name: true, posPrimary: true } } },
-        orderBy: { price: "desc" },
-      },
-    },
-    orderBy: { name: "asc" },
-  });
-
-  // Recent transactions (last 14 days) per team
+  // Recent transactions (last 14 days) per team — depends on teams query
   const recentRosters = await prisma.roster.findMany({
     where: {
       teamId: { in: teams.map(t => t.id) },
@@ -340,10 +352,10 @@ router.get("/league-digest", requireAuth, requireLeagueMember("leagueId"), async
   const weekNum = parseInt(weekKey.split("-W")[1]) || 0;
   const tradeStyle = tradeStyles[weekNum % 3];
 
-  // Identify keepers per team (source = "prior_season")
+  // Identify keepers per team
+  const { isKeeperRoster } = await import("../../lib/sportConfig.js");
   const teamData = teams.map(t => {
-    const keepers = t.rosters.filter(r => r.source === "prior_season");
-    const nonKeepers = t.rosters.filter(r => r.source !== "prior_season");
+    const keepers = t.rosters.filter(r => isKeeperRoster(r));
     return {
       id: t.id,
       name: t.name,
@@ -354,15 +366,11 @@ router.get("/league-digest", requireAuth, requireLeagueMember("leagueId"), async
     };
   });
 
-  // Get previous week's vote results to inform this week's trade proposal
-  const prevWeekKey = getWeekKey(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
-  const prevDigest = await prisma.aiInsight.findFirst({
-    where: { type: "league_digest", leagueId, weekKey: prevWeekKey },
-  });
+  // Extract previous week's vote results
   let previousVotes: { yes: number; no: number } | null = null;
   if (prevDigest) {
-    const prevData = prevDigest.data as any;
-    const votes: Record<string, string> = prevData?.votes || {};
+    const prevData = (prevDigest.data ?? {}) as DigestData;
+    const votes: Record<string, string> = prevData.votes || {};
     const yes = Object.values(votes).filter(v => v === "yes").length;
     const no = Object.values(votes).filter(v => v === "no").length;
     if (yes + no > 0) previousVotes = { yes, no };
@@ -372,7 +380,7 @@ router.get("/league-digest", requireAuth, requireLeagueMember("leagueId"), async
   const result = await aiAnalysisService.generateLeagueDigest({
     leagueName: league.name,
     season: league.season,
-    leagueType: (league.rules as any)?.leagueType ?? "NL",
+    leagueType: ((league.rules as unknown as LeagueRulesPartial)?.leagueType) ?? "NL",
     teams: teamData,
     tradeStyle,
     weekNumber: weekNum,
@@ -408,25 +416,33 @@ const voteSchema = z.object({
   vote: z.enum(["yes", "no"]),
 });
 
-router.post("/league-digest/vote", requireAuth, validateBody(voteSchema), asyncHandler(async (req, res) => {
+router.post("/league-digest/vote", requireAuth, validateBody(voteSchema), requireLeagueMember("leagueId"), asyncHandler(async (req, res) => {
   const { leagueId, vote } = req.body;
   const userId = req.user!.id;
-
   const weekKey = getWeekKey();
-  const insight = await prisma.aiInsight.findFirst({
-    where: { type: "league_digest", leagueId, weekKey },
-  });
-  if (!insight) return res.status(404).json({ error: "No digest found for this week" });
 
-  // Update votes in the data JSON
-  const data = insight.data as any;
-  const votes: Record<string, string> = data.votes || {};
-  votes[String(userId)] = vote;
+  // Atomic vote update using SELECT ... FOR UPDATE to prevent lost votes
+  const votes = await prisma.$transaction(async (tx) => {
+    const rows = await tx.$queryRaw<{ id: number; data: unknown }[]>`
+      SELECT id, data FROM "AiInsight"
+      WHERE type = 'league_digest' AND "leagueId" = ${leagueId} AND "weekKey" = ${weekKey}
+      FOR UPDATE
+      LIMIT 1
+    `;
+    if (!rows.length) return null;
 
-  await prisma.aiInsight.update({
-    where: { id: insight.id },
-    data: { data: { ...data, votes } },
+    const insightId = rows[0].id;
+    const data = (rows[0].data ?? {}) as DigestData;
+    const updatedVotes: Record<string, string> = { ...(data.votes || {}), [String(userId)]: vote };
+
+    await tx.aiInsight.update({
+      where: { id: insightId },
+      data: { data: { ...data, votes: updatedVotes } as any },
+    });
+    return updatedVotes;
   });
+
+  if (!votes) return res.status(404).json({ error: "No digest found for this week" });
 
   const yesCount = Object.values(votes).filter(v => v === "yes").length;
   const noCount = Object.values(votes).filter(v => v === "no").length;

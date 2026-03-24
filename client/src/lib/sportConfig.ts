@@ -18,7 +18,7 @@ export const POS_SCORE: Record<string, number> = Object.fromEntries(
 export const POSITIONS: string[] = ["C", "1B", "2B", "3B", "SS", "MI", "CM", "OF", "DH", "P", "SP", "RP", "BN", "IL"];
 
 /** Position codes that indicate a pitcher. */
-export const PITCHER_CODES = ["P", "SP", "RP", "TWP"] as const;
+export const PITCHER_CODES = ["P", "SP", "RP", "CL", "TWP"] as const;
 
 // ─── Position-to-Slot Mapping ───
 
@@ -32,7 +32,7 @@ export function positionToSlots(pos: string): string[] {
   if (p === "SS") return ["SS", "MI"];
   if (p === "LF" || p === "CF" || p === "RF" || p === "OF") return ["OF"];
   if (p === "DH") return ["DH"];
-  if (p === "P" || p === "SP" || p === "RP" || p === "TWP") return ["P"];
+  if (p === "P" || p === "SP" || p === "RP" || p === "CL" || p === "TWP") return ["P"];
   return [];
 }
 
@@ -72,7 +72,7 @@ export const OHTANI_MLB_ID = "660271";
 export function isPitcher(v: string | Record<string, unknown> | null | undefined): boolean {
   if (typeof v === "string") {
     const s = v.trim().toUpperCase();
-    return s === "P" || s === "SP" || s === "RP" || s === "TWP";
+    return s === "P" || s === "SP" || s === "RP" || s === "CL" || s === "TWP";
   }
   if (v && typeof v === "object") {
     if (v.is_pitcher != null) return !!v.is_pitcher;

@@ -8,7 +8,7 @@ import { validateBody } from "../../middleware/validate.js";
 import { writeAuditLog } from "../../lib/auditLog.js";
 import { requireSeasonStatus } from "../../middleware/seasonGuard.js";
 import { assertPlayerAvailable } from "../../lib/rosterGuard.js";
-import { positionToSlots, PITCHER_CODES as SPORT_PITCHER_CODES } from "../../lib/sportConfig.js";
+import { positionToSlots, PITCHER_CODES as SPORT_PITCHER_CODES, isPitcher as isPitcherPos } from "../../lib/sportConfig.js";
 import { broadcastState } from "./services/auctionWsService.js";
 import { saveState, loadState, clearState } from "./services/auctionPersistence.js";
 
@@ -1534,9 +1534,10 @@ router.get("/draft-report", requireAuth, requireLeagueMember("leagueId"), asyncH
   const leagueId = Number(req.query.leagueId);
   if (!Number.isFinite(leagueId)) return res.status(400).json({ error: "Missing leagueId" });
 
-  // Check for persisted report in AuctionSession
+  // Check for persisted report in AuctionSession (skip cache if force=true)
+  const forceRegenerate = req.query.force === "true";
   const session = await prisma.auctionSession.findUnique({ where: { leagueId } });
-  if (session?.state && (session.state as any).draftReport) {
+  if (!forceRegenerate && session?.state && (session.state as any).draftReport) {
     return res.json((session.state as any).draftReport);
   }
 
@@ -1555,11 +1556,8 @@ router.get("/draft-report", requireAuth, requireLeagueMember("leagueId"), asyncH
     return res.status(400).json({ error: "No roster data available to generate draft report" });
   }
 
-  // Load projected auction values (cached singleton)
-  const { getAuctionValueMap } = await import("../../lib/auctionValues.js");
-  const auctionValMap = getAuctionValueMap();
-  const valMap = new Map<string, number>();
-  for (const [name, entry] of auctionValMap) valMap.set(name, entry.value);
+  // Load projected auction values (cached singleton, with diacritics-stripped fallback)
+  const { lookupAuctionValue } = await import("../../lib/auctionValues.js");
 
   // Get league config from auction state or defaults
   const state = session?.state as AuctionState | null;
@@ -1605,7 +1603,7 @@ router.get("/draft-report", requireAuth, requireLeagueMember("leagueId"), asyncH
         mlbTeam: r.player.mlbTeam || "",
         price: r.price,
         isKeeper: r.source === "prior_season",
-        projectedValue: valMap.get(r.player.name) ?? null,
+        projectedValue: lookupAuctionValue(r.player.name)?.value ?? null,
       })),
     };
   });
@@ -1654,6 +1652,7 @@ router.get("/draft-report", requireAuth, requireLeagueMember("leagueId"), asyncH
 
 // Draft grade cache — auction data is frozen at "completed", so cache is permanent per league
 const draftGradeCache = new Map<number, { teamId: number; teamName: string; grade: string; summary: string }[]>();
+const DRAFT_GRADE_CACHE_MAX = 100;
 const draftGradeInFlight = new Map<number, Promise<any>>();
 
 // GET /api/auction/draft-grades — AI-generated draft grades for all teams
@@ -1705,6 +1704,10 @@ router.get("/draft-grades", requireAuth, requireLeagueMember("leagueId"), asyncH
     }
 
     // Cache permanently — auction state is frozen
+    if (draftGradeCache.size >= DRAFT_GRADE_CACHE_MAX) {
+      const oldest = draftGradeCache.keys().next().value;
+      if (oldest !== undefined) draftGradeCache.delete(oldest);
+    }
     draftGradeCache.set(leagueId, result.grades);
     res.json({ grades: result.grades });
   } finally {
@@ -1758,12 +1761,12 @@ router.get("/ai-advice", requireAuth, requireLeagueMember("leagueId"), asyncHand
     }
   }
 
-  // Load auction values (cached singleton)
-  const { getAuctionValueMap: getValMap } = await import("../../lib/auctionValues.js");
+  // Load auction values (cached singleton, with diacritics fallback)
+  const { lookupAuctionValue, getAuctionValueMap: getValMap } = await import("../../lib/auctionValues.js");
   const valMap = getValMap();
 
   // Get player's projected value and stats
-  const playerValData = valMap.get(playerName);
+  const playerValData = lookupAuctionValue(playerName);
   const projectedValue = playerValData?.value ?? null;
   const playerProjectedStats = playerValData?.stats ?? null;
 
@@ -1774,7 +1777,6 @@ router.get("/ai-advice", requireAuth, requireLeagueMember("leagueId"), asyncHand
       if (r.playerName) draftedPlayerNames.add(r.playerName);
     }
   }
-  const { isPitcher: isPitcherPos } = await import("../../lib/sportConfig.js");
   const nominatedIsPitcher = isPitcherPos(playerPosition);
   const alternatives: { name: string; projectedValue: number }[] = [];
   for (const [name, data] of valMap.entries()) {

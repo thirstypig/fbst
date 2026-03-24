@@ -387,7 +387,7 @@ router.post("/leagues/:id/invite-code/regenerate", requireAuth, requireCommissio
   });
   if (!league) return res.status(404).json({ error: "League not found" });
 
-  const newCode = randomBytes(4).toString("hex").toUpperCase();
+  const newCode = randomBytes(16).toString("hex").toUpperCase();
 
   // Update on franchise
   await prisma.franchise.update({
@@ -411,6 +411,62 @@ router.post("/leagues/:id/invite-code/regenerate", requireAuth, requireCommissio
   logger.info({ leagueId, franchiseId: league.franchiseId }, "Invite code regenerated");
 
   return res.json({ inviteCode: newCode });
+}));
+
+// ─── Self-Service League Creation ──────────────────────────────────────────
+
+const createLeagueSchema = z.object({
+  name: z.string().min(1).max(200).transform(s => s.trim()),
+  season: z.number().int().min(2020).max(2100),
+  leagueType: z.enum(["NL", "AL", "MIXED"]).default("NL"),
+  draftMode: z.enum(["AUCTION", "DRAFT"]).default("AUCTION"),
+  draftOrder: z.enum(["SNAKE", "LINEAR"]).optional(),
+  isPublic: z.boolean().default(false),
+  copyFromLeagueId: z.number().int().positive().optional(),
+});
+
+// POST /api/leagues — Create a new league (any authenticated user)
+router.post("/", requireAuth, validateBody(createLeagueSchema), asyncHandler(async (req, res) => {
+  const userId = req.user!.id;
+
+  // Rate limit: max 5 leagues per user
+  const existingCount = await prisma.leagueMembership.count({
+    where: { userId, role: "COMMISSIONER" },
+  });
+  if (existingCount >= 5) {
+    return res.status(429).json({ error: "Maximum 5 leagues per user" });
+  }
+
+  const { CommissionerService } = await import("../commissioner/services/CommissionerService.js");
+  const commissionerService = new CommissionerService();
+
+  const league = await commissionerService.createLeague({
+    name: req.body.name,
+    season: req.body.season,
+    draftMode: req.body.draftMode,
+    draftOrder: req.body.draftOrder,
+    isPublic: req.body.isPublic,
+    copyFromLeagueId: req.body.copyFromLeagueId,
+    creatorUserId: userId,
+  });
+
+  // Generate invite code for the franchise
+  const franchise = await prisma.franchise.findFirst({
+    where: { leagues: { some: { id: league.id } } },
+    select: { id: true, inviteCode: true },
+  });
+  const inviteCode = franchise?.inviteCode || randomBytes(16).toString("hex").toUpperCase();
+  if (franchise && !franchise.inviteCode) {
+    await prisma.franchise.update({ where: { id: franchise.id }, data: { inviteCode } });
+  }
+
+  writeAuditLog({ userId, action: "LEAGUE_CREATED", resourceType: "league", resourceId: league.id, metadata: { name: league.name, season: league.season } });
+  logger.info({ userId, leagueId: league.id }, "Self-service league created");
+
+  res.status(201).json({
+    league: { id: league.id, name: league.name, season: league.season, franchiseId: league.franchiseId },
+    inviteCode,
+  });
 }));
 
 export const leaguesRouter = router;

@@ -33,7 +33,7 @@ import {
 
 /* ── Data ────────────────────────────────────────────────────────── */
 
-const LAST_UPDATED = "March 24, 2026 (Session 39)";
+const LAST_UPDATED = "March 24, 2026 (Sessions 40–44)";
 
 // ─── Product Roadmap ───
 
@@ -98,10 +98,10 @@ const productRoadmap: RoadmapPhase[] = [
         tags: ["ai", "feature", "milestone"],
       },
       {
-        title: "Sidebar Nav Condensed",
-        description: "Collapsible nav sections, season-gated items, Cmd+B keyboard shortcut, accessibility improvements (aria-current, Escape key).",
+        title: "Sidebar Redesign + Mobile Bottom Nav (Session 40–44)",
+        description: "Sidebar extracted to Sidebar.tsx (505→188 LOC), reorganized into 5 sections (Core, AI, League, Manage, Product). Mobile bottom tab nav with 5 tabs. Changelog/Roadmap/Status now public. EmptyState shared component on 8 pages. React.lazy code splitting on 25 routes (~250KB bundle reduction).",
         icon: Layers,
-        effort: "Small",
+        effort: "Large",
         status: "done",
         tags: ["ux"],
       },
@@ -404,19 +404,19 @@ const productRoadmap: RoadmapPhase[] = [
         tags: ["draft"],
       },
       {
-        title: "Public League Directory & Self-Service Onboarding",
-        description: "Commissioners create leagues publicly. Join via invite code or discovery. Self-service signup, league creation, and team management.",
+        title: "Self-Service League Creation (Session 44)",
+        description: "Any user can create leagues via /create-league. Single-form UI with league name, type, draft format. Commissioner auto-assigned. Invite code generated. Per-user limit of 5 leagues.",
         icon: Globe,
-        effort: "Large",
-        status: "planned",
+        effort: "Medium",
+        status: "done",
         tags: ["growth", "saas"],
       },
       {
-        title: "Mobile-Responsive Redesign",
-        description: "Full mobile experience for auction bidding, standings checking, and trade management on phones.",
+        title: "Mobile Bottom Tab Nav (Session 41)",
+        description: "5-tab bottom nav on mobile (Home, Season, Players, Activity, More). 56px + safe area inset. Touch targets ≥44px. Viewport-fit=cover for iOS. Skip-nav link + dual aria-label.",
         icon: Smartphone,
-        effort: "Large",
-        status: "planned",
+        effort: "Medium",
+        status: "done",
         tags: ["mobile", "design"],
       },
       {

@@ -12,6 +12,12 @@ export interface AuctionValueEntry {
 }
 
 let _cache: Map<string, AuctionValueEntry> | null = null;
+let _normalizedCache: Map<string, AuctionValueEntry> | null = null;
+
+/** Strip diacritics (ñ→n, é→e, etc.) and lowercase for fuzzy name matching. */
+function normalizeName(name: string): string {
+  return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
 
 /**
  * Returns a Map of player name → { value, stats } from the auction values CSV.
@@ -22,6 +28,7 @@ export function getAuctionValueMap(): Map<string, AuctionValueEntry> {
   if (_cache) return _cache;
 
   _cache = new Map();
+  _normalizedCache = new Map();
 
   const csvPath = path.join(process.cwd(), "data", "ogba_auction_values_2026.csv");
   try {
@@ -43,7 +50,9 @@ export function getAuctionValueMap(): Map<string, AuctionValueEntry> {
           const v = cols[statIdxs[si]]?.trim();
           return v && v !== "" ? `${k}:${v}` : null;
         }).filter(Boolean);
-        _cache.set(name, { value: val, stats: statParts.join(", ") });
+        const entry = { value: val, stats: statParts.join(", ") };
+        _cache.set(name, entry);
+        _normalizedCache.set(normalizeName(name), entry);
       }
     }
     logger.info({ count: _cache.size }, "Loaded auction values (cached)");
@@ -54,7 +63,21 @@ export function getAuctionValueMap(): Map<string, AuctionValueEntry> {
   return _cache;
 }
 
+/**
+ * Look up a player's projected value by name.
+ * Tries exact match first, then falls back to diacritics-stripped normalized match.
+ * Handles: "Ronald Acuña Jr." → "Ronald Acuna Jr." (CSV uses ASCII names).
+ */
+export function lookupAuctionValue(playerName: string): AuctionValueEntry | undefined {
+  const map = getAuctionValueMap();
+  const exact = map.get(playerName);
+  if (exact) return exact;
+  // Fallback: strip diacritics and try normalized match
+  return _normalizedCache?.get(normalizeName(playerName));
+}
+
 /** Clear the cached values (for testing or season rollover). */
 export function clearAuctionValueCache(): void {
   _cache = null;
+  _normalizedCache = null;
 }

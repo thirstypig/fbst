@@ -31,10 +31,9 @@ async function generateWaiverAnalysis(claimId: number, leagueId: number): Promis
     include: { player: { select: { name: true, posPrimary: true } } },
   });
 
-  // Load projected value from auction values
-  const { getAuctionValueMap } = await import("../../lib/auctionValues.js");
-  const valMap = getAuctionValueMap();
-  const projectedValue = valMap.get(claim.player.name)?.value ?? null;
+  // Load projected value from auction values (with diacritics fallback)
+  const { lookupAuctionValue } = await import("../../lib/auctionValues.js");
+  const projectedValue = lookupAuctionValue(claim.player.name)?.value ?? null;
 
   const league = await prisma.league.findUnique({ where: { id: leagueId }, select: { rules: true } });
   const leagueType = (league?.rules as any)?.leagueType ?? "NL";
@@ -291,6 +290,7 @@ router.post("/process/:leagueId", requireAuth, requireCommissionerOrAdmin("leagu
 
 // Cache: keyed by leagueId:teamId:playerId
 const waiverAdviceCache = new Map<string, { suggestedBid: number; confidence: string; reasoning: string }>();
+const WAIVER_CACHE_MAX = 500;
 
 // GET /api/waivers/ai-advice?leagueId=X&teamId=Y&playerId=Z
 router.get("/ai-advice", requireAuth, asyncHandler(async (req, res) => {
@@ -357,6 +357,10 @@ router.get("/ai-advice", requireAuth, asyncHandler(async (req, res) => {
     return res.status(503).json({ error: "Waiver advice is temporarily unavailable" });
   }
 
+  if (waiverAdviceCache.size >= WAIVER_CACHE_MAX) {
+    const oldest = waiverAdviceCache.keys().next().value;
+    if (oldest) waiverAdviceCache.delete(oldest);
+  }
   waiverAdviceCache.set(cacheKey, result.result!);
   res.json(result.result);
 }));

@@ -328,6 +328,7 @@ router.delete(
 
 // Cache: keyed by leagueId:teamId
 const keeperRecommendCache = new Map<string, { recommendations: any[]; strategy: string }>();
+const KEEPER_CACHE_MAX = 500;
 
 /**
  * GET /api/commissioner/:leagueId/keeper-prep/ai-recommend?teamId=Y
@@ -371,18 +372,15 @@ router.get(
     const maxKeepers = Number(rulesMap.get("keeper_count") ?? "5");
     const budgetCap = Number(rulesMap.get("budget") ?? "400");
 
-    // Load projected auction values (cached singleton)
-    const { getAuctionValueMap } = await import("../../lib/auctionValues.js");
-    const auctionVals = getAuctionValueMap();
-    const valMap = new Map<string, number>();
-    for (const [name, entry] of auctionVals) valMap.set(name, entry.value);
+    // Load projected auction values (cached singleton, with diacritics fallback)
+    const { lookupAuctionValue } = await import("../../lib/auctionValues.js");
 
     // League type
     const league = await prisma.league.findUnique({ where: { id: leagueId }, select: { rules: true } });
     const leagueType = (league?.rules as any)?.leagueType ?? "NL";
 
     const teamRoster = roster.map(r => {
-      const projVal = valMap.get(r.player.name) ?? null;
+      const projVal = lookupAuctionValue(r.player.name)?.value ?? null;
       return {
         playerId: r.player.id,
         playerName: r.player.name,
@@ -405,6 +403,10 @@ router.get(
       return res.status(503).json({ error: "Keeper recommendation is temporarily unavailable" });
     }
 
+    if (keeperRecommendCache.size >= KEEPER_CACHE_MAX) {
+      const oldest = keeperRecommendCache.keys().next().value;
+      if (oldest) keeperRecommendCache.delete(oldest);
+    }
     keeperRecommendCache.set(cacheKey, result.result!);
     res.json(result.result);
   })

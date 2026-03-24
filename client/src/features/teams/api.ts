@@ -59,3 +59,19 @@ export async function getTeamAiInsights(leagueId: number, teamId: number): Promi
   track("ai_team_insights_requested", { leagueId, teamId });
   return result;
 }
+
+export interface WeeklyInsightEntry extends TeamInsightsResult {
+  weekKey: string;
+  generatedAt: string;
+  mode?: string;
+}
+
+export async function getTeamAiInsightsHistory(
+  leagueId: number,
+  teamId: number,
+  limit = 8,
+): Promise<{ weeks: WeeklyInsightEntry[] }> {
+  return fetchJsonApi<{ weeks: WeeklyInsightEntry[] }>(
+    `${API_BASE}/teams/ai-insights/history?leagueId=${leagueId}&teamId=${teamId}&limit=${limit}`
+  );
+}

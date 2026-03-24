@@ -4,6 +4,36 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
+## Sessions 40–44 (2026-03-24) — Phase 1: Polish & Foundation (7 commits)
+
+### Summary
+Complete Phase 1 SaaS readiness overhaul. Sidebar extraction + reorganization, mobile bottom nav, code splitting, empty states, self-service league creation, draft report bug fix, security hardening, and 12 code review findings resolved.
+
+### Completed
+- **Sidebar Redesign** — extracted to Sidebar.tsx (505→188 LOC AppShell), 5 sections: Core, AI, League, Manage, Product
+- **Mobile Bottom Nav** — BottomNav.tsx with 5 tabs, "More" opens sidebar drawer, 56px + safe area, ≥44px touch targets
+- **Code Splitting** — React.lazy on 25 routes + dynamic Mermaid import (~250KB removed from initial bundle)
+- **Empty States** — shared EmptyState component with discriminated union actions, deployed on 8 pages
+- **Self-Service League Creation** — POST /api/leagues + single-form UI at /create-league
+- **Weekly Insights History** — tab-based week navigation on Team page (lazy-loaded, up to 8 weeks)
+- **Draft Report Fix** — $0 surplus bug (stale cache + diacritics name matching), Regenerate button added
+- **Security** — trade budget validation, atomic vote (FOR UPDATE), 4 capped caches, 128-bit invite codes
+- **Code Review** — 12 of 14 findings resolved (isPitcher CL parity, typed JSON interfaces, IIFE elimination, etc.)
+- **Accessibility** — skip-nav link, dual aria-label, aria-expanded, viewport-fit=cover
+- **Public Pages** — Changelog/Roadmap/Status no longer admin-gated
+
+### Pending / Next Steps
+- **Phase 2: Format Expansion** — snake draft engine, H2H matchups, Yahoo/ESPN import
+- **2 P3 todos remain** — AiInsight index (needs migration), LeagueDigest typed state
+- **PublicLayout** — minimal header for unauthenticated visitors on public pages
+
+### Test Results
+- Server: 493 passing
+- Client: 187 passing
+- Total: 680 passing, TypeScript clean
+
+---
+
 ## Session 2026-03-24 (Session 39) — AI Insights Overhaul + Code Review (15 commits)
 
 ### Summary

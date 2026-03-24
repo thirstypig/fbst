@@ -202,6 +202,19 @@ export default function Home() {
   const [digestExpanded, setDigestExpanded] = useState(true);
   const [voting, setVoting] = useState(false);
 
+  const handleVote = async (v: "yes" | "no") => {
+    if (!currentLeagueId || voting) return;
+    setVoting(true);
+    try {
+      const result = await fetchJsonApi<{ yes: number; no: number; myVote: string }>(`${API_BASE}/mlb/league-digest/vote`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leagueId: currentLeagueId, vote: v }),
+      });
+      setDigest((prev: any) => prev ? { ...prev, voteResults: result } : prev);
+    } catch { toast("Vote failed — please try again", "error"); } finally { setVoting(false); }
+  };
+
   // Check if user has a team + build dashboard
   useEffect(() => {
     if (!user || !currentLeagueId) { setHasTeam(null); setDash(null); return; }
@@ -488,18 +501,6 @@ export default function Home() {
 
                   {/* Poll */}
                   {(() => {
-                    const handleVote = async (v: "yes" | "no") => {
-                      if (!currentLeagueId || voting) return;
-                      setVoting(true);
-                      try {
-                        const result = await fetchJsonApi<{ yes: number; no: number; myVote: string }>(`${API_BASE}/mlb/league-digest/vote`, {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ leagueId: currentLeagueId, vote: v }),
-                        });
-                        setDigest((prev: any) => prev ? { ...prev, voteResults: result } : prev);
-                      } catch {} finally { setVoting(false); }
-                    };
                     const myVote = digest.voteResults?.myVote;
                     return (
                       <div className="flex items-center gap-3 mt-3 pt-3 border-t border-[var(--lg-accent)]/10">

@@ -1,9 +1,10 @@
 // client/src/App.tsx
-import React from "react";
+import React, { Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import AppShell from "./components/AppShell";
 
+// Core routes — static imports (high-traffic, always needed)
 import Home from "./pages/Home";
 import Season from "./features/periods/pages/Season";
 import Team from "./features/teams/pages/Team";
@@ -11,35 +12,45 @@ import Players from "./features/players/pages/Players";
 import ActivityPage from "./features/transactions/pages/ActivityPage";
 import Login from "./features/auth/pages/Login";
 
-import Commissioner from "./features/commissioner/pages/Commissioner";
-import Admin from "./features/admin/pages/Admin";
-import ArchivePage from "./features/archive/pages/ArchivePage";
-import Auction from "./features/auction/pages/Auction";
-import AuctionResults from "./features/auction/pages/AuctionResults";
-import KeeperSelection from "./features/keeper-prep/pages/KeeperSelection";
-import Rules from "./features/leagues/pages/Rules";
-import Profile from "./features/auth/pages/Profile";
-import Payouts from "./features/periods/pages/Payouts";
-import Signup from "./features/auth/pages/Signup";
-import ForgotPassword from "./features/auth/pages/ForgotPassword";
-import ResetPassword from "./features/auth/pages/ResetPassword";
+// Non-critical routes — lazy-loaded (code-split chunks)
+const Commissioner = React.lazy(() => import("./features/commissioner/pages/Commissioner"));
+const Admin = React.lazy(() => import("./features/admin/pages/Admin"));
+const ArchivePage = React.lazy(() => import("./features/archive/pages/ArchivePage"));
+const Auction = React.lazy(() => import("./features/auction/pages/Auction"));
+const AuctionResults = React.lazy(() => import("./features/auction/pages/AuctionResults"));
+const KeeperSelection = React.lazy(() => import("./features/keeper-prep/pages/KeeperSelection"));
+const Rules = React.lazy(() => import("./features/leagues/pages/Rules"));
+const Profile = React.lazy(() => import("./features/auth/pages/Profile"));
+const Payouts = React.lazy(() => import("./features/periods/pages/Payouts"));
+const Signup = React.lazy(() => import("./features/auth/pages/Signup"));
+const ForgotPassword = React.lazy(() => import("./features/auth/pages/ForgotPassword"));
+const ResetPassword = React.lazy(() => import("./features/auth/pages/ResetPassword"));
+const Tech = React.lazy(() => import("./pages/Tech"));
+const Roadmap = React.lazy(() => import("./pages/Roadmap"));
+const Changelog = React.lazy(() => import("./pages/Changelog"));
+const Status = React.lazy(() => import("./pages/Status"));
+const Analytics = React.lazy(() => import("./pages/Analytics"));
+const Docs = React.lazy(() => import("./pages/Docs"));
+const GuidePage = React.lazy(() => import("./pages/Guide"));
+const GuideAccount = React.lazy(() => import("./pages/guide/GuideAccount"));
+const GuideAuction = React.lazy(() => import("./pages/guide/GuideAuction"));
+const GuideFaq = React.lazy(() => import("./pages/guide/GuideFaq"));
+const About = React.lazy(() => import("./pages/About"));
+const AIHub = React.lazy(() => import("./features/ai/pages/AIHub"));
+const DraftReportPage = React.lazy(() => import("./features/ai/pages/DraftReportPage"));
+const Landing = React.lazy(() => import("./features/auth/pages/Landing"));
+const CreateLeague = React.lazy(() => import("./features/leagues/pages/CreateLeague"));
 
-import Landing from "./features/auth/pages/Landing";
-import Tech from "./pages/Tech";
-import Roadmap from "./pages/Roadmap";
-import Changelog from "./pages/Changelog";
-import Status from "./pages/Status";
-import Analytics from "./pages/Analytics";
-import Docs from "./pages/Docs";
-import GuidePage from "./pages/Guide";
-import GuideAccount from "./pages/guide/GuideAccount";
-import GuideAuction from "./pages/guide/GuideAuction";
-import GuideFaq from "./pages/guide/GuideFaq";
-import About from "./pages/About";
-import AIHub from "./features/ai/pages/AIHub";
-import DraftReportPage from "./features/ai/pages/DraftReportPage";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useAuth } from "./auth/AuthProvider";
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center py-20">
+      <div className="w-8 h-8 border-3 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+    </div>
+  );
+}
 
 export default function App() {
   const { user, loading } = useAuth();
@@ -53,68 +64,74 @@ export default function App() {
   }
 
   return (
-    <Routes>
-      {/* Auth routes outside of AppShell */}
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        {/* Auth routes outside of AppShell */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
-      {/* Protected routes inside AppShell */}
-      <Route
-        path="/*"
-        element={
-          user ? (
-            <AppShell>
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/season" element={<Season />} />
-                <Route path="/teams/:teamCode" element={<Team />} />
-                <Route path="/players" element={<Players />} />
-                <Route path="/activity" element={<ActivityPage />} />
-                <Route path="/transactions" element={<Navigate to="/activity" replace />} />
-                <Route path="/trades" element={<Navigate to="/activity" replace />} />
-                <Route path="/leagues/:id/keepers" element={<KeeperSelection />} />
-                <Route path="/auction" element={<ErrorBoundary name="auction"><Auction /></ErrorBoundary>} />
-                <Route path="/auction-results" element={<ErrorBoundary name="auction-results"><AuctionResults /></ErrorBoundary>} />
-                <Route path="/commissioner/:leagueId" element={<ErrorBoundary name="commissioner"><Commissioner /></ErrorBoundary>} />
-                <Route path="/admin" element={<Admin />} />
-                <Route path="/guide" element={<GuidePage />} />
-                <Route path="/guide/account" element={<GuideAccount />} />
-                <Route path="/guide/auction" element={<GuideAuction />} />
-                <Route path="/guide/faq" element={<GuideFaq />} />
-                <Route path="/archive" element={<ArchivePage />} />
-                {/* Redirects for removed routes */}
-                <Route path="/period" element={<Navigate to="/season" replace />} />
-                <Route path="/leagues" element={<Navigate to="/" replace />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/payouts" element={<Payouts />} />
-                <Route path="/rules" element={<Rules />} />
-                <Route path="/tech" element={<Tech />} />
-                <Route path="/roadmap" element={<Roadmap />} />
-                <Route path="/changelog" element={<Changelog />} />
-                <Route path="/status" element={<Status />} />
-                <Route path="/analytics" element={<Analytics />} />
-                <Route path="/docs" element={<Docs />} />
-                <Route path="/about" element={<About />} />
-                <Route path="/ai" element={<AIHub />} />
-                <Route path="/draft-report" element={<DraftReportPage />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </AppShell>
-          ) : (
-            <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route path="/guide" element={<GuidePage />} />
-              <Route path="/guide/account" element={<GuideAccount />} />
-              <Route path="/guide/auction" element={<GuideAuction />} />
-              <Route path="/guide/faq" element={<GuideFaq />} />
-              <Route path="/about" element={<About />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          )
-        }
-      />
-    </Routes>
+        {/* Protected routes inside AppShell */}
+        <Route
+          path="/*"
+          element={
+            user ? (
+              <AppShell>
+                <Suspense fallback={<PageLoader />}>
+                  <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/season" element={<Season />} />
+                    <Route path="/teams/:teamCode" element={<Team />} />
+                    <Route path="/players" element={<Players />} />
+                    <Route path="/activity" element={<ActivityPage />} />
+                    <Route path="/transactions" element={<Navigate to="/activity" replace />} />
+                    <Route path="/trades" element={<Navigate to="/activity" replace />} />
+                    <Route path="/leagues/:id/keepers" element={<KeeperSelection />} />
+                    <Route path="/auction" element={<ErrorBoundary name="auction"><Auction /></ErrorBoundary>} />
+                    <Route path="/auction-results" element={<ErrorBoundary name="auction-results"><AuctionResults /></ErrorBoundary>} />
+                    <Route path="/commissioner/:leagueId" element={<ErrorBoundary name="commissioner"><Commissioner /></ErrorBoundary>} />
+                    <Route path="/admin" element={<Admin />} />
+                    <Route path="/guide" element={<GuidePage />} />
+                    <Route path="/guide/account" element={<GuideAccount />} />
+                    <Route path="/guide/auction" element={<GuideAuction />} />
+                    <Route path="/guide/faq" element={<GuideFaq />} />
+                    <Route path="/archive" element={<ArchivePage />} />
+                    <Route path="/period" element={<Navigate to="/season" replace />} />
+                    <Route path="/leagues" element={<Navigate to="/" replace />} />
+                    <Route path="/create-league" element={<CreateLeague />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/payouts" element={<Payouts />} />
+                    <Route path="/rules" element={<Rules />} />
+                    <Route path="/tech" element={<Tech />} />
+                    <Route path="/roadmap" element={<Roadmap />} />
+                    <Route path="/changelog" element={<Changelog />} />
+                    <Route path="/status" element={<Status />} />
+                    <Route path="/analytics" element={<Analytics />} />
+                    <Route path="/docs" element={<Docs />} />
+                    <Route path="/about" element={<About />} />
+                    <Route path="/ai" element={<AIHub />} />
+                    <Route path="/draft-report" element={<DraftReportPage />} />
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </Suspense>
+              </AppShell>
+            ) : (
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  <Route path="/" element={<Landing />} />
+                  <Route path="/guide" element={<GuidePage />} />
+                  <Route path="/guide/account" element={<GuideAccount />} />
+                  <Route path="/guide/auction" element={<GuideAuction />} />
+                  <Route path="/guide/faq" element={<GuideFaq />} />
+                  <Route path="/about" element={<About />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </Suspense>
+            )
+          }
+        />
+      </Routes>
+    </Suspense>
   );
 }

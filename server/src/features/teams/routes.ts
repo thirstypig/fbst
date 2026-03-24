@@ -108,8 +108,7 @@ router.get("/ai-insights", requireAuth, requireLeagueMember("leagueId"), asyncHa
   });
 
   // Load projected auction values (cached singleton)
-  const { getAuctionValueMap } = await import("../../lib/auctionValues.js");
-  const valMap = getAuctionValueMap();
+  const { lookupAuctionValue } = await import("../../lib/auctionValues.js");
 
   // Check for actual season stats (TeamStatsSeason)
   const teamSeasonStats = await prisma.teamStatsSeason.findFirst({ where: { teamId } });
@@ -191,8 +190,8 @@ router.get("/ai-insights", requireAuth, requireLeagueMember("leagueId"), asyncHa
         position: r.player.posPrimary,
         mlbTeam: r.player.mlbTeam || "",
         price: r.price,
-        projectedValue: valMap.get(r.player.name)?.value ?? null,
-        projectedStats: valMap.get(r.player.name)?.stats ?? null,
+        projectedValue: lookupAuctionValue(r.player.name)?.value ?? null,
+        projectedStats: lookupAuctionValue(r.player.name)?.stats ?? null,
       })),
       standings,
       categoryRankings,
@@ -236,6 +235,37 @@ router.get("/ai-insights", requireAuth, requireLeagueMember("leagueId"), asyncHa
   } finally {
     insightsInFlight.delete(inflightKey);
   }
+}));
+
+// GET /api/teams/ai-insights/history?leagueId=X&teamId=Y&limit=8
+router.get("/ai-insights/history", requireAuth, requireLeagueMember("leagueId"), asyncHandler(async (req, res) => {
+  const leagueId = Number(req.query.leagueId);
+  const teamId = Number(req.query.teamId);
+  const limit = Math.min(Number(req.query.limit) || 8, 20);
+
+  if (!Number.isFinite(leagueId) || !Number.isFinite(teamId)) {
+    return res.status(400).json({ error: "Missing leagueId or teamId" });
+  }
+
+  const insights = await prisma.aiInsight.findMany({
+    where: { type: "weekly", leagueId, teamId },
+    orderBy: { weekKey: "desc" },
+    take: limit,
+  });
+
+  const insightDataSchema = z.object({
+    insights: z.array(z.object({ category: z.string(), title: z.string(), detail: z.string(), priority: z.string().optional() })),
+    overallGrade: z.string(),
+    mode: z.string().optional(),
+  }).passthrough();
+
+  const weeks = insights.map(row => {
+    const parsed = insightDataSchema.safeParse(row.data);
+    const data = parsed.success ? parsed.data : { insights: [], overallGrade: "?" };
+    return { weekKey: row.weekKey, generatedAt: row.createdAt.toISOString(), ...data };
+  });
+
+  res.json({ weeks });
 }));
 
 // GET /api/teams/:id/summary
