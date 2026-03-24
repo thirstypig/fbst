@@ -1730,10 +1730,10 @@ router.get("/draft-grades", requireAuth, requireLeagueMember("leagueId"), asyncH
   }
 }));
 
-// ─── AI Auction Bid Advice ──────────────────────────────────────────────────
+// ─── AI Auction Bid Advice (Team-Aware Marginal Value) ──────────────────────
 
 // Cache: keyed by leagueId:teamId:playerId:currentBid
-const bidAdviceCache = new Map<string, { shouldBid: boolean; maxRecommendedBid: number; reasoning: string; confidence: string }>();
+const bidAdviceCache = new Map<string, { shouldBid: boolean; maxRecommendedBid: number; reasoning: string; confidence: string; categoryImpact: string }>();
 
 // GET /api/auction/ai-advice?leagueId=X&teamId=Y&playerId=Z&currentBid=N
 router.get("/ai-advice", requireAuth, requireLeagueMember("leagueId"), asyncHandler(async (req, res) => {
@@ -1760,40 +1760,126 @@ router.get("/ai-advice", requireAuth, requireLeagueMember("leagueId"), asyncHand
   // Find player info from current nomination or DB
   let playerName = state.nomination?.playerName ?? "Unknown";
   let playerPosition = state.nomination?.positions?.split('/')[0] ?? "UT";
+  let playerMlbTeam = state.nomination?.playerTeam ?? "";
 
   if (state.nomination?.playerId === String(playerId)) {
     playerName = state.nomination.playerName;
     playerPosition = state.nomination.positions.split('/')[0] || "UT";
+    playerMlbTeam = state.nomination.playerTeam || "";
   } else {
     const dbPlayer = await prisma.player.findFirst({ where: { mlbId: playerId } });
     if (dbPlayer) {
       playerName = dbPlayer.name;
       playerPosition = dbPlayer.posPrimary;
+      playerMlbTeam = dbPlayer.mlbTeam || "";
     }
   }
 
-  // Calculate team needs
+  // Load auction values CSV for projected value + alternatives
+  const fs = await import("fs");
+  const path = await import("path");
+  const valMap = new Map<string, { value: number; stats: string }>();
+  const csvPath = path.join(process.cwd(), "data", "ogba_auction_values_2026.csv");
+  try {
+    const csvText = fs.readFileSync(csvPath, "utf-8");
+    const lines = csvText.trim().split("\n");
+    const headers = lines[0].split(",").map(h => h.trim());
+    const nameIdx = headers.indexOf("player_name");
+    const valIdx = headers.indexOf("dollar_value");
+    const posIdx = headers.indexOf("positions");
+    const isPIdx = headers.indexOf("is_pitcher");
+    // Build stat summary indices
+    const statKeys = ["R", "HR", "RBI", "SB", "AVG", "W", "SV", "ERA", "WHIP", "K"];
+    const statIdxs = statKeys.map(k => headers.indexOf(k));
+
+    if (nameIdx >= 0 && valIdx >= 0) {
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(",");
+        const name = cols[nameIdx]?.trim();
+        const val = parseFloat(cols[valIdx]?.trim());
+        if (!name || isNaN(val)) continue;
+        // Build a stat summary string
+        const statParts = statKeys.map((k, si) => {
+          const v = cols[statIdxs[si]]?.trim();
+          return v && v !== "" ? `${k}: ${v}` : null;
+        }).filter(Boolean);
+        valMap.set(name, { value: val, stats: statParts.join(", ") });
+      }
+    }
+  } catch {
+    // Auction values not available — proceed without
+  }
+
+  // Get player's projected value and stats
+  const playerValData = valMap.get(playerName);
+  const projectedValue = playerValData?.value ?? null;
+  const playerProjectedStats = playerValData?.stats ?? null;
+
+  // Find alternatives at the same position still available (not on any team's roster)
+  const draftedPlayerNames = new Set<string>();
+  for (const t of state.teams) {
+    for (const r of t.roster) {
+      if (r.playerName) draftedPlayerNames.add(r.playerName);
+    }
+  }
+  const isPitcherPos = (pos: string) => ["SP", "RP", "P", "CL"].includes(pos.toUpperCase());
+  const nominatedIsPitcher = isPitcherPos(playerPosition);
+  const alternatives: { name: string; projectedValue: number }[] = [];
+  for (const [name, data] of valMap.entries()) {
+    if (name === playerName) continue;
+    if (draftedPlayerNames.has(name)) continue;
+    if (data.value < 1) continue;
+    // Simple position matching: pitcher vs hitter
+    // (CSV doesn't have exact position per alternative, so match by pitcher/hitter)
+    alternatives.push({ name, projectedValue: data.value });
+  }
+  // Sort by value desc and take top alternatives at similar value tier
+  const sortedAlts = alternatives.sort((a, b) => b.projectedValue - a.projectedValue);
+  const positionAlternatives = sortedAlts.slice(0, 8); // Top 8 available players
+
+  // Build team's current roster for the prompt
+  const teamRoster = teamState.roster.map(r => ({
+    playerName: r.playerName ?? "Unknown",
+    position: r.assignedPosition ?? "UT",
+    price: r.price,
+  }));
+
+  // League type from league rules
+  const league = await prisma.league.findUnique({ where: { id: leagueId }, select: { rules: true } });
+  const leagueType = (league?.rules as any)?.leagueType ?? "NL";
+
+  // Average budget remaining
   const avgBudget = state.teams.reduce((sum, t) => sum + t.budget, 0) / (state.teams.length || 1);
 
   const { aiAnalysisService } = await import("../../services/aiAnalysisService.js");
-  const result = await aiAnalysisService.adviseBid(
-    playerName,
-    playerPosition,
+  const result = await aiAnalysisService.adviseBid({
+    player: {
+      name: playerName,
+      position: playerPosition,
+      mlbTeam: playerMlbTeam,
+      projectedValue,
+    },
     currentBid,
-    teamState.budget,
-    {
-      pitcherCount: teamState.pitcherCount ?? 0,
-      hitterCount: teamState.hitterCount ?? 0,
-      pitcherMax: state.config.pitcherCount ?? 9,
-      hitterMax: state.config.batterCount ?? 14,
+    team: {
+      name: teamState.name,
+      budget: teamState.budget,
       openSlots: (state.config.rosterSize ?? 23) - (teamState.roster?.length ?? 0),
+      hitterCount: teamState.hitterCount ?? 0,
+      pitcherCount: teamState.pitcherCount ?? 0,
+      hitterMax: state.config.batterCount ?? 14,
+      pitcherMax: state.config.pitcherCount ?? 9,
+      roster: teamRoster,
     },
-    {
-      avgBudgetRemaining: avgBudget,
+    league: {
       teamsCount: state.teams.length,
+      avgBudgetRemaining: avgBudget,
       rosterSize: state.config.rosterSize ?? 23,
+      leagueType,
     },
-  );
+    alternativesAtPosition: positionAlternatives,
+    teamProjections: null, // TODO: compute from CSV stats once roster is large enough
+    playerProjectedStats,
+  });
 
   if (!result.success) {
     logger.warn({ error: result.error, leagueId, teamId, playerId }, "Bid advice failed");

@@ -944,18 +944,45 @@ Provide 3-5 actionable insights. Return ONLY a valid JSON object (no markdown, n
     }
   }
 
-  // ─── Feature 5: Auction Draft Advisor ───────────────────────────────────────
+  // ─── Feature 5: Auction Draft Advisor (Team-Aware Marginal Value) ──────────
 
-  async adviseBid(
-    playerName: string,
-    playerPosition: string,
-    currentBid: number,
-    teamBudget: number,
-    teamNeeds: { pitcherCount: number; hitterCount: number; pitcherMax: number; hitterMax: number; openSlots: number },
-    leagueContext: { avgBudgetRemaining: number; teamsCount: number; rosterSize: number },
-  ): Promise<{
+  async adviseBid(input: {
+    player: { name: string; position: string; mlbTeam: string; projectedValue: number | null };
+    currentBid: number;
+    team: {
+      name: string;
+      budget: number;
+      openSlots: number;
+      hitterCount: number;
+      pitcherCount: number;
+      hitterMax: number;
+      pitcherMax: number;
+      roster: { playerName: string; position: string; price: number }[];
+    };
+    league: {
+      teamsCount: number;
+      avgBudgetRemaining: number;
+      rosterSize: number;
+      leagueType: string; // "NL" | "AL" | "ALL"
+    };
+    /** Top remaining players at the same position still available in the auction pool */
+    alternativesAtPosition: { name: string; projectedValue: number }[];
+    /** The team's projected category totals based on current roster */
+    teamProjections: {
+      R: number; HR: number; RBI: number; SB: number; AVG: number;
+      W: number; SV: number; K: number; ERA: number; WHIP: number;
+    } | null;
+    /** What the nominated player would add to the team's category totals */
+    playerProjectedStats: string | null;
+  }): Promise<{
     success: boolean;
-    result?: { shouldBid: boolean; maxRecommendedBid: number; reasoning: string; confidence: string };
+    result?: {
+      shouldBid: boolean;
+      maxRecommendedBid: number;
+      reasoning: string;
+      confidence: string;
+      categoryImpact: string;
+    };
     error?: string;
   }> {
     const model = await this.getModel();
@@ -964,37 +991,55 @@ Provide 3-5 actionable insights. Return ONLY a valid JSON object (no markdown, n
     }
 
     try {
-      const isPitcher = ['SP', 'RP', 'P', 'CL'].includes(playerPosition);
+      const { player, currentBid, team, league, alternativesAtPosition, teamProjections, playerProjectedStats } = input;
+      const isPitcher = AIAnalysisService.isPitcherPos(player.position);
       const positionNeed = isPitcher
-        ? `${teamNeeds.pitcherCount}/${teamNeeds.pitcherMax} pitchers filled`
-        : `${teamNeeds.hitterCount}/${teamNeeds.hitterMax} hitters filled`;
+        ? `${team.pitcherCount}/${team.pitcherMax} pitchers filled`
+        : `${team.hitterCount}/${team.hitterMax} hitters filled`;
 
-      const prompt = `You are a fantasy baseball auction draft advisor. Should this team bid on this player?
+      const leagueTypeLabel = league.leagueType === "NL" ? "NL-ONLY" : league.leagueType === "AL" ? "AL-ONLY" : "Mixed";
 
-Player: ${playerName} (${playerPosition})
-Current Bid: $${currentBid}
+      const prompt = `You are a fantasy baseball auction draft advisor for a team in an ${leagueTypeLabel} league. Analyze whether this team should bid on the nominated player and provide a maximum recommended bid based on MARGINAL VALUE TO THIS SPECIFIC TEAM.
 
-Team Status:
-- Budget Remaining: $${teamBudget}
-- Open Roster Slots: ${teamNeeds.openSlots}
-- Position: ${positionNeed}
+NOMINATED PLAYER:
+- ${player.name} (${player.position}, ${player.mlbTeam})
+- Current Bid: $${currentBid}
+- Projected Auction Value: ${player.projectedValue !== null ? `$${player.projectedValue}` : 'unknown'}
+${playerProjectedStats ? `- Projected Stats: ${playerProjectedStats}` : ''}
 
-League Context:
-- ${leagueContext.teamsCount} teams in league
-- Average Budget Remaining: $${Math.round(leagueContext.avgBudgetRemaining)}
-- Roster Size: ${leagueContext.rosterSize}
+YOUR TEAM (${team.name}):
+- Budget Remaining: $${team.budget}
+- Open Roster Slots: ${team.openSlots}
+- Position Need: ${positionNeed}
+- Current Roster (${team.roster.length} players):
+${team.roster.map(r => `  ${r.playerName} (${r.position}, $${r.price})`).join('\n')}
+${teamProjections ? `
+- Team's Projected Category Totals (current roster):
+  Hitting: ${teamProjections.R} R, ${teamProjections.HR} HR, ${teamProjections.RBI} RBI, ${teamProjections.SB} SB, .${Math.round(teamProjections.AVG * 1000)} AVG
+  Pitching: ${teamProjections.W} W, ${teamProjections.SV} SV, ${teamProjections.K} K, ${teamProjections.ERA.toFixed(2)} ERA, ${teamProjections.WHIP.toFixed(2)} WHIP` : ''}
 
-Consider:
-- Is the current price a good value?
-- Does the team need this position?
-- Budget preservation: need $1 minimum for each remaining slot
-- Competitive advantage of this player vs waiting
+ALTERNATIVES STILL AVAILABLE at ${player.position}:
+${alternativesAtPosition.length > 0 ? alternativesAtPosition.map(a => `  ${a.name} (val $${a.projectedValue})`).join('\n') : '  None — this may be the last quality option at this position'}
 
-Return ONLY a valid JSON object (no markdown, no code blocks) with:
-- "shouldBid": boolean
-- "maxRecommendedBid": number (integer, the highest you'd recommend bidding)
-- "reasoning": 2-3 sentences explaining the recommendation
-- "confidence": one of "high", "medium", or "low"`;
+LEAGUE CONTEXT:
+- ${leagueTypeLabel} league, ${league.teamsCount} teams, ${league.rosterSize}-man rosters
+- Average Budget Remaining across league: $${Math.round(league.avgBudgetRemaining)}
+- 10-category roto: R, HR, RBI, SB, AVG | W, SV, K, ERA, WHIP
+
+IMPORTANT: The max bid should reflect the MARGINAL VALUE of this player TO THIS TEAM — not just the generic projected value. A team desperate for saves should pay more for a closer than a team that already has two. A team with surplus budget late in the draft can be more aggressive. Factor in:
+1. Does the team NEED this position/category contribution?
+2. How scarce are alternatives at this position?
+3. Budget math: team needs $1 per remaining open slot minimum
+4. Is the current bid already above fair value, or is there room?
+
+Return ONLY a valid JSON object (no markdown, no code blocks):
+{
+  "shouldBid": boolean,
+  "maxRecommendedBid": number (integer),
+  "reasoning": "2-3 sentences explaining the recommendation — reference specific category needs and alternatives",
+  "confidence": "high" | "medium" | "low",
+  "categoryImpact": "1 sentence: which categories this player would help or hurt (e.g., 'Fills SV gap (+30 SV), but doesn't help SB')"
+}`;
 
       const result = await model.generateContent(prompt);
       const text = result.response.text().trim();
@@ -1006,6 +1051,7 @@ Return ONLY a valid JSON object (no markdown, no code blocks) with:
         maxRecommendedBid: z.number().int().nonnegative(),
         reasoning: z.string().max(2000),
         confidence: z.enum(["high", "medium", "low"]),
+        categoryImpact: z.string().max(500),
       });
 
       const parsed = schema.safeParse(raw);

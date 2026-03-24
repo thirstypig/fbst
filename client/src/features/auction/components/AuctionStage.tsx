@@ -15,6 +15,7 @@ interface BidAdvice {
   maxRecommendedBid: number;
   reasoning: string;
   confidence: string;
+  categoryImpact?: string;
 }
 
 interface Team {
@@ -348,6 +349,9 @@ export default function AuctionStage({ serverState, myTeamId, onBid, onFinish, o
                           </div>
                         </div>
                         <p className="text-[10px] text-[var(--lg-text-secondary)] leading-relaxed">{bidAdvice.reasoning}</p>
+                        {bidAdvice.categoryImpact && (
+                          <p className="text-[10px] text-[var(--lg-accent)] leading-relaxed italic">{bidAdvice.categoryImpact}</p>
+                        )}
                       </div>
                     )}
                   </div>
