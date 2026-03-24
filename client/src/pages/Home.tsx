@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { fetchJsonApi, API_BASE, yyyyMmDd, addDays } from "../api/base";
-import { ChevronLeft, ChevronRight, Gavel, Trophy, Users, Calendar } from "lucide-react";
+import { ChevronLeft, ChevronRight, Gavel, Trophy, Users, Calendar, Sparkles, ChevronDown, ChevronUp, ArrowLeftRight, TrendingUp, TrendingDown } from "lucide-react";
 import { joinLeague } from "../features/leagues/api";
 import { useToast } from "../contexts/ToastContext";
 import { useLeague, findMyTeam } from "../contexts/LeagueContext";
@@ -194,6 +194,12 @@ export default function Home() {
   const [joining, setJoining] = useState(false);
   const [hasTeam, setHasTeam] = useState<boolean | null>(null);
 
+  // League Digest
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [digest, setDigest] = useState<any | null>(null);
+  const [digestLoading, setDigestLoading] = useState(false);
+  const [digestExpanded, setDigestExpanded] = useState(true);
+
   // Check if user has a team + build dashboard
   useEffect(() => {
     if (!user || !currentLeagueId) { setHasTeam(null); setDash(null); return; }
@@ -242,6 +248,18 @@ export default function Home() {
     }, 60_000);
     return () => clearInterval(interval);
   }, [games, date]);
+
+  // Auto-load league digest (once per week, persisted)
+  useEffect(() => {
+    if (!currentLeagueId || digest || digestLoading) return;
+    let ok = true;
+    setDigestLoading(true);
+    fetchJsonApi<any>(`${API_BASE}/mlb/league-digest?leagueId=${currentLeagueId}`)
+      .then(data => { if (ok) setDigest(data); })
+      .catch(() => {})
+      .finally(() => { if (ok) setDigestLoading(false); });
+    return () => { ok = false; };
+  }, [currentLeagueId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Invite code handler
   const handleJoin = async () => {
@@ -356,6 +374,116 @@ export default function Home() {
               <div className="text-sm font-semibold text-[var(--lg-text-heading)]">Transactions</div>
               <div className="text-[10px] text-[var(--lg-text-muted)] mt-0.5">Trades & waivers</div>
             </Link>
+          )}
+        </div>
+      )}
+
+      {/* Weekly League Digest */}
+      {digestLoading && !digest && (
+        <div className="flex items-center justify-center gap-2 py-4 text-xs text-[var(--lg-text-muted)] animate-pulse">
+          <Sparkles size={14} className="text-blue-400" />
+          Loading weekly digest...
+        </div>
+      )}
+      {digest && (
+        <div className="rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] overflow-hidden">
+          {/* Header toggle */}
+          <button
+            onClick={() => setDigestExpanded(prev => !prev)}
+            className="w-full flex items-center justify-between p-4 md:p-5 hover:bg-[var(--lg-bg-card)]/30 transition-colors text-left"
+          >
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              <Sparkles size={14} className="text-[var(--lg-accent)] flex-shrink-0" />
+              <span className="text-xs font-semibold uppercase text-[var(--lg-text-muted)]">Weekly Digest</span>
+              {digest.weekKey && (
+                <span className="text-[10px] text-[var(--lg-text-muted)] opacity-60">{digest.weekKey}</span>
+              )}
+              {digest.generatedAt && (
+                <span className="text-[10px] text-[var(--lg-text-muted)] opacity-60">
+                  · {new Date(digest.generatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                </span>
+              )}
+            </div>
+            {digestExpanded ? <ChevronUp size={14} className="text-[var(--lg-text-muted)]" /> : <ChevronDown size={14} className="text-[var(--lg-text-muted)]" />}
+          </button>
+
+          {digestExpanded && (
+            <div className="px-4 pb-4 md:px-5 md:pb-5 space-y-4">
+              {/* Overview */}
+              <p className="text-sm text-[var(--lg-text-secondary)] leading-relaxed">{digest.overview}</p>
+
+              {/* Hot & Cold */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {digest.hotTeam && (
+                  <div className="flex items-start gap-2 px-3 py-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
+                    <TrendingUp size={14} className="text-emerald-500 flex-shrink-0 mt-0.5" />
+                    <div className="text-[11px] min-w-0">
+                      <span className="font-bold text-emerald-500">Hot: </span>
+                      <span className="font-medium text-[var(--lg-text-primary)]">{digest.hotTeam.name}</span>
+                      <span className="text-[var(--lg-text-muted)]"> — {digest.hotTeam.reason}</span>
+                    </div>
+                  </div>
+                )}
+                {digest.coldTeam && (
+                  <div className="flex items-start gap-2 px-3 py-2 rounded-lg border border-red-500/20 bg-red-500/5">
+                    <TrendingDown size={14} className="text-red-400 flex-shrink-0 mt-0.5" />
+                    <div className="text-[11px] min-w-0">
+                      <span className="font-bold text-red-400">Cold: </span>
+                      <span className="font-medium text-[var(--lg-text-primary)]">{digest.coldTeam.name}</span>
+                      <span className="text-[var(--lg-text-muted)]"> — {digest.coldTeam.reason}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Team Grades */}
+              {digest.teamGrades && (
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--lg-text-muted)] mb-2">Team Grades</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                    {digest.teamGrades.map((tg: any) => (
+                      <div key={tg.teamName} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--lg-bg-card)] border border-[var(--lg-border-faint)]">
+                        <span className={`text-sm font-black tabular-nums w-7 text-center ${
+                          tg.grade?.startsWith("A") ? "text-emerald-400" :
+                          tg.grade?.startsWith("B") ? "text-blue-400" :
+                          tg.grade?.startsWith("C") ? "text-amber-400" :
+                          "text-red-400"
+                        }`}>{tg.grade}</span>
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold text-[var(--lg-text-primary)] truncate">{tg.teamName}</div>
+                          <div className="text-[10px] text-[var(--lg-text-muted)] leading-tight truncate">{tg.trend}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Proposed Trade */}
+              {digest.proposedTrade && (
+                <div className="rounded-xl border border-[var(--lg-accent)]/20 bg-[var(--lg-accent)]/5 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <ArrowLeftRight size={14} className="text-[var(--lg-accent)]" />
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--lg-accent)]">
+                      Trade of the Week — {digest.proposedTrade.style}
+                    </span>
+                  </div>
+                  <div className="text-sm font-semibold text-[var(--lg-text-primary)] mb-1">{digest.proposedTrade.title}</div>
+                  <p className="text-xs text-[var(--lg-text-secondary)] mb-3">{digest.proposedTrade.description}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+                    <div className="p-2.5 rounded-lg bg-[var(--lg-bg-card)] border border-[var(--lg-border-faint)]">
+                      <div className="text-[10px] font-bold uppercase text-[var(--lg-text-muted)] mb-1">{digest.proposedTrade.teamA} sends</div>
+                      <div className="text-xs text-[var(--lg-text-primary)]">{digest.proposedTrade.teamAGives}</div>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-[var(--lg-bg-card)] border border-[var(--lg-border-faint)]">
+                      <div className="text-[10px] font-bold uppercase text-[var(--lg-text-muted)] mb-1">{digest.proposedTrade.teamB} sends</div>
+                      <div className="text-xs text-[var(--lg-text-primary)]">{digest.proposedTrade.teamBGives}</div>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-[var(--lg-text-secondary)] leading-relaxed italic">{digest.proposedTrade.reasoning}</p>
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}

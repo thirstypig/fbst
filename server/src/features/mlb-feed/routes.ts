@@ -275,4 +275,114 @@ router.get(
   })
 );
 
+// ─── Weekly League Digest ────────────────────────────────────────────────────
+
+/** Get ISO week key like "2026-W13" */
+function getWeekKey(date: Date = new Date()): string {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+  const week1 = new Date(d.getFullYear(), 0, 4);
+  const weekNum = 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+  return `${d.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+}
+
+const tradeStyles = ["conservative", "outrageous", "fun"] as const;
+
+// GET /api/mlb/league-digest?leagueId=N
+router.get("/league-digest", requireAuth, requireLeagueMember("leagueId"), asyncHandler(async (req, res) => {
+  const leagueId = Number(req.query.leagueId);
+  if (!Number.isFinite(leagueId)) return res.status(400).json({ error: "Missing leagueId" });
+
+  const weekKey = getWeekKey();
+
+  // Check DB for persisted digest
+  const persisted = await prisma.aiInsight.findFirst({
+    where: { type: "league_digest", leagueId, weekKey },
+  });
+  if (persisted) {
+    return res.json({ ...(persisted.data as any), generatedAt: persisted.createdAt.toISOString(), weekKey });
+  }
+
+  // Build context from league data
+  const league = await prisma.league.findUnique({
+    where: { id: leagueId },
+    select: { name: true, season: true, rules: true },
+  });
+  if (!league) return res.status(404).json({ error: "League not found" });
+
+  const teams = await prisma.team.findMany({
+    where: { leagueId },
+    include: {
+      rosters: {
+        where: { releasedAt: null },
+        include: { player: { select: { name: true, posPrimary: true } } },
+        orderBy: { price: "desc" },
+      },
+    },
+    orderBy: { name: "asc" },
+  });
+
+  // Recent transactions (last 14 days) per team
+  const recentRosters = await prisma.roster.findMany({
+    where: {
+      teamId: { in: teams.map(t => t.id) },
+      acquiredAt: { gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) },
+      source: { not: "import" },
+    },
+    include: { player: { select: { name: true } }, team: { select: { name: true } } },
+    orderBy: { acquiredAt: "desc" },
+  });
+  const movesByTeam = new Map<number, string[]>();
+  for (const r of recentRosters) {
+    const moves = movesByTeam.get(r.teamId) || [];
+    moves.push(`${r.source}: ${r.player.name}`);
+    movesByTeam.set(r.teamId, moves);
+  }
+
+  // Determine trade style rotation based on week number
+  const weekNum = parseInt(weekKey.split("-W")[1]) || 0;
+  const tradeStyle = tradeStyles[weekNum % 3];
+
+  const teamData = teams.map(t => ({
+    id: t.id,
+    name: t.name,
+    budget: t.budget,
+    rosterHighlights: t.rosters.slice(0, 8).map(r => `${r.player.name} (${r.player.posPrimary}, $${r.price})`).join(", "),
+    recentMoves: (movesByTeam.get(t.id) || []).slice(0, 5).join("; "),
+  }));
+
+  const { aiAnalysisService } = await import("../../services/aiAnalysisService.js");
+  const result = await aiAnalysisService.generateLeagueDigest({
+    leagueName: league.name,
+    season: league.season,
+    leagueType: (league.rules as any)?.leagueType ?? "NL",
+    teams: teamData,
+    tradeStyle,
+    weekNumber: weekNum,
+  });
+
+  if (!result.success) {
+    logger.warn({ error: result.error, leagueId }, "League digest generation failed");
+    return res.status(503).json({ error: "League digest is temporarily unavailable" });
+  }
+
+  // Persist (use teamId=0 for league-wide insights)
+  await prisma.aiInsight.create({
+    data: {
+      type: "league_digest",
+      leagueId,
+      teamId: teams[0]?.id ?? 0, // Use first team as anchor (league-wide)
+      weekKey,
+      data: result.result as any,
+    },
+  }).catch(err => {
+    if (!(err as any)?.code?.includes("P2002")) {
+      logger.error({ error: String(err) }, "Failed to persist league digest");
+    }
+  });
+
+  res.json({ ...result.result, generatedAt: new Date().toISOString(), weekKey });
+}));
+
 export const mlbFeedRouter = router;

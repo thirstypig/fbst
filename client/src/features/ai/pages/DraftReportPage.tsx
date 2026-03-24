@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { Trophy, TrendingUp, TrendingDown, Loader2, Sparkles, ChevronDown, ChevronUp, BarChart3, Target, Users, DollarSign } from "lucide-react";
+import { Trophy, TrendingUp, TrendingDown, Loader2, Sparkles, ChevronDown, ChevronUp, BarChart3, Target, Users } from "lucide-react";
 import { fetchJsonApi, API_BASE } from "../../../api/base";
 import { useLeague } from "../../../contexts/LeagueContext";
 import PageHeader from "../../../components/ui/PageHeader";
@@ -261,8 +261,6 @@ export default function DraftReportPage() {
   const [report, setReport] = useState<DraftReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<"grade" | "surplus">("grade");
-
   const loadingMessages = [
     "Analyzing 8 teams across 184 roster spots...",
     "Cross-referencing projected values with auction prices...",
@@ -298,7 +296,6 @@ export default function DraftReportPage() {
   const gradeOrder: Record<string, number> = { "A+": 1, "A": 2, "A-": 3, "B+": 4, "B": 5, "B-": 6, "C+": 7, "C": 8, "C-": 9, "D": 10, "F": 11 };
 
   const sortedTeams = report?.teams ? [...report.teams].sort((a, b) => {
-    if (sortBy === "surplus") return b.auctionSurplus - a.auctionSurplus;
     return (gradeOrder[a.grade] ?? 12) - (gradeOrder[b.grade] ?? 12);
   }) : [];
 
@@ -359,24 +356,8 @@ export default function DraftReportPage() {
             </div>
           </div>
 
-          {/* Sort controls */}
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-bold text-[var(--lg-text-primary)]">Team Reports</h2>
-            <div className="flex items-center gap-1 bg-[var(--lg-tint)] rounded-lg p-0.5 border border-[var(--lg-border-faint)]">
-              <button
-                onClick={() => setSortBy("grade")}
-                className={`px-3 py-1 rounded-md text-[11px] font-semibold transition-colors ${sortBy === "grade" ? "bg-[var(--lg-accent)] text-white" : "text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)]"}`}
-              >
-                By Grade
-              </button>
-              <button
-                onClick={() => setSortBy("surplus")}
-                className={`px-3 py-1 rounded-md text-[11px] font-semibold transition-colors ${sortBy === "surplus" ? "bg-[var(--lg-accent)] text-white" : "text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)]"}`}
-              >
-                By Value
-              </button>
-            </div>
-          </div>
+          {/* Section header */}
+          <h2 className="text-sm font-bold text-[var(--lg-text-primary)] mb-4">Team Reports</h2>
 
           {/* Team cards */}
           <div className="space-y-4 mb-10">
@@ -404,9 +385,17 @@ export default function DraftReportPage() {
               <p>
                 <strong className="text-[var(--lg-text-primary)]">Projected stats:</strong> Team stat projections are AI-estimated based on each player's realistic 2026 outlook assuming health. These are directional estimates, not precise forecasts — actual results will vary based on playing time, injuries, and breakout/decline trajectories.
               </p>
-              <p className="text-[10px] text-[var(--lg-text-muted)] pt-1">
-                Generated {report.generatedAt ? new Date(report.generatedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "—"} · Powered by Gemini / Claude · Projected values from OGBA auction values engine
-              </p>
+              <div className="flex items-center gap-3 pt-2 border-t border-[var(--lg-border-faint)] mt-2">
+                <span className="text-[10px] text-[var(--lg-text-muted)]">
+                  Generated {report.generatedAt ? new Date(report.generatedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "—"}
+                </span>
+                <span className="text-[10px] text-[var(--lg-text-muted)] opacity-40">·</span>
+                <span className="text-[10px] text-[var(--lg-text-muted)]">
+                  Powered by <strong className="text-[var(--lg-text-secondary)]">Google Gemini</strong> & <strong className="text-[var(--lg-text-secondary)]">Anthropic Claude</strong>
+                </span>
+                <span className="text-[10px] text-[var(--lg-text-muted)] opacity-40">·</span>
+                <span className="text-[10px] text-[var(--lg-text-muted)]">Projected values from OGBA auction values engine</span>
+              </div>
             </div>
           </div>
         </>

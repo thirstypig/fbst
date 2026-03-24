@@ -131,12 +131,12 @@ export default function AIHub() {
     },
     {
       id: "historical-draft",
-      title: "Historical Draft Review",
-      description: "AI evaluates a past season's draft strategy — value picks, overpays, and how it affected standings.",
+      title: "Draft Report (Archive)",
+      description: "Per-team grades, strategy analysis, and projected stats — locked in after each auction as a historical record.",
       icon: Rewind,
       category: "historical",
-      available: true,
-      navigateTo: "/archive",
+      available: hasRosterData,
+      navigateTo: "/draft-report",
     },
   ];
 

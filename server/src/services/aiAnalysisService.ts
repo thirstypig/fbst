@@ -126,6 +126,119 @@ export class AIAnalysisService {
     return null;
   }
 
+  // ─── League Weekly Digest (Home Page) ──────────────────────────────────────
+
+  async generateLeagueDigest(input: {
+    leagueName: string;
+    season: number;
+    leagueType: string;
+    teams: { id: number; name: string; budget: number; rosterHighlights: string; recentMoves: string }[];
+    tradeStyle: "conservative" | "outrageous" | "fun";
+    weekNumber: number;
+  }): Promise<{
+    success: boolean;
+    result?: {
+      overview: string;
+      teamGrades: { teamName: string; grade: string; trend: string }[];
+      hotTeam: { name: string; reason: string };
+      coldTeam: { name: string; reason: string };
+      proposedTrade: {
+        style: string;
+        title: string;
+        description: string;
+        teamA: string;
+        teamAGives: string;
+        teamB: string;
+        teamBGives: string;
+        reasoning: string;
+      };
+    };
+    error?: string;
+  }> {
+    const model = await this.getModel();
+    if (!model) {
+      return { success: false, error: 'AI league digest is not available' };
+    }
+
+    try {
+      const { leagueName, season, leagueType, teams, tradeStyle, weekNumber } = input;
+      const leagueTypeLabel = leagueType === "NL" ? "NL-ONLY" : leagueType === "AL" ? "AL-ONLY" : "Mixed";
+
+      const prompt = `You are a fantasy baseball league analyst writing a weekly digest for the "${leagueName}" ${season} season (${leagueTypeLabel}, ${teams.length} teams, 10-cat roto).
+
+Week ${weekNumber} of the season.
+
+TEAMS:
+${teams.map(t => `
+${t.name} (FAAB: $${t.budget}):
+  Roster highlights: ${t.rosterHighlights}
+  Recent moves: ${t.recentMoves || 'None'}
+`).join('')}
+
+Produce a weekly league digest. Return ONLY a valid JSON object (no markdown, no code blocks):
+{
+  "overview": "2 sentences summarizing the overall league state — who's competitive, any emerging narratives, general league health",
+  "teamGrades": [{"teamName": string, "grade": "A+ through F", "trend": "1 sentence on their trajectory or key storyline"}],
+  "hotTeam": {"name": string, "reason": "1 sentence why they're the team to watch this week"},
+  "coldTeam": {"name": string, "reason": "1 sentence why they're struggling"},
+  "proposedTrade": {
+    "style": "${tradeStyle}",
+    "title": "Short catchy title for the trade (e.g., 'The Closer Swap' or 'The Blockbuster')",
+    "description": "1 sentence pitch for this trade",
+    "teamA": "Team name",
+    "teamAGives": "Players/budget they send (include draft dollar costs, e.g., 'Freddie Freeman ($26), $20 FAAB')",
+    "teamB": "Team name",
+    "teamBGives": "Players/budget they send",
+    "reasoning": "2 sentences: why this helps EACH team specifically — reference category needs and roster gaps"
+  }
+}
+
+For the proposed trade, use the "${tradeStyle}" style:
+${tradeStyle === "conservative" ? "- Keep it safe: swap role players or budget to address small needs. Both teams clearly benefit." : ""}
+${tradeStyle === "outrageous" ? "- Go big: suggest a blockbuster trade involving star players. Make it dramatic and fun to debate." : ""}
+${tradeStyle === "fun" ? "- Be creative: suggest an unexpected trade that makes people think. Include an interesting angle or narrative." : ""}
+
+IMPORTANT: The trade must involve ACTUAL PLAYERS currently on these teams' rosters. Include their draft dollar costs in the gives/receives.`;
+
+      const result = await model.generateContent(prompt);
+      const text = result.response.text().trim();
+      const jsonStr = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+      const raw = JSON.parse(jsonStr);
+
+      const schema = z.object({
+        overview: z.string().max(1000),
+        teamGrades: z.array(z.object({
+          teamName: z.string().max(200),
+          grade: z.string().max(5),
+          trend: z.string().max(500),
+        })),
+        hotTeam: z.object({ name: z.string().max(200), reason: z.string().max(500) }),
+        coldTeam: z.object({ name: z.string().max(200), reason: z.string().max(500) }),
+        proposedTrade: z.object({
+          style: z.string().max(50),
+          title: z.string().max(200),
+          description: z.string().max(500),
+          teamA: z.string().max(200),
+          teamAGives: z.string().max(500),
+          teamB: z.string().max(200),
+          teamBGives: z.string().max(500),
+          reasoning: z.string().max(1000),
+        }),
+      });
+
+      const parsed = schema.safeParse(raw);
+      if (!parsed.success) {
+        logger.error({ zodError: parsed.error.message }, "AI returned invalid league digest");
+        return { success: false, error: 'League digest returned invalid data' };
+      }
+
+      return { success: true, result: parsed.data };
+    } catch (err) {
+      logger.error({ error: String(err) }, "AI league digest failed");
+      return { success: false, error: 'League digest generation failed' };
+    }
+  }
+
   /**
    * Analyze team's period-over-period performance trends
    */
