@@ -139,6 +139,12 @@ model League {
   publicSlug String? @unique
   inviteCode String? @unique
 
+  // Scoring Format (ROTO default protects existing leagues like OGBA)
+  scoringFormat      String @default("ROTO")  // "ROTO" | "H2H_CATEGORIES" | "H2H_POINTS"
+  playoffWeeks       Int    @default(3)
+  playoffTeams       Int    @default(4)
+  regularSeasonWeeks Int    @default(20)
+
   // Trade Settings
   tradeReviewPolicy String @default("COMMISSIONER") // COMMISSIONER, LEAGUE_VOTE
   vetoThreshold     Int    @default(4)
