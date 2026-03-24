@@ -205,6 +205,9 @@ export function expandTwoWayPlayers<T extends { mlb_id: string; is_pitcher: bool
  * Zero out cross-role stats for two-way players after expansion.
  * Pitcher rows get hitting stats zeroed; hitter rows get pitching stats zeroed.
  * Optionally applies pitcher-specific dollar values from a values map.
+ *
+ * WARNING: Mutates the input array elements in-place. Call on a cloned/spread
+ * copy if the original objects must remain unchanged.
  */
 export function splitTwoWayStats<T extends {
   mlb_id: string; is_pitcher: boolean; player_name: string;
