@@ -385,9 +385,14 @@ router.post("/:id/process", requireAuth, asyncHandler(async (req, res) => {
            });
         }
       } else if (item.assetType === "BUDGET") {
+        const budgetAmount = item.amount || 0;
+        const senderTeam = await tx.team.findUnique({ where: { id: item.senderId }, select: { budget: true } });
+        if (!senderTeam || senderTeam.budget < budgetAmount) {
+          throw new Error(`Sender team has insufficient budget (has $${senderTeam?.budget ?? 0}, needs $${budgetAmount})`);
+        }
         await tx.team.update({
           where: { id: item.senderId },
-          data: { budget: { decrement: item.amount || 0 } },
+          data: { budget: { decrement: budgetAmount } },
         });
         await tx.team.update({
           where: { id: item.recipientId },
@@ -433,6 +438,7 @@ const tradeAnalyzeSchema = z.object({
 
 // Cache: keyed by sorted trade item fingerprint
 const tradeAnalysisCache = new Map<string, { fairness: string; winner: string; analysis: string; recommendation: string }>();
+const TRADE_CACHE_MAX = 500;
 
 router.post("/analyze", requireAuth, validateBody(tradeAnalyzeSchema), requireLeagueMember("leagueId"), asyncHandler(async (req, res) => {
   const { leagueId, items } = req.body;
@@ -476,6 +482,10 @@ router.post("/analyze", requireAuth, validateBody(tradeAnalyzeSchema), requireLe
     return res.status(503).json({ error: "Trade analysis is temporarily unavailable" });
   }
 
+  if (tradeAnalysisCache.size >= TRADE_CACHE_MAX) {
+    const oldest = tradeAnalysisCache.keys().next().value;
+    if (oldest) tradeAnalysisCache.delete(oldest);
+  }
   tradeAnalysisCache.set(cacheKey, result.result!);
   res.json(result.result);
 }));

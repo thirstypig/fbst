@@ -328,6 +328,7 @@ router.delete(
 
 // Cache: keyed by leagueId:teamId
 const keeperRecommendCache = new Map<string, { recommendations: any[]; strategy: string }>();
+const KEEPER_CACHE_MAX = 500;
 
 /**
  * GET /api/commissioner/:leagueId/keeper-prep/ai-recommend?teamId=Y
@@ -405,6 +406,10 @@ router.get(
       return res.status(503).json({ error: "Keeper recommendation is temporarily unavailable" });
     }
 
+    if (keeperRecommendCache.size >= KEEPER_CACHE_MAX) {
+      const oldest = keeperRecommendCache.keys().next().value;
+      if (oldest) keeperRecommendCache.delete(oldest);
+    }
     keeperRecommendCache.set(cacheKey, result.result!);
     res.json(result.result);
   })

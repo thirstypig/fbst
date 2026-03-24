@@ -238,6 +238,37 @@ router.get("/ai-insights", requireAuth, requireLeagueMember("leagueId"), asyncHa
   }
 }));
 
+// GET /api/teams/ai-insights/history?leagueId=X&teamId=Y&limit=8
+router.get("/ai-insights/history", requireAuth, requireLeagueMember("leagueId"), asyncHandler(async (req, res) => {
+  const leagueId = Number(req.query.leagueId);
+  const teamId = Number(req.query.teamId);
+  const limit = Math.min(Number(req.query.limit) || 8, 20);
+
+  if (!Number.isFinite(leagueId) || !Number.isFinite(teamId)) {
+    return res.status(400).json({ error: "Missing leagueId or teamId" });
+  }
+
+  const insights = await prisma.aiInsight.findMany({
+    where: { type: "weekly", leagueId, teamId },
+    orderBy: { weekKey: "desc" },
+    take: limit,
+  });
+
+  const insightDataSchema = z.object({
+    insights: z.array(z.object({ category: z.string(), title: z.string(), detail: z.string(), priority: z.string().optional() })),
+    overallGrade: z.string(),
+    mode: z.string().optional(),
+  }).passthrough();
+
+  const weeks = insights.map(row => {
+    const parsed = insightDataSchema.safeParse(row.data);
+    const data = parsed.success ? parsed.data : { insights: [], overallGrade: "?" };
+    return { weekKey: row.weekKey, generatedAt: row.createdAt.toISOString(), ...data };
+  });
+
+  res.json({ weeks });
+}));
+
 // GET /api/teams/:id/summary
 router.get("/:id/summary", requireAuth, asyncHandler(async (req, res) => {
   const teamId = Number(req.params.id);

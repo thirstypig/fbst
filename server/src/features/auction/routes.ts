@@ -8,7 +8,7 @@ import { validateBody } from "../../middleware/validate.js";
 import { writeAuditLog } from "../../lib/auditLog.js";
 import { requireSeasonStatus } from "../../middleware/seasonGuard.js";
 import { assertPlayerAvailable } from "../../lib/rosterGuard.js";
-import { positionToSlots, PITCHER_CODES as SPORT_PITCHER_CODES } from "../../lib/sportConfig.js";
+import { positionToSlots, PITCHER_CODES as SPORT_PITCHER_CODES, isPitcher as isPitcherPos } from "../../lib/sportConfig.js";
 import { broadcastState } from "./services/auctionWsService.js";
 import { saveState, loadState, clearState } from "./services/auctionPersistence.js";
 
@@ -1654,6 +1654,7 @@ router.get("/draft-report", requireAuth, requireLeagueMember("leagueId"), asyncH
 
 // Draft grade cache — auction data is frozen at "completed", so cache is permanent per league
 const draftGradeCache = new Map<number, { teamId: number; teamName: string; grade: string; summary: string }[]>();
+const DRAFT_GRADE_CACHE_MAX = 100;
 const draftGradeInFlight = new Map<number, Promise<any>>();
 
 // GET /api/auction/draft-grades — AI-generated draft grades for all teams
@@ -1705,6 +1706,10 @@ router.get("/draft-grades", requireAuth, requireLeagueMember("leagueId"), asyncH
     }
 
     // Cache permanently — auction state is frozen
+    if (draftGradeCache.size >= DRAFT_GRADE_CACHE_MAX) {
+      const oldest = draftGradeCache.keys().next().value;
+      if (oldest !== undefined) draftGradeCache.delete(oldest);
+    }
     draftGradeCache.set(leagueId, result.grades);
     res.json({ grades: result.grades });
   } finally {
@@ -1774,7 +1779,6 @@ router.get("/ai-advice", requireAuth, requireLeagueMember("leagueId"), asyncHand
       if (r.playerName) draftedPlayerNames.add(r.playerName);
     }
   }
-  const { isPitcher: isPitcherPos } = await import("../../lib/sportConfig.js");
   const nominatedIsPitcher = isPitcherPos(playerPosition);
   const alternatives: { name: string; projectedValue: number }[] = [];
   for (const [name, data] of valMap.entries()) {

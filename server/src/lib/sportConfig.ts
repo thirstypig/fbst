@@ -7,7 +7,7 @@
 
 export const POS_ORDER = ["C", "1B", "2B", "3B", "SS", "MI", "CM", "OF", "SP", "RP", "P", "DH"] as const;
 
-export const PITCHER_CODES = ["P", "SP", "RP", "TWP"] as const;
+export const PITCHER_CODES = ["P", "SP", "RP", "CL", "TWP"] as const;
 
 export const POSITIONS = ["C", "1B", "2B", "3B", "SS", "MI", "CM", "OF", "DH", "P", "SP", "RP", "BN", "IL"] as const;
 
@@ -23,7 +23,7 @@ export function positionToSlots(pos: string): string[] {
   if (p === "SS") return ["SS", "MI"];
   if (p === "LF" || p === "CF" || p === "RF" || p === "OF") return ["OF"];
   if (p === "DH") return ["DH"];
-  if (p === "P" || p === "SP" || p === "RP" || p === "TWP") return ["P"];
+  if (p === "P" || p === "SP" || p === "RP" || p === "CL" || p === "TWP") return ["P"];
   return [];
 }
 
@@ -124,6 +124,16 @@ export const OHTANI_MLB_ID = 660271;
 export const TWO_WAY_PLAYERS: ReadonlyMap<number, { hitterPos: string; name: string }> = new Map([
   [OHTANI_MLB_ID, { hitterPos: "DH", name: "Shohei Ohtani" }],
 ]);
+
+// ─── Keeper Detection ───
+
+/** The roster source value that identifies keeper players. */
+export const KEEPER_SOURCE = "prior_season" as const;
+
+/** Returns true if the roster entry is a keeper (based on source field). */
+export function isKeeperRoster(r: { source?: string | null }): boolean {
+  return r.source === KEEPER_SOURCE;
+}
 
 // ─── Pitcher Detection ───
 

@@ -466,8 +466,6 @@ Keep it conversational. Highlight specific players and prices.`;
   }
   // ─── Combined Draft Report ──────────────────────────────────────────────────
 
-  // isPitcherPos imported from sportConfig.ts at module level
-
   /**
    * Generate a comprehensive per-team draft report with AI grades, analysis,
    * keeper assessment, and projected stat contributions.
@@ -499,8 +497,6 @@ Keep it conversational. Highlight specific players and prices.`;
     }
 
     try {
-      const isPP = isPitcherPos;
-
       // ── Compute data-driven metrics per team ──
       const allAuctionHitterPrices: number[] = [];
       const allAuctionPitcherPrices: number[] = [];
@@ -509,8 +505,8 @@ Keep it conversational. Highlight specific players and prices.`;
         const keepers = team.roster.filter(r => r.isKeeper);
         const auctionPicks = team.roster.filter(r => !r.isKeeper);
 
-        const auctionHitters = auctionPicks.filter(r => !isPP(r.position));
-        const auctionPitchers = auctionPicks.filter(r => isPP(r.position));
+        const auctionHitters = auctionPicks.filter(r => !isPitcherPos(r.position));
+        const auctionPitchers = auctionPicks.filter(r => isPitcherPos(r.position));
         auctionHitters.forEach(r => allAuctionHitterPrices.push(r.price));
         auctionPitchers.forEach(r => allAuctionPitcherPrices.push(r.price));
 
@@ -1049,9 +1045,8 @@ Return ONLY a valid JSON object (no markdown, no code blocks) with:
       const leagueTypeLabel = leagueType === "NL" ? "NL-ONLY" : leagueType === "AL" ? "AL-ONLY" : "Mixed";
       const mode = hasActualStats ? "in-season" : "pre-season";
 
-      const isPP = isPitcherPos;
-      const hitters = roster.filter(r => !isPP(r.position));
-      const pitchers = roster.filter(r => isPP(r.position));
+      const hitters = roster.filter(r => !isPitcherPos(r.position));
+      const pitchers = roster.filter(r => isPitcherPos(r.position));
 
       const prompt = `You are a fantasy baseball team analyst providing ${mode === "pre-season" ? "pre-season outlook and" : ""} weekly insights for an ${leagueTypeLabel} 10-category roto league (R, HR, RBI, SB, AVG | W, SV, K, ERA, WHIP).
 

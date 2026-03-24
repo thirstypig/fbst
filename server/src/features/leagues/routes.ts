@@ -387,7 +387,7 @@ router.post("/leagues/:id/invite-code/regenerate", requireAuth, requireCommissio
   });
   if (!league) return res.status(404).json({ error: "League not found" });
 
-  const newCode = randomBytes(4).toString("hex").toUpperCase();
+  const newCode = randomBytes(16).toString("hex").toUpperCase();
 
   // Update on franchise
   await prisma.franchise.update({

@@ -291,6 +291,7 @@ router.post("/process/:leagueId", requireAuth, requireCommissionerOrAdmin("leagu
 
 // Cache: keyed by leagueId:teamId:playerId
 const waiverAdviceCache = new Map<string, { suggestedBid: number; confidence: string; reasoning: string }>();
+const WAIVER_CACHE_MAX = 500;
 
 // GET /api/waivers/ai-advice?leagueId=X&teamId=Y&playerId=Z
 router.get("/ai-advice", requireAuth, asyncHandler(async (req, res) => {
@@ -357,6 +358,10 @@ router.get("/ai-advice", requireAuth, asyncHandler(async (req, res) => {
     return res.status(503).json({ error: "Waiver advice is temporarily unavailable" });
   }
 
+  if (waiverAdviceCache.size >= WAIVER_CACHE_MAX) {
+    const oldest = waiverAdviceCache.keys().next().value;
+    if (oldest) waiverAdviceCache.delete(oldest);
+  }
   waiverAdviceCache.set(cacheKey, result.result!);
   res.json(result.result);
 }));

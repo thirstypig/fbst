@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 
 import { getPlayerSeasonStats, type PlayerSeasonStat, getTeamDetails, getTeams, getTeamAiInsights, TeamInsightsResult } from "../../../api";
+import { getTeamAiInsightsHistory, type WeeklyInsightEntry } from "../api";
 import PlayerDetailModal from "../../../components/shared/PlayerDetailModal";
 import PlayerExpandedRow from "../../auction/components/PlayerExpandedRow";
 import TeamRosterManager from "../components/TeamRosterManager";
@@ -88,6 +89,11 @@ export default function Team() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiExpanded, setAiExpanded] = useState(true);
+
+  // Weekly insights history (tab-based)
+  const [insightHistory, setInsightHistory] = useState<WeeklyInsightEntry[]>([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [selectedWeekKey, setSelectedWeekKey] = useState<string | null>(null);
 
   // Trade block state
   const [tradeBlockIds, setTradeBlockIds] = useState<Set<number>>(new Set());
@@ -224,6 +230,27 @@ export default function Team() {
     return () => { ok = false; };
   }, [dbTeamId, leagueId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Fetch insights history once current insights are loaded
+  useEffect(() => {
+    if (!dbTeamId || !leagueId || !aiInsights || historyLoaded) return;
+    let ok = true;
+    (async () => {
+      try {
+        const { weeks } = await getTeamAiInsightsHistory(leagueId, dbTeamId);
+        if (ok && weeks.length > 0) {
+          setInsightHistory(weeks);
+          // Default to the most recent week (first in the list)
+          setSelectedWeekKey(weeks[0].weekKey);
+        }
+      } catch {
+        // History is optional — silently fail
+      } finally {
+        if (ok) setHistoryLoaded(true);
+      }
+    })();
+    return () => { ok = false; };
+  }, [dbTeamId, leagueId, aiInsights, historyLoaded]);
+
   const teamName = useMemo(() => getOgbaTeamName(code) || code, [code]);
 
   const hitters = useMemo(() => {
@@ -287,7 +314,18 @@ export default function Team() {
         {aiError && (
           <div className="mb-4 text-center text-xs text-red-400">{aiError}</div>
         )}
-        {aiInsights && (
+        {aiInsights && (() => {
+          // Determine which insight data to display based on selected week tab
+          const activeInsight: any = selectedWeekKey && insightHistory.length > 1
+            ? insightHistory.find(w => w.weekKey === selectedWeekKey) || aiInsights
+            : aiInsights;
+          const activeGrade = activeInsight?.overallGrade || aiInsights.overallGrade;
+          const activeMode = activeInsight?.mode || (aiInsights as any).mode;
+          const activeDate = activeInsight?.generatedAt || (aiInsights as any).generatedAt;
+          const activeWeekKey = activeInsight?.weekKey || (aiInsights as any).weekKey;
+          const activeInsightsList = activeInsight?.insights || aiInsights.insights || [];
+
+          return (
           <div className="mb-8 rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] overflow-hidden">
             {/* Header — always visible, acts as toggle */}
             <button
@@ -297,25 +335,25 @@ export default function Team() {
               <div className="flex items-center gap-2 flex-wrap min-w-0">
                 <Sparkles size={14} className="text-[var(--lg-accent)] flex-shrink-0" />
                 <span className="text-xs font-semibold uppercase text-[var(--lg-text-muted)]">Weekly Insights</span>
-                {(aiInsights as any).mode && (
+                {activeMode && (
                   <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
-                    (aiInsights as any).mode === "in-season"
+                    activeMode === "in-season"
                       ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                       : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
                   }`}>
-                    {(aiInsights as any).mode}
+                    {activeMode}
                   </span>
                 )}
-                {(aiInsights as any).generatedAt && (
+                {activeDate && (
                   <span className="text-[10px] text-[var(--lg-text-muted)] opacity-60">
-                    {new Date((aiInsights as any).generatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    {new Date(activeDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                   </span>
                 )}
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                {aiInsights.overallGrade && (
+                {activeGrade && (
                   <span className="px-2 py-1 rounded text-xs font-bold uppercase bg-[var(--lg-accent)]/10 text-[var(--lg-accent)] border border-[var(--lg-accent)]/20">
-                    {aiInsights.overallGrade}
+                    {activeGrade}
                   </span>
                 )}
                 {aiExpanded ? <ChevronUp size={14} className="text-[var(--lg-text-muted)]" /> : <ChevronDown size={14} className="text-[var(--lg-text-muted)]" />}
@@ -325,8 +363,34 @@ export default function Team() {
             {/* Expandable content */}
             {aiExpanded && (
               <div className="px-4 pb-4 md:px-5 md:pb-5">
+                {/* Week tabs — only show when there are multiple weeks */}
+                {insightHistory.length > 1 && (
+                  <div className="mb-4 flex gap-1 overflow-x-auto pb-1 scrollbar-thin">
+                    {insightHistory.map((week) => {
+                      const weekNum = week.weekKey.split("-W")[1] || week.weekKey;
+                      const isActive = week.weekKey === selectedWeekKey;
+                      return (
+                        <button
+                          key={week.weekKey}
+                          onClick={(e) => { e.stopPropagation(); setSelectedWeekKey(week.weekKey); }}
+                          className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-colors ${
+                            isActive
+                              ? "bg-[var(--lg-accent)] text-white"
+                              : "bg-[var(--lg-bg-card)] text-[var(--lg-text-muted)] border border-[var(--lg-border-faint)] hover:text-[var(--lg-text-primary)] hover:border-[var(--lg-accent)]/30"
+                          }`}
+                        >
+                          W{weekNum}
+                          {week.overallGrade && (
+                            <span className={`ml-1.5 ${isActive ? "opacity-80" : "opacity-60"}`}>{week.overallGrade}</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {(aiInsights.insights || []).map((insight: any, idx: number) => (
+                  {activeInsightsList.map((insight: any, idx: number) => (
                     <div key={idx} className="p-3 rounded-xl bg-[var(--lg-bg-card)] border border-[var(--lg-border-faint)]">
                       <div className="flex items-start gap-2 mb-1">
                         {insight.priority && (
@@ -348,15 +412,16 @@ export default function Team() {
                     </div>
                   ))}
                 </div>
-                {(aiInsights as any).weekKey && (
+                {activeWeekKey && (
                   <div className="mt-3 text-center text-[10px] text-[var(--lg-text-muted)] opacity-50">
-                    Week {(aiInsights as any).weekKey} · Powered by <strong>Google Gemini</strong> & <strong>Anthropic Claude</strong>
+                    Week {activeWeekKey} · Powered by <strong>Google Gemini</strong> & <strong>Anthropic Claude</strong>
                   </div>
                 )}
               </div>
             )}
           </div>
-        )}
+          );
+        })()}
 
         <div className="mb-10 flex justify-center">
           <div className="lg-card p-1">
