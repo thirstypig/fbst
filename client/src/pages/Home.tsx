@@ -199,6 +199,7 @@ export default function Home() {
   const [digest, setDigest] = useState<any | null>(null);
   const [digestLoading, setDigestLoading] = useState(false);
   const [digestExpanded, setDigestExpanded] = useState(true);
+  const [voting, setVoting] = useState(false);
 
   // Check if user has a team + build dashboard
   useEffect(() => {
@@ -481,8 +482,64 @@ export default function Home() {
                     </div>
                   </div>
                   <p className="text-[11px] text-[var(--lg-text-secondary)] leading-relaxed italic">{digest.proposedTrade.reasoning}</p>
+
+                  {/* Poll */}
+                  <div className="flex items-center gap-3 mt-3 pt-3 border-t border-[var(--lg-accent)]/10">
+                    <span className="text-[10px] font-bold uppercase text-[var(--lg-text-muted)]">Would you make this trade?</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={async () => {
+                          if (!currentLeagueId || voting) return;
+                          setVoting(true);
+                          try {
+                            const result = await fetchJsonApi<{ yes: number; no: number; myVote: string }>(`${API_BASE}/mlb/league-digest/vote`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ leagueId: currentLeagueId, vote: "yes" }),
+                            });
+                            setDigest((prev: any) => prev ? { ...prev, voteResults: result } : prev);
+                          } catch {} finally { setVoting(false); }
+                        }}
+                        disabled={voting || digest.voteResults?.myVote === "yes"}
+                        className={`px-3 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+                          digest.voteResults?.myVote === "yes"
+                            ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                            : "bg-[var(--lg-bg-card)] text-[var(--lg-text-muted)] border border-[var(--lg-border-faint)] hover:border-emerald-500/30 hover:text-emerald-400"
+                        }`}
+                      >
+                        Yes {digest.voteResults?.yes > 0 && `(${digest.voteResults.yes})`}
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!currentLeagueId || voting) return;
+                          setVoting(true);
+                          try {
+                            const result = await fetchJsonApi<{ yes: number; no: number; myVote: string }>(`${API_BASE}/mlb/league-digest/vote`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ leagueId: currentLeagueId, vote: "no" }),
+                            });
+                            setDigest((prev: any) => prev ? { ...prev, voteResults: result } : prev);
+                          } catch {} finally { setVoting(false); }
+                        }}
+                        disabled={voting || digest.voteResults?.myVote === "no"}
+                        className={`px-3 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+                          digest.voteResults?.myVote === "no"
+                            ? "bg-red-500/20 text-red-400 border border-red-500/30"
+                            : "bg-[var(--lg-bg-card)] text-[var(--lg-text-muted)] border border-[var(--lg-border-faint)] hover:border-red-500/30 hover:text-red-400"
+                        }`}
+                      >
+                        No {digest.voteResults?.no > 0 && `(${digest.voteResults.no})`}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
+
+              {/* AI Attribution */}
+              <div className="text-center text-[10px] text-[var(--lg-text-muted)] opacity-50 mt-2">
+                Powered by <strong>Google Gemini</strong> & <strong>Anthropic Claude</strong>
+              </div>
             </div>
           )}
         </div>

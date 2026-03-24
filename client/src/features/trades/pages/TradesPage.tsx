@@ -501,6 +501,7 @@ export function LeagueTradeCard({
             </div>
           </div>
           <p className="text-[11px] text-[var(--lg-text-secondary)] leading-relaxed">{trade.aiAnalysis.analysis}</p>
+          <div className="text-[9px] text-[var(--lg-text-muted)] opacity-40 mt-1.5">Powered by <strong>Google Gemini</strong> & <strong>Anthropic Claude</strong></div>
         </div>
       )}
 

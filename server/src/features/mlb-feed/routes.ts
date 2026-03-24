@@ -301,7 +301,9 @@ router.get("/league-digest", requireAuth, requireLeagueMember("leagueId"), async
     where: { type: "league_digest", leagueId, weekKey },
   });
   if (persisted) {
-    return res.json({ ...(persisted.data as any), generatedAt: persisted.createdAt.toISOString(), weekKey });
+    const data = persisted.data as any;
+    const voteData = extractVotes(data, req.user!.id);
+    return res.json({ ...data, generatedAt: persisted.createdAt.toISOString(), weekKey, votes: undefined, voteResults: voteData });
   }
 
   // Build context from league data
@@ -382,7 +384,48 @@ router.get("/league-digest", requireAuth, requireLeagueMember("leagueId"), async
     }
   });
 
-  res.json({ ...result.result, generatedAt: new Date().toISOString(), weekKey });
+  res.json({ ...result.result, generatedAt: new Date().toISOString(), weekKey, voteResults: { yes: 0, no: 0, myVote: null } });
 }));
+
+// POST /api/mlb/league-digest/vote — Vote on the Trade of the Week
+router.post("/league-digest/vote", requireAuth, requireLeagueMember("leagueId"), asyncHandler(async (req, res) => {
+  const leagueId = Number(req.body.leagueId);
+  const vote = req.body.vote as "yes" | "no";
+  const userId = req.user!.id;
+
+  if (!Number.isFinite(leagueId) || !["yes", "no"].includes(vote)) {
+    return res.status(400).json({ error: "Missing leagueId or invalid vote (yes/no)" });
+  }
+
+  const weekKey = getWeekKey();
+  const insight = await prisma.aiInsight.findFirst({
+    where: { type: "league_digest", leagueId, weekKey },
+  });
+  if (!insight) return res.status(404).json({ error: "No digest found for this week" });
+
+  // Update votes in the data JSON
+  const data = insight.data as any;
+  const votes: Record<string, string> = data.votes || {};
+  votes[String(userId)] = vote;
+
+  await prisma.aiInsight.update({
+    where: { id: insight.id },
+    data: { data: { ...data, votes } },
+  });
+
+  const yesCount = Object.values(votes).filter(v => v === "yes").length;
+  const noCount = Object.values(votes).filter(v => v === "no").length;
+
+  res.json({ yes: yesCount, no: noCount, myVote: vote });
+}));
+
+// Helper: extract vote counts from digest data for a specific user
+function extractVotes(data: any, userId: number): { yes: number; no: number; myVote: string | null } {
+  const votes: Record<string, string> = data?.votes || {};
+  const yesCount = Object.values(votes).filter(v => v === "yes").length;
+  const noCount = Object.values(votes).filter(v => v === "no").length;
+  const myVote = votes[String(userId)] || null;
+  return { yes: yesCount, no: noCount, myVote };
+}
 
 export const mlbFeedRouter = router;

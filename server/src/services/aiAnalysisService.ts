@@ -170,10 +170,12 @@ Week ${weekNumber} of the season.
 
 TEAMS:
 ${teams.map(t => `
-${t.name} (FAAB: $${t.budget}):
+${t.name} (Waiver Budget: $${t.budget}):
   Roster highlights: ${t.rosterHighlights}
   Recent moves: ${t.recentMoves || 'None'}
 `).join('')}
+
+GRADING GUIDELINES: Team grades should reflect BOTH roster quality AND draft efficiency. A team with elite players but terrible draft efficiency (massive overpays) should NOT get an A+. Factor in injury risk — teams relying on injury-prone players should be graded lower. Build in uncertainty for unproven prospects. Be differentiated — use the full grade range.
 
 Produce a weekly league digest. Return ONLY a valid JSON object (no markdown, no code blocks):
 {
@@ -186,7 +188,7 @@ Produce a weekly league digest. Return ONLY a valid JSON object (no markdown, no
     "title": "Short catchy title for the trade (e.g., 'The Closer Swap' or 'The Blockbuster')",
     "description": "1 sentence pitch for this trade",
     "teamA": "Team name",
-    "teamAGives": "Players/budget they send (include draft dollar costs, e.g., 'Freddie Freeman ($26), $20 FAAB')",
+    "teamAGives": "Players/budget they send (include draft dollar costs, e.g., 'Freddie Freeman ($26), $20 Waiver Budget')",
     "teamB": "Team name",
     "teamBGives": "Players/budget they send",
     "reasoning": "2 sentences: why this helps EACH team specifically — reference category needs and roster gaps"
@@ -602,8 +604,8 @@ For EACH team, provide:
 1. A letter grade (A+, A, A-, B+, B, B-, C+, C, C-, D, F) — grade the AUCTION DRAFT ONLY (not keepers). Use the surplus data heavily but factor in NL-only scarcity: a team with positive or near-zero surplus should get A-range grades. A team with large negative surplus (-$100+) should get C or below. Be differentiated — not every team should get a B.
 2. A 2-3 sentence keeper assessment: evaluate the quality of their keeper selections. Did they keep the right players? Were keeper costs good value?
 3. A 3-4 sentence auction analysis covering draft strategy, best/worst moves, and how auction picks complement keepers.
-4. Projected stat contributions: estimate realistic 2026 projected stats for the FULL roster (keepers + auction picks). Provide team totals for: R, HR, RBI, SB, AVG (hitters) and W, SV, K, ERA, WHIP (pitchers).
-5. Category strengths (1-3 of the 10 roto categories where this team should DOMINATE) and category weaknesses (1-3 categories where this team is VULNERABLE). Be specific — reference which players drive the strength or create the weakness.
+4. Projected stat contributions: estimate realistic 2026 projected stats for the FULL roster (keepers + auction picks). Provide team totals for: R, HR, RBI, SB, AVG (hitters) and W, SV, K, ERA, WHIP (pitchers). IMPORTANT: Factor in injury history — players with significant injury histories (e.g., Buehler, May, Strider, Acuña) should have their projections discounted by 15-30%. Also build in a small uncertainty discount (~5%) for all projections to account for the unknown.
+5. Category strengths (1-3 of the 10 roto categories where this team should DOMINATE) and category weaknesses (1-3 categories where this team is VULNERABLE). Be specific — reference which players drive the strength or create the weakness. Flag injury-prone players as risk factors.
 
 IMPORTANT: Return ONLY a valid JSON array, no markdown, no code blocks. Each element:
 [{"teamId": number, "teamName": string, "grade": string, "keeperAssessment": string, "analysis": string, "projectedStats": string, "categoryStrengths": string, "categoryWeaknesses": string}]
@@ -794,7 +796,7 @@ IMPORTANT: Return ONLY a valid JSON array, no markdown, no code blocks. Example 
         const from = teamMap.get(item.fromTeamId);
         const to = teamMap.get(item.toTeamId);
         if (item.type === "budget") {
-          return `$${item.amount} FAAB from ${from?.name ?? 'Unknown'} to ${to?.name ?? 'Unknown'}`;
+          return `$${item.amount} Waiver Budget from ${from?.name ?? 'Unknown'} to ${to?.name ?? 'Unknown'}`;
         }
         return `${item.playerName} from ${from?.name ?? 'Unknown'} to ${to?.name ?? 'Unknown'}`;
       });
@@ -942,13 +944,13 @@ Use these exact playerIds from the roster: ${teamRoster.map(r => `${r.playerName
     try {
       const positionPlayers = teamRoster.filter(r => r.position === player.position);
 
-      const prompt = `You are a fantasy baseball FAAB waiver bid advisor.
+      const prompt = `You are a fantasy baseball Waiver Budget waiver bid advisor.
 
 Player to Claim: ${player.name} (${player.position}, ${player.mlbTeam})
 Player Stats: ${player.statsSummary}
 
 Team Info:
-- Remaining FAAB Budget: $${teamBudget}
+- Remaining Waiver Budget Budget: $${teamBudget}
 - League Size: ${leagueContext.teamCount} teams
 - Season: ${leagueContext.season}
 
@@ -1032,7 +1034,7 @@ MODE: ${mode === "pre-season" ? "PRE-SEASON — no actual stats yet, use project
 
 TEAM: ${team.name}
 ${teamStanding ? `Current Rank: ${teamStanding.rank} / ${standings.length} teams (${teamStanding.totalScore} roto pts)` : 'Standings not yet available'}
-Remaining FAAB Budget: $${team.budget}
+Remaining Waiver Budget Budget: $${team.budget}
 
 ROSTER (${roster.length} players):
 Hitters (${hitters.length}):
@@ -1056,7 +1058,7 @@ Provide 4-6 actionable insights. Each insight should be specific and reference a
 2. Roster risks — injury-prone players, unproven prospects, position depth issues
 3. Trade/waiver recommendations — specific category gaps to address and what type of player to target
 4. ${mode === "pre-season" ? "Sleeper picks — which roster players could outperform projections?" : "Over/underperformers — who is exceeding or falling short of expectations?"}
-5. Budget strategy — how to deploy remaining FAAB budget effectively
+5. Budget strategy — how to deploy remaining Waiver Budget budget effectively
 6. Competitive positioning — realistic path to winning categories or improving rank
 
 Return ONLY a valid JSON object (no markdown, no code blocks):

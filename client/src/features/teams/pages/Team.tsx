@@ -350,7 +350,7 @@ export default function Team() {
                 </div>
                 {(aiInsights as any).weekKey && (
                   <div className="mt-3 text-center text-[10px] text-[var(--lg-text-muted)] opacity-50">
-                    Week {(aiInsights as any).weekKey} · Powered by Gemini / Claude
+                    Week {(aiInsights as any).weekKey} · Powered by <strong>Google Gemini</strong> & <strong>Anthropic Claude</strong>
                   </div>
                 )}
               </div>
