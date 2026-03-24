@@ -31,10 +31,9 @@ async function generateWaiverAnalysis(claimId: number, leagueId: number): Promis
     include: { player: { select: { name: true, posPrimary: true } } },
   });
 
-  // Load projected value from auction values
-  const { getAuctionValueMap } = await import("../../lib/auctionValues.js");
-  const valMap = getAuctionValueMap();
-  const projectedValue = valMap.get(claim.player.name)?.value ?? null;
+  // Load projected value from auction values (with diacritics fallback)
+  const { lookupAuctionValue } = await import("../../lib/auctionValues.js");
+  const projectedValue = lookupAuctionValue(claim.player.name)?.value ?? null;
 
   const league = await prisma.league.findUnique({ where: { id: leagueId }, select: { rules: true } });
   const leagueType = (league?.rules as any)?.leagueType ?? "NL";

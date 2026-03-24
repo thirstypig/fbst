@@ -372,18 +372,15 @@ router.get(
     const maxKeepers = Number(rulesMap.get("keeper_count") ?? "5");
     const budgetCap = Number(rulesMap.get("budget") ?? "400");
 
-    // Load projected auction values (cached singleton)
-    const { getAuctionValueMap } = await import("../../lib/auctionValues.js");
-    const auctionVals = getAuctionValueMap();
-    const valMap = new Map<string, number>();
-    for (const [name, entry] of auctionVals) valMap.set(name, entry.value);
+    // Load projected auction values (cached singleton, with diacritics fallback)
+    const { lookupAuctionValue } = await import("../../lib/auctionValues.js");
 
     // League type
     const league = await prisma.league.findUnique({ where: { id: leagueId }, select: { rules: true } });
     const leagueType = (league?.rules as any)?.leagueType ?? "NL";
 
     const teamRoster = roster.map(r => {
-      const projVal = valMap.get(r.player.name) ?? null;
+      const projVal = lookupAuctionValue(r.player.name)?.value ?? null;
       return {
         playerId: r.player.id,
         playerName: r.player.name,

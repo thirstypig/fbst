@@ -1556,11 +1556,8 @@ router.get("/draft-report", requireAuth, requireLeagueMember("leagueId"), asyncH
     return res.status(400).json({ error: "No roster data available to generate draft report" });
   }
 
-  // Load projected auction values (cached singleton)
-  const { getAuctionValueMap } = await import("../../lib/auctionValues.js");
-  const auctionValMap = getAuctionValueMap();
-  const valMap = new Map<string, number>();
-  for (const [name, entry] of auctionValMap) valMap.set(name, entry.value);
+  // Load projected auction values (cached singleton, with diacritics-stripped fallback)
+  const { lookupAuctionValue } = await import("../../lib/auctionValues.js");
 
   // Get league config from auction state or defaults
   const state = session?.state as AuctionState | null;
@@ -1606,7 +1603,7 @@ router.get("/draft-report", requireAuth, requireLeagueMember("leagueId"), asyncH
         mlbTeam: r.player.mlbTeam || "",
         price: r.price,
         isKeeper: r.source === "prior_season",
-        projectedValue: valMap.get(r.player.name) ?? null,
+        projectedValue: lookupAuctionValue(r.player.name)?.value ?? null,
       })),
     };
   });
@@ -1764,12 +1761,12 @@ router.get("/ai-advice", requireAuth, requireLeagueMember("leagueId"), asyncHand
     }
   }
 
-  // Load auction values (cached singleton)
-  const { getAuctionValueMap: getValMap } = await import("../../lib/auctionValues.js");
+  // Load auction values (cached singleton, with diacritics fallback)
+  const { lookupAuctionValue, getAuctionValueMap: getValMap } = await import("../../lib/auctionValues.js");
   const valMap = getValMap();
 
   // Get player's projected value and stats
-  const playerValData = valMap.get(playerName);
+  const playerValData = lookupAuctionValue(playerName);
   const projectedValue = playerValData?.value ?? null;
   const playerProjectedStats = playerValData?.stats ?? null;
 

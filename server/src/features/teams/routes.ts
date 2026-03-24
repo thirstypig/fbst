@@ -108,8 +108,7 @@ router.get("/ai-insights", requireAuth, requireLeagueMember("leagueId"), asyncHa
   });
 
   // Load projected auction values (cached singleton)
-  const { getAuctionValueMap } = await import("../../lib/auctionValues.js");
-  const valMap = getAuctionValueMap();
+  const { lookupAuctionValue } = await import("../../lib/auctionValues.js");
 
   // Check for actual season stats (TeamStatsSeason)
   const teamSeasonStats = await prisma.teamStatsSeason.findFirst({ where: { teamId } });
@@ -191,8 +190,8 @@ router.get("/ai-insights", requireAuth, requireLeagueMember("leagueId"), asyncHa
         position: r.player.posPrimary,
         mlbTeam: r.player.mlbTeam || "",
         price: r.price,
-        projectedValue: valMap.get(r.player.name)?.value ?? null,
-        projectedStats: valMap.get(r.player.name)?.stats ?? null,
+        projectedValue: lookupAuctionValue(r.player.name)?.value ?? null,
+        projectedStats: lookupAuctionValue(r.player.name)?.stats ?? null,
       })),
       standings,
       categoryRankings,
