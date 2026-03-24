@@ -33,7 +33,7 @@ import {
 
 /* ── Data ────────────────────────────────────────────────────────── */
 
-const LAST_UPDATED = "March 23, 2026 (Session 38)";
+const LAST_UPDATED = "March 24, 2026 (Session 39)";
 
 // ─── Product Roadmap ───
 
@@ -90,12 +90,12 @@ const productRoadmap: RoadmapPhase[] = [
         tags: ["players", "data"],
       },
       {
-        title: "AI Insights Hub",
-        description: "New /ai page showing all 9 AI features (draft grades, trade analysis, keeper recs, waiver advice, weekly insights) with Available/Locked states.",
+        title: "AI Insights System (Session 39)",
+        description: "8 AI features powered by Google Gemini & Anthropic Claude: Draft Report page with surplus analysis, Home Page Weekly Digest with Trade of the Week poll, auto-generating Team Insights, Live Bid Advice with marginal value, Post-Trade & Post-Waiver auto-analyzers, enhanced Keeper Recommendations. All persisted to DB, NL-only aware, injury-discounted projections.",
         icon: Bot,
-        effort: "Medium",
+        effort: "Large",
         status: "done",
-        tags: ["ai", "ux"],
+        tags: ["ai", "feature", "milestone"],
       },
       {
         title: "Sidebar Nav Condensed",
@@ -157,10 +157,10 @@ const productRoadmap: RoadmapPhase[] = [
       },
       {
         title: "Trade Analysis & Projections",
-        description: "Show projected standings impact before proposing a trade. Category-level gains/losses for both sides. Leverage AI analysis.",
+        description: "Post-trade AI analysis auto-generates on processing (fairness, winner, category impact). Pre-trade projections planned for future.",
         icon: TrendingUp,
         effort: "Large",
-        status: "planned",
+        status: "done",
         tags: ["trades", "ai"],
       },
       {
