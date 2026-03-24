@@ -30,6 +30,38 @@ interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: "0.40.0",
+    date: "Mar 24, 2026",
+    session: "Sessions 40–44",
+    title: "Phase 1: Polish & Foundation — Sidebar, Mobile Nav, Code Splitting, League Creation",
+    highlights: [
+      "Sidebar extracted to Sidebar.tsx (505→188 LOC AppShell), reorganized into 5 sections: Core, AI, League, Manage, Product",
+      "Mobile bottom nav with 5 tabs (Home, Season, Players, Activity, More) — 56px + safe area",
+      "React.lazy code splitting on 25 routes + dynamic Mermaid import (~250KB removed from bundle)",
+      "Self-service league creation at /create-league — any user can create leagues",
+    ],
+    changes: [
+      { type: "feat", description: "Sidebar extraction + 5-section reorganization: Core, AI (new), League, Manage, Product (renamed from Dev)" },
+      { type: "feat", description: "Mobile bottom tab nav (BottomNav.tsx) — 5 tabs, 'More' opens sidebar drawer, 44px touch targets, iOS safe area" },
+      { type: "feat", description: "Weekly Insights history tabs on Team page — browse past weeks with grade badges" },
+      { type: "feat", description: "Self-service league creation (POST /api/leagues) — single-form UI, Zod validation, per-user limit" },
+      { type: "feat", description: "Shared EmptyState component with discriminated union actions — updated 8 pages" },
+      { type: "feat", description: "Draft Report regeneration — force=true cache bypass + Regenerate button" },
+      { type: "feat", description: "Changelog, Roadmap, Status now visible to all users (no longer admin-only)" },
+      { type: "perf", description: "React.lazy code splitting on 25 non-critical routes — Mermaid.js dynamic import removes ~250KB from initial bundle" },
+      { type: "fix", description: "Draft Report $0 surplus bug — stale cached report + diacritics name matching (ñ→n, é→e) for CSV lookups" },
+      { type: "fix", description: "lookupAuctionValue() with NFD-normalized fallback — 147→159 player name matches across all AI features" },
+      { type: "security", description: "Trade budget validation before decrement (prevents negative budgets)" },
+      { type: "security", description: "Vote endpoint: added requireLeagueMember + SELECT FOR UPDATE atomic voting" },
+      { type: "security", description: "4 unbounded in-memory caches capped at 500 entries each" },
+      { type: "security", description: "Invite code entropy increased from 32 to 128 bits" },
+      { type: "refactor", description: "12 code review findings resolved (1 P1 + 8 P2 + 3 P3): CL position parity, typed JSON interfaces, IIFE elimination, parallel queries" },
+      { type: "refactor", description: "KEEPER_SOURCE constant + isKeeperRoster() predicate extracted to shared sportConfig" },
+      { type: "docs", description: "CPLAN-saas-vision.md — 5-phase SaaS roadmap with sneaker-model branding" },
+      { type: "docs", description: "Phase 1 deepened plan — 8-agent research synthesis across all workstreams" },
+    ],
+  },
+  {
     version: "0.39.0",
     date: "Mar 24, 2026",
     session: "Session 39",
