@@ -85,8 +85,8 @@ The codebase is organized by **domain feature modules**. Each feature encapsulat
 | `admin` | routes | 1 page, 2 components | System admin panel (includes league creation + CSV import) |
 | `archive` | routes, 3 archive services | 1 page, api | Historical data import/export |
 | `periods` | routes | 1 page (Season) | Season/period standings with toggle |
-| `mlb-feed` | routes | — | Live MLB scores, transactions, my-players-today |
-| `ai` | — | 1 page | AI Insights hub — all 9 AI features with availability status |
+| `mlb-feed` | routes | — | Live MLB scores, transactions, my-players-today, weekly league digest |
+| `ai` | — | 3 pages | AI Insights hub, Draft Report (`/draft-report`), league digest on Home page |
 
 ### Feature Module Pattern
 ```
@@ -195,7 +195,11 @@ When adding cross-feature imports, document them here to maintain visibility.
 ## Database
 - Schema at `prisma/schema.prisma`
 - Never run migrations without explicit confirmation
-- Key models: Franchise, FranchiseMembership, User, League, LeagueMembership, LeagueInvite, Team, Player, Roster, Period, TeamStatsPeriod, TeamStatsSeason, Trade, WaiverClaim, AuctionLot, AuctionBid, TransactionEvent, HistoricalSeason, HistoricalStanding, HistoricalPlayerStat
+- Key models: Franchise, FranchiseMembership, User, League, LeagueMembership, LeagueInvite, Team, Player, Roster, Period, TeamStatsPeriod, TeamStatsSeason, Trade, WaiverClaim, AuctionLot, AuctionBid, AuctionSession, AiInsight, TransactionEvent, HistoricalSeason, HistoricalStanding, HistoricalPlayerStat
+- `AiInsight` — persisted AI-generated analyses (type: "weekly" for team insights, "league_digest" for home page digest; deduped by weekKey)
+- `Trade.aiAnalysis` — JSON, auto-generated post-trade analysis (fire-and-forget on processing)
+- `WaiverClaim.aiAnalysis` — JSON, auto-generated post-waiver analysis (fire-and-forget on processing)
+- `AuctionSession.state.draftReport` — JSON, persisted Draft Report (generated once, survives restarts)
 
 ## Development
 
@@ -442,6 +446,40 @@ cd mcp-servers/mlb-data && npx vitest run
 ```
 
 **Detailed plan:** `docs/MCP-MLB-API-PLAN.md`
+
+## AI Analysis System
+
+### Architecture
+- **Service**: `server/src/services/aiAnalysisService.ts` — all AI methods, model selection, prompt templates
+- **Models**: Google Gemini 2.5 Flash (primary), Anthropic Claude Sonnet 4 (fallback)
+- **Validation**: All LLM JSON responses validated with Zod schemas
+- **Attribution**: All AI-generated content must show "Powered by Google Gemini & Anthropic Claude"
+
+### AI Features (8 active)
+
+| Feature | Trigger | Persistence | Location |
+|---------|---------|-------------|----------|
+| Draft Report | Manual (generate once) | `AuctionSession.state.draftReport` | `/draft-report` page |
+| Live Bid Advice | On-demand during auction | In-memory cache per bid | Auction stage inline |
+| Weekly Team Insights | Auto on Team page load | `AiInsight` table (weekly dedup) | Team page header |
+| League Digest | Auto on Home page load | `AiInsight` table (weekly dedup) | Home page |
+| Trade of the Week Poll | Part of League Digest | Votes in `AiInsight.data` JSON | Home page |
+| Post-Trade Analysis | Fire-and-forget on processing | `Trade.aiAnalysis` JSON | Activity/Trades inline |
+| Post-Waiver Analysis | Fire-and-forget on processing | `WaiverClaim.aiAnalysis` JSON | Activity inline |
+| Keeper Recommendations | On-demand | In-memory cache | Keeper prep page |
+
+### Data Sources for AI Prompts
+- **Projected values**: `server/data/ogba_auction_values_2026.csv` (843 players with dollar values)
+- **Roster data**: Prisma queries (player names, positions, prices, MLB teams, keeper status via `source` field)
+- **Auction log**: `AuctionSession.state.log` (WIN events with timestamps, prices, team assignments)
+- **League context**: NL-only/AL-only/Mixed from league rules, budget caps, roster sizes
+
+### Prompt Guidelines
+- Always include NL-only context when applicable (player scarcity)
+- Discount injury-prone players by 15-30% in projections
+- Apply ~5% uncertainty discount on all stat projections
+- Use "Waiver Budget" instead of "FAAB" in user-facing content
+- Grade on value efficiency (surplus), not just star power
 
 ## Coding Guidelines
 - **SOLID Principles**: Single Responsibility, Open-Closed, Liskov Substitution, Interface Segregation, Dependency Inversion

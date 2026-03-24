@@ -122,8 +122,8 @@ export default function AIHub() {
     // Historical
     {
       id: "historical-trends",
-      title: "Season Trends",
-      description: "AI analysis of a team's performance trajectory across periods — improving, declining, or consistent.",
+      title: "Season Trends (Archive)",
+      description: "Historical AI analysis of past seasons — team trajectory, period-over-period performance. Current season trends are on the Home page.",
       icon: TrendingUp,
       category: "historical",
       available: true,

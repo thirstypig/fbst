@@ -883,10 +883,11 @@ Roster (with keeper costs = current price + $5):
 ${JSON.stringify(rosterData, null, 2)}
 
 Consider:
-- Value relative to keeper cost (is the player worth more than their keeper price in an auction?)
-- Position scarcity
-- Player quality and consistency
+- Value relative to keeper cost (is the player worth more than their keeper price in an auction? Use the projected values provided in stats summaries)
+- Position scarcity (especially in NL-only leagues where the player pool is limited)
+- Player quality, consistency, and INJURY HISTORY — discount injury-prone players by 15-30% in value
 - Budget impact of keeping vs drafting fresh
+- Age and multi-year keeper trajectory (younger players with surplus value are better long-term keepers)
 
 Return ONLY a valid JSON object (no markdown, no code blocks) with:
 - "recommendations": array of objects with { "playerId": number, "playerName": string, "keeperCost": number, "reasoning": string (1-2 sentences), "rank": number (1 = best keeper value) }
