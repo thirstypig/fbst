@@ -8,6 +8,71 @@ import { assertPlayerAvailable } from "../../lib/rosterGuard.js";
 import { validateBody } from "../../middleware/validate.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { requireSeasonStatus } from "../../middleware/seasonGuard.js";
+import { logger } from "../../lib/logger.js";
+
+/**
+ * Auto-generate AI analysis after a trade is processed.
+ * Persists the analysis on the Trade record for permanent display.
+ */
+async function generateTradeAnalysis(tradeId: number, leagueId: number): Promise<void> {
+  const trade = await prisma.trade.findUnique({
+    where: { id: tradeId },
+    include: {
+      items: { include: { player: { select: { name: true, posPrimary: true } }, sender: { select: { id: true, name: true, budget: true } }, recipient: { select: { id: true, name: true, budget: true } } } },
+    },
+  });
+  if (!trade) return;
+
+  // Identify teams involved
+  const teamIds = [...new Set([...trade.items.map(i => i.senderId), ...trade.items.map(i => i.recipientId)])];
+  const teams = await prisma.team.findMany({
+    where: { id: { in: teamIds } },
+    include: {
+      rosters: { where: { releasedAt: null }, include: { player: { select: { name: true, posPrimary: true } } } },
+    },
+  });
+
+  const itemDescriptions = trade.items.map(item => {
+    if (item.assetType === "BUDGET") {
+      return `$${item.amount} FAAB from ${item.sender.name} to ${item.recipient.name}`;
+    }
+    return `${item.player?.name ?? "Unknown"} (${item.player?.posPrimary ?? "?"}) from ${item.sender.name} to ${item.recipient.name}`;
+  });
+
+  const teamSummaries = teams.map(t => ({
+    name: t.name,
+    budget: t.budget,
+    rosterSize: t.rosters.length,
+    roster: t.rosters.slice(0, 10).map(r => `${r.player.name} (${r.player.posPrimary})`).join(", "),
+  }));
+
+  const { aiAnalysisService } = await import("../../services/aiAnalysisService.js");
+  const result = await aiAnalysisService.analyzeTrade(
+    trade.items.map(item => ({
+      playerId: item.playerId ?? undefined,
+      playerName: item.player?.name ?? "FAAB",
+      fromTeamId: item.senderId,
+      toTeamId: item.recipientId,
+      type: item.assetType === "BUDGET" ? "budget" as const : "player" as const,
+      amount: item.amount ?? undefined,
+    })),
+    teams.map(t => ({
+      id: t.id,
+      name: t.name,
+      budget: t.budget,
+      roster: t.rosters.map(r => ({ playerName: r.player.name, position: r.player.posPrimary, price: r.price })),
+    })),
+    leagueId,
+  );
+
+  if (result.success && result.result) {
+    await prisma.trade.update({
+      where: { id: tradeId },
+      data: { aiAnalysis: result.result as any },
+    });
+    logger.info({ tradeId }, "Post-trade AI analysis persisted");
+  }
+}
 
 async function isCommissionerOfLeague(userId: number, leagueId: number): Promise<boolean> {
   const m = await prisma.leagueMembership.findUnique({
@@ -344,6 +409,11 @@ router.post("/:id/process", requireAuth, asyncHandler(async (req, res) => {
     resourceId: id,
     metadata: { leagueId: trade.leagueId, itemCount: trade.items.length },
   });
+
+  // Fire-and-forget: generate AI trade analysis
+  generateTradeAnalysis(id, trade.leagueId).catch(err =>
+    logger.warn({ error: String(err), tradeId: id }, "Post-trade AI analysis failed (non-blocking)")
+  );
 
   res.json({ success: true });
 }));

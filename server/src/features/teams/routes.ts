@@ -60,6 +60,17 @@ router.get("/", requireAuth, asyncHandler(async (req, res) => {
 
 const insightsCache = new Map<string, { data: any; expiresAt: number }>();
 const INSIGHTS_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+const insightsInFlight = new Map<string, Promise<any>>(); // dedup concurrent requests
+
+/** Get ISO week key like "2026-W13" for dedup */
+function getWeekKey(date: Date = new Date()): string {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+  const week1 = new Date(d.getFullYear(), 0, 4);
+  const weekNum = 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+  return `${d.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+}
 
 // GET /api/teams/ai-insights?leagueId=X&teamId=Y
 router.get("/ai-insights", requireAuth, requireLeagueMember("leagueId"), asyncHandler(async (req, res) => {
@@ -70,10 +81,28 @@ router.get("/ai-insights", requireAuth, requireLeagueMember("leagueId"), asyncHa
     return res.status(400).json({ error: "Missing leagueId or teamId" });
   }
 
+  // Check DB for persisted insight this week
+  const weekKey = getWeekKey();
+  const persisted = await prisma.aiInsight.findUnique({
+    where: { type_leagueId_teamId_weekKey: { type: "weekly", leagueId, teamId, weekKey } },
+  });
+  if (persisted) {
+    return res.json(persisted.data);
+  }
+
+  // Check in-memory cache (for sub-hour re-requests)
   const cacheKey = `${leagueId}:${teamId}`;
   const cached = insightsCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) {
     return res.json(cached.data);
+  }
+
+  // Dedup concurrent requests
+  const inflightKey = `${leagueId}:${teamId}:${weekKey}`;
+  const existing = insightsInFlight.get(inflightKey);
+  if (existing) {
+    const result = await existing;
+    return res.json(result);
   }
 
   const team = await prisma.team.findUnique({ where: { id: teamId } });
@@ -190,31 +219,50 @@ router.get("/ai-insights", requireAuth, requireLeagueMember("leagueId"), asyncHa
   const league = await prisma.league.findUnique({ where: { id: leagueId }, select: { rules: true } });
   const leagueType = (league?.rules as any)?.leagueType ?? "NL";
 
-  const { aiAnalysisService } = await import("../../services/aiAnalysisService.js");
-  const result = await aiAnalysisService.generateWeeklyInsights({
-    team: { id: team.id, name: team.name, budget: team.budget },
-    roster: roster.map(r => ({
-      playerName: r.player.name,
-      position: r.player.posPrimary,
-      mlbTeam: r.player.mlbTeam || "",
-      price: r.price,
-      projectedValue: valMap.get(r.player.name)?.value ?? null,
-      projectedStats: valMap.get(r.player.name)?.stats ?? null,
-    })),
-    standings,
-    categoryRankings,
-    recentTransactions: transactions,
-    leagueType,
-    hasActualStats,
-  });
+  const generatePromise = (async () => {
+    const { aiAnalysisService } = await import("../../services/aiAnalysisService.js");
+    return aiAnalysisService.generateWeeklyInsights({
+      team: { id: team.id, name: team.name, budget: team.budget },
+      roster: roster.map(r => ({
+        playerName: r.player.name,
+        position: r.player.posPrimary,
+        mlbTeam: r.player.mlbTeam || "",
+        price: r.price,
+        projectedValue: valMap.get(r.player.name)?.value ?? null,
+        projectedStats: valMap.get(r.player.name)?.stats ?? null,
+      })),
+      standings,
+      categoryRankings,
+      recentTransactions: transactions,
+      leagueType,
+      hasActualStats,
+    });
+  })();
+  insightsInFlight.set(inflightKey, generatePromise.then(r => r.success ? r.result : null));
 
-  if (!result.success) {
-    logger.warn({ error: result.error, leagueId, teamId }, "Weekly insights failed");
-    return res.status(503).json({ error: "Weekly insights are temporarily unavailable" });
+  try {
+    const result = await generatePromise;
+
+    if (!result.success) {
+      logger.warn({ error: result.error, leagueId, teamId }, "Weekly insights failed");
+      return res.status(503).json({ error: "Weekly insights are temporarily unavailable" });
+    }
+
+    // Persist to DB for the week
+    await prisma.aiInsight.create({
+      data: { type: "weekly", leagueId, teamId, weekKey, data: result.result as any },
+    }).catch(err => {
+      // Unique constraint violation = already created by concurrent request, safe to ignore
+      if (!(err as any)?.code?.includes("P2002")) {
+        logger.error({ error: String(err) }, "Failed to persist weekly insight");
+      }
+    });
+
+    insightsCache.set(cacheKey, { data: result.result, expiresAt: Date.now() + INSIGHTS_CACHE_TTL });
+    res.json(result.result);
+  } finally {
+    insightsInFlight.delete(inflightKey);
   }
-
-  insightsCache.set(cacheKey, { data: result.result, expiresAt: Date.now() + INSIGHTS_CACHE_TTL });
-  res.json(result.result);
 }));
 
 // GET /api/teams/:id/summary

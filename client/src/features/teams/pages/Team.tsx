@@ -205,6 +205,24 @@ export default function Team() {
     };
   }, [code, leagueId]);
 
+  // Auto-generate AI insights once dbTeamId is available (persisted weekly)
+  useEffect(() => {
+    if (!dbTeamId || !leagueId || aiInsights || aiLoading) return;
+    let ok = true;
+    (async () => {
+      setAiLoading(true);
+      try {
+        const result = await getTeamAiInsights(leagueId, dbTeamId);
+        if (ok) setAiInsights(result);
+      } catch {
+        // Silently fail — insights are supplementary
+      } finally {
+        if (ok) setAiLoading(false);
+      }
+    })();
+    return () => { ok = false; };
+  }, [dbTeamId, leagueId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const teamName = useMemo(() => getOgbaTeamName(code) || code, [code]);
 
   const hitters = useMemo(() => {
@@ -239,30 +257,7 @@ export default function Team() {
                </Button>
              </Link>
 
-             {/* AI Insights Button */}
-             {dbTeamId && (
-               <Button
-                 variant="ghost"
-                 size="sm"
-                 onClick={async () => {
-                   if (!dbTeamId || !leagueId) return;
-                   setAiLoading(true);
-                   setAiError(null);
-                   try {
-                     const result = await getTeamAiInsights(leagueId, dbTeamId);
-                     setAiInsights(result);
-                   } catch (e: unknown) {
-                     setAiError(e instanceof Error ? e.message : "Failed to load insights");
-                   } finally {
-                     setAiLoading(false);
-                   }
-                 }}
-                 disabled={aiLoading}
-               >
-                 {aiLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                 <span className="ml-1">AI Insights</span>
-               </Button>
-             )}
+             {/* AI Insights auto-generate on load — no manual button needed */}
 
              {/* Manage Button - Only show if DB data loaded */}
              {dbTeamId && (
@@ -281,7 +276,13 @@ export default function Team() {
           </div>
         )}
 
-        {/* AI Insights Section */}
+        {/* AI Insights Section — auto-generates weekly */}
+        {aiLoading && !aiInsights && (
+          <div className="mb-8 flex items-center justify-center gap-2 py-4 text-xs text-[var(--lg-text-muted)] animate-pulse">
+            <Sparkles size={14} className="text-blue-400" />
+            Generating weekly insights...
+          </div>
+        )}
         {aiError && (
           <div className="mb-4 text-center text-xs text-red-400">{aiError}</div>
         )}
@@ -290,7 +291,16 @@ export default function Team() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Sparkles size={14} className="text-[var(--lg-accent)]" />
-                <span className="text-xs font-semibold uppercase text-[var(--lg-text-muted)]">AI Insights</span>
+                <span className="text-xs font-semibold uppercase text-[var(--lg-text-muted)]">Weekly Insights</span>
+                {(aiInsights as any).mode && (
+                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
+                    (aiInsights as any).mode === "in-season"
+                      ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                      : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                  }`}>
+                    {(aiInsights as any).mode}
+                  </span>
+                )}
               </div>
               {aiInsights.overallGrade && (
                 <span className="px-2 py-1 rounded text-xs font-bold uppercase bg-[var(--lg-accent)]/10 text-[var(--lg-accent)] border border-[var(--lg-accent)]/20">
@@ -299,9 +309,15 @@ export default function Team() {
               )}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {(aiInsights.insights || []).map((insight, idx) => (
-                <div key={idx} className="p-3 rounded-xl bg-[var(--lg-tint)] border border-[var(--lg-border-faint)]">
+              {(aiInsights.insights || []).map((insight: any, idx: number) => (
+                <div key={idx} className="p-3 rounded-xl bg-[var(--lg-bg-card)] border border-[var(--lg-border-faint)]">
                   <div className="flex items-center gap-2 mb-1">
+                    {insight.priority && (
+                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                        insight.priority === "high" ? "bg-red-400" :
+                        insight.priority === "medium" ? "bg-amber-400" : "bg-[var(--lg-text-muted)]"
+                      }`} />
+                    )}
                     <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-[var(--lg-accent)]/10 text-[var(--lg-accent)]">
                       {insight.category}
                     </span>

@@ -158,6 +158,7 @@ model League {
   auctionSession    AuctionSession?
   invites           LeagueInvite[]
   playerValues      PlayerValue[]
+  aiInsights        AiInsight[]
 
   @@unique([name, season])
 }
@@ -255,6 +256,9 @@ model Team {
 
   // Waiver Relations
   waiverClaims WaiverClaim[]
+
+  // AI Insights
+  aiInsights AiInsight[]
 
   @@unique([leagueId, name])
   @@unique([leagueId, code])
@@ -537,6 +541,7 @@ model Trade {
   createdAt   DateTime    @default(now())
   expiresAt   DateTime?
   processedAt DateTime?
+  aiAnalysis  Json?
 
   items TradeItem[]
 
@@ -580,6 +585,7 @@ model WaiverClaim {
   status       ClaimStatus @default(PENDING)
   processedAt  DateTime?
   createdAt    DateTime    @default(now())
+  aiAnalysis   Json?
 
   team       Team    @relation(fields: [teamId], references: [id])
   player     Player  @relation("ClaimAdd", fields: [playerId], references: [id])
@@ -727,6 +733,23 @@ model AuctionSession {
   updatedAt DateTime @default(now()) @updatedAt
 
   league League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+}
+
+model AiInsight {
+  id        Int      @id @default(autoincrement())
+  type      String   // "weekly", "season_summary", etc.
+  leagueId  Int
+  teamId    Int
+  weekKey   String   // e.g. "2026-W13" — dedup key for once-per-week generation
+  data      Json     // { insights, overallGrade, mode, ... }
+  createdAt DateTime @default(now())
+
+  league League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([type, leagueId, teamId, weekKey])
+  @@index([teamId])
+  @@index([leagueId])
 }
 
 model AuditLog {
