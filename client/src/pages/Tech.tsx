@@ -92,7 +92,8 @@ const techStack = [
     items: [
       { name: "MLB Stats API", desc: "Live player data & statistics" },
       { name: "MCP MLB Data Proxy", desc: "Local MCP server with SQLite cache, rate limiter, circuit breaker (8 tools)" },
-      { name: "Google Gemini AI", desc: "AI-powered player analysis" },
+      { name: "Google Gemini 2.5 Flash", desc: "Primary AI model — draft grades, league digest, trade analysis, weekly insights" },
+      { name: "Anthropic Claude Sonnet 4", desc: "Fallback AI model — automatic failover when Gemini is unavailable" },
       { name: "Resend", desc: "Transactional email for league invites" },
       { name: "xlsx", desc: "Excel file parsing for archive imports" },
       { name: "csv-parse", desc: "CSV data processing for stats" },

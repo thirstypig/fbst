@@ -4,33 +4,48 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
-## Session 2026-03-24 (Session 39) — AI Insights Overhaul: Draft Report, League Digest, Auto-Analyzers
+## Session 2026-03-24 (Session 39) — AI Insights Overhaul + Code Review (15 commits)
 
 ### Summary
-Complete overhaul of the AI Insights feature. Built 7 new/upgraded AI-powered features across the app. All features use projected auction values from CSV, NL-only league context, and persist results to DB for instant reload.
+Complete overhaul of the AI Insights system. Built 8 AI-powered features, ran 4-agent code review (TypeScript, Security, Performance, Simplicity), resolved all 14 findings (P1+P2+P3). Production deployed and verified on Render.
 
-### Completed
-- Combined Draft Grades + Draft Report into dedicated `/draft-report` page with surplus analysis, per-team grades (A+ through F), keeper assessment, category strengths/weaknesses, favorite MLB team, NL-only scarcity context, methodology blurb, attribution (Google Gemini & Anthropic Claude)
-- Upgraded Live Bid Advice with team-aware marginal value (knows roster, projected values, remaining pool, category needs)
-- Upgraded Weekly Team Insights with pre-season/in-season adaptive mode, projected values, priority levels, auto-generates on Team page load, persists to AiInsight table (weekly dedup), expand/collapse, dates, mobile responsive
-- Built Home Page Weekly League Digest: 2-sentence overview, hot/cold teams, team grades, Trade of the Week (rotating conservative/outrageous/fun), expand/collapse, persisted weekly
-- Built Post-Trade Analyzer: fire-and-forget on trade processing, persists aiAnalysis on Trade record, shows inline with fairness badge
-- Built Post-Waiver Analyzer: fire-and-forget on waiver processing, persists aiAnalysis on WaiverClaim, bid grade + category impact
-- Restructured AI Hub: Historical Draft Review → Draft Report (Archive) linking to /draft-report
-- Schema changes: AiInsight model, aiAnalysis Json? on Trade and WaiverClaim (via db push)
-- All 730 tests passing (493 server + 187 client + 50 MCP)
+### Completed — AI Features (8)
+- **Draft Report** (`/draft-report`) — dedicated page with surplus analysis, per-team grades, keeper assessment, category strengths/weaknesses, favorite MLB team, NL-only context, methodology blurb
+- **Live Bid Advice** — team-aware marginal value (knows roster, projected values, remaining pool, category needs)
+- **Weekly Team Insights** — auto-generates on Team page load, persists weekly to AiInsight table, expand/collapse, dates, pre-season/in-season modes
+- **Home Page League Digest** — 2-sentence overview, hot/cold teams, team grades (expandable), Trade of the Week (rotating conservative/outrageous/fun) with vote poll
+- **Post-Trade Analyzer** — fire-and-forget on trade processing, persists on Trade record, fairness badge inline
+- **Post-Waiver Analyzer** — fire-and-forget on waiver processing, persists on WaiverClaim, Zod-validated via proper service method
+- **Keeper Recommendations** — enhanced with projected values from CSV, NL-only scarcity, injury awareness
+- **Trade of the Week Poll** — yes/no voting, persisted per user per week, vote feedback informs next week's proposal
+
+### Completed — Code Review Fixes (14 findings)
+- **P1-1**: Moved waiver analysis into proper AIAnalysisService method with Zod validation (was bypassing via `as any`)
+- **P1-2**: Added 60-second timeout to Gemini LLM calls (Anthropic already had 30s)
+- **P2-3**: Centralized CSV loading into `server/src/lib/auctionValues.ts` singleton (replaced 6 duplicate readFileSync sites)
+- **P2-4**: Added max size to in-memory caches (bidAdviceCache: 200, insightsCache: 100 with expired sweep)
+- **P2-5**: Added Zod schema to vote endpoint via validateBody middleware
+- **P2-6**: Deduplicated allTeamStats query in weekly insights (was querying twice)
+- **P2-7**: Extracted getWeekKey() to shared utils (was duplicated in 2 files)
+- **P3-10**: Used sportConfig.isPitcher everywhere (removed 3 duplicate definitions, added "CL" to canonical)
+- **P3-11**: Extracted shared gradeColor() utility to client sportConfig
+- **P3-12**: Deduplicated vote handlers in Home.tsx
+- **P3-13**: Added take:8 to league digest roster query
+
+### Completed — Infrastructure
+- Schema: AiInsight model, aiAnalysis Json? on Trade and WaiverClaim
+- Draft Report added to sidebar nav (League section)
+- AI attribution ("Powered by Google Gemini & Anthropic Claude") on all AI content
+- "FAAB" replaced with "Waiver Budget" in all user-facing content
+- Injury history discounts (15-30%) and uncertainty (~5%) in projections
+- League Digest: keepers protected from trades, positions must match, vote feedback loop
+- CLAUDE.md updated with comprehensive AI Analysis System documentation
+- Production deployed and verified on Render (Cloudflare proxy working)
 
 ### Pending / Next Steps
-- Verify production deployment on Render (all code pushed to main, API returning SPA HTML — may be deploy in-progress)
-- Production teams not loading issue — API routes return SPA catch-all HTML, needs investigation on Render config
-- Keeper Recommendations AI feature (existing, could be enhanced)
-- Season Trends AI feature (existing, partially absorbed into League Digest)
-- Purge Cloudflare cache after Render deploy completes
-
-### Concerns / Tech Debt
-- Production API returning HTML for /api/* routes — likely Render deploy issue, not code issue
-- AiInsight table uses teamId for league-wide digests (uses first team's id as anchor) — could be cleaner with nullable teamId
-- Auction values CSV (ogba_auction_values_2026.csv) is read directly from filesystem in multiple endpoints — could be centralized
+- Add tests for new endpoints (draft-report, league-digest, vote, post-trade, post-waiver)
+- Stats sync begins Period 1 (March 25) — weekly insights will auto-switch to in-season mode
+- Monitor Trade of the Week vote patterns to tune realism
 
 ### Test Results
 - Server: 493 passing, 0 failing

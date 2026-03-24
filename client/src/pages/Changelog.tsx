@@ -30,6 +30,35 @@ interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: "0.39.0",
+    date: "Mar 24, 2026",
+    session: "Session 39",
+    title: "AI Insights Overhaul — 8 AI Features, Code Review, League Digest",
+    highlights: [
+      "Draft Report page (/draft-report) with surplus analysis, grades, keeper assessment, category projections",
+      "Home Page Weekly Digest with team grades, hot/cold teams, Trade of the Week with vote poll",
+      "Auto-generating Weekly Insights on Team page — persisted weekly, expand/collapse, mobile responsive",
+      "Post-Trade and Post-Waiver AI analyzers — auto-generate on processing, persist inline",
+    ],
+    changes: [
+      { type: "feat", description: "Dedicated /draft-report page with per-team AI grades, surplus analysis, projected values from CSV, NL-only context" },
+      { type: "feat", description: "Home Page Weekly League Digest — overview, team grades, Trade of the Week (rotating conservative/outrageous/fun)" },
+      { type: "feat", description: "Trade of the Week poll — yes/no voting with vote feedback loop for future proposals" },
+      { type: "feat", description: "Auto-generating Weekly Team Insights on Team page load — persisted to AiInsight table, weekly dedup" },
+      { type: "feat", description: "Post-Trade Analyzer — fire-and-forget AI analysis on trade processing, fairness badge inline" },
+      { type: "feat", description: "Post-Waiver Analyzer — fire-and-forget AI analysis on waiver claim processing, bid grade + category impact" },
+      { type: "feat", description: "Live Bid Advice upgraded — team-aware marginal value, knows roster, category needs, remaining player pool" },
+      { type: "feat", description: "Keeper Recommendations enhanced with projected values, NL-only scarcity, injury awareness" },
+      { type: "feat", description: "Draft Report added to sidebar nav (League section)" },
+      { type: "security", description: "Waiver analysis moved into proper AIAnalysisService method with Zod validation (was bypassing via 'as any')" },
+      { type: "perf", description: "Centralized CSV loading into cached singleton (server/src/lib/auctionValues.ts) — replaced 6 duplicate readFileSync sites" },
+      { type: "perf", description: "Added 60-second timeout to Gemini LLM calls, max size on 5 in-memory caches" },
+      { type: "refactor", description: "4-agent code review resolved all 14 findings (2 P1, 7 P2, 5 P3)" },
+      { type: "refactor", description: "Extracted shared utilities: getWeekKey, gradeColor, isPitcher (CL added), auctionValues singleton" },
+      { type: "docs", description: "AI Analysis System section added to CLAUDE.md — 8 features, data sources, prompt guidelines" },
+    ],
+  },
+  {
     version: "0.38.0",
     date: "Mar 23, 2026",
     session: "Session 38",
