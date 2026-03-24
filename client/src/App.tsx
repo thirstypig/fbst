@@ -39,6 +39,7 @@ const About = React.lazy(() => import("./pages/About"));
 const AIHub = React.lazy(() => import("./features/ai/pages/AIHub"));
 const DraftReportPage = React.lazy(() => import("./features/ai/pages/DraftReportPage"));
 const Landing = React.lazy(() => import("./features/auth/pages/Landing"));
+const CreateLeague = React.lazy(() => import("./features/leagues/pages/CreateLeague"));
 
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useAuth } from "./auth/AuthProvider";
@@ -98,6 +99,7 @@ export default function App() {
                     <Route path="/archive" element={<ArchivePage />} />
                     <Route path="/period" element={<Navigate to="/season" replace />} />
                     <Route path="/leagues" element={<Navigate to="/" replace />} />
+                    <Route path="/create-league" element={<CreateLeague />} />
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/payouts" element={<Payouts />} />
                     <Route path="/rules" element={<Rules />} />

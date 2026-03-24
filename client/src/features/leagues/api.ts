@@ -84,3 +84,28 @@ export async function regenerateInviteCode(leagueId: number): Promise<{ inviteCo
         method: "POST",
     });
 }
+
+// ─── Self-Service League Creation ───
+
+export interface CreateLeagueInput {
+  name: string;
+  season: number;
+  leagueType?: "NL" | "AL" | "MIXED";
+  draftMode?: "AUCTION" | "DRAFT";
+  isPublic?: boolean;
+  copyFromLeagueId?: number;
+}
+
+export interface CreateLeagueResponse {
+  league: { id: number; name: string; season: number; franchiseId: number };
+  inviteCode: string;
+}
+
+export async function createLeague(input: CreateLeagueInput): Promise<CreateLeagueResponse> {
+  const result = await fetchJsonApi<CreateLeagueResponse>(`${API_BASE}/leagues`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  track("league_created", { leagueId: result.league.id, name: result.league.name });
+  return result;
+}
