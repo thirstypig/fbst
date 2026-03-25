@@ -204,6 +204,7 @@ const refreshTeams = async (state: AuctionState) => {
       name: t.name,
       code: t.code || 'UNK',
       budget: remaining,
+      dbBudget: teamBudget,  // raw DB budget (includes pre-draft trade adjustments)
       rosterCount: count,
       spotsLeft: spots,
       pitcherCount: pitchers,

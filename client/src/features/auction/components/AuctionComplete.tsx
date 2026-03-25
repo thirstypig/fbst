@@ -107,8 +107,10 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
     const totalLots = wins.length;
     const totalSpent = wins.reduce((sum, e) => sum + (e.amount || 0), 0);
 
-    // Compute keeper spend per team (pre-auction costs that reduce the auction budget)
-    const budgetCap = auctionState.config?.budgetCap || 400;
+    // Compute auction budget per team:
+    // dbBudget = raw team budget from DB (includes pre-draft trade adjustments like +$75)
+    // keeperCost = sum of keeper (prior_season) roster prices
+    // auctionBudget = dbBudget - keeperCost
     const keeperSpendByTeam = new Map<number, number>();
     for (const team of auctionState.teams || []) {
       const keeperCost = (team.roster || [])
@@ -120,11 +122,13 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
     // Build team results from auction state teams + log
     const teamMap = new Map<number, TeamResult>();
     for (const team of auctionState.teams || []) {
+      const teamDbBudget = (team as any).dbBudget || auctionState.config?.budgetCap || 400;
+      const auctionBudget = teamDbBudget - (keeperSpendByTeam.get(team.id) || 0);
       teamMap.set(team.id, {
         id: team.id,
         name: team.name,
         code: team.code,
-        budget: budgetCap - (keeperSpendByTeam.get(team.id) || 0), // auction budget = cap minus keepers
+        budget: auctionBudget,
         totalSpent: 0,
         roster: [],
       });
