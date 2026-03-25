@@ -11,8 +11,8 @@ import {
 
 const scoringFormats = [
   { name: "Rotisserie", desc: "Season-long cumulative stats across 10 categories. The classic format.", available: true, icon: BarChart3 },
-  { name: "H2H Categories", desc: "Weekly matchups — win more stat categories than your opponent each week.", available: false, icon: ArrowLeftRight },
-  { name: "H2H Points", desc: "Weekly matchups — highest total points wins. Simple and exciting.", available: false, icon: Trophy },
+  { name: "H2H Categories", desc: "Weekly matchups — win more stat categories than your opponent each week.", available: true, icon: ArrowLeftRight },
+  { name: "H2H Points", desc: "Weekly matchups — highest total points wins. Simple and exciting.", available: true, icon: Trophy },
 ];
 
 const features = [

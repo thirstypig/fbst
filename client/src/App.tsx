@@ -129,6 +129,10 @@ export default function App() {
                   <Route path="/guide/auction" element={<GuideAuction />} />
                   <Route path="/guide/faq" element={<GuideFaq />} />
                   <Route path="/about" element={<About />} />
+                  <Route path="/changelog" element={<Changelog />} />
+                  <Route path="/roadmap" element={<Roadmap />} />
+                  <Route path="/status" element={<Status />} />
+                  <Route path="/create-league" element={<Navigate to="/signup" replace />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </Suspense>

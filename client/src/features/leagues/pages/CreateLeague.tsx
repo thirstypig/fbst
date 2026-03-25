@@ -156,8 +156,8 @@ export default function CreateLeague() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {([
               { id: "ROTO", name: "Rotisserie", desc: "Season-long stats across 10 categories. Classic format.", available: true },
-              { id: "H2H_CATEGORIES", name: "H2H Categories", desc: "Weekly matchups — win more categories than your opponent.", available: false },
-              { id: "H2H_POINTS", name: "H2H Points", desc: "Weekly matchups — highest total points wins each week.", available: false },
+              { id: "H2H_CATEGORIES", name: "H2H Categories", desc: "Weekly matchups — win more categories than your opponent.", available: true },
+              { id: "H2H_POINTS", name: "H2H Points", desc: "Weekly matchups — highest total points wins each week.", available: true },
             ] as const).map(fmt => (
               <button
                 key={fmt.id}
@@ -188,7 +188,7 @@ export default function CreateLeague() {
           <div className="grid grid-cols-2 gap-3">
             {([
               { id: "AUCTION" as const, name: "Auction Draft", desc: "Budget-based bidding on all players. Most strategic.", available: true },
-              { id: "DRAFT" as const, name: "Snake Draft", desc: "Turn-based picks. Order reverses each round.", available: false },
+              { id: "DRAFT" as const, name: "Snake Draft", desc: "Turn-based picks. Order reverses each round.", available: true },
             ]).map(dt => (
               <button
                 key={dt.id}
