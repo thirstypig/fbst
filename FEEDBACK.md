@@ -4,6 +4,52 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
+## Session 47 (2026-03-25) — Feedback Items 1-11 + Auction Data Integrity (11 commits)
+
+### Summary
+Worked through all 11 FEEDBACK.md pending items plus critical auction data integrity fixes. Discovered and fixed dual-league issue (league 1 vs 20), roster duplication bug, two-way player stats, and position eligibility.
+
+### Completed
+- **Feedback Item 1**: Auction spent breakdown — Keepers/Auction/Total/Left as separate columns per team
+- **Feedback Item 2**: Draft Report overhaul — H/P split tabs, stats columns (R/HR/RBI/SB/AVG, W/SV/K/ERA/WHIP), sortable headers, OF mapping
+- **Feedback Item 3**: Season page — sortable column headers on standings matrix
+- **Feedback Item 4**: Teams page — removed Manage Roster button/modal, added position-based secondary sort
+- **Feedback Item 5**: Commissioner Roster tab verified working
+- **Feedback Item 6**: OF rule verified everywhere
+- **Feedback Item 7**: Waiver priority — inverse-standings tiebreaker on equal FAAB bids
+- **Feedback Item 10**: Auction Values page — IN_SEASON banner noting pre-draft reference only
+- **Ohtani two-way**: Pitcher Ohtani on Skunk Dogs shows pitching stats, Hitter Ohtani on DLC shows hitting stats
+- **Konnor Griffin sort**: All players sort together (keepers no longer pinned)
+- **Roster duplication bug**: Rewrote roster build to use auction state directly (eliminated fragile WIN-log reconciliation)
+- **Expandable player rows**: Click any player in Draft Results or Draft Report to see career stats, positions, Full Profile
+- **Position dropdowns**: Multi-position eligibility in draft results (SS→SS/MI, 1B→1B/CM, etc.)
+- **Position eligibility sync**: `syncPositionEligibility` added to daily cron (20-game threshold from MLB fielding stats)
+- **Position change refresh**: Dropdown changes now save to DB and refresh UI immediately
+- **DH eligibility fix**: Removed blanket DH for all hitters — only players with actual DH games qualify
+- **League data fix**: Identified league 1 (OGBA 2025) vs league 20 (OGBA 2026) confusion; marked league 20 auction as completed
+- **Trade reversal**: Riley/Fairbanks TRADE_IN entries deleted, players restored to original teams
+- **posList in auction state**: Server now sends Player.posList (not just posPrimary) so dropdowns show all eligible positions
+
+### Pending / Next Session
+1. **Verify position dropdowns in browser** — O'Hearn should show 1B/CM/DH/OF after posList fix
+2. **Test position change persistence** — select a new position, verify it sticks after page reload
+3. **Draft Report page** — verify expandable rows, stats, and Ohtani display
+4. **Prevent phantom trades** — investigate audit log for who triggered Riley/Fairbanks trade; consider adding trade guard
+5. **Feedback Items 8, 9, 11** — browser test add/drop flow, verify scoring/standings, pre-draft trade history entry
+6. **Position eligibility for 2026 season** — re-run sync with 2026 data once season starts (currently synced 2025)
+
+### Concerns / Process Improvements
+- **Dual-league confusion** was root cause of many bugs this session — league 1 (2025) vs league 20 (2026). The league selector worked correctly but the auction state cache and in-memory server state created stale data issues.
+- **Vite dev server keeps dying** when API server is restarted — need to investigate why. Requires manual restart each time.
+- **Position eligibility** was already coded (`syncPositionEligibility`) but never wired into the daily cron — always verify new functions are actually called, not just defined.
+
+### Test Results
+- Server: 493 passing
+- Client: 187 passing
+- Total: 680 passing, TypeScript clean on both sides
+
+---
+
 ## Sessions 40–46+ (2026-03-24/25) — Phase 1 + Phase 2 + Auction Overhaul (30+ commits)
 
 ### Summary
