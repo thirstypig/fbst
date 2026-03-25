@@ -60,23 +60,41 @@ export default function AuctionComplete({ auctionState, myTeamId, onRefresh }: A
   const [showReplay, setShowReplay] = useState(false);
   const { leagueId, outfieldMode } = useLeague();
 
-  // Position swap handler — PATCH roster entry's assignedPosition, then refresh state
+  // Optimistic position overrides — keyed by rosterId, value is the new position.
+  // This allows the UI to immediately reflect user selections while the server round-trips.
+  const [positionOverrides, setPositionOverrides] = useState<Record<number, string>>({});
+
+  // Position swap handler — optimistically update UI, PATCH roster, then refresh state
   const handlePositionSwap = useCallback(async (teamId: number, rosterId: number, newPos: string) => {
+    // Optimistic update — immediately reflect in UI
+    setPositionOverrides(prev => ({ ...prev, [rosterId]: newPos }));
     try {
       await fetchJsonApi(`${API_BASE}/teams/${teamId}/roster/${rosterId}`, {
         method: 'PATCH',
         body: JSON.stringify({ assignedPosition: newPos }),
       });
-      // Refresh auction state so UI shows updated position
+      // Refresh auction state so server state is in sync
       if (leagueId) {
         await fetchJsonApi(`${API_BASE}/auction/refresh-teams`, {
           method: 'POST',
           body: JSON.stringify({ leagueId }),
         });
       }
-      // Re-fetch state to update UI
-      onRefresh?.();
+      // Re-fetch state — once complete, server data matches our optimistic update
+      await onRefresh?.();
+      // Clear override now that server state is authoritative
+      setPositionOverrides(prev => {
+        const next = { ...prev };
+        delete next[rosterId];
+        return next;
+      });
     } catch (err) {
+      // Revert optimistic update on failure
+      setPositionOverrides(prev => {
+        const next = { ...prev };
+        delete next[rosterId];
+        return next;
+      });
       console.error("Failed to update position", err);
     }
   }, [leagueId, onRefresh]);
@@ -477,8 +495,8 @@ export default function AuctionComplete({ auctionState, myTeamId, onRefresh }: A
                       let cmp = 0;
                       if (rosterSort === 'name') cmp = (a.playerName || '').localeCompare(b.playerName || '');
                       else if (rosterSort === 'position') {
-                        const pA = mapPosition((a.positions || '').split(',')[0]?.trim() || '', outfieldMode);
-                        const pB = mapPosition((b.positions || '').split(',')[0]?.trim() || '', outfieldMode);
+                        const pA = (a.rosterId && positionOverrides[a.rosterId]) || mapPosition((a.positions || '').split(',')[0]?.trim() || '', outfieldMode);
+                        const pB = (b.rosterId && positionOverrides[b.rosterId]) || mapPosition((b.positions || '').split(',')[0]?.trim() || '', outfieldMode);
                         cmp = (POS_ORDER.indexOf(pA) === -1 ? 99 : POS_ORDER.indexOf(pA)) - (POS_ORDER.indexOf(pB) === -1 ? 99 : POS_ORDER.indexOf(pB));
                       }
                       else if (rosterSort === 'mlb') cmp = (a.mlbTeam || '').localeCompare(b.mlbTeam || '');
@@ -545,7 +563,7 @@ export default function AuctionComplete({ auctionState, myTeamId, onRefresh }: A
                                 {player.rosterId && posSlots.length > 1 ? (
                                   <select
                                     className="appearance-none bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20 cursor-pointer hover:bg-emerald-500/20 transition-all outline-none text-[10px] font-mono"
-                                    value={mapPosition(player.positions?.split(",")[0]?.trim() || "", outfieldMode)}
+                                    value={positionOverrides[player.rosterId!] ?? mapPosition(player.positions?.split(",")[0]?.trim() || "", outfieldMode)}
                                     onChange={(e) => handlePositionSwap(team.id, player.rosterId!, e.target.value)}
                                     onClick={(e) => e.stopPropagation()}
                                   >

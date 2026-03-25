@@ -12,6 +12,15 @@ export default function AuctionResults() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Refetch auction state — called by AuctionComplete after position changes
+  const refetchState = React.useCallback(async () => {
+    if (!leagueId) return;
+    try {
+      const state = await fetchJsonApi<ClientAuctionState>(`${API_BASE}/auction/state?leagueId=${leagueId}`);
+      setAuctionState(state);
+    } catch { /* non-critical — optimistic UI already shows the change */ }
+  }, [leagueId]);
+
   useEffect(() => {
     if (!leagueId) return;
     let mounted = true;
@@ -80,5 +89,5 @@ export default function AuctionResults() {
     );
   }
 
-  return <AuctionComplete auctionState={auctionState} myTeamId={myTeamId} />;
+  return <AuctionComplete auctionState={auctionState} myTeamId={myTeamId} onRefresh={refetchState} />;
 }
