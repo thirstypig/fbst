@@ -4,6 +4,37 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
+## Session 48 (2026-03-25) — Verify All Open Items + Trade Guard + Data Fixes
+
+### Summary
+Worked through all 6 open items from Session 47. Browser-verified position dropdowns, position persistence, Draft Report, and add/drop flow. Added trade processing race condition guard. Fixed Period 1 date bug and created pre-draft trade history record.
+
+### Completed
+- **Item 1**: Position dropdowns verified — O'Hearn shows 1B/CM/OF/DH, all multi-position players correct
+- **Item 2**: Position change persistence — changed O'Hearn to CM, reloaded, confirmed DB persistence, reverted
+- **Item 3**: Draft Report verified — 8 team reports with grades, expandable H/P rosters, sortable columns, K badges, surplus
+- **Item 4**: Trade guard — added `SELECT FOR UPDATE` row lock in processing transaction to prevent double-processing race condition
+- **Item 5a**: Add/Drop flow verified — search, filters, stats, ADD buttons all functional
+- **Item 5b**: Scoring/standings verified — fixed Period 1 endDate bug (was March 22, before startDate March 25), updated to April 6. All teams show 45 roto points (correct for tied standings with no games played)
+- **Item 5c**: Pre-draft trade history — created Trade #17: DLC sent Mullins → Devil Dawgs, Devil Dawgs sent $75 → DLC (dated March 20)
+- **Item 6**: Position eligibility 2026 — daily cron properly wired, no 2026 fielding data yet (season started today), will auto-update
+
+### Pending / Next Session
+- **Stats will populate** once MLB games are played and daily cron runs (13:00 UTC syncs stats)
+- **Position eligibility** will auto-update as 2026 fielding data accumulates (20-game threshold)
+- **Verify standings differentiate** after first period's stats sync
+
+### Concerns / Process Improvements
+- Supabase session expires frequently during Playwright testing — causes redirects to landing page
+- Period 1 was created with endDate before startDate — need validation on period creation to prevent this
+
+### Test Results
+- Server: 493 passing
+- Client: 187 passing
+- Total: 680 passing, TypeScript clean on both sides
+
+---
+
 ## Session 47 (2026-03-25) — Feedback Items 1-11 + Auction Data Integrity (11 commits)
 
 ### Summary

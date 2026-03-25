@@ -339,7 +339,7 @@ router.post("/:id/cancel", requireAuth, asyncHandler(async (req, res) => {
 router.post("/:id/process", requireAuth, asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
 
-  // 1. Verify status is ACCEPTED
+  // 1. Pre-check: verify trade exists and is accepted (fast fail before transaction)
   const trade = await prisma.trade.findUnique({
     where: { id },
     include: { items: true },
@@ -357,8 +357,16 @@ router.post("/:id/process", requireAuth, asyncHandler(async (req, res) => {
     }
   }
 
-  // 2. Transact
+  // 3. Transact with SELECT FOR UPDATE to prevent double-processing race condition
   await prisma.$transaction(async (tx) => {
+    // Re-check status under row lock to prevent concurrent processing
+    const locked = await tx.$queryRaw<{ status: string }[]>`
+      SELECT status FROM "Trade" WHERE id = ${id} FOR UPDATE
+    `;
+    if (!locked[0] || locked[0].status !== "ACCEPTED") {
+      throw new Error("Trade already processed or no longer accepted");
+    }
+
     for (const item of trade.items) {
       if (item.assetType === "PLAYER" && item.playerId) {
         const rosterEntry = await tx.roster.findFirst({
