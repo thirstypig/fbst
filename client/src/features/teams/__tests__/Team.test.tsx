@@ -34,6 +34,7 @@ vi.mock("../../../lib/playerDisplay", () => ({
 // Mock sportConfig
 vi.mock("../../../lib/sportConfig", () => ({
   mapPosition: (pos: string) => pos,
+  positionToSlots: (pos: string) => [pos],
 }));
 
 // Mock PlayerDetailModal

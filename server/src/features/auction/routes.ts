@@ -1560,7 +1560,7 @@ router.get("/draft-report", requireAuth, requireLeagueMember("leagueId"), asyncH
     include: {
       rosters: {
         where: { releasedAt: null },
-        include: { player: { select: { name: true, posPrimary: true, mlbTeam: true } } },
+        include: { player: { select: { name: true, posPrimary: true, posList: true, mlbTeam: true } } },
       },
     },
   });
@@ -1611,8 +1611,10 @@ router.get("/draft-report", requireAuth, requireLeagueMember("leagueId"), asyncH
       auctionSpend,
       favMlbTeam,
       roster: team.rosters.map(r => ({
+        rosterId: r.id,
         playerName: r.player.name,
-        position: r.player.posPrimary,
+        position: r.assignedPosition || r.player.posPrimary,
+        posList: r.player.posList ?? r.player.posPrimary ?? "",
         mlbTeam: r.player.mlbTeam || "",
         price: r.price,
         isKeeper: r.source === "prior_season",

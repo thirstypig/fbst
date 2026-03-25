@@ -77,7 +77,7 @@ export interface DraftReportTeamResult {
   bestBargain: { playerName: string; position: string; price: number; projectedValue: number; surplus: number } | null;
   worstOverpay: { playerName: string; position: string; price: number; projectedValue: number; surplus: number } | null;
   keepers: { playerName: string; position: string; price: number; projectedValue: number | null; surplus: number | null }[];
-  roster: { playerName: string; position: string; mlbTeam?: string; price: number; isKeeper: boolean; projectedValue: number | null; surplus: number | null }[];
+  roster: { rosterId?: number; playerName: string; position: string; posList?: string; mlbTeam?: string; price: number; isKeeper: boolean; projectedValue: number | null; surplus: number | null }[];
 }
 
 export interface DraftReportResult {
@@ -478,7 +478,7 @@ Keep it conversational. Highlight specific players and prices.`;
     teams: {
       id: number;
       name: string;
-      roster: { playerName: string; position: string; mlbTeam?: string; price: number; isKeeper: boolean; projectedValue: number | null }[];
+      roster: { rosterId?: number; playerName: string; position: string; posList?: string; mlbTeam?: string; price: number; isKeeper: boolean; projectedValue: number | null }[];
       keeperSpend: number;
       auctionSpend: number;
       budget: number;
@@ -564,7 +564,8 @@ Keep it conversational. Highlight specific players and prices.`;
             surplus: k.projectedValue !== null ? Math.round(k.projectedValue - k.price) : null,
           })),
           roster: team.roster.map(r => ({
-            playerName: r.playerName, position: r.position, mlbTeam: r.mlbTeam ?? "", price: r.price, isKeeper: r.isKeeper,
+            rosterId: r.rosterId, playerName: r.playerName, position: r.position, posList: r.posList,
+            mlbTeam: r.mlbTeam ?? "", price: r.price, isKeeper: r.isKeeper,
             projectedValue: r.projectedValue,
             surplus: r.projectedValue !== null ? Math.round(r.projectedValue - r.price) : null,
           })),

@@ -10,7 +10,8 @@ import { getTradeBlock } from "../api";
 
 import { getOgbaTeamName } from "../../../lib/ogbaTeams";
 import { isPitcher, normalizePosition, formatAvg, getMlbTeamAbbr, sortByPosition } from "../../../lib/playerDisplay";
-import { mapPosition } from "../../../lib/sportConfig";
+import { mapPosition, positionToSlots } from "../../../lib/sportConfig";
+import { fetchJsonApi, API_BASE } from "../../../api/base";
 import { TableCard, Table, THead, Tr, Th, Td } from "../../../components/ui/TableCard";
 import { Button } from "../../../components/ui/button";
 import { Sparkles, Loader2, ArrowLeftRight, ChevronDown, ChevronUp } from "lucide-react";
@@ -79,6 +80,22 @@ export default function Team() {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<PlayerSeasonStat | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // Position editing state
+  const MATRIX_POSITIONS = ["C", "1B", "2B", "3B", "SS", "MI", "CM", "OF", "DH", "P"];
+  const [positionOverrides, setPositionOverrides] = useState<Record<number, string>>({});
+  const handlePositionSwap = React.useCallback(async (teamId: number, rosterId: number, newPos: string) => {
+    setPositionOverrides(prev => ({ ...prev, [rosterId]: newPos }));
+    try {
+      await fetchJsonApi(`${API_BASE}/teams/${teamId}/roster/${rosterId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ assignedPosition: newPos }),
+      });
+      setPositionOverrides(prev => { const n = { ...prev }; delete n[rosterId]; return n; });
+    } catch {
+      setPositionOverrides(prev => { const n = { ...prev }; delete n[rosterId]; return n; });
+    }
+  }, []);
 
   // AI Insights state
   const [aiInsights, setAiInsights] = useState<TeamInsightsResult | null>(null);
@@ -152,6 +169,8 @@ export default function Team() {
               return {
                 ...csvMatch,
                 _dbPlayerId: dbPlayerId,
+                _rosterId: r.id,
+                _posList: posList || posPrimary || "",
                 ogba_team_code: code,
                 ogba_team_name: team?.name ?? "",
                 mlb_team_abbr: mlbTeam || csvMatch.mlb_team_abbr || csvMatch.mlb_team || "",
@@ -168,6 +187,8 @@ export default function Team() {
             const effectiveIsPitcher = pitcherPos.includes(assignedPos) || pitcherPos.includes(posPrimary);
             return {
               _dbPlayerId: dbPlayerId,
+              _rosterId: r.id,
+              _posList: posList || posPrimary || "",
               mlb_id: String(mlbId || ""),
               player_name: playerName,
               ogba_team_code: code,
@@ -497,7 +518,29 @@ export default function Team() {
                               </span>
                             </Td>
                             <Td align="center">
-                              {elig || "—"}
+                              {(() => {
+                                const rosterId = (p as any)?._rosterId as number | undefined;
+                                const rawPosList = (p as any)?._posList || elig || "";
+                                const posSlots = (() => {
+                                  const slots = new Set<string>();
+                                  for (const pos of rawPosList.split(/[,/| ]+/).map((s: string) => s.trim()).filter(Boolean)) {
+                                    for (const s of positionToSlots(pos)) slots.add(s);
+                                  }
+                                  return MATRIX_POSITIONS.filter(s => slots.has(s));
+                                })();
+                                return rosterId && posSlots.length > 1 && dbTeamId ? (
+                                  <select
+                                    className="appearance-none bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20 cursor-pointer hover:bg-emerald-500/20 transition-all outline-none text-[10px] font-mono"
+                                    value={positionOverrides[rosterId] ?? mapPosition(elig.split("/")[0] || "", outfieldMode)}
+                                    onChange={(e) => { e.stopPropagation(); handlePositionSwap(dbTeamId, rosterId, e.target.value); }}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {posSlots.map(pos => <option key={pos} value={pos} className="text-black">{pos}</option>)}
+                                  </select>
+                                ) : (
+                                  <>{elig || "—"}</>
+                                );
+                              })()}
                             </Td>
                             <Td align="center">
                               {asNum(p?.R)}
@@ -599,7 +642,29 @@ export default function Team() {
                               </span>
                             </Td>
                             <Td align="center">
-                              {elig}
+                              {(() => {
+                                const rosterId = (p as any)?._rosterId as number | undefined;
+                                const rawPosList = (p as any)?._posList || elig || "P";
+                                const posSlots = (() => {
+                                  const slots = new Set<string>();
+                                  for (const pos of rawPosList.split(/[,/| ]+/).map((s: string) => s.trim()).filter(Boolean)) {
+                                    for (const s of positionToSlots(pos)) slots.add(s);
+                                  }
+                                  return MATRIX_POSITIONS.filter(s => slots.has(s));
+                                })();
+                                return rosterId && posSlots.length > 1 && dbTeamId ? (
+                                  <select
+                                    className="appearance-none bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20 cursor-pointer hover:bg-emerald-500/20 transition-all outline-none text-[10px] font-mono"
+                                    value={positionOverrides[rosterId] ?? mapPosition(elig.split("/")[0] || "P", outfieldMode)}
+                                    onChange={(e) => { e.stopPropagation(); handlePositionSwap(dbTeamId, rosterId, e.target.value); }}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {posSlots.map(pos => <option key={pos} value={pos} className="text-black">{pos}</option>)}
+                                  </select>
+                                ) : (
+                                  <>{elig}</>
+                                );
+                              })()}
                             </Td>
 
                             <Td align="center">

@@ -6,7 +6,7 @@ import { useLeague } from "../../../contexts/LeagueContext";
 import PageHeader from "../../../components/ui/PageHeader";
 import { ThemedTable, ThemedThead, ThemedTbody, ThemedTr, ThemedTd } from "../../../components/ui/ThemedTable";
 import { SortableHeader } from "../../../components/ui/SortableHeader";
-import { isPitcher as isPitcherPos, mapPosition } from "../../../lib/sportConfig";
+import { isPitcher as isPitcherPos, mapPosition, positionToSlots } from "../../../lib/sportConfig";
 import PlayerExpandedRow from "../../auction/components/PlayerExpandedRow";
 import PlayerDetailModal from "../../../components/shared/PlayerDetailModal";
 
@@ -29,8 +29,10 @@ interface KeeperEntry {
 }
 
 interface RosterEntry {
+  rosterId?: number;
   playerName: string;
   position: string;
+  posList?: string;
   mlbTeam?: string;
   price: number;
   isKeeper: boolean;
@@ -104,6 +106,23 @@ function TeamCard({ team, leagueAvgH, leagueAvgP, outfieldMode, onSelectPlayer }
   const [viewGroup, setViewGroup] = useState<"hitters" | "pitchers">("hitters");
   const [sortKey, setSortKey] = useState<RosterSortKey>("price");
   const [sortDesc, setSortDesc] = useState(true);
+
+  const MATRIX_POSITIONS = ["C", "1B", "2B", "3B", "SS", "MI", "CM", "OF", "DH", "P"];
+
+  // Optimistic position overrides for dropdowns
+  const [positionOverrides, setPositionOverrides] = useState<Record<number, string>>({});
+  const handlePositionSwap = useCallback(async (teamId: number, rosterId: number, newPos: string) => {
+    setPositionOverrides(prev => ({ ...prev, [rosterId]: newPos }));
+    try {
+      await fetchJsonApi(`${API_BASE}/teams/${teamId}/roster/${rosterId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ assignedPosition: newPos }),
+      });
+      setPositionOverrides(prev => { const n = { ...prev }; delete n[rosterId]; return n; });
+    } catch {
+      setPositionOverrides(prev => { const n = { ...prev }; delete n[rosterId]; return n; });
+    }
+  }, []);
 
   const handleSort = (key: RosterSortKey) => {
     if (key === sortKey) { setSortDesc(!sortDesc); }
@@ -328,7 +347,30 @@ function TeamCard({ team, leagueAvgH, leagueAvgP, outfieldMode, onSelectPlayer }
                       <span className="font-medium text-[var(--lg-text-primary)]">{r.playerName}</span>
                       {r.isKeeper && <span className="ml-1.5 px-1 py-0.5 rounded text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">K</span>}
                     </ThemedTd>
-                    <ThemedTd align="center" className="text-[var(--lg-accent)] text-xs font-medium px-1">{pos}</ThemedTd>
+                    <ThemedTd align="center" className="px-1">
+                      {(() => {
+                        const rawPosList = r.posList || r.position || "";
+                        const posSlots = (() => {
+                          const slots = new Set<string>();
+                          for (const p of rawPosList.split(/[,/| ]+/).map(s => s.trim()).filter(Boolean)) {
+                            for (const s of positionToSlots(p)) slots.add(s);
+                          }
+                          return MATRIX_POSITIONS.filter(s => slots.has(s));
+                        })();
+                        return r.rosterId && posSlots.length > 1 ? (
+                          <select
+                            className="appearance-none bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20 cursor-pointer hover:bg-emerald-500/20 transition-all outline-none text-[10px] font-mono"
+                            value={positionOverrides[r.rosterId] ?? pos}
+                            onChange={(e) => { e.stopPropagation(); handlePositionSwap(team.teamId, r.rosterId!, e.target.value); }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {posSlots.map(p => <option key={p} value={p} className="text-black">{p}</option>)}
+                          </select>
+                        ) : (
+                          <span className="text-[var(--lg-accent)] text-xs font-medium">{pos}</span>
+                        );
+                      })()}
+                    </ThemedTd>
                     {viewGroup === "hitters" ? (
                       <>
                         <ThemedTd align="center" className="text-xs text-[var(--lg-text-secondary)] px-1">{s?.R ?? "—"}</ThemedTd>
