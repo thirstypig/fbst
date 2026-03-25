@@ -148,21 +148,43 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
       });
     }
 
-    // Reconcile: add only explicit auction-source entries missing from the WIN log
-    // This catches force-assigns (source contains "auction" e.g. "auction_2026")
-    // that didn't create a WIN event (like Konnor Griffin $150)
+    // Enrich log-based roster entries with position/mlbTeam from team roster DB data
+    // Build lookup by BOTH playerId and playerName (log doesn't have playerId)
+    const rosterByName = new Map<string, any>(); // teamId:playerName → roster entry
+    for (const team of auctionState.teams || []) {
+      for (const r of team.roster || []) {
+        const name = ((r as any).playerName || '').toLowerCase();
+        if (name) rosterByName.set(`${team.id}:${name}`, { ...r, teamId: team.id });
+      }
+    }
+
+    // Enrich existing entries with position/mlbTeam
+    for (const [, result] of teamMap) {
+      for (const entry of result.roster) {
+        const key = `${result.id}:${(entry.playerName || '').toLowerCase()}`;
+        const dbEntry = rosterByName.get(key);
+        if (!dbEntry) continue;
+        if (!entry.positions) entry.positions = dbEntry.posPrimary || dbEntry.assignedPosition || '';
+        if (!entry.mlbTeam) entry.mlbTeam = dbEntry.mlbTeam || '';
+        if (!entry.playerName || entry.playerName.startsWith('Player #')) {
+          entry.playerName = dbEntry.playerName || entry.playerName;
+        }
+      }
+    }
+
+    // Add force-assigned players missing from the log (e.g. Konnor Griffin)
+    // WIN log entries don't have playerId — match by playerName instead
     for (const team of auctionState.teams || []) {
       const result = teamMap.get(team.id);
       if (!result || !team.roster) continue;
-      const existingPlayerIds = new Set(result.roster.map(r => String(r.playerId)));
+      const loggedNames = new Set(result.roster.map(r => (r.playerName || '').toLowerCase()));
       for (const r of team.roster) {
-        const pid = String(r.playerId);
-        if (existingPlayerIds.has(pid)) continue;
-        const source = String((r as any).source || '').toLowerCase();
-        // Only add if source explicitly contains "auction" (e.g. "auction_2026")
-        if (!source.includes('auction')) continue;
+        const src = String((r as any).source || '').toLowerCase();
+        if (!src.includes('auction')) continue; // only auction-source entries
+        const name = ((r as any).playerName || '').toLowerCase();
+        if (!name || loggedNames.has(name)) continue;
         result.roster.push({
-          playerId: pid,
+          playerId: String(r.playerId),
           playerName: (r as any).playerName || `Player #${r.playerId}`,
           price: r.price || 0,
           positions: (r as any).posPrimary || (r as any).assignedPosition || '',
@@ -170,23 +192,6 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
           mlbTeam: (r as any).mlbTeam || '',
         });
         result.totalSpent += r.price || 0;
-      }
-    }
-
-    // Also enrich ALL roster entries with position/mlbTeam from team roster data
-    for (const team of auctionState.teams || []) {
-      const result = teamMap.get(team.id);
-      if (!result) continue;
-      const rosterLookup = new Map<string, any>();
-      for (const r of team.roster || []) rosterLookup.set(String(r.playerId), r);
-      for (const entry of result.roster) {
-        const dbRoster = rosterLookup.get(String(entry.playerId));
-        if (!dbRoster) continue;
-        if (!entry.positions) entry.positions = (dbRoster as any).posPrimary || (dbRoster as any).assignedPosition || '';
-        if (!entry.mlbTeam) entry.mlbTeam = (dbRoster as any).mlbTeam || '';
-        if (entry.playerName === `Player #${entry.playerId}` && (dbRoster as any).playerName) {
-          entry.playerName = (dbRoster as any).playerName;
-        }
       }
     }
 
