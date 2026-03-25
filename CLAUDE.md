@@ -205,6 +205,8 @@ When adding cross-feature imports, document them here to maintain visibility.
 - **12:00 UTC (~5 AM PT)**: `syncAllPlayers()` — roster sync for all 30 MLB teams, followed by `syncPositionEligibility(season, 20)` — updates multi-position eligibility from fielding stats (20+ games = qualified)
 - **13:00 UTC (~6 AM PT)**: `syncAllActivePeriods()` — player stats sync for active scoring periods
 
+**CRITICAL**: `syncAllPlayers()` updates `Player.posPrimary` and `Player.mlbTeam` but **preserves enriched `Player.posList`** — it only overwrites `posList` if the existing value is just the primary position (not enriched by fielding stats). This prevents the daily sync from wiping multi-position eligibility data.
+
 ## Development
 
 ### Port Assignments (per MASTER-PORTS.md — DO NOT CHANGE without updating all references)
@@ -366,13 +368,22 @@ When starting a new session, review these items:
 4. **Run `git log --oneline -10`** — understand recent changes
 5. **Check for open TODOs** — `grep -r "TODO\|FIXME\|HACK" server/src/ client/src/ --include="*.ts" --include="*.tsx" | head -20`
 
+### Browser Verification (MANDATORY after every code change)
+After ANY code change — before declaring "done" or moving to the next task:
+1. **Open affected page** in Playwright browser
+2. **Interact with the changed feature** — click, select, submit, not just look
+3. **Verify persistence** — reload the page, confirm the change survived
+4. **Check adjacent features** — if you changed position handling, verify dropdowns, sort, AND eligibility still work
+5. **Check for cron/background job conflicts** — if the changed data is also modified by daily syncs, verify the sync won't overwrite your change
+
 ### Session End Checklist
 Before ending a session:
 1. **Run tests** — `npm run test` must pass
 2. **Run builds** — `cd client && npx tsc --noEmit` and `cd server && npx tsc --noEmit`
-3. **Update `FEEDBACK.md`** — log what was done, what's pending, any concerns
-4. **Update `CLAUDE.md`** — if architecture or conventions changed
-5. **Commit with descriptive message** — include scope of changes
+3. **Browser smoke test** — open the app in Playwright, navigate to pages touched this session, verify no regressions
+4. **Update `FEEDBACK.md`** — log what was done, what's pending, any concerns
+5. **Update `CLAUDE.md`** — if architecture or conventions changed
+6. **Commit with descriptive message** — include scope of changes
 
 ### FEEDBACK.md Format
 ```markdown
