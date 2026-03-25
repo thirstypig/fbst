@@ -209,7 +209,7 @@ export default function AuctionComplete({ auctionState, myTeamId, onRefresh }: A
           playerName: (r as any).playerName || `Player #${r.playerId}`,
           price: r.price || 0,
           positions: effectivePos,
-          posList: primaryPos,
+          posList: ((r as any).posList || primaryPos),
           isPitcher: PITCHER_POS.has(effectivePos),
           mlbTeam: (r as any).mlbTeam || '',
           isKeeper: src.includes('prior'),
