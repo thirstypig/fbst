@@ -24,6 +24,8 @@ interface TeamResult {
   code: string;
   budget: number;
   totalSpent: number;
+  keeperSpend: number;
+  auctionSpend: number;
   roster: { playerId: string; playerName: string; price: number; positions: string; isPitcher: boolean; mlbTeam?: string; isKeeper?: boolean }[];
 }
 
@@ -60,14 +62,37 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
   }, [leagueId]);
 
   // Build stats lookup by player name (case-insensitive)
+  // Two-way players (Ohtani) appear twice: once as hitter, once as pitcher.
+  // Key format: "name" for single-position players, "name::H" / "name::P" for two-way.
   const statsLookup = useMemo(() => {
     const map = new Map<string, PlayerSeasonStat>();
+    // Detect two-way players: same name appears as both pitcher and hitter
+    const nameCount = new Map<string, number>();
     for (const s of playerStats) {
       const name = (s.player_name || (s as any).name || '').toLowerCase();
-      if (name) map.set(name, s);
+      if (name) nameCount.set(name, (nameCount.get(name) || 0) + 1);
+    }
+    for (const s of playerStats) {
+      const name = (s.player_name || (s as any).name || '').toLowerCase();
+      if (!name) continue;
+      if ((nameCount.get(name) || 0) > 1) {
+        // Two-way player: key by name + role
+        const role = s.is_pitcher ? "P" : "H";
+        map.set(`${name}::${role}`, s);
+      } else {
+        map.set(name, s);
+      }
     }
     return map;
   }, [playerStats]);
+
+  // Stats lookup helper: for two-way players, use role-based key
+  const getPlayerStats = useCallback((name: string, isPitcher: boolean) => {
+    const key = name.toLowerCase();
+    // Try role-specific key first (two-way player)
+    const roleKey = `${key}::${isPitcher ? "P" : "H"}`;
+    return statsLookup.get(roleKey) || statsLookup.get(key);
+  }, [statsLookup]);
 
   // Trade block state
   const [tradeBlockSelections, setTradeBlockSelections] = useState<Set<string>>(new Set());
@@ -148,6 +173,8 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
         code: team.code,
         budget: teamDbBudget,
         totalSpent: 0,
+        keeperSpend: (team as any).keeperSpend ?? 0,
+        auctionSpend: (team as any).auctionSpend ?? 0,
         roster: [],
       });
     }
@@ -451,6 +478,9 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
                     <div className="flex flex-col">
                       <span className="text-[10px] font-semibold uppercase text-[var(--lg-text-muted)]">Spent</span>
                       <span className="font-semibold text-[var(--lg-accent)] tabular-nums">${team.totalSpent}</span>
+                      {team.keeperSpend > 0 && (
+                        <span className="text-[9px] text-[var(--lg-text-muted)] tabular-nums">K:${team.keeperSpend} A:${team.auctionSpend}</span>
+                      )}
                     </div>
                     <div className="flex flex-col">
                       <span className="text-[10px] font-semibold uppercase text-[var(--lg-text-muted)]">Remaining</span>
@@ -468,8 +498,8 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
                     return [...list].sort((a, b) => {
                       // Keepers always first
                       if (a.isKeeper !== b.isKeeper) return a.isKeeper ? -1 : 1;
-                      const statsA = statsLookup.get((a.playerName || '').toLowerCase());
-                      const statsB = statsLookup.get((b.playerName || '').toLowerCase());
+                      const statsA = getPlayerStats(a.playerName || '', a.isPitcher);
+                      const statsB = getPlayerStats(b.playerName || '', b.isPitcher);
                       let cmp = 0;
                       if (rosterSort === 'name') cmp = (a.playerName || '').localeCompare(b.playerName || '');
                       else if (rosterSort === 'position') {
@@ -512,7 +542,7 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
                       </ThemedThead>
                       <tbody className="divide-y divide-[var(--lg-divide)]">
                         {hitters.map(player => {
-                          const stats = statsLookup.get((player.playerName || '').toLowerCase());
+                          const stats = getPlayerStats(player.playerName || '', false);
                           return (
                             <ThemedTr key={player.playerId || player.playerName}>
                               <ThemedTd className="py-1.5">
@@ -555,7 +585,7 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
                       </ThemedThead>
                       <tbody className="divide-y divide-[var(--lg-divide)]">
                         {pitchers.map(player => {
-                          const stats = statsLookup.get((player.playerName || '').toLowerCase());
+                          const stats = getPlayerStats(player.playerName || '', true);
                           return (
                             <ThemedTr key={player.playerId || player.playerName}>
                               <ThemedTd className="py-1.5">

@@ -5,13 +5,16 @@ export interface AuctionTeam {
   name: string;
   code: string;
   budget: number;       // Remaining budget
+  dbBudget?: number;    // Raw DB budget (includes pre-draft trade adjustments)
+  keeperSpend?: number;  // Total spent on keepers (source=prior_season)
+  auctionSpend?: number; // Total spent at auction
   maxBid: number;       // Calculated max bid
   rosterCount: number;  // Players on roster
   spotsLeft: number;
   pitcherCount: number;
   hitterCount: number;
   positionCounts: Record<string, number>; // e.g. { C: 2, OF: 3, ... }
-  roster: { id: number; playerId: number; mlbId: number | null; playerName: string | null; price: number; assignedPosition?: string | null }[];
+  roster: { id: number; playerId: number; mlbId: number | null; playerName: string | null; price: number; assignedPosition?: string | null; source?: string | null }[];
 }
 
 export interface NominationState {

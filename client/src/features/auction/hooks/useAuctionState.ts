@@ -11,13 +11,16 @@ export interface AuctionTeam {
   name: string;
   code: string;
   budget: number;
+  dbBudget?: number;
+  keeperSpend?: number;
+  auctionSpend?: number;
   maxBid: number;
   rosterCount: number;
   spotsLeft: number;
   pitcherCount?: number;
   hitterCount?: number;
   positionCounts?: Record<string, number>;
-  roster: { id: number; playerId: number; mlbId?: number | null; playerName?: string | null; price: number; assignedPosition?: string | null }[];
+  roster: { id: number; playerId: number; mlbId?: number | null; playerName?: string | null; price: number; assignedPosition?: string | null; source?: string | null }[];
 }
 
 export interface NominationState {

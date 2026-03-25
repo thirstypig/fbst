@@ -402,21 +402,36 @@ export default function DraftReportPage() {
   const enrichedReport = useMemo(() => {
     if (!report) return null;
     if (playerStats.length === 0) return report;
-    // Build lookup by normalized player name
+    // Build lookup by normalized player name, with two-way player support
     const normalize = (n: string) => n.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const nameCount = new Map<string, number>();
+    for (const ps of playerStats) {
+      const name = normalize(ps.mlb_full_name || ps.player_name || "");
+      if (name) nameCount.set(name, (nameCount.get(name) || 0) + 1);
+    }
     const statMap = new Map<string, PlayerSeasonStat>();
     for (const ps of playerStats) {
-      const name = ps.mlb_full_name || ps.player_name || "";
-      if (name) statMap.set(normalize(name), ps);
+      const name = normalize(ps.mlb_full_name || ps.player_name || "");
+      if (!name) continue;
+      if ((nameCount.get(name) || 0) > 1) {
+        // Two-way player: key by name + role
+        const role = ps.is_pitcher ? "P" : "H";
+        statMap.set(`${name}::${role}`, ps);
+      } else {
+        statMap.set(name, ps);
+      }
     }
     return {
       ...report,
       teams: report.teams.map(t => ({
         ...t,
-        roster: t.roster.map(r => ({
-          ...r,
-          stat: statMap.get(normalize(r.playerName)),
-        })),
+        roster: t.roster.map(r => {
+          const key = normalize(r.playerName);
+          const isPitch = isPitcherPos(r.position);
+          // Try role-specific key first (two-way player), then plain name
+          const stat = statMap.get(`${key}::${isPitch ? "P" : "H"}`) || statMap.get(key);
+          return { ...r, stat };
+        }),
       })),
     };
   }, [report, playerStats]);
