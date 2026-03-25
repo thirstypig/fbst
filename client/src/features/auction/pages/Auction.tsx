@@ -359,7 +359,7 @@ export default function Auction() {
 
   // Auction completed — show results screen
   if (auctionState && auctionState.status === 'completed') {
-    return <AuctionComplete auctionState={auctionState} myTeamId={myTeamId} />;
+    return <AuctionComplete auctionState={auctionState} myTeamId={myTeamId} onRefresh={actions.refetch} />;
   }
 
   return (

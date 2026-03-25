@@ -323,8 +323,7 @@ export default function TeamListTab({ teams = [], players = [], budgetCap = 400,
                                                                                 slots.add(slot);
                                                                             }
                                                                         }
-                                                                        // Add DH for all hitters, P for pitchers
-                                                                        if (!isPitcher && slots.size > 0) slots.add('DH');
+                                                                        // Add P for pitchers (hitters only get DH if explicitly eligible)
                                                                         if (isPitcher) slots.add('P');
                                                                         const sorted = MATRIX_POSITIONS.filter(s => slots.has(s));
                                                                         return sorted.map(p => <option key={p} value={p} className="text-black">{p}</option>);

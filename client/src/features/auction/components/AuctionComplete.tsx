@@ -18,6 +18,7 @@ import PlayerDetailModal from '../../../components/shared/PlayerDetailModal';
 interface AuctionCompleteProps {
   auctionState: ClientAuctionState;
   myTeamId?: number;
+  onRefresh?: () => void;
 }
 
 interface TeamResult {
@@ -38,7 +39,7 @@ interface DraftGrade {
   summary: string;
 }
 
-export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompleteProps) {
+export default function AuctionComplete({ auctionState, myTeamId, onRefresh }: AuctionCompleteProps) {
   const [expandedTeamId, setExpandedTeamId] = useState<number | null>(null);
   const [expandedPlayerId, setExpandedPlayerId] = useState<string | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerSeasonStat | null>(null);
@@ -59,21 +60,22 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
   const [showReplay, setShowReplay] = useState(false);
   const { leagueId, outfieldMode } = useLeague();
 
-  // Position swap handler — PATCH roster entry's assignedPosition
+  // Position swap handler — PATCH roster entry's assignedPosition, then refresh state
   const handlePositionSwap = useCallback(async (teamId: number, rosterId: number, newPos: string) => {
     try {
       await fetchJsonApi(`${API_BASE}/teams/${teamId}/roster/${rosterId}`, {
         method: 'PATCH',
         body: JSON.stringify({ assignedPosition: newPos }),
       });
-      // Refresh auction state to update positions
+      // Refresh auction state so UI shows updated position
       if (leagueId) {
-        fetchJsonApi(`${API_BASE}/auction/refresh-teams?leagueId=${leagueId}`, { method: 'POST' }).catch(() => {});
+        await fetchJsonApi(`${API_BASE}/auction/refresh-teams?leagueId=${leagueId}`, { method: 'POST' });
       }
+      onRefresh?.();
     } catch (err) {
       console.error("Failed to update position", err);
     }
-  }, [leagueId]);
+  }, [leagueId, onRefresh]);
 
   // Position dropdown slots for a given position string
   const MATRIX_POSITIONS = ["C", "1B", "2B", "3B", "SS", "MI", "CM", "OF", "DH", "P"];
@@ -466,8 +468,6 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
                   // Generic sort function for any column
                   const sortRoster = (list: typeof team.roster) => {
                     return [...list].sort((a, b) => {
-                      // Keepers first only when sorting by position (default view)
-                      if (rosterSort === 'position' && a.isKeeper !== b.isKeeper) return a.isKeeper ? -1 : 1;
                       const statsA = getPlayerStats(a.playerName || '', a.isPitcher);
                       const statsB = getPlayerStats(b.playerName || '', b.isPitcher);
                       let cmp = 0;
@@ -519,7 +519,7 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
                             for (const p of raw.split(',').map(s => s.trim()).filter(Boolean)) {
                               for (const s of positionToSlots(p)) slots.add(s);
                             }
-                            if (slots.size > 0) slots.add('DH');
+                            // Only add DH if the player's actual position includes DH
                             return MATRIX_POSITIONS.filter(s => slots.has(s));
                           })();
                           const rowKey = `${team.id}-${player.playerId}-H`;
