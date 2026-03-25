@@ -36,7 +36,17 @@ interface DraftGrade {
 
 export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompleteProps) {
   const [expandedTeamId, setExpandedTeamId] = useState<number | null>(null);
-  const [rosterSort, setRosterSort] = useState<"price" | "position">("price");
+  const [rosterSort, setRosterSort] = useState<string>("position");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const toggleSort = (col: string) => {
+    if (rosterSort === col) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setRosterSort(col); setSortDir(col === "price" || col === "R" || col === "HR" || col === "RBI" || col === "SB" || col === "W" || col === "SV" || col === "K" ? "desc" : "asc"); }
+  };
+  const SortTh = ({ col, children, className }: { col: string; children: React.ReactNode; className?: string }) => (
+    <ThemedTh className={`cursor-pointer hover:text-[var(--lg-accent)] ${className || ''}`} onClick={() => toggleSort(col)}>
+      {children} {rosterSort === col && (sortDir === "asc" ? "↑" : "↓")}
+    </ThemedTh>
+  );
   const [draftGrades, setDraftGrades] = useState<DraftGrade[] | null>(null);
   const [gradesLoading, setGradesLoading] = useState(false);
   const [gradesError, setGradesError] = useState<string | null>(null);
@@ -453,19 +463,28 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
                 </div>
 
                 {isExpanded && team.roster.length > 0 && (() => {
-                  const hitters = team.roster.filter(p => !p.isPitcher)
-                    .sort((a, b) => {
-                      // Sort keepers first, then by position
+                  // Generic sort function for any column
+                  const sortRoster = (list: typeof team.roster) => {
+                    return [...list].sort((a, b) => {
+                      // Keepers always first
                       if (a.isKeeper !== b.isKeeper) return a.isKeeper ? -1 : 1;
-                      const posA = mapPosition((a.positions || "").split(",")[0]?.trim() || "", outfieldMode);
-                      const posB = mapPosition((b.positions || "").split(",")[0]?.trim() || "", outfieldMode);
-                      return (POS_ORDER.indexOf(posA) === -1 ? 99 : POS_ORDER.indexOf(posA)) - (POS_ORDER.indexOf(posB) === -1 ? 99 : POS_ORDER.indexOf(posB));
+                      const statsA = statsLookup.get((a.playerName || '').toLowerCase());
+                      const statsB = statsLookup.get((b.playerName || '').toLowerCase());
+                      let cmp = 0;
+                      if (rosterSort === 'name') cmp = (a.playerName || '').localeCompare(b.playerName || '');
+                      else if (rosterSort === 'position') {
+                        const pA = mapPosition((a.positions || '').split(',')[0]?.trim() || '', outfieldMode);
+                        const pB = mapPosition((b.positions || '').split(',')[0]?.trim() || '', outfieldMode);
+                        cmp = (POS_ORDER.indexOf(pA) === -1 ? 99 : POS_ORDER.indexOf(pA)) - (POS_ORDER.indexOf(pB) === -1 ? 99 : POS_ORDER.indexOf(pB));
+                      }
+                      else if (rosterSort === 'mlb') cmp = (a.mlbTeam || '').localeCompare(b.mlbTeam || '');
+                      else if (rosterSort === 'price') cmp = a.price - b.price;
+                      else { const va = Number((statsA as any)?.[rosterSort] ?? 0); const vb = Number((statsB as any)?.[rosterSort] ?? 0); cmp = va - vb; }
+                      return sortDir === 'desc' ? -cmp : cmp;
                     });
-                  const pitchers = team.roster.filter(p => p.isPitcher)
-                    .sort((a, b) => {
-                      if (a.isKeeper !== b.isKeeper) return a.isKeeper ? -1 : 1;
-                      return b.price - a.price;
-                    });
+                  };
+                  const hitters = sortRoster(team.roster.filter(p => !p.isPitcher));
+                  const pitchers = sortRoster(team.roster.filter(p => p.isPitcher));
 
                   const fmtAvg = (v: any) => { const n = Number(v); return n > 0 && n < 1 ? n.toFixed(3).replace(/^0/, '') : n > 0 ? n.toFixed(3) : '—'; };
                   const fmtRate = (v: any) => { const n = Number(v); return n > 0 ? n.toFixed(2) : '—'; };
@@ -480,15 +499,15 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
                     <ThemedTable>
                       <ThemedThead>
                         <ThemedTr>
-                          <ThemedTh>Player</ThemedTh>
-                          <ThemedTh className="w-10">Pos</ThemedTh>
-                          <ThemedTh className="w-10">MLB</ThemedTh>
-                          <ThemedTh align="right" className="w-12">$</ThemedTh>
-                          <ThemedTh align="center" className="w-10">R</ThemedTh>
-                          <ThemedTh align="center" className="w-10">HR</ThemedTh>
-                          <ThemedTh align="center" className="w-10">RBI</ThemedTh>
-                          <ThemedTh align="center" className="w-10">SB</ThemedTh>
-                          <ThemedTh align="center" className="w-12">AVG</ThemedTh>
+                          <SortTh col="name">Player</SortTh>
+                          <SortTh col="position" className="w-10">Pos</SortTh>
+                          <SortTh col="mlb" className="w-10">MLB</SortTh>
+                          <SortTh col="price" className="w-12">$</SortTh>
+                          <SortTh col="R" className="w-10">R</SortTh>
+                          <SortTh col="HR" className="w-10">HR</SortTh>
+                          <SortTh col="RBI" className="w-10">RBI</SortTh>
+                          <SortTh col="SB" className="w-10">SB</SortTh>
+                          <SortTh col="AVG" className="w-12">AVG</SortTh>
                         </ThemedTr>
                       </ThemedThead>
                       <tbody className="divide-y divide-[var(--lg-divide)]">
@@ -504,7 +523,7 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
                               </ThemedTd>
                               <ThemedTd className="py-1.5 text-[10px] text-[var(--lg-text-muted)] font-mono">{mapPosition(player.positions?.split(",")[0]?.trim() || "", outfieldMode) || "—"}</ThemedTd>
                               <ThemedTd className="py-1.5 text-[10px] text-[var(--lg-text-muted)]">{player.mlbTeam || "—"}</ThemedTd>
-                              <ThemedTd align="right" className="py-1.5 text-xs font-semibold text-[var(--lg-accent)] tabular-nums">${player.price}</ThemedTd>
+                              <ThemedTd align="right" className={`py-1.5 text-xs font-semibold tabular-nums ${player.isKeeper ? 'text-amber-500' : 'text-[var(--lg-accent)]'}`}>${player.price}</ThemedTd>
                               <ThemedTd align="center" className="py-1.5 text-[10px] tabular-nums">{num(stats?.R) || '—'}</ThemedTd>
                               <ThemedTd align="center" className="py-1.5 text-[10px] tabular-nums">{num(stats?.HR) || '—'}</ThemedTd>
                               <ThemedTd align="center" className="py-1.5 text-[10px] tabular-nums">{num(stats?.RBI) || '—'}</ThemedTd>
@@ -523,15 +542,15 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
                     <ThemedTable>
                       <ThemedThead>
                         <ThemedTr>
-                          <ThemedTh>Player</ThemedTh>
-                          <ThemedTh className="w-10">Pos</ThemedTh>
-                          <ThemedTh className="w-10">MLB</ThemedTh>
-                          <ThemedTh align="right" className="w-12">$</ThemedTh>
-                          <ThemedTh align="center" className="w-10">W</ThemedTh>
-                          <ThemedTh align="center" className="w-10">SV</ThemedTh>
-                          <ThemedTh align="center" className="w-10">K</ThemedTh>
-                          <ThemedTh align="center" className="w-12">ERA</ThemedTh>
-                          <ThemedTh align="center" className="w-12">WHIP</ThemedTh>
+                          <SortTh col="name">Player</SortTh>
+                          <SortTh col="position" className="w-10">Pos</SortTh>
+                          <SortTh col="mlb" className="w-10">MLB</SortTh>
+                          <SortTh col="price" className="w-12">$</SortTh>
+                          <SortTh col="W" className="w-10">W</SortTh>
+                          <SortTh col="SV" className="w-10">SV</SortTh>
+                          <SortTh col="K" className="w-10">K</SortTh>
+                          <SortTh col="ERA" className="w-12">ERA</SortTh>
+                          <SortTh col="WHIP" className="w-12">WHIP</SortTh>
                         </ThemedTr>
                       </ThemedThead>
                       <tbody className="divide-y divide-[var(--lg-divide)]">
@@ -547,7 +566,7 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
                               </ThemedTd>
                               <ThemedTd className="py-1.5 text-[10px] text-[var(--lg-text-muted)] font-mono">{mapPosition(player.positions?.split(",")[0]?.trim() || "P", outfieldMode)}</ThemedTd>
                               <ThemedTd className="py-1.5 text-[10px] text-[var(--lg-text-muted)]">{player.mlbTeam || "—"}</ThemedTd>
-                              <ThemedTd align="right" className="py-1.5 text-xs font-semibold text-[var(--lg-accent)] tabular-nums">${player.price}</ThemedTd>
+                              <ThemedTd align="right" className={`py-1.5 text-xs font-semibold tabular-nums ${player.isKeeper ? 'text-amber-500' : 'text-[var(--lg-accent)]'}`}>${player.price}</ThemedTd>
                               <ThemedTd align="center" className="py-1.5 text-[10px] tabular-nums">{num(stats?.W) || '—'}</ThemedTd>
                               <ThemedTd align="center" className="py-1.5 text-[10px] tabular-nums">{num(stats?.SV) || '—'}</ThemedTd>
                               <ThemedTd align="center" className="py-1.5 text-[10px] tabular-nums">{num(stats?.K) || '—'}</ThemedTd>
