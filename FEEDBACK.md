@@ -4,6 +4,72 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
+## Sessions 40–46+ (2026-03-24/25) — Phase 1 + Phase 2 + Auction Overhaul (30+ commits)
+
+### Summary
+Massive multi-session sprint covering Phase 1 completion, Phase 2 (format framework + engines), and deep auction page overhaul with data integrity fixes.
+
+### Completed — Phase 1 (PRs #90, #91)
+- Sidebar extraction (505→188 LOC), 5-section nav (Core, AI, League, Manage, Product)
+- Mobile bottom tab nav (BottomNav.tsx), accessibility (skip-nav, aria-labels)
+- React.lazy code splitting on 25 routes (~250KB bundle reduction)
+- Shared EmptyState component on 8 pages
+- Self-service league creation (POST /api/leagues + /create-league UI)
+
+### Completed — Phase 2 (PR #92 + direct pushes)
+- Format framework: scoringFormat on League model, format cards (Available/Planned)
+- Marketing landing page (hero, formats, features, pricing, SEO meta tags)
+- Snake draft engine: 12 server endpoints + client Draft page + auto-pick
+- H2H matchup system: schedule generator, scoring (categories + points), standings
+- Conversion flow: Create League CTA on Home, setup checklist
+
+### Completed — Auction Page Overhaul
+- **Konnor Griffin fix** — force-assigned players now show via WIN log reconciliation by playerName
+- **Hitters/Pitchers split** — keepers first (with "K" badge in amber), then auction picks
+- **Stats columns** — R/HR/RBI/SB/AVG for hitters, W/SV/K/ERA/WHIP for pitchers (from CSV)
+- **All columns sortable** — clickable headers with ↑/↓ indicators
+- **OF mapping** — LF/CF/RF → OF via league outfieldMode (OGBA uses OF mode)
+- **Keeper pricing in amber** — distinct from auction picks (blue accent)
+- **Budget calculation fixed** — uses per-team DB budget (includes pre-draft trade $75 adjustment)
+- **Global player enrichment** — traded players (Riley, Fairbanks) get Pos/MLB from any team
+- **Commissioner tools** — roster price editing (click-to-edit), position sort toggle, trade reversal endpoint
+- **Diacritics name matching** — lookupAuctionValue with NFD normalization (147→159 player matches)
+- **Draft Report** — regeneration button, surplus calculation fix
+
+### Completed — Other
+- Trade reversal endpoint (POST /api/trades/:id/reverse)
+- Commissioner roster price editing (PATCH /api/commissioner/:leagueId/roster/:rosterId)
+- 12 code review findings resolved + 4 security hardening fixes
+- Weekly insights history tabs on Team page
+- Public pages (Changelog, Roadmap, Status accessible to all users)
+- H2H and Snake Draft formats enabled on Create League form
+
+### Pending / Next Session
+1. **Auction Spent breakdown** — show keeper spend vs auction spend separately
+2. **Draft Report overhaul** — hitters/pitchers split with stats, sortable columns (match auction page)
+3. **Season page** — verify standings, expandable player view with sortable columns
+4. **Teams page** — remove Manage Roster button, verify position sort
+5. **Position editing** — verify Commissioner → Roster tab works for position changes
+6. **OF rule everywhere** — verify LF/CF/RF → OF on Draft Report, Season, Teams
+7. **Waiver priority positions** — inverse-standings order per period
+8. **Test add/drop flow** — actually walk through in browser
+9. **Verify scoring/standings** — check OGBA 2026 periods + stats sync
+10. **De-emphasize auction prices during IN_SEASON**
+11. **Pre-draft trade history** — record Tucker + $75 for Mullins trade entry
+
+### Concerns / Process Improvements
+- Must always verify visually in browser (Playwright screenshot) BEFORE saying "done"
+- Present numbered task list for user confirmation before building
+- Track all items from user prompts — don't drop requests when debugging one issue
+- The auction page data flow (WIN log + DB roster + auction state) has 3 data sources that can disagree — document this architecture
+
+### Test Results
+- Server: 493 passing
+- Client: 187 passing
+- Total: 680 passing, TypeScript clean on both sides
+
+---
+
 ## Sessions 40–44 (2026-03-24) — Phase 1: Polish & Foundation (7 commits)
 
 ### Summary
