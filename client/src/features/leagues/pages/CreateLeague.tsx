@@ -68,6 +68,28 @@ export default function CreateLeague() {
           </div>
         </div>
 
+        {/* Setup Checklist */}
+        <div className="rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] p-6 mb-6">
+          <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--lg-text-muted)] mb-3">Next Steps</div>
+          <div className="space-y-2">
+            {[
+              { done: true, label: "Create league" },
+              { done: false, label: "Invite members (share code above)" },
+              { done: false, label: "Configure rules & roster settings" },
+              { done: false, label: "Start the draft" },
+            ].map(step => (
+              <div key={step.label} className="flex items-center gap-2.5 text-xs">
+                <span className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  step.done ? "bg-emerald-500/20 text-emerald-500" : "border border-[var(--lg-border-faint)] text-[var(--lg-text-muted)]"
+                }`}>
+                  {step.done ? <Check size={10} /> : <span className="w-1.5 h-1.5 rounded-full bg-current opacity-30" />}
+                </span>
+                <span className={step.done ? "text-[var(--lg-text-muted)] line-through" : "text-[var(--lg-text-primary)]"}>{step.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <div className="flex gap-3 justify-center">
           <Button onClick={() => nav(`/commissioner/${result.leagueId}`)}>
             Set Up League
