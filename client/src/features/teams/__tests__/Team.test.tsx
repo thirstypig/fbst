@@ -28,6 +28,7 @@ vi.mock("../../../lib/playerDisplay", () => ({
   normalizePosition: (p: string) => p,
   formatAvg: (v: any) => (v != null ? String(v) : "—"),
   getMlbTeamAbbr: (p: any) => p.mlb_team_abbr || p.mlb_team || "—",
+  sortByPosition: () => 0,
 }));
 
 // Mock sportConfig
@@ -46,10 +47,6 @@ vi.mock("../../auction/components/PlayerExpandedRow", () => ({
   default: () => <tr data-testid="expanded-row"><td>expanded</td></tr>,
 }));
 
-// Mock TeamRosterManager
-vi.mock("../components/TeamRosterManager", () => ({
-  default: () => <div data-testid="roster-manager">Roster Manager</div>,
-}));
 
 import { getPlayerSeasonStats, getTeamDetails, getTeams } from "../../../api";
 import Team from "../pages/Team";
@@ -164,11 +161,11 @@ describe("Team", () => {
     });
   });
 
-  it("shows Manage Roster button when DB team is found", async () => {
+  it("navigates back to teams list", async () => {
     renderTeamPage();
 
     await waitFor(() => {
-      expect(screen.getByText("Manage Roster")).toBeInTheDocument();
+      expect(screen.getByText("Teams")).toBeInTheDocument();
     });
   });
 });

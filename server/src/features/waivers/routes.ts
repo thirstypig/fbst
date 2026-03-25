@@ -170,14 +170,33 @@ router.delete("/:id", requireAuth, asyncHandler(async (req, res) => {
 router.post("/process/:leagueId", requireAuth, requireCommissionerOrAdmin("leagueId"), asyncHandler(async (req, res) => {
   const leagueId = Number(req.params.leagueId);
 
-  // 1. Fetch pending claims for this league only, sorted by Bid DESC, Priority ASC
+  // 1. Fetch pending claims for this league only
   const claims = await prisma.waiverClaim.findMany({
     where: { status: "PENDING", team: { leagueId } },
     include: { player: true, team: true },
-    orderBy: [
-      { bidAmount: "desc" },
-      { priority: "asc" }
-    ],
+  });
+
+  // 2. Compute inverse-standings waiver priority (worst team = priority 1)
+  // Use TeamStatsSeason raw stats to approximate roto points via simple sum of counting stats.
+  // Higher sum ≈ better team → higher waiver rank number → lower priority.
+  const seasonStats = await prisma.teamStatsSeason.findMany({
+    where: { team: { leagueId } },
+    select: { teamId: true, R: true, HR: true, RBI: true, SB: true, W: true, S: true, K: true },
+  });
+  // Approximate team strength: sum of all counting stats (simple proxy for standings)
+  const strengthMap = new Map(seasonStats.map(s => [s.teamId, s.R + s.HR + s.RBI + s.SB + s.W + s.S + s.K]));
+  // Sort teams by strength ASC (weakest team gets priority 1 = first pick on tied bids)
+  const teamsByStrength = [...strengthMap.entries()].sort((a, b) => a[1] - b[1]);
+  const waiverRank = new Map(teamsByStrength.map(([teamId], idx) => [teamId, idx + 1]));
+
+  // Sort: bid DESC, then waiver priority ASC (inverse standings), then submission time ASC
+  claims.sort((a, b) => {
+    const bidDiff = b.bidAmount - a.bidAmount;
+    if (bidDiff !== 0) return bidDiff;
+    const rankA = waiverRank.get(a.teamId) ?? 99;
+    const rankB = waiverRank.get(b.teamId) ?? 99;
+    if (rankA !== rankB) return rankA - rankB;
+    return a.createdAt.getTime() - b.createdAt.getTime();
   });
 
   const logs: string[] = [];
