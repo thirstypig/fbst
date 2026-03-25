@@ -1,9 +1,12 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { Trophy, TrendingUp, TrendingDown, Loader2, Sparkles, ChevronDown, ChevronUp, BarChart3, Target, Users } from "lucide-react";
-import { fetchJsonApi, API_BASE } from "../../../api/base";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
+import { TrendingUp, TrendingDown, Loader2, Sparkles, ChevronDown, ChevronUp, BarChart3, Target, Users } from "lucide-react";
+import { fetchJsonApi, API_BASE, fmtRate } from "../../../api/base";
+import { getPlayerSeasonStats, type PlayerSeasonStat } from "../../../api";
 import { useLeague } from "../../../contexts/LeagueContext";
 import PageHeader from "../../../components/ui/PageHeader";
-import { ThemedTable, ThemedThead, ThemedTbody, ThemedTh, ThemedTr, ThemedTd } from "../../../components/ui/ThemedTable";
+import { ThemedTable, ThemedThead, ThemedTbody, ThemedTr, ThemedTd } from "../../../components/ui/ThemedTable";
+import { SortableHeader } from "../../../components/ui/SortableHeader";
+import { isPitcher as isPitcherPos, mapPosition } from "../../../lib/sportConfig";
 
 /* ── Types ───────────────────────────────────────────────────────── */
 
@@ -31,6 +34,8 @@ interface RosterEntry {
   isKeeper: boolean;
   projectedValue: number | null;
   surplus: number | null;
+  // Enriched stats (joined from PlayerSeasonStat)
+  stat?: PlayerSeasonStat;
 }
 
 interface DraftReportTeam {
@@ -67,7 +72,6 @@ interface DraftReport {
 }
 
 import { gradeColor } from "../../../lib/sportConfig";
-import { POS_ORDER } from "../../../lib/baseballUtils";
 
 /* ── Helpers ─────────────────────────────────────────────────────── */
 
@@ -90,9 +94,55 @@ function StatPill({ label, value, sub }: { label: string; value: string; sub?: s
 
 /* ── Team Card ───────────────────────────────────────────────────── */
 
-function TeamCard({ team, leagueAvgH, leagueAvgP }: { team: DraftReportTeam; leagueAvgH: number; leagueAvgP: number }) {
+type RosterSortKey = "name" | "pos" | "price" | "value" | "surplus" | "R" | "HR" | "RBI" | "SB" | "AVG" | "W" | "SV" | "K" | "ERA" | "WHIP";
+
+function TeamCard({ team, leagueAvgH, leagueAvgP, outfieldMode }: { team: DraftReportTeam; leagueAvgH: number; leagueAvgP: number; outfieldMode?: string }) {
   const [expanded, setExpanded] = useState(false);
-  const [rosterSort, setRosterSort] = useState<"price" | "position">("price");
+  const [viewGroup, setViewGroup] = useState<"hitters" | "pitchers">("hitters");
+  const [sortKey, setSortKey] = useState<RosterSortKey>("price");
+  const [sortDesc, setSortDesc] = useState(true);
+
+  const handleSort = (key: RosterSortKey) => {
+    if (key === sortKey) { setSortDesc(!sortDesc); }
+    else { setSortKey(key); setSortDesc(key !== "name" && key !== "pos"); }
+  };
+
+  const filteredRoster = useMemo(() => {
+    const isHitters = viewGroup === "hitters";
+    const filtered = team.roster.filter(r => {
+      const pitcher = isPitcherPos(r.position);
+      return isHitters ? !pitcher : pitcher;
+    });
+
+    const getVal = (r: RosterEntry): number | string => {
+      const s = r.stat;
+      switch (sortKey) {
+        case "name": return r.playerName.toLowerCase();
+        case "pos": return r.position;
+        case "price": return r.price;
+        case "value": return r.projectedValue ?? -999;
+        case "surplus": return r.surplus ?? -999;
+        case "R": return s?.R ?? -1;
+        case "HR": return s?.HR ?? -1;
+        case "RBI": return s?.RBI ?? -1;
+        case "SB": return s?.SB ?? -1;
+        case "AVG": return typeof s?.AVG === "number" ? s.AVG : -1;
+        case "W": return s?.W ?? -1;
+        case "SV": return s?.SV ?? -1;
+        case "K": return s?.K ?? -1;
+        case "ERA": return typeof s?.ERA === "number" ? s.ERA : 999;
+        case "WHIP": return typeof s?.WHIP === "number" ? s.WHIP : 999;
+        default: return 0;
+      }
+    };
+
+    return [...filtered].sort((a, b) => {
+      const va = getVal(a);
+      const vb = getVal(b);
+      const cmp = typeof va === "string" ? va.localeCompare(vb as string) : (va as number) - (vb as number);
+      return sortDesc ? -cmp : cmp;
+    });
+  }, [team.roster, viewGroup, sortKey, sortDesc]);
 
   return (
     <div className="rounded-xl border border-[var(--lg-border-faint)] bg-[var(--lg-bg-card)] overflow-hidden">
@@ -212,46 +262,87 @@ function TeamCard({ team, leagueAvgH, leagueAvgP }: { team: DraftReportTeam; lea
 
       {expanded && (
         <div className="px-5 pb-4 overflow-x-auto">
-          <div className="flex justify-end mb-1">
-            <button
-              onClick={() => setRosterSort(s => s === "price" ? "position" : "price")}
-              className="text-[10px] font-medium text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] transition-colors"
-            >
-              Sort: {rosterSort === "price" ? "Price ↓" : "Position"}
-            </button>
+          {/* H / P toggle */}
+          <div className="flex items-center gap-1 mb-2">
+            {(["hitters", "pitchers"] as const).map(g => (
+              <button
+                key={g}
+                onClick={() => setViewGroup(g)}
+                className={`px-3 py-1 rounded-md text-[11px] font-bold uppercase transition-colors ${
+                  viewGroup === g
+                    ? "bg-[var(--lg-accent)] text-white"
+                    : "bg-[var(--lg-tint)] text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)]"
+                }`}
+              >
+                {g === "hitters" ? "H" : "P"}
+              </button>
+            ))}
+            <span className="text-[10px] text-[var(--lg-text-muted)] ml-1">{filteredRoster.length} players</span>
           </div>
+
           <ThemedTable>
             <ThemedThead>
-              <ThemedTr>
-                <ThemedTh>Player</ThemedTh>
-                <ThemedTh>Pos</ThemedTh>
-                <ThemedTh className="text-right">Paid</ThemedTh>
-                <ThemedTh className="text-right">Value</ThemedTh>
-                <ThemedTh className="text-right">Surplus</ThemedTh>
-                <ThemedTh>Type</ThemedTh>
-              </ThemedTr>
+              <tr>
+                <SortableHeader sortKey="name" activeSortKey={sortKey} sortDesc={sortDesc} onSort={handleSort} className="px-2">Player</SortableHeader>
+                <SortableHeader sortKey="pos" activeSortKey={sortKey} sortDesc={sortDesc} onSort={handleSort} align="center" className="px-1 w-10">Pos</SortableHeader>
+                {viewGroup === "hitters" ? (
+                  <>
+                    <SortableHeader sortKey="R" activeSortKey={sortKey} sortDesc={sortDesc} onSort={handleSort} align="center" className="px-1 w-8" title="Runs">R</SortableHeader>
+                    <SortableHeader sortKey="HR" activeSortKey={sortKey} sortDesc={sortDesc} onSort={handleSort} align="center" className="px-1 w-8" title="Home Runs">HR</SortableHeader>
+                    <SortableHeader sortKey="RBI" activeSortKey={sortKey} sortDesc={sortDesc} onSort={handleSort} align="center" className="px-1 w-8" title="RBI">RBI</SortableHeader>
+                    <SortableHeader sortKey="SB" activeSortKey={sortKey} sortDesc={sortDesc} onSort={handleSort} align="center" className="px-1 w-8" title="Stolen Bases">SB</SortableHeader>
+                    <SortableHeader sortKey="AVG" activeSortKey={sortKey} sortDesc={sortDesc} onSort={handleSort} align="center" className="px-1 w-10" title="Batting Average">AVG</SortableHeader>
+                  </>
+                ) : (
+                  <>
+                    <SortableHeader sortKey="W" activeSortKey={sortKey} sortDesc={sortDesc} onSort={handleSort} align="center" className="px-1 w-8" title="Wins">W</SortableHeader>
+                    <SortableHeader sortKey="SV" activeSortKey={sortKey} sortDesc={sortDesc} onSort={handleSort} align="center" className="px-1 w-8" title="Saves">SV</SortableHeader>
+                    <SortableHeader sortKey="K" activeSortKey={sortKey} sortDesc={sortDesc} onSort={handleSort} align="center" className="px-1 w-8" title="Strikeouts">K</SortableHeader>
+                    <SortableHeader sortKey="ERA" activeSortKey={sortKey} sortDesc={sortDesc} onSort={handleSort} align="center" className="px-1 w-10" title="ERA (lower is better)">ERA</SortableHeader>
+                    <SortableHeader sortKey="WHIP" activeSortKey={sortKey} sortDesc={sortDesc} onSort={handleSort} align="center" className="px-1 w-10" title="WHIP (lower is better)">WHIP</SortableHeader>
+                  </>
+                )}
+                <SortableHeader sortKey="price" activeSortKey={sortKey} sortDesc={sortDesc} onSort={handleSort} align="right" className="px-1 w-12" title="Price Paid">Paid</SortableHeader>
+                <SortableHeader sortKey="value" activeSortKey={sortKey} sortDesc={sortDesc} onSort={handleSort} align="right" className="px-1 w-12" title="Projected Value">Val</SortableHeader>
+                <SortableHeader sortKey="surplus" activeSortKey={sortKey} sortDesc={sortDesc} onSort={handleSort} align="right" className="px-1 w-12" title="Value Surplus">+/−</SortableHeader>
+              </tr>
             </ThemedThead>
             <ThemedTbody>
-              {[...team.roster].sort((a, b) => rosterSort === "position"
-                ? (POS_ORDER.indexOf(a.position) === -1 ? 99 : POS_ORDER.indexOf(a.position)) - (POS_ORDER.indexOf(b.position) === -1 ? 99 : POS_ORDER.indexOf(b.position))
-                : b.price - a.price
-              ).map(r => (
-                <ThemedTr key={r.playerName}>
-                  <ThemedTd className="font-medium text-[var(--lg-text-primary)]">{r.playerName}</ThemedTd>
-                  <ThemedTd className="text-[var(--lg-text-muted)]">{r.position}</ThemedTd>
-                  <ThemedTd className="text-right tabular-nums">${r.price}</ThemedTd>
-                  <ThemedTd className="text-right tabular-nums">{r.projectedValue !== null ? `$${r.projectedValue}` : "—"}</ThemedTd>
-                  <ThemedTd className={`text-right tabular-nums font-medium ${surplusColor(r.surplus)}`}>
-                    {r.surplus !== null ? `${r.surplus >= 0 ? "+" : ""}${r.surplus}` : "—"}
-                  </ThemedTd>
-                  <ThemedTd>
-                    {r.isKeeper
-                      ? <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">KEEPER</span>
-                      : <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[var(--lg-tint)] text-[var(--lg-text-muted)] border border-[var(--lg-border-faint)]">AUCTION</span>
-                    }
-                  </ThemedTd>
-                </ThemedTr>
-              ))}
+              {filteredRoster.map(r => {
+                const s = r.stat;
+                const pos = mapPosition(r.position, outfieldMode);
+                return (
+                  <ThemedTr key={r.playerName}>
+                    <ThemedTd className="px-2">
+                      <span className="font-medium text-[var(--lg-text-primary)]">{r.playerName}</span>
+                      {r.isKeeper && <span className="ml-1.5 px-1 py-0.5 rounded text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">K</span>}
+                    </ThemedTd>
+                    <ThemedTd align="center" className="text-[var(--lg-accent)] text-xs font-medium px-1">{pos}</ThemedTd>
+                    {viewGroup === "hitters" ? (
+                      <>
+                        <ThemedTd align="center" className="text-xs text-[var(--lg-text-secondary)] px-1">{s?.R ?? "—"}</ThemedTd>
+                        <ThemedTd align="center" className="text-xs text-[var(--lg-text-secondary)] px-1">{s?.HR ?? "—"}</ThemedTd>
+                        <ThemedTd align="center" className="text-xs text-[var(--lg-text-secondary)] px-1">{s?.RBI ?? "—"}</ThemedTd>
+                        <ThemedTd align="center" className="text-xs text-[var(--lg-text-secondary)] px-1">{s?.SB ?? "—"}</ThemedTd>
+                        <ThemedTd align="center" className="text-xs text-[var(--lg-text-secondary)] px-1">{typeof s?.AVG === "number" ? fmtRate(s.AVG) : "—"}</ThemedTd>
+                      </>
+                    ) : (
+                      <>
+                        <ThemedTd align="center" className="text-xs text-[var(--lg-text-secondary)] px-1">{s?.W ?? "—"}</ThemedTd>
+                        <ThemedTd align="center" className="text-xs text-[var(--lg-text-secondary)] px-1">{s?.SV ?? "—"}</ThemedTd>
+                        <ThemedTd align="center" className="text-xs text-[var(--lg-text-secondary)] px-1">{s?.K ?? "—"}</ThemedTd>
+                        <ThemedTd align="center" className="text-xs text-[var(--lg-text-secondary)] px-1">{s?.ERA ? Number(s.ERA).toFixed(2) : "—"}</ThemedTd>
+                        <ThemedTd align="center" className="text-xs text-[var(--lg-text-secondary)] px-1">{s?.WHIP ? Number(s.WHIP).toFixed(2) : "—"}</ThemedTd>
+                      </>
+                    )}
+                    <ThemedTd align="right" className="tabular-nums px-1">${r.price}</ThemedTd>
+                    <ThemedTd align="right" className="tabular-nums text-[var(--lg-text-muted)] px-1">{r.projectedValue !== null ? `$${r.projectedValue}` : "—"}</ThemedTd>
+                    <ThemedTd align="right" className={`tabular-nums font-medium px-1 ${surplusColor(r.surplus)}`}>
+                      {r.surplus !== null ? `${r.surplus >= 0 ? "+" : ""}${r.surplus}` : "—"}
+                    </ThemedTd>
+                  </ThemedTr>
+                );
+              })}
             </ThemedTbody>
           </ThemedTable>
         </div>
@@ -263,10 +354,11 @@ function TeamCard({ team, leagueAvgH, leagueAvgP }: { team: DraftReportTeam; lea
 /* ── Main Page ───────────────────────────────────────────────────── */
 
 export default function DraftReportPage() {
-  const { leagueId } = useLeague();
+  const { leagueId, outfieldMode } = useLeague();
   const [report, setReport] = useState<DraftReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [playerStats, setPlayerStats] = useState<PlayerSeasonStat[]>([]);
   const loadingMessages = [
     "Analyzing 8 teams across 184 roster spots...",
     "Cross-referencing projected values with auction prices...",
@@ -300,9 +392,38 @@ export default function DraftReportPage() {
   // Auto-load on mount (persisted reports return instantly)
   useEffect(() => { generate(); }, [generate]);
 
+  // Fetch player stats for enrichment
+  useEffect(() => {
+    if (!leagueId) return;
+    getPlayerSeasonStats(leagueId).then(setPlayerStats).catch(() => {});
+  }, [leagueId]);
+
+  // Enrich report roster entries with stats
+  const enrichedReport = useMemo(() => {
+    if (!report) return null;
+    if (playerStats.length === 0) return report;
+    // Build lookup by normalized player name
+    const normalize = (n: string) => n.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const statMap = new Map<string, PlayerSeasonStat>();
+    for (const ps of playerStats) {
+      const name = ps.mlb_full_name || ps.player_name || "";
+      if (name) statMap.set(normalize(name), ps);
+    }
+    return {
+      ...report,
+      teams: report.teams.map(t => ({
+        ...t,
+        roster: t.roster.map(r => ({
+          ...r,
+          stat: statMap.get(normalize(r.playerName)),
+        })),
+      })),
+    };
+  }, [report, playerStats]);
+
   const gradeOrder: Record<string, number> = { "A+": 1, "A": 2, "A-": 3, "B+": 4, "B": 5, "B-": 6, "C+": 7, "C": 8, "C-": 9, "D": 10, "F": 11 };
 
-  const sortedTeams = report?.teams ? [...report.teams].sort((a, b) => {
+  const sortedTeams = enrichedReport?.teams ? [...enrichedReport.teams].sort((a, b) => {
     return (gradeOrder[a.grade] ?? 12) - (gradeOrder[b.grade] ?? 12);
   }) : [];
 
@@ -380,7 +501,7 @@ export default function DraftReportPage() {
           {/* Team cards */}
           <div className="space-y-4 mb-10">
             {sortedTeams.map(team => (
-              <TeamCard key={team.teamId} team={team} leagueAvgH={report.leagueSummary.avgHitterPrice} leagueAvgP={report.leagueSummary.avgPitcherPrice} />
+              <TeamCard key={team.teamId} team={team} leagueAvgH={report.leagueSummary.avgHitterPrice} leagueAvgP={report.leagueSummary.avgPitcherPrice} outfieldMode={outfieldMode} />
             ))}
           </div>
 

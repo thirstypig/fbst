@@ -18,6 +18,8 @@ interface Team {
   spotsLeft?: number;
   pitcherCount?: number;
   hitterCount?: number;
+  keeperSpend?: number;
+  auctionSpend?: number;
   positionCounts?: Record<string, number>;
   roster?: { id: number; playerId: number; mlbId?: number | null; playerName?: string | null; price: number; assignedPosition?: string | null }[];
   isMe?: boolean;
@@ -138,6 +140,9 @@ export default function TeamListTab({ teams = [], players = [], budgetCap = 400,
           <div className="px-6 py-2 border-b border-[var(--lg-divide)] bg-[var(--lg-glass-bg-hover)] flex items-center justify-between text-[10px] font-semibold uppercase text-[var(--lg-text-muted)]">
             <span>{teams.reduce((s, t) => s + t.rosterCount, 0)} drafted</span>
             <span>${teams.reduce((s, t) => s + (budgetCap - t.budget), 0)} spent</span>
+            {teams.some(t => (t.keeperSpend ?? 0) > 0) && (
+              <span>K:${teams.reduce((s, t) => s + (t.keeperSpend ?? 0), 0)} A:${teams.reduce((s, t) => s + (t.auctionSpend ?? 0), 0)}</span>
+            )}
             <span>Avg ${leagueAvg.toFixed(1)}/player</span>
           </div>
         )}
@@ -222,7 +227,7 @@ export default function TeamListTab({ teams = [], players = [], budgetCap = 400,
                                         </div>
                                         <span className="text-[10px] font-medium text-[var(--lg-text-muted)] opacity-60">
                                             {showPace
-                                              ? `${team.rosterCount}/${rosterSize} · avg $${avgCost.toFixed(0)} · $${remainingPerSpot.toFixed(0)}/spot left`
+                                              ? `${team.rosterCount}/${rosterSize} · $${spent} spent${(team.keeperSpend ?? 0) > 0 ? ` (K:$${team.keeperSpend} + A:$${team.auctionSpend})` : ''} · $${remainingPerSpot.toFixed(0)}/spot`
                                               : `${team.rosterCount} / ${rosterSize} Roster`}
                                         </span>
                                     </div>
