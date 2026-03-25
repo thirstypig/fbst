@@ -148,9 +148,9 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
       });
     }
 
-    // Reconcile: add auction-source roster entries missing from the WIN log
-    // This catches force-assigns that didn't create a WIN event (like Konnor Griffin)
-    // Skip keepers (source: prior_season, import with isKeeper) — they weren't auctioned
+    // Reconcile: add only explicit auction-source entries missing from the WIN log
+    // This catches force-assigns (source contains "auction" e.g. "auction_2026")
+    // that didn't create a WIN event (like Konnor Griffin $150)
     for (const team of auctionState.teams || []) {
       const result = teamMap.get(team.id);
       if (!result || !team.roster) continue;
@@ -158,10 +158,9 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
       for (const r of team.roster) {
         const pid = String(r.playerId);
         if (existingPlayerIds.has(pid)) continue;
-        // Only add if this looks like an auction pick (source contains "auction" or "force")
-        // Skip keepers and trade-ins — they aren't auction results
         const source = String((r as any).source || '').toLowerCase();
-        if (source.includes('prior') || source.includes('keeper') || source.includes('trade') || source.includes('waiver')) continue;
+        // Only add if source explicitly contains "auction" (e.g. "auction_2026")
+        if (!source.includes('auction')) continue;
         result.roster.push({
           playerId: pid,
           playerName: (r as any).playerName || `Player #${r.playerId}`,
