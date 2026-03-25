@@ -7,7 +7,7 @@ import { fetchJsonApi, API_BASE } from '../../../api/base';
 import { useLeague } from '../../../contexts/LeagueContext';
 import { track } from '../../../lib/posthog';
 import { POS_ORDER } from '../../../lib/baseballUtils';
-import { mapPosition } from '../../../lib/sportConfig';
+import { mapPosition, positionToSlots } from '../../../lib/sportConfig';
 import { getPlayerSeasonStats, type PlayerSeasonStat } from '../../../api';
 import { getTradeBlock, saveTradeBlock, getLeagueTradeBlocks } from '../../teams/api';
 import BidHistoryChart from './BidHistoryChart';
@@ -26,7 +26,7 @@ interface TeamResult {
   totalSpent: number;
   keeperSpend: number;
   auctionSpend: number;
-  roster: { playerId: string; playerName: string; price: number; positions: string; isPitcher: boolean; mlbTeam?: string; isKeeper?: boolean }[];
+  roster: { playerId: string; rosterId?: number; playerName: string; price: number; positions: string; isPitcher: boolean; mlbTeam?: string; isKeeper?: boolean; posList?: string }[];
 }
 
 interface DraftGrade {
@@ -54,6 +54,25 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
   const [gradesError, setGradesError] = useState<string | null>(null);
   const [showReplay, setShowReplay] = useState(false);
   const { leagueId, outfieldMode } = useLeague();
+
+  // Position swap handler — PATCH roster entry's assignedPosition
+  const handlePositionSwap = useCallback(async (teamId: number, rosterId: number, newPos: string) => {
+    try {
+      await fetchJsonApi(`${API_BASE}/teams/${teamId}/roster/${rosterId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ assignedPosition: newPos }),
+      });
+      // Refresh auction state to update positions
+      if (leagueId) {
+        fetchJsonApi(`${API_BASE}/auction/refresh-teams?leagueId=${leagueId}`, { method: 'POST' }).catch(() => {});
+      }
+    } catch (err) {
+      console.error("Failed to update position", err);
+    }
+  }, [leagueId]);
+
+  // Position dropdown slots for a given position string
+  const MATRIX_POSITIONS = ["C", "1B", "2B", "3B", "SS", "MI", "CM", "OF", "DH", "P"];
 
   // Player stats from CSV (for stat columns)
   const [playerStats, setPlayerStats] = useState<PlayerSeasonStat[]>([]);
@@ -179,15 +198,20 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
       });
     }
 
-    // Build a player info lookup from team rosters (has position data)
-    const playerInfoMap = new Map<string, { name: string; position: string; mlbTeam: string }>();
+    // Build a player info lookup from team rosters (has position data + roster ID)
+    const playerInfoMap = new Map<string, { name: string; position: string; mlbTeam: string; rosterId?: number; posList?: string }>();
+    // Also build per-team roster ID lookup: `${teamId}-${playerId}` → rosterId
+    const rosterIdMap = new Map<string, number>();
     for (const team of auctionState.teams || []) {
       for (const r of team.roster || []) {
         playerInfoMap.set(String(r.playerId), {
           name: (r as any).playerName || r.playerName || `Player #${r.playerId}`,
           position: (r as any).assignedPosition || (r as any).posPrimary || '',
           mlbTeam: (r as any).mlbTeam || '',
+          rosterId: r.id,
+          posList: (r as any).posPrimary || '',
         });
+        rosterIdMap.set(`${team.id}-${r.playerId}`, r.id);
       }
     }
 
@@ -199,9 +223,11 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
       team.totalSpent += win.amount || 0;
       team.roster.push({
         playerId: win.playerId || '',
+        rosterId: rosterIdMap.get(`${win.teamId}-${win.playerId}`) || pInfo?.rosterId,
         playerName: win.playerName || pInfo?.name || 'Unknown',
         price: win.amount || 0,
         positions: pInfo?.position || '',
+        posList: pInfo?.posList || '',
         isPitcher: false,
         mlbTeam: pInfo?.mlbTeam || '',
       });
@@ -253,9 +279,11 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
         const rPos = ((r as any).assignedPosition || (r as any).posPrimary || '').toUpperCase();
         result.roster.push({
           playerId: String(r.playerId),
+          rosterId: r.id,
           playerName: (r as any).playerName || `Player #${r.playerId}`,
           price: r.price || 0,
           positions: rPos || '',
+          posList: (r as any).posPrimary || '',
           isPitcher: rPos === 'P' || rPos === 'SP' || rPos === 'RP' || rPos === 'CL' || rPos === 'TWP',
           mlbTeam: (r as any).mlbTeam || '',
           isKeeper,
@@ -553,6 +581,15 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
                       <tbody className="divide-y divide-[var(--lg-divide)]">
                         {hitters.map(player => {
                           const stats = getPlayerStats(player.playerName || '', false);
+                          const posSlots = (() => {
+                            const raw = player.posList || player.positions || '';
+                            const slots = new Set<string>();
+                            for (const p of raw.split(',').map(s => s.trim()).filter(Boolean)) {
+                              for (const s of positionToSlots(p)) slots.add(s);
+                            }
+                            if (slots.size > 0) slots.add('DH');
+                            return MATRIX_POSITIONS.filter(s => slots.has(s));
+                          })();
                           return (
                             <ThemedTr key={player.playerId || player.playerName}>
                               <ThemedTd className="py-1.5">
@@ -561,7 +598,20 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
                                   {player.isKeeper && <span className="text-[8px] font-bold uppercase text-amber-500 bg-amber-500/10 border border-amber-500/20 px-1 rounded">K</span>}
                                 </span>
                               </ThemedTd>
-                              <ThemedTd className="py-1.5 text-[10px] text-[var(--lg-text-muted)] font-mono">{mapPosition(player.positions?.split(",")[0]?.trim() || "", outfieldMode) || "—"}</ThemedTd>
+                              <ThemedTd className="py-1.5">
+                                {player.rosterId && posSlots.length > 1 ? (
+                                  <select
+                                    className="appearance-none bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20 cursor-pointer hover:bg-emerald-500/20 transition-all outline-none text-[10px] font-mono"
+                                    value={mapPosition(player.positions?.split(",")[0]?.trim() || "", outfieldMode)}
+                                    onChange={(e) => handlePositionSwap(team.id, player.rosterId!, e.target.value)}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {posSlots.map(p => <option key={p} value={p} className="text-black">{p}</option>)}
+                                  </select>
+                                ) : (
+                                  <span className="text-[10px] text-[var(--lg-text-muted)] font-mono">{mapPosition(player.positions?.split(",")[0]?.trim() || "", outfieldMode) || "—"}</span>
+                                )}
+                              </ThemedTd>
                               <ThemedTd className="py-1.5 text-[10px] text-[var(--lg-text-muted)]">{player.mlbTeam || "—"}</ThemedTd>
                               <ThemedTd align="right" className={`py-1.5 text-xs font-semibold tabular-nums ${player.isKeeper ? 'text-amber-500' : 'text-[var(--lg-accent)]'}`}>${player.price}</ThemedTd>
                               <ThemedTd align="center" className="py-1.5 text-[10px] tabular-nums">{num(stats?.R) || '—'}</ThemedTd>
