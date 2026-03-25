@@ -183,120 +183,48 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
     const totalLots = wins.length;
     const totalSpent = wins.reduce((sum, e) => sum + (e.amount || 0), 0);
 
-    // Build team results from auction state teams + log
-    // budget = full team DB budget (includes pre-draft trade adjustments)
-    // totalSpent = keepers + auction picks (accumulated below)
-    // Remaining = budget - totalSpent
-    const teamMap = new Map<number, TeamResult>();
-    for (const team of auctionState.teams || []) {
+    // Build team results directly from auction state roster (authoritative source)
+    // The roster comes from refreshTeams() which queries the live DB
+    const teamResults: TeamResult[] = (auctionState.teams || []).map(team => {
       const teamDbBudget = (team as any).dbBudget || auctionState.config?.budgetCap || 400;
-      teamMap.set(team.id, {
-        id: team.id,
-        name: team.name,
-        code: team.code,
-        budget: teamDbBudget,
-        totalSpent: 0,
-        keeperSpend: (team as any).keeperSpend ?? 0,
-        auctionSpend: (team as any).auctionSpend ?? 0,
-        roster: [],
-      });
-    }
+      const PITCHER_POS = new Set(['P', 'SP', 'RP', 'CL', 'TWP']);
 
-    // Build a player info lookup from team rosters (has position data + roster ID)
-    const playerInfoMap = new Map<string, { name: string; position: string; mlbTeam: string; rosterId?: number; posList?: string }>();
-    // Also build per-team roster ID lookup: `${teamId}-${playerId}` → rosterId
-    const rosterIdMap = new Map<string, number>();
-    for (const team of auctionState.teams || []) {
-      for (const r of team.roster || []) {
-        playerInfoMap.set(String(r.playerId), {
-          name: (r as any).playerName || r.playerName || `Player #${r.playerId}`,
-          position: (r as any).assignedPosition || (r as any).posPrimary || '',
-          mlbTeam: (r as any).mlbTeam || '',
-          rosterId: r.id,
-          posList: (r as any).posPrimary || '',
-        });
-        rosterIdMap.set(`${team.id}-${r.playerId}`, r.id);
-      }
-    }
-
-    for (const win of wins) {
-      if (!win.teamId) continue;
-      const team = teamMap.get(win.teamId);
-      if (!team) continue;
-      const pInfo = playerInfoMap.get(win.playerId || '');
-      team.totalSpent += win.amount || 0;
-      team.roster.push({
-        playerId: win.playerId || '',
-        rosterId: rosterIdMap.get(`${win.teamId}-${win.playerId}`) || pInfo?.rosterId,
-        playerName: win.playerName || pInfo?.name || 'Unknown',
-        price: win.amount || 0,
-        positions: pInfo?.position || '',
-        posList: pInfo?.posList || '',
-        isPitcher: false,
-        mlbTeam: pInfo?.mlbTeam || '',
-      });
-    }
-
-    // Enrich log-based roster entries with position/mlbTeam from GLOBAL player lookup
-    // Global = across ALL teams, so traded players (Riley, Fairbanks) get their data
-    const globalPlayerByName = new Map<string, any>();
-    for (const team of auctionState.teams || []) {
-      for (const r of team.roster || []) {
-        const name = ((r as any).playerName || '').toLowerCase();
-        if (name && !globalPlayerByName.has(name)) {
-          globalPlayerByName.set(name, { ...r, teamId: team.id });
-        }
-      }
-    }
-
-    // Enrich existing entries with position/mlbTeam + set isPitcher
-    for (const [, result] of teamMap) {
-      for (const entry of result.roster) {
-        const dbEntry = globalPlayerByName.get((entry.playerName || '').toLowerCase());
-        if (!dbEntry) continue;
-        if (!entry.positions) entry.positions = dbEntry.posPrimary || dbEntry.assignedPosition || '';
-        if (!entry.mlbTeam) entry.mlbTeam = dbEntry.mlbTeam || '';
-        if (!entry.playerName || entry.playerName.startsWith('Player #')) {
-          entry.playerName = dbEntry.playerName || entry.playerName;
-        }
-        // Set isPitcher: prefer assignedPosition (actual roster slot) over posPrimary
-        // Critical for two-way players (Ohtani) who have posPrimary=DH but assignedPosition=P on one team
-        const assignedPos = (dbEntry.assignedPosition || '').toUpperCase();
-        const effectivePos = assignedPos || (entry.positions || '').toUpperCase();
-        entry.isPitcher = effectivePos === 'P' || effectivePos === 'SP' || effectivePos === 'RP' || effectivePos === 'CL' || effectivePos === 'TWP';
-      }
-    }
-
-    // Add keepers and force-assigned players missing from the log
-    // Keepers (source: prior_season) + force-assigns (source: auction_*)
-    for (const team of auctionState.teams || []) {
-      const result = teamMap.get(team.id);
-      if (!result || !team.roster) continue;
-      const loggedNames = new Set(result.roster.map(r => (r.playerName || '').toLowerCase()));
-      for (const r of team.roster) {
+      const roster = (team.roster || []).map(r => {
+        // Prefer assignedPosition (actual roster slot) over posPrimary
+        // Critical for two-way players (Ohtani) who have posPrimary=DH but assignedPosition=P
+        const assignedPos = ((r as any).assignedPosition || '').toUpperCase();
+        const primaryPos = ((r as any).posPrimary || '').toUpperCase();
+        const effectivePos = assignedPos || primaryPos;
         const src = String((r as any).source || '').toLowerCase();
-        const isKeeper = src.includes('prior');
-        if (!src.includes('auction') && !isKeeper) continue;
-        const name = ((r as any).playerName || '').toLowerCase();
-        if (!name || loggedNames.has(name)) continue;
-        // Prefer assignedPosition (actual roster slot) over posPrimary — critical for two-way players
-        const rPos = ((r as any).assignedPosition || (r as any).posPrimary || '').toUpperCase();
-        result.roster.push({
+
+        return {
           playerId: String(r.playerId),
           rosterId: r.id,
           playerName: (r as any).playerName || `Player #${r.playerId}`,
           price: r.price || 0,
-          positions: rPos || '',
-          posList: (r as any).posPrimary || '',
-          isPitcher: rPos === 'P' || rPos === 'SP' || rPos === 'RP' || rPos === 'CL' || rPos === 'TWP',
+          positions: effectivePos,
+          posList: primaryPos,
+          isPitcher: PITCHER_POS.has(effectivePos),
           mlbTeam: (r as any).mlbTeam || '',
-          isKeeper,
-        });
-        result.totalSpent += r.price || 0;
-      }
-    }
+          isKeeper: src.includes('prior'),
+        };
+      });
 
-    const teamResults = Array.from(teamMap.values()).sort((a, b) => b.totalSpent - a.totalSpent);
+      const spent = roster.reduce((s, r) => s + r.price, 0);
+
+      return {
+        id: team.id,
+        name: team.name,
+        code: team.code,
+        budget: teamDbBudget,
+        totalSpent: spent,
+        keeperSpend: (team as any).keeperSpend ?? 0,
+        auctionSpend: (team as any).auctionSpend ?? 0,
+        roster,
+      };
+    });
+
+    teamResults.sort((a, b) => b.totalSpent - a.totalSpent);
     return { teamResults, totalLots, totalSpent };
   }, [auctionState]);
 
