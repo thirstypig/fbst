@@ -477,16 +477,23 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-6 text-right">
+                  <div className="flex items-center gap-4 md:gap-6 text-right">
+                    {team.keeperSpend > 0 && (
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-semibold uppercase text-[var(--lg-text-muted)]">Keepers</span>
+                        <span className="font-semibold text-amber-400 tabular-nums">${team.keeperSpend}</span>
+                      </div>
+                    )}
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-semibold uppercase text-[var(--lg-text-muted)]">Spent</span>
-                      <span className="font-semibold text-[var(--lg-accent)] tabular-nums">${team.totalSpent}</span>
-                      {team.keeperSpend > 0 && (
-                        <span className="text-[9px] text-[var(--lg-text-muted)] tabular-nums">K:${team.keeperSpend} A:${team.auctionSpend}</span>
-                      )}
+                      <span className="text-[10px] font-semibold uppercase text-[var(--lg-text-muted)]">{team.keeperSpend > 0 ? 'Auction' : 'Spent'}</span>
+                      <span className="font-semibold text-[var(--lg-accent)] tabular-nums">${team.auctionSpend}</span>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-semibold uppercase text-[var(--lg-text-muted)]">Remaining</span>
+                      <span className="text-[10px] font-semibold uppercase text-[var(--lg-text-muted)]">Total</span>
+                      <span className="font-semibold text-[var(--lg-text-primary)] tabular-nums">${team.totalSpent}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-semibold uppercase text-[var(--lg-text-muted)]">Left</span>
                       <span className={`font-semibold tabular-nums ${(team.budget - team.totalSpent) < 0 ? 'text-red-400' : 'text-[var(--lg-text-primary)]'}`}>${team.budget - team.totalSpent}</span>
                     </div>
                     <div className={`text-[var(--lg-text-muted)] transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>
