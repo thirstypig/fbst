@@ -207,7 +207,7 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
       for (const r of team.roster) {
         const src = String((r as any).source || '').toLowerCase();
         const isKeeper = src.includes('prior');
-        if (!src.includes('auction') && !isKeeper) continue; // auction + keeper entries only
+        if (!src.includes('auction') && !isKeeper) continue;
         const name = ((r as any).playerName || '').toLowerCase();
         if (!name || loggedNames.has(name)) continue;
         const rPos = ((r as any).posPrimary || (r as any).assignedPosition || '').toUpperCase();
@@ -220,7 +220,6 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
           mlbTeam: (r as any).mlbTeam || '',
           isKeeper,
         });
-        if (isKeeper) result.totalSpent += r.price || 0;
         result.totalSpent += r.price || 0;
       }
     }
