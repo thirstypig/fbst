@@ -229,9 +229,11 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
         if (!entry.playerName || entry.playerName.startsWith('Player #')) {
           entry.playerName = dbEntry.playerName || entry.playerName;
         }
-        // Set isPitcher from position data
-        const pos = (entry.positions || '').toUpperCase();
-        entry.isPitcher = pos === 'P' || pos === 'SP' || pos === 'RP' || pos === 'CL' || pos === 'TWP';
+        // Set isPitcher: prefer assignedPosition (actual roster slot) over posPrimary
+        // Critical for two-way players (Ohtani) who have posPrimary=DH but assignedPosition=P on one team
+        const assignedPos = (dbEntry.assignedPosition || '').toUpperCase();
+        const effectivePos = assignedPos || (entry.positions || '').toUpperCase();
+        entry.isPitcher = effectivePos === 'P' || effectivePos === 'SP' || effectivePos === 'RP' || effectivePos === 'CL' || effectivePos === 'TWP';
       }
     }
 
@@ -247,7 +249,8 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
         if (!src.includes('auction') && !isKeeper) continue;
         const name = ((r as any).playerName || '').toLowerCase();
         if (!name || loggedNames.has(name)) continue;
-        const rPos = ((r as any).posPrimary || (r as any).assignedPosition || '').toUpperCase();
+        // Prefer assignedPosition (actual roster slot) over posPrimary — critical for two-way players
+        const rPos = ((r as any).assignedPosition || (r as any).posPrimary || '').toUpperCase();
         result.roster.push({
           playerId: String(r.playerId),
           playerName: (r as any).playerName || `Player #${r.playerId}`,
@@ -496,8 +499,8 @@ export default function AuctionComplete({ auctionState, myTeamId }: AuctionCompl
                   // Generic sort function for any column
                   const sortRoster = (list: typeof team.roster) => {
                     return [...list].sort((a, b) => {
-                      // Keepers always first
-                      if (a.isKeeper !== b.isKeeper) return a.isKeeper ? -1 : 1;
+                      // Keepers first only when sorting by position (default view)
+                      if (rosterSort === 'position' && a.isKeeper !== b.isKeeper) return a.isKeeper ? -1 : 1;
                       const statsA = getPlayerStats(a.playerName || '', a.isPitcher);
                       const statsB = getPlayerStats(b.playerName || '', b.isPitcher);
                       let cmp = 0;
