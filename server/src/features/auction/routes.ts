@@ -199,12 +199,20 @@ const refreshTeams = async (state: AuctionState) => {
       }
     }
 
+    // Keeper vs auction spend breakdown
+    const keeperSpend = t.rosters
+      .filter(r => r.source === "prior_season")
+      .reduce((sum, r) => sum + (Number(r.price) || 0), 0);
+    const auctionSpend = spent - keeperSpend;
+
     return {
       id: t.id,
       name: t.name,
       code: t.code || 'UNK',
       budget: remaining,
       dbBudget: teamBudget,  // raw DB budget (includes pre-draft trade adjustments)
+      keeperSpend,
+      auctionSpend,
       rosterCount: count,
       spotsLeft: spots,
       pitcherCount: pitchers,
@@ -217,6 +225,7 @@ const refreshTeams = async (state: AuctionState) => {
           mlbId: r.player?.mlbId ?? null,
           playerName: r.player?.name ?? null,
           posPrimary: r.player?.posPrimary ?? null,
+          posList: r.player?.posList ?? r.player?.posPrimary ?? null,
           mlbTeam: r.player?.mlbTeam ?? null,
           price: Number(r.price),
           assignedPosition: r.assignedPosition,

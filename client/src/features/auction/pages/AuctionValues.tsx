@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { getAuctionValues, getLeague, type PlayerSeasonStat } from "../../../api";
 import { toNum } from "../../../api/base";
 import { useLeague } from "../../../contexts/LeagueContext";
+import { useSeasonGating } from "../../../hooks/useSeasonGating";
 import { mapPosition } from "../../../lib/sportConfig";
 import PlayerDetailModal from "../../../components/shared/PlayerDetailModal";
 import PageHeader from "../../../components/ui/PageHeader";
@@ -50,6 +51,7 @@ function fmt1(v: number): string {
 
 export default function AuctionValues() {
   const { leagueId, outfieldMode } = useLeague();
+  const { canViewAuctionResults } = useSeasonGating();
   const [rows, setRows] = useState<PlayerSeasonStat[]>([]);
   const [teamNameMap, setTeamNameMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -128,8 +130,17 @@ export default function AuctionValues() {
     <div className="max-w-6xl mx-auto px-4 py-6 md:px-6 md:py-10">
       <PageHeader
         title="Auction Values"
-        subtitle="Read-only display of auction values (engine is deferred)."
+        subtitle={canViewAuctionResults
+          ? "Pre-draft projected values — for historical reference only. Season is underway."
+          : "Projected auction values for draft planning."
+        }
       />
+
+      {canViewAuctionResults && (
+        <div className="mb-4 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-2.5 text-xs font-medium text-amber-400">
+          These are pre-draft projected values and do not reflect in-season performance. Check the Team page for current stats.
+        </div>
+      )}
 
       <div className="mb-6 flex flex-wrap items-center justify-center gap-3">
         <div className="rounded-full bg-[var(--lg-tint)] p-1">

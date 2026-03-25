@@ -5,12 +5,11 @@ import { getPlayerSeasonStats, type PlayerSeasonStat, getTeamDetails, getTeams, 
 import { getTeamAiInsightsHistory, type WeeklyInsightEntry } from "../api";
 import PlayerDetailModal from "../../../components/shared/PlayerDetailModal";
 import PlayerExpandedRow from "../../auction/components/PlayerExpandedRow";
-import TeamRosterManager from "../components/TeamRosterManager";
 import { useLeague } from "../../../contexts/LeagueContext";
 import { getTradeBlock } from "../api";
 
 import { getOgbaTeamName } from "../../../lib/ogbaTeams";
-import { isPitcher, normalizePosition, formatAvg, getMlbTeamAbbr } from "../../../lib/playerDisplay";
+import { isPitcher, normalizePosition, formatAvg, getMlbTeamAbbr, sortByPosition } from "../../../lib/playerDisplay";
 import { mapPosition } from "../../../lib/sportConfig";
 import { TableCard, Table, THead, Tr, Th, Td } from "../../../components/ui/TableCard";
 import { Button } from "../../../components/ui/button";
@@ -75,10 +74,7 @@ export default function Team() {
 
   const [players, setPlayers] = useState<PlayerSeasonStat[]>([]);
   const [loading, setLoading] = useState(true);
-  // Roster Manager State
-  const [isManaging, setIsManaging] = useState(false);
   const [dbTeamId, setDbTeamId] = useState<number | null>(null);
-  const [currentRoster, setCurrentRoster] = useState<any[]>([]);
 
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<PlayerSeasonStat | null>(null);
@@ -129,7 +125,6 @@ export default function Team() {
             getTradeBlock(foundId).catch(() => ({ playerIds: [] as number[] })),
           ]);
           if (!ok) return;
-          setCurrentRoster(details.currentRoster || []);
           setTradeBlockIds(new Set(tradeBlockData.playerIds));
 
           // 4. Build player list from DB roster, merge in CSV stats
@@ -255,7 +250,11 @@ export default function Team() {
 
   const hitters = useMemo(() => {
     const list = players.filter((p) => !isPitcher(p));
-    list.sort((a, b) => ((b as any).isKeeper ? 1 : 0) - ((a as any).isKeeper ? 1 : 0));
+    list.sort((a, b) => {
+      const kd = ((b as any).isKeeper ? 1 : 0) - ((a as any).isKeeper ? 1 : 0);
+      if (kd !== 0) return kd;
+      return sortByPosition(a, b);
+    });
     return list;
   }, [players]);
   const pitchers = useMemo(() => {
@@ -286,15 +285,6 @@ export default function Team() {
              </Link>
 
              {/* AI Insights auto-generate on load — no manual button needed */}
-
-             {/* Manage Button - Only show if DB data loaded */}
-             {dbTeamId && (
-                 <Button
-                    onClick={() => setIsManaging(true)}
-                 >
-                    <span>Manage Roster</span>
-                 </Button>
-             )}
           </div>
         </header>
 
@@ -655,30 +645,6 @@ export default function Team() {
 
         {selected ? <PlayerDetailModal player={selected} onClose={() => setSelected(null)} /> : null}
 
-        {/* Roster Manager Modal */}
-        {isManaging && (
-             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4">
-                 <div className="w-full max-w-7xl h-[90vh] bg-[#0c0c0c] rounded-3xl border border-[var(--lg-border-subtle)] shadow-2xl overflow-hidden flex flex-col liquid-glass">
-                      <div className="p-6 border-b border-[var(--lg-border-subtle)] flex justify-between items-center bg-[var(--lg-tint)]">
-                          <h2 className="text-xl font-semibold uppercase text-[var(--lg-text-heading)]">Roster Management</h2>
-                          <Button
-                             onClick={() => { setIsManaging(false); }}
-                             variant="ghost"
-                             size="icon"
-                          >
-                             ✕
-                          </Button>
-                      </div>
-                     <div className="flex-1 overflow-hidden p-8 bg-black/20">
-                         <TeamRosterManager 
-                            teamId={dbTeamId || 0}
-                            roster={currentRoster} 
-                            onUpdate={() => {}} 
-                         />
-                     </div>
-                 </div>
-             </div>
-        )}
       </main>
     </div>
   );

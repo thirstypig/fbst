@@ -6,6 +6,7 @@ export {
   isPitcher,
   normalizePosition,
   getMlbTeamAbbr,
+  sortByPosition,
 } from "./sportConfig";
 
 import { fmtRate } from "./sportConfig";

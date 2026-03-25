@@ -9,6 +9,7 @@ import PageHeader from "../../../components/ui/PageHeader";
 import { PeriodSummaryTable, CategoryPeriodTable, TeamPeriodSummaryRow, CategoryPeriodRow } from "../../../components/shared/StatsTables";
 import { Button } from "../../../components/ui/button";
 import { ThemedTable, ThemedThead, ThemedTr, ThemedTh, ThemedTd } from "../../../components/ui/ThemedTable";
+import { SortableHeader } from "../../../components/ui/SortableHeader";
 import { getCurrentSeason, type Season } from "../../seasons/api";
 import { getTeamDetails } from "../../teams/api";
 import { POS_ORDER } from "../../../lib/baseballUtils";
@@ -90,6 +91,15 @@ const SeasonPage: React.FC = () => {
   const [periodSummaryRows, setPeriodSummaryRows] = useState<TeamPeriodSummaryRow[]>([]);
   const [periodCategoryRows, setPeriodCategoryRows] = useState<Record<string, CategoryPeriodRow[]>>({});
 
+  // Season matrix sort state
+  const [matrixSortKey, setMatrixSortKey] = useState<string>("total");
+  const [matrixSortDesc, setMatrixSortDesc] = useState(true);
+
+  const handleMatrixSort = useCallback((key: string) => {
+    if (key === matrixSortKey) { setMatrixSortDesc(d => !d); }
+    else { setMatrixSortKey(key); setMatrixSortDesc(key !== "team"); }
+  }, [matrixSortKey]);
+
   // Expandable team roster state
   const [expandedTeamId, setExpandedTeamId] = useState<number | null>(null);
   const [teamRosters, setTeamRosters] = useState<Record<number, Array<{ id: number; name: string; posPrimary: string; price: number }>>>({});
@@ -121,8 +131,24 @@ const SeasonPage: React.FC = () => {
 
   // Sort logic for matrix
   const sortedRows = useMemo(() => {
-    return [...rows].sort((a, b) => b.totalPoints - a.totalPoints);
-  }, [rows]);
+    return [...rows].sort((a, b) => {
+      let va: number | string;
+      let vb: number | string;
+      if (matrixSortKey === "team") {
+        va = a.teamName.toLowerCase();
+        vb = b.teamName.toLowerCase();
+      } else if (matrixSortKey.startsWith("p_")) {
+        const idx = Number(matrixSortKey.slice(2));
+        va = a.periodPoints[idx] ?? 0;
+        vb = b.periodPoints[idx] ?? 0;
+      } else {
+        va = a.totalPoints;
+        vb = b.totalPoints;
+      }
+      const cmp = typeof va === "string" ? va.localeCompare(vb as string) : (va as number) - (vb as number);
+      return matrixSortDesc ? -cmp : cmp;
+    });
+  }, [rows, matrixSortKey, matrixSortDesc]);
 
   // Initial Load: Season Standings
   useEffect(() => {
@@ -265,21 +291,21 @@ const SeasonPage: React.FC = () => {
 
             <ThemedTable>
                 <ThemedThead>
-                  <ThemedTr>
+                  <tr>
                     <ThemedTh align="center" className="w-16">#</ThemedTh>
-                    <ThemedTh>Team</ThemedTh>
-                    
-                    {periodIds.map((pid) => (
-                      <ThemedTh key={pid} align="center" className="min-w-[80px]">
+                    <SortableHeader sortKey="team" activeSortKey={matrixSortKey} sortDesc={matrixSortDesc} onSort={handleMatrixSort}>Team</SortableHeader>
+
+                    {periodIds.map((pid, idx) => (
+                      <SortableHeader key={pid} sortKey={`p_${idx}`} activeSortKey={matrixSortKey} sortDesc={matrixSortDesc} onSort={handleMatrixSort} align="center" className="min-w-[80px]">
                         P{pid}
-                      </ThemedTh>
+                      </SortableHeader>
                     ))}
 
-                    <ThemedTh align="center" className="min-w-[120px]">
+                    <SortableHeader sortKey="total" activeSortKey={matrixSortKey} sortDesc={matrixSortDesc} onSort={handleMatrixSort} align="center" className="min-w-[120px]">
                       TOTAL
-                    </ThemedTh>
-                    <ThemedTh align="right" className="pr-8">Link</ThemedTh>
-                  </ThemedTr>
+                    </SortableHeader>
+                    <ThemedTh align="right" className="pr-8"> </ThemedTh>
+                  </tr>
                 </ThemedThead>
 
                 <tbody className="divide-y divide-[var(--lg-divide)]">
