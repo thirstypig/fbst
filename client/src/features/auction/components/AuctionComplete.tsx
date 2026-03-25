@@ -69,8 +69,12 @@ export default function AuctionComplete({ auctionState, myTeamId, onRefresh }: A
       });
       // Refresh auction state so UI shows updated position
       if (leagueId) {
-        await fetchJsonApi(`${API_BASE}/auction/refresh-teams?leagueId=${leagueId}`, { method: 'POST' });
+        await fetchJsonApi(`${API_BASE}/auction/refresh-teams`, {
+          method: 'POST',
+          body: JSON.stringify({ leagueId }),
+        });
       }
+      // Re-fetch state to update UI
       onRefresh?.();
     } catch (err) {
       console.error("Failed to update position", err);
