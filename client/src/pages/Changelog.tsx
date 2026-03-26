@@ -30,6 +30,30 @@ interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: "0.42.0",
+    date: "Mar 26, 2026",
+    session: "Session 48",
+    title: "Position Dropdown Fix, Trade Guard, Sync Preservation, Multi-Surface Position Editing",
+    highlights: [
+      "Fixed position dropdowns on Auction page — changes now persist immediately with optimistic UI updates",
+      "Added position dropdowns to Draft Report (expandable roster) and Team page (ELIG column) for multi-position players",
+      "Fixed daily cron wiping multi-position eligibility data — syncAllPlayers now preserves enriched posList",
+      "Added SELECT FOR UPDATE trade processing guard to prevent double-processing race condition",
+    ],
+    changes: [
+      { type: "feat", description: "Position dropdowns on Draft Report — expandable roster now shows position selectors for multi-eligible players (e.g., O'Hearn: 1B/CM/OF/DH)" },
+      { type: "feat", description: "Position dropdowns on Team page — ELIG column shows editable dropdowns for multi-position players on both hitter and pitcher tables" },
+      { type: "feat", description: "Optimistic position updates — dropdown selections reflect immediately in UI while server round-trip completes in background" },
+      { type: "feat", description: "Pre-draft trade history — Trade #17 recorded (DLC→Mullins, Devil Dawgs→$75) for full transaction audit trail" },
+      { type: "fix", description: "Position dropdown persistence — AuctionResults was not passing onRefresh to AuctionComplete, causing changes to revert after server sync" },
+      { type: "fix", description: "syncAllPlayers now preserves enriched Player.posList — daily cron no longer wipes multi-position eligibility set by syncPositionEligibility" },
+      { type: "fix", description: "Period 1 endDate bug — was set before startDate (Mar 22 < Mar 25), corrected to Apr 6" },
+      { type: "fix", description: "Trade processing race condition — added SELECT FOR UPDATE row lock inside transaction to prevent double-processing from concurrent requests" },
+      { type: "docs", description: "Mandatory browser verification added to CLAUDE.md session checklist — Playwright interaction test required after every code change" },
+      { type: "docs", description: "Yahoo-style roster slot management plan created — 4-phase plan for slot-based UI, server validation, compliance indicators" },
+    ],
+  },
+  {
     version: "0.41.0",
     date: "Mar 25, 2026",
     session: "Session 47",

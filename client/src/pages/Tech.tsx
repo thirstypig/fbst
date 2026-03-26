@@ -32,18 +32,18 @@ import MermaidDiagram from "../components/MermaidDiagram";
 /* ── Data ────────────────────────────────────────────────────────── */
 
 const stats = [
-  { label: "Total Lines of Code", value: "60,630+", icon: FileCode },
-  { label: "Client (React/TS)", value: "31,195", icon: Monitor },
-  { label: "Server (Node/TS)", value: "29,435", icon: Server },
-  { label: "Test Coverage", value: "9,200+ lines", icon: TestTube },
+  { label: "Total Lines of Code", value: "68,778+", icon: FileCode },
+  { label: "Client (React/TS)", value: "35,299", icon: Monitor },
+  { label: "Server (Node/TS)", value: "33,479", icon: Server },
+  { label: "Test Coverage", value: "9,800+ lines", icon: TestTube },
   { label: "Database Models", value: "30", icon: Database },
   { label: "API Endpoints", value: "119", icon: Plug },
   { label: "Feature Modules", value: "19", icon: Layers },
-  { label: "Git Commits", value: "195+", icon: GitCommit },
-  { label: "Tests Passing", value: "730", icon: TestTube },
+  { label: "Git Commits", value: "348+", icon: GitCommit },
+  { label: "Tests Passing", value: "680", icon: TestTube },
   { label: "DB Schema Lines", value: "723", icon: Braces },
   { label: "DB Migrations", value: "10", icon: Database },
-  { label: "Est. Tokens Used", value: "~75M+", icon: Bot },
+  { label: "Est. Tokens Used", value: "~80M+", icon: Bot },
 ];
 
 const techStack = [

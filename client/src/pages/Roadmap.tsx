@@ -33,7 +33,7 @@ import {
 
 /* ── Data ────────────────────────────────────────────────────────── */
 
-const LAST_UPDATED = "March 24, 2026 (Sessions 40–44)";
+const LAST_UPDATED = "March 26, 2026 (Session 48)";
 
 // ─── Product Roadmap ───
 
@@ -120,6 +120,22 @@ const productRoadmap: RoadmapPhase[] = [
         effort: "Large",
         status: "done",
         tags: ["ux", "tables", "a11y"],
+      },
+      {
+        title: "Position Dropdown Fix + Multi-Surface Editing (Session 48)",
+        description: "Fixed position dropdown persistence on Auction page (optimistic UI). Added position editing to Draft Report and Team page. Fixed daily cron wiping multi-position eligibility data. Added trade processing race condition guard.",
+        icon: RefreshCw,
+        effort: "Medium",
+        status: "done",
+        tags: ["positions", "ux", "fix"],
+      },
+      {
+        title: "Yahoo-Style Roster Slot Management",
+        description: "Slot-based roster display (C x2, 1B, 2B, 3B, SS, MI, CM, OF x5, DH, P x9) with eligibility enforcement, green/amber/red compliance indicators, server-side validation, and auto-assignment on trades/waivers. Researched Yahoo/ESPN/Fantrax patterns.",
+        icon: Layers,
+        effort: "Large",
+        status: "in-progress",
+        tags: ["roster", "ux", "feature"],
       },
       {
         title: "Player News Feed",
