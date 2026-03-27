@@ -30,6 +30,36 @@ interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: "0.43.0",
+    date: "Mar 27, 2026",
+    session: "Session 49",
+    title: "Performance Audit, 2026 Season Launch, Position System, Home Page Redesign",
+    highlights: [
+      "Comprehensive performance audit: 8 database indexes, 3 N+1 query fixes, standings query flattened from 4-level nested to 3 parallel queries",
+      "2026 season lifecycle: stats now show current year, draft report locked during season, period stats synced for Opening Day",
+      "Yahoo Fantasy position model: fixed POS column, positions locked during season, commissioner-only editing, auto-assignment script",
+      "Home page redesigned: Real-Time Stats Today (side-by-side roster tables with live boxscore data), MLB Trade Rumors RSS with fantasy team cross-referencing",
+    ],
+    changes: [
+      { type: "perf", description: "8 compound database indexes deployed (Season, Period, Roster, LeagueMembership, Trade, AiInsight, TransactionEvent, FinanceLedger)" },
+      { type: "perf", description: "N+1 queries fixed in admin team codes (2N→2 queries), commissioner roster copy (M*K→1 createMany), standings computation (nested→3 parallel)" },
+      { type: "perf", description: "AuctionValues search debounce (250ms), Team page API waterfall eliminated, Activity page trades loaded in parallel" },
+      { type: "feat", description: "getCurrentSeasonStats() — 2026 stats from MLB API with 2-hour cache, replacing hardcoded LAST_SEASON=2025" },
+      { type: "feat", description: "Draft report locked during IN_SEASON/COMPLETED — served from cache only, no regeneration" },
+      { type: "feat", description: "Period labels show name (P1) instead of database ID (P35) via periodNames in API response" },
+      { type: "feat", description: "Yahoo Fantasy position model — fixed POS column on Team, Auction Results, Draft Report pages (read-only during season)" },
+      { type: "feat", description: "Auto-assignment script for roster slots (C*2, 1B, 2B, 3B, SS, MI, CM, OF*5, DH, P*9) with auction-set positions preserved" },
+      { type: "feat", description: "Commissioner position editing via RosterGrid canEditPosition prop in Commissioner Roster tool" },
+      { type: "feat", description: "Home page: Real-Time Stats Today — full roster with live boxscore data, auto-refresh every 2 min during live games" },
+      { type: "feat", description: "Home page: MLB Trade Rumors RSS feed with NL/AL filter, team dropdown, fantasy team dropdown, My Roster toggle" },
+      { type: "feat", description: "Trade rumors cross-reference: player name tags matched against league roster, highlighted with fantasy team name" },
+      { type: "feat", description: "New server endpoints: /api/mlb/trade-rumors (RSS parser), /api/mlb/injuries, /api/mlb/roster-stats-today (boxscore)" },
+      { type: "fix", description: "ERA/WHIP/IP formatting — shows dash for 0 IP pitchers instead of raw floats like 10.799999" },
+      { type: "fix", description: "AI insights and Weekly Digest default to collapsed, auto-expand on Mondays" },
+      { type: "docs", description: "Position backfill: 370 active roster entries assigned positions, 15 auction-set positions verified" },
+    ],
+  },
+  {
     version: "0.42.0",
     date: "Mar 26, 2026",
     session: "Session 48",

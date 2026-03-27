@@ -4,6 +4,38 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
+## Session 49 (2026-03-27) — Performance Audit, 2026 Season Launch, Position System, Home Page Redesign (3 commits)
+
+### Summary
+Massive session covering 4 major areas: (1) comprehensive performance audit with 8 DB indexes and 3 N+1 fixes, (2) 2026 season lifecycle — stats showing current year, draft report locked, Opening Day stats synced, (3) Yahoo Fantasy position model — fixed POS columns, positions locked during season, auto-assignment script, (4) complete Home page redesign with Real-Time Stats Today, MLB Trade Rumors RSS, and fantasy team cross-referencing.
+
+### Completed
+- **Performance**: 8 compound database indexes deployed, 3 N+1 queries fixed, standings query flattened (4-level nested → 3 parallel), search debounce, API waterfall fixes
+- **2026 Season**: getCurrentSeasonStats() replaces hardcoded 2025, draft report locked during IN_SEASON, period labels show names not IDs, 233 players synced for Period 1
+- **Position System**: Fixed POS column on Team/Auction/Draft Report (read-only during season), auto-assignment script for roster slots, 15 auction-set positions preserved, commissioner editing via Roster tool
+- **Home Page**: Real-Time Stats Today (side-by-side hitters/pitchers with stat columns, live boxscore, auto-refresh), MLB Trade Rumors RSS (NL/AL filter, team dropdown, fantasy team dropdown, roster cross-referencing), Weekly Digest collapsed by default (auto-expand Mondays)
+- **New Endpoints**: /api/mlb/trade-rumors, /api/mlb/injuries, /api/mlb/roster-stats-today
+- **ERA/WHIP/IP Formatting**: Shows "—" for 0 IP instead of raw floats
+- **AI Insights**: Default collapsed on Team page and Home page
+
+### Pending / Next Session
+1. **MLB Depth Charts** — API endpoint ready (statsapi.mlb.com/api/v1/teams/{id}/roster/depthChart), needs UI to cross-reference with roster
+2. **Weekly Digest tabs** — Past weeks in tabs (only 1 digest exists currently, infrastructure ready)
+3. **My Players Today enrichment** — Probable pitcher matchups, starting lineup status
+4. **Position system refinement** — Some players may need manual position corrections via Commissioner tool
+
+### Concerns / Process Improvements
+- **Trade Rumors cross-referencing** — Only matches exact player name tags from RSS categories. Players with abbreviated or partial names won't match. Could enhance with fuzzy matching.
+- **Stats year transition** — getCurrentSeasonStats() has 2-hour cache; first load may be slow as it fetches all ~900 players from MLB API
+- **Position assignments** — 15 of 184 players had explicit auction positions; the rest were auto-assigned from MLB primary positions. Some may need manual correction.
+
+### Test Results
+- Server: 493 passing
+- Client: 187 passing
+- Total: 680 passing, TypeScript clean on both sides
+
+---
+
 ## Session 48 (2026-03-25/26) — Open Items + Position Dropdown Fix + Sync Preservation + Position Plan (7 commits)
 
 ### Summary (Continued)
