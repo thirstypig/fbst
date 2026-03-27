@@ -212,10 +212,18 @@ export default function Home() {
   const [rumorsFilter, setRumorsFilter] = useState<'ALL' | 'NL' | 'AL'>('NL'); // Default NL for NL-only league
   const [rumorsTeamFilter, setRumorsTeamFilter] = useState<string>('ALL'); // specific MLB team
   const [rumorsRosterOnly, setRumorsRosterOnly] = useState(false); // only show news mentioning rostered players
+  const [rumorsFantasyTeam, setRumorsFantasyTeam] = useState<string>('ALL'); // filter by fantasy team's players
   const [leagueStatsSource, setLeagueStatsSource] = useState<string>("NL");
 
   // All rostered players in the league for cross-referencing with trade rumors
   const [leagueRoster, setLeagueRoster] = useState<Map<string, string>>(new Map()); // lowercase name → fantasy team name
+
+  // Derive list of fantasy teams from roster data
+  const fantasyTeams = useMemo(() => {
+    const teams = new Set<string>();
+    for (const team of leagueRoster.values()) teams.add(team);
+    return [...teams].sort();
+  }, [leagueRoster]);
 
   // Invite code
   const [inviteCode, setInviteCode] = useState("");
@@ -430,76 +438,99 @@ export default function Home() {
             </span>
           </div>
 
-          {/* Hitters */}
-          {(() => {
-            const hitters = rosterStats.players.filter((p: any) => !p.isPitcher);
-            if (hitters.length === 0) return null;
-            return (
-              <div className="rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] overflow-hidden mb-3">
-                <div className="grid grid-cols-[32px_1fr_28px_24px_24px_24px_24px_24px_60px] gap-0 text-[9px] font-semibold uppercase text-[var(--lg-text-muted)] px-2 py-1.5 border-b border-[var(--lg-border-faint)]">
-                  <span>POS</span><span>PLAYER</span><span className="text-center">AB</span><span className="text-center">H</span><span className="text-center">R</span><span className="text-center">HR</span><span className="text-center">RBI</span><span className="text-center">SB</span><span className="text-right">STATUS</span>
+          {/* Side-by-side: Hitters left, Pitchers right (stacked on mobile) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {/* Hitters */}
+            {(() => {
+              const hitters = rosterStats.players.filter((p: any) => !p.isPitcher);
+              if (hitters.length === 0) return null;
+              return (
+                <div className="rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] overflow-hidden">
+                  <div className="text-[9px] font-bold uppercase text-[var(--lg-text-muted)] px-2 py-1 border-b border-[var(--lg-border-faint)] bg-[var(--lg-bg-card)]/50">Hitters</div>
+                  <div className="divide-y divide-[var(--lg-border-faint)]">
+                    {hitters.map((p: any, idx: number) => {
+                      const h = p.hitting;
+                      const hasStats = !!h;
+                      const isLive = p.gameStatus === "In Progress";
+                      // Compact display: POS NAME then stats summary
+                      const statParts: string[] = [];
+                      if (h) {
+                        if (h.H > 0 || h.AB > 0) statParts.push(`${h.H}-${h.AB}`);
+                        if (h.R > 0) statParts.push(`${h.R}R`);
+                        if (h.HR > 0) statParts.push(`${h.HR}HR`);
+                        if (h.RBI > 0) statParts.push(`${h.RBI}RBI`);
+                        if (h.SB > 0) statParts.push(`${h.SB}SB`);
+                      }
+                      const statLine = statParts.length > 0 ? statParts.join(', ') : (hasStats ? '0-0' : '');
+                      return (
+                        <div key={`h-${idx}`} className={`flex items-center justify-between px-2 py-1 text-xs ${isLive ? 'bg-emerald-500/5' : ''}`}>
+                          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                            <span className="text-[9px] font-mono font-semibold text-[var(--lg-accent)] w-5 shrink-0">{p.position}</span>
+                            <span className="font-medium text-[var(--lg-text-primary)] truncate">{p.playerName}</span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0 ml-1">
+                            {statLine && (
+                              <span className={`text-[10px] tabular-nums font-medium ${h?.HR > 0 ? 'text-amber-400' : h?.H > 0 ? 'text-emerald-400' : 'text-[var(--lg-text-secondary)]'}`}>
+                                {statLine}
+                              </span>
+                            )}
+                            <span className={`text-[9px] w-12 text-right ${isLive ? 'text-emerald-400 animate-pulse font-semibold' : 'text-[var(--lg-text-muted)]'}`}>
+                              {p.gameToday ? (isLive ? 'LIVE' : p.gameStatus === 'Final' ? 'Final' : `${p.homeAway === 'home' ? 'v' : '@'}${p.opponent}`) : '—'}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="divide-y divide-[var(--lg-border-faint)]">
-                  {hitters.map((p: any, idx: number) => {
-                    const h = p.hitting;
-                    const hasStats = !!h;
-                    const isLive = p.gameStatus === "In Progress";
-                    return (
-                      <div key={`h-${idx}`} className={`grid grid-cols-[32px_1fr_28px_24px_24px_24px_24px_24px_60px] gap-0 px-2 py-1.5 text-xs ${isLive ? 'bg-emerald-500/5' : ''}`}>
-                        <span className="text-[10px] font-mono font-semibold text-[var(--lg-accent)]">{p.position}</span>
-                        <span className="font-medium text-[var(--lg-text-primary)] truncate pr-1">{p.playerName}</span>
-                        <span className={`text-center tabular-nums ${hasStats ? 'text-[var(--lg-text-primary)]' : 'text-[var(--lg-text-muted)] opacity-30'}`}>{h?.AB ?? '—'}</span>
-                        <span className={`text-center tabular-nums ${h?.H > 0 ? 'text-emerald-400 font-semibold' : hasStats ? 'text-[var(--lg-text-primary)]' : 'text-[var(--lg-text-muted)] opacity-30'}`}>{h?.H ?? '—'}</span>
-                        <span className={`text-center tabular-nums ${h?.R > 0 ? 'text-blue-400 font-semibold' : hasStats ? 'text-[var(--lg-text-primary)]' : 'text-[var(--lg-text-muted)] opacity-30'}`}>{h?.R ?? '—'}</span>
-                        <span className={`text-center tabular-nums ${h?.HR > 0 ? 'text-amber-400 font-semibold' : hasStats ? 'text-[var(--lg-text-primary)]' : 'text-[var(--lg-text-muted)] opacity-30'}`}>{h?.HR ?? '—'}</span>
-                        <span className={`text-center tabular-nums ${h?.RBI > 0 ? 'text-purple-400 font-semibold' : hasStats ? 'text-[var(--lg-text-primary)]' : 'text-[var(--lg-text-muted)] opacity-30'}`}>{h?.RBI ?? '—'}</span>
-                        <span className={`text-center tabular-nums ${h?.SB > 0 ? 'text-cyan-400 font-semibold' : hasStats ? 'text-[var(--lg-text-primary)]' : 'text-[var(--lg-text-muted)] opacity-30'}`}>{h?.SB ?? '—'}</span>
-                        <span className={`text-right text-[10px] ${isLive ? 'text-emerald-400 animate-pulse' : 'text-[var(--lg-text-muted)]'}`}>
-                          {p.gameToday ? (isLive ? 'LIVE' : p.gameStatus === 'Final' ? 'Final' : `${p.homeAway === 'home' ? 'vs' : '@'} ${p.opponent}`) : 'No game'}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })()}
+              );
+            })()}
 
-          {/* Pitchers */}
-          {(() => {
-            const pitchers = rosterStats.players.filter((p: any) => p.isPitcher);
-            if (pitchers.length === 0) return null;
-            return (
-              <div className="rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] overflow-hidden">
-                <div className="grid grid-cols-[32px_1fr_28px_24px_24px_24px_24px_24px_60px] gap-0 text-[9px] font-semibold uppercase text-[var(--lg-text-muted)] px-2 py-1.5 border-b border-[var(--lg-border-faint)]">
-                  <span>POS</span><span>PLAYER</span><span className="text-center">IP</span><span className="text-center">H</span><span className="text-center">ER</span><span className="text-center">K</span><span className="text-center">BB</span><span className="text-center">W/L</span><span className="text-right">STATUS</span>
+            {/* Pitchers */}
+            {(() => {
+              const pitchers = rosterStats.players.filter((p: any) => p.isPitcher);
+              if (pitchers.length === 0) return null;
+              return (
+                <div className="rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] overflow-hidden">
+                  <div className="text-[9px] font-bold uppercase text-[var(--lg-text-muted)] px-2 py-1 border-b border-[var(--lg-border-faint)] bg-[var(--lg-bg-card)]/50">Pitchers</div>
+                  <div className="divide-y divide-[var(--lg-border-faint)]">
+                    {pitchers.map((p: any, idx: number) => {
+                      const s = p.pitching;
+                      const hasStats = !!s;
+                      const isLive = p.gameStatus === "In Progress";
+                      const wl = s ? (s.W > 0 ? 'W' : s.L > 0 ? 'L' : s.SV > 0 ? 'SV' : '') : '';
+                      const statParts: string[] = [];
+                      if (s) {
+                        statParts.push(`${s.IP}IP`);
+                        if (s.K > 0) statParts.push(`${s.K}K`);
+                        if (s.ER > 0) statParts.push(`${s.ER}ER`);
+                        if (wl) statParts.push(wl);
+                      }
+                      const statLine = statParts.length > 0 ? statParts.join(', ') : '';
+                      return (
+                        <div key={`p-${idx}`} className={`flex items-center justify-between px-2 py-1 text-xs ${isLive ? 'bg-emerald-500/5' : ''}`}>
+                          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                            <span className="text-[9px] font-mono font-semibold text-[var(--lg-accent)] w-5 shrink-0">P</span>
+                            <span className="font-medium text-[var(--lg-text-primary)] truncate">{p.playerName}</span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0 ml-1">
+                            {statLine && (
+                              <span className={`text-[10px] tabular-nums font-medium ${wl === 'W' || wl === 'SV' ? 'text-emerald-400' : wl === 'L' ? 'text-red-400' : 'text-[var(--lg-text-secondary)]'}`}>
+                                {statLine}
+                              </span>
+                            )}
+                            <span className={`text-[9px] w-12 text-right ${isLive ? 'text-emerald-400 animate-pulse font-semibold' : 'text-[var(--lg-text-muted)]'}`}>
+                              {p.gameToday ? (isLive ? 'LIVE' : p.gameStatus === 'Final' ? 'Final' : `${p.homeAway === 'home' ? 'v' : '@'}${p.opponent}`) : '—'}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="divide-y divide-[var(--lg-border-faint)]">
-                  {pitchers.map((p: any, idx: number) => {
-                    const s = p.pitching;
-                    const hasStats = !!s;
-                    const isLive = p.gameStatus === "In Progress";
-                    const wl = s ? (s.W > 0 ? 'W' : s.L > 0 ? 'L' : s.SV > 0 ? 'SV' : '—') : '—';
-                    return (
-                      <div key={`p-${idx}`} className={`grid grid-cols-[32px_1fr_28px_24px_24px_24px_24px_24px_60px] gap-0 px-2 py-1.5 text-xs ${isLive ? 'bg-emerald-500/5' : ''}`}>
-                        <span className="text-[10px] font-mono font-semibold text-[var(--lg-accent)]">P</span>
-                        <span className="font-medium text-[var(--lg-text-primary)] truncate pr-1">{p.playerName}</span>
-                        <span className={`text-center tabular-nums ${hasStats ? 'text-[var(--lg-text-primary)]' : 'text-[var(--lg-text-muted)] opacity-30'}`}>{s?.IP ?? '—'}</span>
-                        <span className={`text-center tabular-nums ${hasStats ? 'text-[var(--lg-text-primary)]' : 'text-[var(--lg-text-muted)] opacity-30'}`}>{s?.H ?? '—'}</span>
-                        <span className={`text-center tabular-nums ${s?.ER > 0 ? 'text-red-400' : hasStats ? 'text-[var(--lg-text-primary)]' : 'text-[var(--lg-text-muted)] opacity-30'}`}>{s?.ER ?? '—'}</span>
-                        <span className={`text-center tabular-nums ${s?.K > 0 ? 'text-emerald-400 font-semibold' : hasStats ? 'text-[var(--lg-text-primary)]' : 'text-[var(--lg-text-muted)] opacity-30'}`}>{s?.K ?? '—'}</span>
-                        <span className={`text-center tabular-nums ${hasStats ? 'text-[var(--lg-text-primary)]' : 'text-[var(--lg-text-muted)] opacity-30'}`}>{s?.BB ?? '—'}</span>
-                        <span className={`text-center tabular-nums ${wl === 'W' || wl === 'SV' ? 'text-emerald-400 font-semibold' : wl === 'L' ? 'text-red-400' : hasStats ? 'text-[var(--lg-text-primary)]' : 'text-[var(--lg-text-muted)] opacity-30'}`}>{wl}</span>
-                        <span className={`text-right text-[10px] ${isLive ? 'text-emerald-400 animate-pulse' : 'text-[var(--lg-text-muted)]'}`}>
-                          {p.gameToday ? (isLive ? 'LIVE' : p.gameStatus === 'Final' ? 'Final' : `${p.homeAway === 'home' ? 'vs' : '@'} ${p.opponent}`) : 'No game'}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })()}
+              );
+            })()}
+          </div>
         </div>
       )}
 
@@ -683,18 +714,18 @@ export default function Home() {
             MLB Trade Rumors
           </h2>
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Roster-only toggle */}
-            <button
-              onClick={() => setRumorsRosterOnly(prev => !prev)}
-              className={`px-2 py-0.5 text-[10px] font-semibold rounded border transition-all ${
-                rumorsRosterOnly
-                  ? 'bg-[var(--lg-accent)]/20 text-[var(--lg-accent)] border-[var(--lg-accent)]/30'
-                  : 'text-[var(--lg-text-muted)] border-[var(--lg-border-subtle)] hover:text-[var(--lg-text-primary)]'
-              }`}
+            {/* Fantasy team dropdown */}
+            <select
+              value={rumorsFantasyTeam}
+              onChange={(e) => { setRumorsFantasyTeam(e.target.value); setRumorsRosterOnly(e.target.value !== 'ALL'); }}
+              className="bg-[var(--lg-tint)] border border-[var(--lg-border-subtle)] rounded px-1.5 py-0.5 text-[10px] font-semibold text-[var(--lg-text-muted)] outline-none cursor-pointer"
             >
-              My Roster
-            </button>
-            {/* Team dropdown */}
+              <option value="ALL">All League News</option>
+              <option value="MY_ROSTER">My Roster</option>
+              {fantasyTeams.map(t => <option key={t} value={t}>{t}</option>)}
+              <option value="FREE_AGENTS">Free Agents</option>
+            </select>
+            {/* MLB Team dropdown */}
             <select
               value={rumorsTeamFilter}
               onChange={(e) => setRumorsTeamFilter(e.target.value)}
@@ -746,8 +777,19 @@ export default function Home() {
           // Step 2: Apply filters
           let filtered = rumorsWithMatches;
 
-          // Roster-only: only show items mentioning rostered players (overrides other filters)
-          if (rumorsRosterOnly) {
+          // Fantasy team filter: filter by specific fantasy team's players, or all rostered, or free agents
+          if (rumorsFantasyTeam === 'FREE_AGENTS') {
+            // Show items with player tags NOT on any league roster
+            filtered = filtered.filter(r => {
+              return r.categories.some(cat => {
+                const isPlayer = !TEAM_NAME_TO_ABBR[cat] && !['Notes', 'Transactions', 'Newsstand', 'Front Office Originals', 'MLBTR Originals', 'MLBTR Polls', 'The Opener', 'Front Office Fantasy'].includes(cat);
+                return isPlayer && !leagueRoster.has(cat.toLowerCase());
+              });
+            });
+          } else if (rumorsFantasyTeam !== 'ALL' && rumorsFantasyTeam !== 'MY_ROSTER') {
+            // Filter by specific fantasy team
+            filtered = filtered.filter(r => r.matchedPlayers.some(mp => mp.fantasyTeam === rumorsFantasyTeam));
+          } else if (rumorsFantasyTeam === 'MY_ROSTER' || rumorsRosterOnly) {
             filtered = filtered.filter(r => r.matchedPlayers.length > 0);
           } else {
             // Team dropdown filter: filter by specific MLB team name in categories
