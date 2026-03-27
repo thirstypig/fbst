@@ -68,7 +68,10 @@ function posEligible(p: any, ofMode: string = "OF"): string {
 export default function Team() {
   const { teamCode } = useParams();
   const code = normCode(teamCode);
-  const { leagueId, outfieldMode } = useLeague();
+  const { leagueId, outfieldMode, seasonStatus } = useLeague();
+  // Positions are locked on the Team page during the season for everyone.
+  // Commissioners manage position changes from the Commissioner page Roster tab.
+  const positionsLocked = seasonStatus === "IN_SEASON" || seasonStatus === "COMPLETED";
 
   const loc = useLocation();
   const activeTab: "hitters" | "pitchers" = loc.hash === "#pitchers" ? "pitchers" : "hitters";
@@ -101,7 +104,7 @@ export default function Team() {
   const [aiInsights, setAiInsights] = useState<TeamInsightsResult | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
-  const [aiExpanded, setAiExpanded] = useState(true);
+  const [aiExpanded, setAiExpanded] = useState(false);
 
   // Weekly insights history (tab-based)
   const [insightHistory, setInsightHistory] = useState<WeeklyInsightEntry[]>([]);
@@ -171,6 +174,7 @@ export default function Team() {
                 _dbPlayerId: dbPlayerId,
                 _rosterId: r.id,
                 _posList: posList || posPrimary || "",
+                assignedPosition: r.assignedPosition || "",
                 ogba_team_code: code,
                 ogba_team_name: team?.name ?? "",
                 mlb_team_abbr: mlbTeam || csvMatch.mlb_team_abbr || csvMatch.mlb_team || "",
@@ -189,6 +193,7 @@ export default function Team() {
               _dbPlayerId: dbPlayerId,
               _rosterId: r.id,
               _posList: posList || posPrimary || "",
+              assignedPosition: assignedPos,
               mlb_id: String(mlbId || ""),
               player_name: playerName,
               ogba_team_code: code,
@@ -228,15 +233,25 @@ export default function Team() {
     };
   }, [code, leagueId]);
 
-  // Auto-generate AI insights once dbTeamId is available (persisted weekly)
+  // Fetch AI insights + history in parallel once dbTeamId is available
   useEffect(() => {
     if (!dbTeamId || !leagueId || aiInsights || aiLoading) return;
     let ok = true;
     (async () => {
       setAiLoading(true);
       try {
-        const result = await getTeamAiInsights(leagueId, dbTeamId);
-        if (ok) setAiInsights(result);
+        // Fire both requests in parallel instead of sequentially
+        const [result, historyResult] = await Promise.allSettled([
+          getTeamAiInsights(leagueId, dbTeamId),
+          getTeamAiInsightsHistory(leagueId, dbTeamId),
+        ]);
+        if (!ok) return;
+        if (result.status === "fulfilled") setAiInsights(result.value);
+        if (historyResult.status === "fulfilled" && historyResult.value.weeks.length > 0) {
+          setInsightHistory(historyResult.value.weeks);
+          setSelectedWeekKey(historyResult.value.weeks[0].weekKey);
+        }
+        setHistoryLoaded(true);
       } catch {
         // Silently fail — insights are supplementary
       } finally {
@@ -246,35 +261,21 @@ export default function Team() {
     return () => { ok = false; };
   }, [dbTeamId, leagueId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch insights history once current insights are loaded
-  useEffect(() => {
-    if (!dbTeamId || !leagueId || !aiInsights || historyLoaded) return;
-    let ok = true;
-    (async () => {
-      try {
-        const { weeks } = await getTeamAiInsightsHistory(leagueId, dbTeamId);
-        if (ok && weeks.length > 0) {
-          setInsightHistory(weeks);
-          // Default to the most recent week (first in the list)
-          setSelectedWeekKey(weeks[0].weekKey);
-        }
-      } catch {
-        // History is optional — silently fail
-      } finally {
-        if (ok) setHistoryLoaded(true);
-      }
-    })();
-    return () => { ok = false; };
-  }, [dbTeamId, leagueId, aiInsights, historyLoaded]);
-
   const teamName = useMemo(() => getOgbaTeamName(code) || code, [code]);
 
+  // Sort hitters by roster slot order: C, 1B, 2B, 3B, SS, MI, CM, OF, DH
+  const SLOT_ORDER = ["C", "1B", "2B", "3B", "SS", "MI", "CM", "OF", "DH"];
   const hitters = useMemo(() => {
     const list = players.filter((p) => !isPitcher(p));
     list.sort((a, b) => {
-      const kd = ((b as any).isKeeper ? 1 : 0) - ((a as any).isKeeper ? 1 : 0);
-      if (kd !== 0) return kd;
-      return sortByPosition(a, b);
+      const posA = (a as any).assignedPosition || "";
+      const posB = (b as any).assignedPosition || "";
+      const ia = SLOT_ORDER.indexOf(posA);
+      const ib = SLOT_ORDER.indexOf(posB);
+      const slotDiff = (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+      if (slotDiff !== 0) return slotDiff;
+      // Within same slot, sort by price descending
+      return ((b as any).price ?? 0) - ((a as any).price ?? 0);
     });
     return list;
   }, [players]);
@@ -461,9 +462,9 @@ export default function Team() {
               <Table>
                 <THead>
                   <Tr>
-                    <Th align="center">TM</Th>
+                    <Th align="center">POS</Th>
                     <Th align="center">PLAYER</Th>
-                    <Th align="center">ELIG</Th>
+                    <Th align="center">TM</Th>
                     <Th align="center">R</Th>
                     <Th align="center">HR</Th>
                     <Th align="center">RBI</Th>
@@ -504,7 +505,38 @@ export default function Team() {
                             title="Click to expand player details"
                           >
                             <Td align="center">
-                              {tm || "—"}
+                              {(() => {
+                                const rosterId = (p as any)?._rosterId as number | undefined;
+                                // Show the locked roster slot from assignedPosition
+                                const assignedPos = positionOverrides[rosterId!] || mapPosition((p as any)?.assignedPosition || (p as any)?.posPrimary || elig.split("/")[0] || "", outfieldMode);
+
+                                if (positionsLocked || !rosterId || !dbTeamId) {
+                                  // During season: fixed position label, no dropdown
+                                  return <span className="text-[10px] font-mono font-semibold text-[var(--lg-accent)]">{assignedPos || "—"}</span>;
+                                }
+
+                                // During draft/setup: allow position changes
+                                const rawPosList = (p as any)?._posList || elig || "";
+                                const posSlots = (() => {
+                                  const slots = new Set<string>();
+                                  for (const pos of rawPosList.split(/[,/| ]+/).map((s: string) => s.trim()).filter(Boolean)) {
+                                    for (const s of positionToSlots(pos)) slots.add(s);
+                                  }
+                                  return MATRIX_POSITIONS.filter(s => slots.has(s));
+                                })();
+                                return posSlots.length > 1 ? (
+                                  <select
+                                    className="appearance-none bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20 cursor-pointer hover:bg-emerald-500/20 transition-all outline-none text-[10px] font-mono"
+                                    value={assignedPos}
+                                    onChange={(e) => { e.stopPropagation(); handlePositionSwap(dbTeamId, rosterId, e.target.value); }}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {posSlots.map(pos => <option key={pos} value={pos} className="text-black">{pos}</option>)}
+                                  </select>
+                                ) : (
+                                  <span className="text-[10px] font-mono font-semibold text-[var(--lg-accent)]">{assignedPos || "—"}</span>
+                                );
+                              })()}
                             </Td>
                             <Td align="center">
                               <span className="inline-flex items-center gap-1.5">
@@ -518,29 +550,7 @@ export default function Team() {
                               </span>
                             </Td>
                             <Td align="center">
-                              {(() => {
-                                const rosterId = (p as any)?._rosterId as number | undefined;
-                                const rawPosList = (p as any)?._posList || elig || "";
-                                const posSlots = (() => {
-                                  const slots = new Set<string>();
-                                  for (const pos of rawPosList.split(/[,/| ]+/).map((s: string) => s.trim()).filter(Boolean)) {
-                                    for (const s of positionToSlots(pos)) slots.add(s);
-                                  }
-                                  return MATRIX_POSITIONS.filter(s => slots.has(s));
-                                })();
-                                return rosterId && posSlots.length > 1 && dbTeamId ? (
-                                  <select
-                                    className="appearance-none bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20 cursor-pointer hover:bg-emerald-500/20 transition-all outline-none text-[10px] font-mono"
-                                    value={positionOverrides[rosterId] ?? mapPosition(elig.split("/")[0] || "", outfieldMode)}
-                                    onChange={(e) => { e.stopPropagation(); handlePositionSwap(dbTeamId, rosterId, e.target.value); }}
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    {posSlots.map(pos => <option key={pos} value={pos} className="text-black">{pos}</option>)}
-                                  </select>
-                                ) : (
-                                  <>{elig || "—"}</>
-                                );
-                              })()}
+                              {tm || "—"}
                             </Td>
                             <Td align="center">
                               {asNum(p?.R)}
@@ -584,9 +594,9 @@ export default function Team() {
               <Table>
                 <THead>
                   <Tr>
-                    <Th align="center">TM</Th>
+                    <Th align="center">POS</Th>
                     <Th align="center">PLAYER</Th>
-                    <Th align="center">ELIG</Th>
+                    <Th align="center">TM</Th>
                     <Th align="center">W</Th>
                     <Th align="center">SV</Th>
                     <Th align="center">K</Th>
@@ -628,7 +638,8 @@ export default function Team() {
                             title="Click to expand player details"
                           >
                             <Td align="center">
-                              {tm || "—"}
+                              {/* Pitchers always show P — locked during season */}
+                              <span className="text-[10px] font-mono font-semibold text-[var(--lg-accent)]">P</span>
                             </Td>
                             <Td align="center">
                               <span className="inline-flex items-center gap-1.5">
@@ -642,29 +653,7 @@ export default function Team() {
                               </span>
                             </Td>
                             <Td align="center">
-                              {(() => {
-                                const rosterId = (p as any)?._rosterId as number | undefined;
-                                const rawPosList = (p as any)?._posList || elig || "P";
-                                const posSlots = (() => {
-                                  const slots = new Set<string>();
-                                  for (const pos of rawPosList.split(/[,/| ]+/).map((s: string) => s.trim()).filter(Boolean)) {
-                                    for (const s of positionToSlots(pos)) slots.add(s);
-                                  }
-                                  return MATRIX_POSITIONS.filter(s => slots.has(s));
-                                })();
-                                return rosterId && posSlots.length > 1 && dbTeamId ? (
-                                  <select
-                                    className="appearance-none bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20 cursor-pointer hover:bg-emerald-500/20 transition-all outline-none text-[10px] font-mono"
-                                    value={positionOverrides[rosterId] ?? mapPosition(elig.split("/")[0] || "P", outfieldMode)}
-                                    onChange={(e) => { e.stopPropagation(); handlePositionSwap(dbTeamId, rosterId, e.target.value); }}
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    {posSlots.map(pos => <option key={pos} value={pos} className="text-black">{pos}</option>)}
-                                  </select>
-                                ) : (
-                                  <>{elig}</>
-                                );
-                              })()}
+                              {tm || "—"}
                             </Td>
 
                             <Td align="center">
@@ -677,13 +666,13 @@ export default function Team() {
                               {asNum(p?.K)}
                             </Td>
                             <Td align="center">
-                              {String(p?.IP ?? "").trim() || "—"}
+                              {asNum(p?.IP) > 0 ? asNum(p.IP).toFixed(1) : "—"}
                             </Td>
                             <Td align="center">
-                              {String(p?.ERA ?? "").trim() || "—"}
+                              {asNum(p?.IP) > 0 ? asNum(p.ERA).toFixed(2) : "—"}
                             </Td>
                             <Td align="center">
-                              {String(p?.WHIP ?? "").trim() || "—"}
+                              {asNum(p?.IP) > 0 ? asNum(p.WHIP).toFixed(2) : "—"}
                             </Td>
                             <Td align="center">
                               {so}

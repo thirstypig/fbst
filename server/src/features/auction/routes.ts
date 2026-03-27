@@ -155,7 +155,7 @@ const refreshTeams = async (state: AuctionState) => {
     include: {
       rosters: {
         where: { releasedAt: null },
-        include: { player: true }
+        include: { player: { select: { id: true, name: true, posPrimary: true, posList: true, mlbId: true, mlbTeam: true } } }
       }
     },
     orderBy: { id: 'asc' }
@@ -536,12 +536,17 @@ async function finishCurrentLot(leagueId: number, userId?: number): Promise<Auct
 
     await assertPlayerAvailable(prisma, dbPlayer.id, leagueId);
 
+    // Set assignedPosition from auction — defaults to player's primary position.
+    // Owners can override via the Team page position dropdown later.
+    const primaryPos = (dbPlayer.posPrimary ?? positions.split('/')[0] ?? "UT").toUpperCase();
+
     await prisma.roster.create({
       data: {
         teamId: highBidderTeamId,
         playerId: dbPlayer.id,
         price: currentBid,
         source: auctionSource,
+        assignedPosition: primaryPos,
       }
     });
 
@@ -1382,12 +1387,15 @@ router.post("/force-assign", requireAuth, validateBody(forceAssignSchema), async
   const league = await prisma.league.findUnique({ where: { id: leagueId }, select: { season: true } });
   const season = league?.season ?? new Date().getFullYear();
 
+  const importPrimaryPos = (player.posPrimary ?? positions.split('/')[0] ?? "UT").toUpperCase();
+
   await prisma.roster.create({
     data: {
       teamId,
       playerId: player.id,
       price,
       source: `auction_${season}`,
+      assignedPosition: importPrimaryPos,
     }
   });
 
@@ -1547,9 +1555,26 @@ router.get("/draft-report", requireAuth, requireLeagueMember("leagueId"), asyncH
   const leagueId = Number(req.query.leagueId);
   if (!Number.isFinite(leagueId)) return res.status(400).json({ error: "Missing leagueId" });
 
-  // Check for persisted report in AuctionSession (skip cache if force=true)
-  const forceRegenerate = req.query.force === "true";
+  // Check for persisted report in AuctionSession
   const session = await prisma.auctionSession.findUnique({ where: { leagueId } });
+
+  // Once the season is IN_SEASON or COMPLETED, the draft report is locked —
+  // always serve from cache, never regenerate (auction data is historical at this point).
+  const season = await prisma.season.findFirst({
+    where: { leagueId, status: { in: ["IN_SEASON", "COMPLETED"] } },
+    select: { status: true },
+  });
+  const isSeasonLocked = !!season;
+
+  if (isSeasonLocked && session?.state && (session.state as any).draftReport) {
+    return res.json((session.state as any).draftReport);
+  }
+  if (isSeasonLocked && !(session?.state as any)?.draftReport) {
+    return res.status(400).json({ error: "Draft report was not generated before the season started" });
+  }
+
+  // During DRAFT phase, allow regeneration with force=true
+  const forceRegenerate = req.query.force === "true";
   if (!forceRegenerate && session?.state && (session.state as any).draftReport) {
     return res.json((session.state as any).draftReport);
   }

@@ -207,6 +207,7 @@ model LeagueMembership {
   @@unique([leagueId, userId])
   @@index([userId])
   @@index([leagueId])
+  @@index([leagueId, role])
 }
 
 // Multi-owner support (up to 2 owners per team)
@@ -366,6 +367,7 @@ model TransactionEvent {
   @@index([teamId])
   @@index([playerId])
   @@index([submittedAt])
+  @@index([leagueId, submittedAt])
 }
 
 model Season {
@@ -381,6 +383,7 @@ model Season {
 
   @@unique([leagueId, year])
   @@index([leagueId])
+  @@index([leagueId, status])
 }
 
 model Period {
@@ -402,6 +405,7 @@ model Period {
   @@unique([seasonId, name])
   @@index([leagueId])
   @@index([seasonId])
+  @@index([leagueId, status])
 }
 
 model TeamStatsPeriod {
@@ -500,6 +504,7 @@ model Roster {
   @@index([teamId])
   @@index([playerId])
   @@index([teamId, releasedAt])
+  @@index([releasedAt, playerId])
 }
 
 model AuctionLot {
@@ -542,6 +547,8 @@ model FinanceLedger {
   ts     DateTime @default(now())
 
   team Team @relation(fields: [teamId], references: [id])
+
+  @@index([teamId])
 }
 
 // ======================
@@ -566,6 +573,7 @@ model Trade {
   @@index([leagueId])
   @@index([proposerId])
   @@index([status])
+  @@index([leagueId, status])
 }
 
 model TradeItem {
@@ -815,6 +823,7 @@ model AiInsight {
   @@unique([type, leagueId, teamId, weekKey])
   @@index([teamId])
   @@index([leagueId])
+  @@index([leagueId, type])
 }
 
 model AuditLog {

@@ -9,6 +9,7 @@ import { logger } from "../../lib/logger.js";
 import { DataService } from "./services/dataService.js";
 import {
   getLastSeasonStats,
+  getCurrentSeasonStats,
   loadPlayerValues,
   normalizeName,
   expandTwoWayPlayers,
@@ -38,8 +39,15 @@ router.get("/", requireAuth, asyncHandler(async (req, res) => {
     | "pitchers";
   const leagueId = req.query.leagueId ? Number(req.query.leagueId) : null;
 
-  // Get all players from DB
+  // Get real players from DB (exclude filler/test players at query level)
   const allPlayers = await prisma.player.findMany({
+    where: {
+      OR: [
+        { mlbId: null },
+        { mlbId: { lt: 900000 } },
+      ],
+      NOT: { name: { startsWith: "Filler Hitter" } },
+    },
     select: {
       id: true, mlbId: true, name: true,
       posPrimary: true, posList: true, mlbTeam: true,
@@ -284,8 +292,15 @@ dataRouter.get("/player-season-stats", requireAuth, asyncHandler(async (req, res
     return res.status(400).json({ error: "Missing or invalid leagueId" });
   }
 
-  // Get all players from DB
+  // Get real players from DB (exclude filler/test players at query level)
   const allPlayers = await prisma.player.findMany({
+    where: {
+      OR: [
+        { mlbId: null },
+        { mlbId: { lt: 900000 } },
+      ],
+      NOT: { name: { startsWith: "Filler Hitter" } },
+    },
     select: { id: true, mlbId: true, name: true, posPrimary: true, posList: true, mlbTeam: true },
   });
 
@@ -309,8 +324,8 @@ dataRouter.get("/player-season-stats", requireAuth, asyncHandler(async (req, res
 
   // Load player values from 2026 CSV (name → dollar value + position)
   const valuesMap = loadPlayerValues();
-  // Load last season (2025) stats — full MLB API data or CSV fallback
-  const lastSeasonMap = await getLastSeasonStats();
+  // Load current season (2026) stats — live MLB API data with 2-hour cache
+  const lastSeasonMap = await getCurrentSeasonStats();
 
   const stats = allPlayers
     .filter((p) => {

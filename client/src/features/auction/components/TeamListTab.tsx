@@ -305,31 +305,9 @@ export default function TeamListTab({ teams = [], players = [], budgetCap = 400,
                                                             onClick={() => setExpandedPlayerId(isRowExpanded ? null : entry.id)}
                                                         >
                                                             <ThemedTd className="py-2">
-                                                              <div onClick={(e) => e.stopPropagation()}>
-                                                                <select 
-                                                                    className="appearance-none bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20 cursor-pointer hover:bg-emerald-500/20 transition-all outline-none"
-                                                                    value={displayPos}
-                                                                    onChange={(e) => handlePositionSwap(team.id, entry.id, e.target.value)}
-                                                                >
-                                                                    {(() => {
-                                                                        const rawList = entry.posList || entry.posPrimary || entry.player?.posList || entry.player?.posPrimary || stat?.positions || '';
-                                                                        const statList = stat?.positions || '';
-                                                                        const combined = [rawList, statList].join(',');
-                                                                        const positions = combined.split(',').map((s: string) => s.trim()).filter(Boolean);
-                                                                        // Derive eligible roster slots from each position (includes MI, CI)
-                                                                        const slots = new Set<string>();
-                                                                        for (const pos of positions) {
-                                                                            for (const slot of positionToSlots(pos)) {
-                                                                                slots.add(slot);
-                                                                            }
-                                                                        }
-                                                                        // Add P for pitchers (hitters only get DH if explicitly eligible)
-                                                                        if (isPitcher) slots.add('P');
-                                                                        const sorted = MATRIX_POSITIONS.filter(s => slots.has(s));
-                                                                        return sorted.map(p => <option key={p} value={p} className="text-black">{p}</option>);
-                                                                    })()}
-                                                                </select>
-                                                              </div>
+                                                              <span className="text-[10px] font-mono font-semibold text-[var(--lg-accent)]">
+                                                                {displayPos || "—"}
+                                                              </span>
                                                             </ThemedTd>
                                                             <ThemedTd className="py-2">
                                                                 <span className={`font-semibold ${isPitcher ? 'text-purple-400' : 'text-blue-400'}`}>{displayName}</span>

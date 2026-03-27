@@ -11,7 +11,12 @@ vi.mock("../../../api", () => ({
 
 // Mock LeagueContext
 vi.mock("../../../contexts/LeagueContext", () => ({
-  useLeague: () => ({ leagueId: 1, outfieldMode: "OF" }),
+  useLeague: () => ({ leagueId: 1, outfieldMode: "OF", seasonStatus: "IN_SEASON" }),
+}));
+
+// Mock AuthProvider
+vi.mock("../../../auth/AuthProvider", () => ({
+  useAuth: () => ({ isCommissioner: () => false, isAdmin: false }),
 }));
 
 // Mock ogbaTeams

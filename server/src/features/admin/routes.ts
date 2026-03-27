@@ -212,21 +212,33 @@ router.patch("/admin/league/:leagueId/team-codes", requireAuth, requireAdmin, va
   if (!Number.isFinite(leagueId)) return res.status(400).json({ error: "Invalid leagueId" });
 
   const { codes } = req.body as { codes: Record<string, string> };
+
+  // Parse and validate all team IDs + codes upfront
+  const entries = Object.entries(codes)
+    .map(([idStr, code]) => ({ teamId: Number(idStr), code: norm(code).toUpperCase() }))
+    .filter(e => Number.isFinite(e.teamId));
+
+  // Single query to verify all teams belong to this league (replaces N individual lookups)
+  const validTeams = await prisma.team.findMany({
+    where: { id: { in: entries.map(e => e.teamId) }, leagueId },
+    select: { id: true },
+  });
+  const validTeamIds = new Set(validTeams.map(t => t.id));
+
   const results: { teamId: number; code: string }[] = [];
 
-  for (const [teamIdStr, code] of Object.entries(codes)) {
-    const teamId = Number(teamIdStr);
-    if (!Number.isFinite(teamId)) continue;
-
-    const team = await prisma.team.findUnique({ where: { id: teamId } });
-    if (!team || team.leagueId !== leagueId) continue;
-
-    await prisma.team.update({
-      where: { id: teamId },
-      data: { code: norm(code).toUpperCase() },
-    });
-    results.push({ teamId, code: norm(code).toUpperCase() });
-  }
+  // Batch update via transaction (replaces N individual updates)
+  await prisma.$transaction(
+    entries
+      .filter(e => validTeamIds.has(e.teamId))
+      .map(e => {
+        results.push(e);
+        return prisma.team.update({
+          where: { id: e.teamId },
+          data: { code: e.code },
+        });
+      })
+  );
 
   writeAuditLog({
     userId: req.user!.id,

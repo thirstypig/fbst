@@ -85,6 +85,7 @@ router.get("/season", requireAuth, asyncHandler(async (req, res) => {
   });
 
   const periodIds = periods.map((p) => p.id);
+  const periodNames = periods.map((p) => p.name);
 
   // Compute standings per period
   const periodStandings = await Promise.all(
@@ -120,7 +121,7 @@ router.get("/season", requireAuth, asyncHandler(async (req, res) => {
   // Sort by totalPoints descending
   rows.sort((a, b) => b.totalPoints - a.totalPoints);
 
-  res.json({ periodIds, rows });
+  res.json({ periodIds, periodNames, rows });
 }));
 
 // --- Settlement data: /api/standings/settlement/:leagueId ---

@@ -346,36 +346,57 @@ export async function computeTeamStatsFromDb(
   leagueId: number,
   periodId: number
 ): Promise<TeamStatRow[]> {
-  // Get teams with their active rosters and player stats for this period
-  const teams = await prisma.team.findMany({
-    where: { leagueId },
-    include: {
-      rosters: {
-        where: { releasedAt: null },
-        include: {
-          player: {
-            include: {
-              periodStats: {
-                where: { periodId },
-              },
-            },
-          },
-        },
+  // Optimized: 3 flat queries instead of deeply nested includes (team→roster→player→periodStats).
+  // This avoids the O(N*M*K) query explosion that Prisma's nested includes can produce.
+
+  const [teams, rosters, periodStats] = await Promise.all([
+    // 1. Teams (lightweight)
+    prisma.team.findMany({
+      where: { leagueId },
+      select: { id: true, name: true, code: true },
+      orderBy: { id: "asc" },
+    }),
+    // 2. Active rosters with player info (flat, no nested stats)
+    prisma.roster.findMany({
+      where: { team: { leagueId }, releasedAt: null },
+      select: {
+        teamId: true,
+        assignedPosition: true,
+        player: { select: { id: true, mlbId: true, posPrimary: true } },
       },
-    },
-    orderBy: { id: "asc" },
-  });
+    }),
+    // 3. Period stats for all players in this period (single flat query)
+    prisma.playerStatsPeriod.findMany({
+      where: { periodId },
+      select: {
+        playerId: true,
+        AB: true, H: true, R: true, HR: true, RBI: true, SB: true,
+        W: true, SV: true, K: true, IP: true, ER: true, BB_H: true,
+      },
+    }),
+  ]);
+
+  // Index period stats by playerId for O(1) lookup
+  const statsMap = new Map(periodStats.map(s => [s.playerId, s]));
+
+  // Group rosters by teamId
+  const rostersByTeam = new Map<number, typeof rosters>();
+  for (const r of rosters) {
+    const list = rostersByTeam.get(r.teamId) ?? [];
+    list.push(r);
+    rostersByTeam.set(r.teamId, list);
+  }
 
   return teams.map((t) => {
     let R = 0, HR = 0, RBI = 0, SB = 0, H = 0, AB = 0;
     let W = 0, S = 0, K = 0, ER = 0, IP = 0, BB_H = 0;
 
-    for (const roster of t.rosters) {
-      const stats = roster.player.periodStats[0]; // at most one per period
+    const teamRosters = rostersByTeam.get(t.id) ?? [];
+    for (const roster of teamRosters) {
+      const stats = statsMap.get(roster.player.id);
       if (!stats) continue;
 
       // Two-way players (Ohtani): only count the stat group matching their assigned role.
-      // P-assigned roster entry → pitching stats only; DH/hitter → hitting stats only.
       const isTwoWay = roster.player.mlbId ? TWO_WAY_PLAYERS.has(roster.player.mlbId) : false;
       const assignedAsP = PITCHER_CODES.includes(
         (roster.assignedPosition ?? roster.player.posPrimary ?? "").toUpperCase() as any
@@ -394,7 +415,7 @@ export async function computeTeamStatsFromDb(
       }
       if (countPitching) {
         W += stats.W;
-        S += stats.SV; // DB stores SV, TeamStatRow uses S
+        S += stats.SV;
         K += stats.K;
         ER += stats.ER;
         IP += stats.IP;

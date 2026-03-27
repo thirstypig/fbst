@@ -129,6 +129,72 @@ export async function getLastSeasonStats(): Promise<Map<string, SeasonStatEntry>
   return lastSeasonPromise;
 }
 
+// --- Current-Season Stats (live, short TTL) ---
+
+const CURRENT_SEASON = new Date().getFullYear();
+/** 2-hour TTL for current season stats — they change daily */
+const CURRENT_SEASON_TTL = 2 * 3600;
+let currentSeasonCache: Map<string, SeasonStatEntry> | null = null;
+let currentSeasonCacheTs = 0;
+let currentSeasonPromise: Promise<Map<string, SeasonStatEntry>> | null = null;
+
+/** Fetch current-season stats from MLB API. Uses 2-hour SQLite cache. */
+async function fetchCurrentSeasonFromApi(): Promise<Map<string, SeasonStatEntry>> {
+  const allPlayers = await prisma.player.findMany({
+    where: { mlbId: { not: null } },
+    select: { mlbId: true },
+  });
+
+  const mlbIds = allPlayers.map((p) => String(p.mlbId!));
+  logger.info({ playerCount: mlbIds.length, season: CURRENT_SEASON }, "Fetching current-season stats from MLB API");
+
+  const batches = chunk(mlbIds, 50);
+  const cache = new Map<string, SeasonStatEntry>();
+
+  for (const batch of batches) {
+    const url = `${MLB_BASE}/people?personIds=${batch.join(",")}&hydrate=stats(group=[hitting,pitching],type=[season],season=${CURRENT_SEASON})`;
+    const data = await mlbGetJson(url, CURRENT_SEASON_TTL);
+    for (const person of (data.people || [])) {
+      cache.set(String(person.id), parseSeasonStats(person));
+    }
+    await new Promise((r) => setTimeout(r, 100));
+  }
+
+  logger.info({ fetched: cache.size, season: CURRENT_SEASON }, "Current-season stats loaded from MLB API");
+  return cache;
+}
+
+/**
+ * Get current-season (2026) stats map. Uses 2-hour in-memory cache so that
+ * the Players page always shows this year's stats once the season starts.
+ * Returns empty stats for players who haven't played yet this year.
+ */
+export async function getCurrentSeasonStats(): Promise<Map<string, SeasonStatEntry>> {
+  // Invalidate in-memory cache after 2 hours
+  const now = Date.now();
+  if (currentSeasonCache && now - currentSeasonCacheTs < CURRENT_SEASON_TTL * 1000) {
+    return currentSeasonCache;
+  }
+
+  if (!currentSeasonPromise) {
+    currentSeasonPromise = fetchCurrentSeasonFromApi()
+      .then((cache) => {
+        currentSeasonCache = cache;
+        currentSeasonCacheTs = Date.now();
+        currentSeasonPromise = null;
+        return cache;
+      })
+      .catch((err) => {
+        logger.error({ error: String(err) }, "Failed to fetch current-season stats from MLB API");
+        currentSeasonPromise = null;
+        // Return empty map — players just won't have stats yet
+        return currentSeasonCache ?? new Map<string, SeasonStatEntry>();
+      });
+  }
+
+  return currentSeasonPromise;
+}
+
 // --- Player Values Cache (from 2026 Player Values CSV) ---
 
 export type PlayerValueEntry = { name: string; team: string; pos: string; value: number };

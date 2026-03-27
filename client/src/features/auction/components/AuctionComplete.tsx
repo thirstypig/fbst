@@ -29,7 +29,7 @@ interface TeamResult {
   totalSpent: number;
   keeperSpend: number;
   auctionSpend: number;
-  roster: { playerId: string; rosterId?: number; playerName: string; price: number; positions: string; isPitcher: boolean; mlbTeam?: string; isKeeper?: boolean; posList?: string }[];
+  roster: { playerId: string; rosterId?: number; playerName: string; price: number; positions: string; isPitcher: boolean; mlbTeam?: string; isKeeper?: boolean; posList?: string; assignedPosition?: string }[];
 }
 
 interface DraftGrade {
@@ -560,18 +560,9 @@ export default function AuctionComplete({ auctionState, myTeamId, onRefresh }: A
                                 </span>
                               </ThemedTd>
                               <ThemedTd className="py-1.5">
-                                {player.rosterId && posSlots.length > 1 ? (
-                                  <select
-                                    className="appearance-none bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20 cursor-pointer hover:bg-emerald-500/20 transition-all outline-none text-[10px] font-mono"
-                                    value={positionOverrides[player.rosterId!] ?? mapPosition(player.positions?.split(",")[0]?.trim() || "", outfieldMode)}
-                                    onChange={(e) => handlePositionSwap(team.id, player.rosterId!, e.target.value)}
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    {posSlots.map(p => <option key={p} value={p} className="text-black">{p}</option>)}
-                                  </select>
-                                ) : (
-                                  <span className="text-[10px] text-[var(--lg-text-muted)] font-mono">{mapPosition(player.positions?.split(",")[0]?.trim() || "", outfieldMode) || "—"}</span>
-                                )}
+                                <span className="text-[10px] font-mono font-semibold text-[var(--lg-accent)]">
+                                  {player.assignedPosition || mapPosition(player.positions?.split(",")[0]?.trim() || "", outfieldMode) || "—"}
+                                </span>
                               </ThemedTd>
                               <ThemedTd className="py-1.5 text-[10px] text-[var(--lg-text-muted)]">{player.mlbTeam || "—"}</ThemedTd>
                               <ThemedTd align="right" className={`py-1.5 text-xs font-semibold tabular-nums ${player.isKeeper ? 'text-amber-500' : 'text-[var(--lg-accent)]'}`}>${player.price}</ThemedTd>

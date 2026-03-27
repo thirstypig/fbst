@@ -111,6 +111,7 @@ export type PeriodStatRow = Record<string, unknown>;
 
 export type SeasonStandingsApiResponse = {
   periodIds: number[];
+  periodNames?: string[];
   rows: SeasonStandingRow[];
 };
 

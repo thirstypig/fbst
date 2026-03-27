@@ -348,28 +348,7 @@ function TeamCard({ team, leagueAvgH, leagueAvgP, outfieldMode, onSelectPlayer }
                       {r.isKeeper && <span className="ml-1.5 px-1 py-0.5 rounded text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">K</span>}
                     </ThemedTd>
                     <ThemedTd align="center" className="px-1">
-                      {(() => {
-                        const rawPosList = r.posList || r.position || "";
-                        const posSlots = (() => {
-                          const slots = new Set<string>();
-                          for (const p of rawPosList.split(/[,/| ]+/).map(s => s.trim()).filter(Boolean)) {
-                            for (const s of positionToSlots(p)) slots.add(s);
-                          }
-                          return MATRIX_POSITIONS.filter(s => slots.has(s));
-                        })();
-                        return r.rosterId && posSlots.length > 1 ? (
-                          <select
-                            className="appearance-none bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20 cursor-pointer hover:bg-emerald-500/20 transition-all outline-none text-[10px] font-mono"
-                            value={positionOverrides[r.rosterId] ?? pos}
-                            onChange={(e) => { e.stopPropagation(); handlePositionSwap(team.teamId, r.rosterId!, e.target.value); }}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {posSlots.map(p => <option key={p} value={p} className="text-black">{p}</option>)}
-                          </select>
-                        ) : (
-                          <span className="text-[var(--lg-accent)] text-xs font-medium">{pos}</span>
-                        );
-                      })()}
+                      <span className="text-[10px] font-mono font-semibold text-[var(--lg-accent)]">{pos || "—"}</span>
                     </ThemedTd>
                     {viewGroup === "hitters" ? (
                       <>

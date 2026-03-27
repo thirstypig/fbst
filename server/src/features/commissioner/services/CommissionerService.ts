@@ -220,33 +220,43 @@ export class CommissionerService {
     // 4. Copy Rosters directly from source teams using the team ID map
     // This is more reliable than populateRostersFromPriorSeason() which
     // re-discovers the source league via franchiseId + season - 1.
-    let playersAdded = 0;
+    // Uses createMany for batch insert (replaces N×K individual creates).
     const rosterErrors: string[] = [];
+    const rosterData: { teamId: number; playerId: number; source: string; price: number; isKeeper: boolean }[] = [];
+
     for (const sourceTeam of sourceTeams) {
       const targetTeamId = teamIdMap.get(sourceTeam.id);
-      if (!targetTeamId) continue; // Team copy failed earlier
+      if (!targetTeamId) continue;
 
       for (const roster of sourceTeam.rosters) {
+        rosterData.push({
+          teamId: targetTeamId,
+          playerId: roster.playerId,
+          source: "prior_season",
+          price: roster.price,
+          isKeeper: false,
+        });
+      }
+    }
+
+    let playersAdded = 0;
+    try {
+      // No assertPlayerAvailable guard here: source data is already validated,
+      // and two-way players (e.g. Ohtani as DH + P) legitimately appear on 2 teams.
+      const result = await prisma.roster.createMany({ data: rosterData, skipDuplicates: true });
+      playersAdded = result.count;
+    } catch (e) {
+      const msg = `Batch roster copy failed: ${e instanceof Error ? e.message : String(e)}`;
+      rosterErrors.push(msg);
+      logger.warn({ error: String(e) }, "Batch roster copy failed during season copy — falling back to individual creates");
+
+      // Fallback: try individual creates to identify which specific entries fail
+      for (const entry of rosterData) {
         try {
-          // No assertPlayerAvailable guard here: source data is already validated,
-          // and two-way players (e.g. Ohtani as DH + P) legitimately appear on 2 teams.
-          await prisma.roster.create({
-            data: {
-              teamId: targetTeamId,
-              playerId: roster.playerId,
-              source: "prior_season",
-              price: roster.price,
-              isKeeper: false,
-            },
-          });
+          await prisma.roster.create({ data: entry });
           playersAdded++;
-        } catch (e) {
-          const msg = `Team ${sourceTeam.name}, playerId ${roster.playerId}: ${e instanceof Error ? e.message : String(e)}`;
-          rosterErrors.push(msg);
-          logger.warn(
-            { error: String(e), sourceTeamId: sourceTeam.id, playerId: roster.playerId },
-            "Failed to copy roster entry during season copy",
-          );
+        } catch (innerErr) {
+          rosterErrors.push(`teamId ${entry.teamId}, playerId ${entry.playerId}: ${innerErr instanceof Error ? innerErr.message : String(innerErr)}`);
         }
       }
     }

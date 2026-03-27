@@ -244,8 +244,10 @@ describe("DELETE /admin/league/:leagueId", () => {
 
 describe("PATCH /admin/league/:leagueId/team-codes", () => {
   it("updates team codes", async () => {
-    mockPrisma.team.findUnique.mockResolvedValue({ id: 10, leagueId: 1 });
-    mockPrisma.team.update.mockResolvedValue({ id: 10, code: "ABC" });
+    // findMany returns valid teams in the league
+    mockPrisma.team.findMany.mockResolvedValue([{ id: 10 }]);
+    // $transaction executes the batched updates
+    mockPrisma.$transaction.mockResolvedValue([{ id: 10, code: "ABC" }]);
 
     const res = await supertest(app)
       .patch("/admin/league/1/team-codes")
@@ -257,7 +259,9 @@ describe("PATCH /admin/league/:leagueId/team-codes", () => {
   });
 
   it("skips teams not in the league", async () => {
-    mockPrisma.team.findUnique.mockResolvedValue({ id: 10, leagueId: 2 }); // different league
+    // findMany returns empty — no teams match leagueId=1
+    mockPrisma.team.findMany.mockResolvedValue([]);
+    mockPrisma.$transaction.mockResolvedValue([]);
 
     const res = await supertest(app)
       .patch("/admin/league/1/team-codes")

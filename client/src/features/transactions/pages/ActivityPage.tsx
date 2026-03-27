@@ -69,19 +69,21 @@ export default function ActivityPage() {
   const loadData = useCallback(async () => {
     if (!currentLeagueId) { setLoading(false); return; }
     try {
+      // Load all data in parallel — trades included in the same batch
       const results = await Promise.allSettled([
         getTransactions({ leagueId: currentLeagueId, take: 100 }),
         getPlayerSeasonStats(currentLeagueId),
         getLeague(currentLeagueId),
         getSeasonStandings(),
+        getTrades(currentLeagueId, "all"),
       ]);
 
-      const [txResult, playersResult, leagueResult, standingsResult] = results;
+      const [txResult, playersResult, leagueResult, standingsResult, tradesResult] = results;
 
       if (txResult.status === "fulfilled") setTransactions(txResult.value.transactions);
       if (playersResult.status === "fulfilled") setPlayers(playersResult.value || []);
       if (standingsResult.status === "fulfilled") setStandings(standingsResult.value.rows || []);
-      await loadTrades(currentLeagueId);
+      if (tradesResult.status === "fulfilled") setTrades(tradesResult.value.trades || []);
 
       if (leagueResult.status === "fulfilled") {
         const loadedTeams = leagueResult.value.league.teams || [];
@@ -101,7 +103,7 @@ export default function ActivityPage() {
     } finally {
       setLoading(false);
     }
-  }, [authUser?.id, currentLeagueId, loadTrades]);
+  }, [authUser?.id, currentLeagueId]);
 
   useEffect(() => {
     loadData();

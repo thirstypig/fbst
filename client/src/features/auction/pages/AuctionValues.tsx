@@ -1,5 +1,5 @@
 // client/src/pages/AuctionValues.tsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { getAuctionValues, getLeague, type PlayerSeasonStat } from "../../../api";
 import { toNum } from "../../../api/base";
@@ -59,6 +59,15 @@ export default function AuctionValues() {
 
   const [group, setGroup] = useState<"hitters" | "pitchers">("hitters");
   const [query, setQuery] = useState<string>("");
+  const [debouncedQuery, setDebouncedQuery] = useState<string>("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Debounce search input — waits 250ms after last keystroke before filtering
+  const handleQueryChange = (value: string) => {
+    setQuery(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedQuery(value), 250);
+  };
 
   const [selected, setSelected] = useState<PlayerSeasonStat | null>(null);
 
@@ -93,7 +102,7 @@ export default function AuctionValues() {
   }, [leagueId]);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = debouncedQuery.trim().toLowerCase();
     const wantPitchers = group === "pitchers";
 
     let out = (rows ?? []).filter((p) => (wantPitchers ? rowIsPitcher(p) : !rowIsPitcher(p)));
@@ -116,7 +125,7 @@ export default function AuctionValues() {
     });
 
     return out;
-  }, [rows, group, query]);
+  }, [rows, group, debouncedQuery]);
 
   const maxValue = useMemo(() => {
     // numeric accumulator, always returns number
@@ -164,7 +173,7 @@ export default function AuctionValues() {
 
         <input
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => handleQueryChange(e.target.value)}
           placeholder="Search player / team / pos…"
           className="w-[320px] rounded-full border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] px-4 py-2 text-sm text-[var(--lg-text-primary)] placeholder:text-[var(--lg-text-muted)]"
         />

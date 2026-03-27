@@ -28,6 +28,7 @@ type SeasonStandingsApiRow = {
 
 type SeasonStandingsApiResponse = {
   periodIds: number[];
+  periodNames?: string[];
   rows: SeasonStandingsApiRow[];
 };
 
@@ -83,6 +84,7 @@ const SeasonPage: React.FC = () => {
 
   // Season Matrix State
   const [periodIds, setPeriodIds] = useState<number[]>([]);
+  const [periodNames, setPeriodNames] = useState<string[]>([]);
   const [rows, setRows] = useState<NormalizedSeasonRow[]>([]);
 
   // Period Detail State
@@ -102,7 +104,7 @@ const SeasonPage: React.FC = () => {
 
   // Expandable team roster state
   const [expandedTeamId, setExpandedTeamId] = useState<number | null>(null);
-  const [teamRosters, setTeamRosters] = useState<Record<number, Array<{ id: number; name: string; posPrimary: string; price: number }>>>({});
+  const [teamRosters, setTeamRosters] = useState<Record<number, Array<{ id: number; name: string; posPrimary: string; assignedPosition?: string | null; price: number }>>>({});
   const [rosterLoading, setRosterLoading] = useState(false);
 
   const toggleTeamExpand = useCallback(async (teamId: number) => {
@@ -116,8 +118,11 @@ const SeasonPage: React.FC = () => {
       try {
         const detail = await getTeamDetails(teamId);
         const sorted = [...(detail.currentRoster || [])].sort((a, b) => {
-          const ia = POS_ORDER.indexOf(a.posPrimary);
-          const ib = POS_ORDER.indexOf(b.posPrimary);
+          // Prefer assignedPosition (roster slot) over posPrimary (MLB default)
+          const posA = (a as any).assignedPosition || a.posPrimary;
+          const posB = (b as any).assignedPosition || b.posPrimary;
+          const ia = POS_ORDER.indexOf(posA);
+          const ib = POS_ORDER.indexOf(posB);
           return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
         });
         setTeamRosters(prev => ({ ...prev, [teamId]: sorted }));
@@ -160,6 +165,7 @@ const SeasonPage: React.FC = () => {
         getCurrentSeason(leagueId).then(s => setCurrentSeasonData(s)).catch(() => {});
         const data = await getSeasonStandings(leagueId);
         setPeriodIds(data.periodIds || []);
+        setPeriodNames(data.periodNames || []);
 
         const normalized = (data.rows || []).map(r => normalizeSeasonRow(r as any, data.periodIds));
         setRows(normalized);
@@ -234,7 +240,7 @@ const SeasonPage: React.FC = () => {
         <PageHeader
           title={
             <span className="flex items-center gap-3">
-              {viewMode === 'season' ? "Season Standings" : `Period ${selectedPeriodId} Standings`}
+              {viewMode === 'season' ? "Season Standings" : `${periodNames[periodIds.indexOf(selectedPeriodId!)] ?? `Period ${selectedPeriodId}`} Standings`}
               {currentSeasonData && (
                 <span className="inline-block rounded-full bg-[var(--lg-accent)]/10 px-3 py-0.5 text-xs font-semibold text-[var(--lg-accent)]">
                   {currentSeasonData.status.replace("_", " ")}
@@ -297,7 +303,7 @@ const SeasonPage: React.FC = () => {
 
                     {periodIds.map((pid, idx) => (
                       <SortableHeader key={pid} sortKey={`p_${idx}`} activeSortKey={matrixSortKey} sortDesc={matrixSortDesc} onSort={handleMatrixSort} align="center" className="min-w-[80px]">
-                        P{pid}
+                        {periodNames[idx] ? periodNames[idx].replace("Period ", "P") : `P${idx + 1}`}
                       </SortableHeader>
                     ))}
 
@@ -372,7 +378,7 @@ const SeasonPage: React.FC = () => {
                                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-6 gap-y-1">
                                     {teamRosters[row.teamId].map(p => (
                                       <div key={p.id} className="flex items-center gap-2 text-xs py-0.5">
-                                        <span className="font-mono text-[var(--lg-text-muted)] w-5 text-center shrink-0">{mapPosition(p.posPrimary, outfieldMode)}</span>
+                                        <span className="font-mono text-[var(--lg-text-muted)] w-5 text-center shrink-0">{mapPosition((p as any).assignedPosition || p.posPrimary, outfieldMode)}</span>
                                         <span className="text-[var(--lg-text-primary)] truncate">{p.name}</span>
                                       </div>
                                     ))}
@@ -393,15 +399,15 @@ const SeasonPage: React.FC = () => {
             <div className="flex items-center gap-4 lg-card p-4 justify-center">
                <span className="text-xs font-medium uppercase text-[var(--lg-text-muted)]">Select Period</span>
                <div className="flex gap-2">
-                 {periodIds.map(pid => (
+                 {periodIds.map((pid, idx) => (
                    <Button
                     key={pid}
                     onClick={() => setSelectedPeriodId(pid)}
                     variant={selectedPeriodId === pid ? "default" : "secondary"}
                     size="sm"
-                    className="w-10 h-10 p-0"
+                    className="min-w-[40px] h-10 px-2"
                    >
-                     {pid}
+                     {idx + 1}
                    </Button>
                  ))}
                </div>
@@ -414,7 +420,7 @@ const SeasonPage: React.FC = () => {
             ) : (
               <div className="space-y-6 md:space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <PeriodSummaryTable
-                    periodId={`P${selectedPeriodId}`}
+                    periodId={periodNames[periodIds.indexOf(selectedPeriodId!)]?.replace("Period ", "P") ?? `P${periodIds.indexOf(selectedPeriodId!) + 1}`}
                     rows={periodSummaryRows}
                     categories={Object.keys(periodCategoryRows)}
                 />
@@ -422,7 +428,7 @@ const SeasonPage: React.FC = () => {
                    {Object.keys(periodCategoryRows).map(catKey => (
                       <CategoryPeriodTable
                           key={catKey}
-                          periodId={`P${selectedPeriodId}`}
+                          periodId={periodNames[periodIds.indexOf(selectedPeriodId!)]?.replace("Period ", "P") ?? `P${periodIds.indexOf(selectedPeriodId!) + 1}`}
                           categoryId={catKey}
                           rows={periodCategoryRows[catKey]}
                       />

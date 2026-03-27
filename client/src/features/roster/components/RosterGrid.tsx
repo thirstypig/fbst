@@ -17,10 +17,12 @@ interface Team {
 interface RosterItem {
     id: number;
     teamId: number;
+    assignedPosition?: string | null;
     player: {
         id: number;
         name: string;
         posPrimary: string;
+        posList?: string;
         mlbId?: number;
     };
     price: number;
@@ -33,10 +35,11 @@ interface RosterGridProps {
   className?: string;
   canRelease?: boolean;
   canEditPrice?: boolean;
+  canEditPosition?: boolean;
   onRelease?: () => void;
 }
 
-export default function RosterGrid({ leagueId, teams: initialTeams, rosters: initialRosters, className, canRelease, canEditPrice, onRelease }: RosterGridProps) {
+export default function RosterGrid({ leagueId, teams: initialTeams, rosters: initialRosters, className, canRelease, canEditPrice, canEditPosition, onRelease }: RosterGridProps) {
   const { outfieldMode, leagueId: contextLeagueId } = useLeague();
   const { toast, confirm } = useToast();
   const [teams, setTeams] = useState<Team[]>(initialTeams || []);
@@ -115,6 +118,21 @@ export default function RosterGrid({ leagueId, teams: initialTeams, rosters: ini
     }
   };
 
+  const handlePositionChange = async (rosterId: number, teamId: number, playerName: string, newPos: string) => {
+    if (!effectiveLeagueId) return;
+    try {
+      await fetchJsonApi(`${API_BASE}/teams/${teamId}/roster/${rosterId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ assignedPosition: newPos }),
+      });
+      setRosters(prev => prev.map(r => r.id === rosterId ? { ...r, assignedPosition: newPos } : r));
+      toast(`Updated ${playerName} position to ${newPos}`, "success");
+      onRelease?.();
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : "Position update failed", "error");
+    }
+  };
+
   const handleRelease = async (rosterId: number, playerName: string) => {
     if (!effectiveLeagueId) return;
     const ok = await confirm(`Release ${playerName} from their team?`);
@@ -157,13 +175,30 @@ export default function RosterGrid({ leagueId, teams: initialTeams, rosters: ini
                                <div className="text-center text-xs text-[var(--lg-text-muted)] mt-10">No players</div>
                            )}
                            {[...teamRoster].sort((a, b) => {
-                               const ia = POS_ORDER.indexOf(a.player.posPrimary);
-                               const ib = POS_ORDER.indexOf(b.player.posPrimary);
+                               const posA = a.assignedPosition || a.player.posPrimary;
+                               const posB = b.assignedPosition || b.player.posPrimary;
+                               const ia = POS_ORDER.indexOf(posA);
+                               const ib = POS_ORDER.indexOf(posB);
                                return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
-                           }).map(r => (
+                           }).map(r => {
+                               const displayPos = r.assignedPosition || mapPosition(r.player.posPrimary, outfieldMode);
+                               const isPitcherPos = ["P", "SP", "RP"].includes(displayPos);
+                               return (
                                <div key={r.id} className="flex justify-between items-center text-xs p-1.5 hover:bg-[var(--lg-tint)] rounded group">
                                    <div className="flex items-center gap-2 overflow-hidden">
-                                       <span className="font-mono text-[var(--lg-text-muted)] w-5 text-center shrink-0">{mapPosition(r.player.posPrimary, outfieldMode)}</span>
+                                       {canEditPosition ? (
+                                         <select
+                                           className="font-mono text-[var(--lg-accent)] w-8 text-center shrink-0 bg-transparent border border-[var(--lg-border-faint)] rounded cursor-pointer text-[10px] outline-none hover:border-[var(--lg-accent)] transition-colors"
+                                           value={displayPos}
+                                           onChange={(e) => handlePositionChange(r.id, r.teamId, r.player.name, e.target.value)}
+                                         >
+                                           {(isPitcherPos ? ["P"] : ["C", "1B", "2B", "3B", "SS", "MI", "CM", "OF", "DH"]).map(p => (
+                                             <option key={p} value={p} className="text-black">{p}</option>
+                                           ))}
+                                         </select>
+                                       ) : (
+                                         <span className="font-mono text-[var(--lg-accent)] w-5 text-center shrink-0 text-[10px] font-semibold">{displayPos}</span>
+                                       )}
                                        <span className="text-[var(--lg-text-primary)] truncate group-hover:text-sky-300 transition-colors">{r.player.name}</span>
                                    </div>
                                    <div className="flex items-center gap-1.5">
@@ -199,7 +234,7 @@ export default function RosterGrid({ leagueId, teams: initialTeams, rosters: ini
                                         )}
                                    </div>
                                </div>
-                           ))}
+                           );})}
                        </div>
                    </div>
                );

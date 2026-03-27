@@ -190,6 +190,223 @@ router.get(
   })
 );
 
+// ─── GET /trade-rumors — Parse MLB Trade Rumors RSS ───
+
+router.get("/trade-rumors", requireAuth, asyncHandler(async (_req, res) => {
+  try {
+    const feedUrl = "https://www.mlbtraderumors.com/feed";
+    const response = await fetch(feedUrl, {
+      headers: { "User-Agent": "FBST/1.0 Fantasy Baseball App" },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) {
+      return res.json({ items: [] });
+    }
+    const xml = await response.text();
+
+    // Simple RSS XML parser — extract <item> entries
+    const items: { title: string; link: string; pubDate: string; categories: string[] }[] = [];
+    const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+    let match;
+    while ((match = itemRegex.exec(xml)) !== null && items.length < 15) {
+      const block = match[1];
+      const title = block.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/)?.[1]
+        ?? block.match(/<title>(.*?)<\/title>/)?.[1] ?? "";
+      const link = block.match(/<link>(.*?)<\/link>/)?.[1] ?? "";
+      const pubDate = block.match(/<pubDate>(.*?)<\/pubDate>/)?.[1] ?? "";
+      const categories: string[] = [];
+      const catRegex = /<category><!\[CDATA\[(.*?)\]\]><\/category>/g;
+      let catMatch;
+      while ((catMatch = catRegex.exec(block)) !== null) {
+        categories.push(catMatch[1]);
+      }
+      if (title && link) {
+        items.push({ title, link, pubDate, categories });
+      }
+    }
+
+    res.json({ items });
+  } catch (err) {
+    logger.warn({ error: String(err) }, "Failed to fetch MLB Trade Rumors RSS");
+    res.json({ items: [] });
+  }
+}));
+
+// ─── GET /injuries — MLB injury list ───
+
+router.get("/injuries", requireAuth, asyncHandler(async (_req, res) => {
+  try {
+    const data = await mlbGetJson("https://statsapi.mlb.com/api/v1/injuries?sportId=1", 3600);
+    const injuries = (data.injuries || []).map((inj: any) => ({
+      playerName: inj.player?.fullName ?? "",
+      mlbId: inj.player?.id ?? 0,
+      team: inj.team?.abbreviation ?? inj.team?.name ?? "",
+      injuryType: inj.injuries?.[0]?.description ?? inj.description ?? "",
+      ilType: inj.injuries?.[0]?.type ?? "",
+      date: inj.date ?? "",
+    }));
+    res.json({ injuries });
+  } catch (err) {
+    logger.warn({ error: String(err) }, "Failed to fetch MLB injuries");
+    res.json({ injuries: [] });
+  }
+}));
+
+// ─── GET /roster-stats-today — Full roster with today's real-time game stats ───
+
+router.get("/roster-stats-today", requireAuth, requireLeagueMember("leagueId"), asyncHandler(async (req, res) => {
+  const leagueId = Number(req.query.leagueId);
+  if (!Number.isFinite(leagueId)) return res.status(400).json({ error: "Invalid leagueId" });
+
+  const userId = req.user!.id;
+  const today = todayDateStr();
+
+  // Find user's team
+  const team = await prisma.team.findFirst({
+    where: { leagueId, OR: [{ ownerUserId: userId }, { ownerships: { some: { userId } } }] },
+    select: { id: true, name: true },
+  });
+  if (!team) return res.json({ date: today, teamName: "", players: [] });
+
+  // Get active roster with player info
+  const rosterEntries = await prisma.roster.findMany({
+    where: { teamId: team.id, releasedAt: null },
+    include: { player: { select: { id: true, name: true, mlbId: true, mlbTeam: true, posPrimary: true } } },
+    orderBy: { acquiredAt: "asc" },
+  });
+
+  // Get today's schedule with boxscore data
+  const scheduleUrl = `https://statsapi.mlb.com/api/v1/schedule?date=${today}&sportId=1&hydrate=boxscore`;
+  const scheduleData = await mlbGetJson(scheduleUrl, 120); // 2-min cache for live data
+
+  // Build player stats from boxscores
+  const playerStatsMap = new Map<number, { hitting?: any; pitching?: any; gameStatus: string; opponent: string; homeAway: string }>();
+  const teamsMap = await fetchMlbTeamsMap();
+
+  for (const dateEntry of scheduleData.dates || []) {
+    for (const game of dateEntry.games || []) {
+      const status = game.status?.abstractGameState || "Preview";
+      const detailedState = game.status?.detailedState || status;
+      const isLiveOrFinal = status === "Live" || status === "Final";
+
+      const awayTeam = game.teams?.away?.team;
+      const homeTeam = game.teams?.home?.team;
+      const awayAbbr = awayTeam?.abbreviation ?? (awayTeam?.id ? teamsMap[awayTeam.id] : "") ?? "";
+      const homeAbbr = homeTeam?.abbreviation ?? (homeTeam?.id ? teamsMap[homeTeam.id] : "") ?? "";
+
+      if (!isLiveOrFinal) {
+        // For preview games, just record the matchup
+        // Map team abbreviations to game info without stats
+        continue;
+      }
+
+      const boxscore = game.boxscore;
+      if (!boxscore) continue;
+
+      // Process both teams' players from boxscore
+      for (const side of ["away", "home"] as const) {
+        const teamPlayers = boxscore.teams?.[side]?.players;
+        if (!teamPlayers) continue;
+
+        const teamAbbr = side === "away" ? awayAbbr : homeAbbr;
+        const oppAbbr = side === "away" ? homeAbbr : awayAbbr;
+
+        for (const [_key, player] of Object.entries(teamPlayers) as [string, any][]) {
+          const mlbId = player.person?.id;
+          if (!mlbId) continue;
+
+          const hitting = player.stats?.batting;
+          const pitching = player.stats?.pitching;
+          const hasPlayed = (hitting && (hitting.atBats > 0 || hitting.runs > 0)) ||
+                           (pitching && (pitching.inningsPitched && pitching.inningsPitched !== "0.0"));
+
+          if (hasPlayed || status === "Live") {
+            playerStatsMap.set(mlbId, {
+              hitting: hitting?.atBats > 0 || hitting?.runs > 0 ? {
+                AB: hitting.atBats || 0,
+                H: hitting.hits || 0,
+                R: hitting.runs || 0,
+                HR: hitting.homeRuns || 0,
+                RBI: hitting.rbi || 0,
+                SB: hitting.stolenBases || 0,
+                BB: hitting.baseOnBalls || 0,
+                K: hitting.strikeOuts || 0,
+              } : undefined,
+              pitching: pitching?.inningsPitched && pitching.inningsPitched !== "0.0" ? {
+                IP: pitching.inningsPitched || "0.0",
+                H: pitching.hits || 0,
+                R: pitching.runs || 0,
+                ER: pitching.earnedRuns || 0,
+                K: pitching.strikeOuts || 0,
+                BB: pitching.baseOnBalls || 0,
+                W: pitching.wins || 0,
+                L: pitching.losses || 0,
+                SV: pitching.saves || 0,
+              } : undefined,
+              gameStatus: detailedState,
+              opponent: oppAbbr,
+              homeAway: side,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // Also build a schedule map for players who haven't played yet
+  const teamScheduleMap = new Map<string, { opponent: string; homeAway: string; gameTime: string; gameStatus: string }>();
+  for (const dateEntry of scheduleData.dates || []) {
+    for (const game of dateEntry.games || []) {
+      const awayTeam = game.teams?.away?.team;
+      const homeTeam = game.teams?.home?.team;
+      const awayAbbr = awayTeam?.abbreviation ?? (awayTeam?.id ? teamsMap[awayTeam.id] : "") ?? "";
+      const homeAbbr = homeTeam?.abbreviation ?? (homeTeam?.id ? teamsMap[homeTeam.id] : "") ?? "";
+      const gameTime = game.gameDate ?? "";
+      const gameStatus = game.status?.detailedState || game.status?.abstractGameState || "Preview";
+
+      if (awayAbbr) teamScheduleMap.set(awayAbbr, { opponent: homeAbbr, homeAway: "away", gameTime, gameStatus });
+      if (homeAbbr) teamScheduleMap.set(homeAbbr, { opponent: awayAbbr, homeAway: "home", gameTime, gameStatus });
+    }
+  }
+
+  // Build response
+  const PITCHER_POS = new Set(["P", "SP", "RP", "CL"]);
+  const players = rosterEntries.map(r => {
+    const p = r.player;
+    const isPitcher = PITCHER_POS.has((p.posPrimary ?? "").toUpperCase());
+    const stats = p.mlbId ? playerStatsMap.get(p.mlbId) : undefined;
+    const schedule = p.mlbTeam ? teamScheduleMap.get(p.mlbTeam) : undefined;
+
+    return {
+      playerName: p.name,
+      mlbId: p.mlbId,
+      mlbTeam: p.mlbTeam || "",
+      position: r.assignedPosition || p.posPrimary || "",
+      isPitcher,
+      gameToday: !!schedule,
+      gameStatus: stats?.gameStatus || schedule?.gameStatus || "",
+      opponent: stats?.opponent || schedule?.opponent || "",
+      homeAway: stats?.homeAway || schedule?.homeAway || "",
+      gameTime: schedule?.gameTime || "",
+      hitting: stats?.hitting || null,
+      pitching: stats?.pitching || null,
+    };
+  });
+
+  // Sort: players with stats first, then by position
+  const POS_ORDER = ["C", "1B", "2B", "3B", "SS", "MI", "CM", "OF", "DH", "P"];
+  players.sort((a, b) => {
+    // Hitters first, pitchers second
+    if (a.isPitcher !== b.isPitcher) return a.isPitcher ? 1 : -1;
+    // Within group, by position order
+    const ia = POS_ORDER.indexOf(a.position);
+    const ib = POS_ORDER.indexOf(b.position);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
+
+  res.json({ date: today, teamName: team.name, players });
+}));
+
 // ─── GET /my-players-today ───
 
 router.get(
