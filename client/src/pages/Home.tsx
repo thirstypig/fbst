@@ -212,7 +212,7 @@ export default function Home() {
   const [rumorsFilter, setRumorsFilter] = useState<'ALL' | 'NL' | 'AL'>('NL'); // Default NL for NL-only league
   const [rumorsTeamFilter, setRumorsTeamFilter] = useState<string>('ALL'); // specific MLB team
   const [rumorsRosterOnly, setRumorsRosterOnly] = useState(false); // only show news mentioning rostered players
-  const [rumorsFantasyTeam, setRumorsFantasyTeam] = useState<string>('ALL'); // filter by fantasy team's players
+  const [rumorsFantasyTeam, setRumorsFantasyTeam] = useState<string>('ALL'); // default: all league news
   const [leagueStatsSource, setLeagueStatsSource] = useState<string>("NL");
 
   // All rostered players in the league for cross-referencing with trade rumors
@@ -225,7 +225,7 @@ export default function Home() {
   // Reddit baseball feed
   const [redditPosts, setRedditPosts] = useState<any[]>([]);
   const [redditLoading, setRedditLoading] = useState(true);
-  const [redditFilter, setRedditFilter] = useState<string>('ALL'); // fantasy team filter for Reddit
+  const [redditFilter, setRedditFilter] = useState<string>('ALL'); // default: all posts
 
   // Derive list of fantasy teams from roster data
   const fantasyTeams = useMemo(() => {
@@ -275,11 +275,7 @@ export default function Home() {
           teamCount: teams.length,
           myTeam: mine ? { name: mine.name, id: mine.id, budget: mine.budget, rosterCount: 0 } : null,
         });
-        // Default filters to user's team
-        if (mine) {
-          setRumorsFantasyTeam(mine.name);
-          setRedditFilter(mine.name);
-        }
+        // Don't default to team — let NL/AL filter from league rules handle it
       })
       .catch(() => { setHasTeam(null); setDash(null); });
 
@@ -751,7 +747,7 @@ export default function Home() {
         <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--lg-text-muted)]">
             <Sparkles size={12} className="inline -mt-0.5 mr-1 text-orange-400" />
-            MLB Trade Rumors
+            MLBTradeRumors.com
           </h2>
           <div className="flex items-center gap-2 flex-wrap">
             {/* Fantasy team dropdown */}
@@ -946,7 +942,7 @@ export default function Home() {
           <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--lg-text-muted)]">
               <ArrowLeftRight size={12} className="inline -mt-0.5 mr-1 text-orange-500" />
-              r/baseball
+              Reddit r/baseball + r/fantasybaseball
             </h2>
             <div className="flex items-center gap-2">
               <select

@@ -396,18 +396,33 @@ router.get("/reddit-baseball", requireAuth, requireLeagueMember("leagueId"), asy
   if (!Number.isFinite(leagueId)) return res.status(400).json({ error: "Invalid leagueId" });
 
   try {
-    // Fetch r/baseball RSS
-    const rssUrl = "https://www.reddit.com/r/baseball/hot.json?limit=25";
-    const response = await fetch(rssUrl, {
-      headers: { "User-Agent": "FBST/1.0 Fantasy Baseball App" },
-      signal: AbortSignal.timeout(10_000),
-    });
+    // Fetch r/baseball + r/fantasybaseball
+    const [baseballRes, fantasyRes] = await Promise.allSettled([
+      fetch("https://www.reddit.com/r/baseball/hot.json?limit=20", {
+        headers: { "User-Agent": "FBST/1.0 Fantasy Baseball App" },
+        signal: AbortSignal.timeout(10_000),
+      }),
+      fetch("https://www.reddit.com/r/fantasybaseball/hot.json?limit=10", {
+        headers: { "User-Agent": "FBST/1.0 Fantasy Baseball App" },
+        signal: AbortSignal.timeout(10_000),
+      }),
+    ]);
 
-    if (!response.ok) {
+    // Merge posts from both subreddits
+    const allChildren: any[] = [];
+    for (const result of [baseballRes, fantasyRes]) {
+      if (result.status === "fulfilled" && result.value.ok) {
+        const data = await result.value.json() as any;
+        const sub = data.data?.children || [];
+        allChildren.push(...sub);
+      }
+    }
+
+    if (allChildren.length === 0) {
       return res.json({ posts: [] });
     }
 
-    const data = await response.json() as any;
+    const data = { data: { children: allChildren } };
 
     // Get all rostered player names in the league for cross-referencing
     const allRosters = await prisma.roster.findMany({
