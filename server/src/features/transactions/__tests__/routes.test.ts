@@ -4,7 +4,7 @@ import type { NextFunction } from "express";
 // ── Mocks (hoisted) ──────────────────────────────────────────────
 
 const mockTx = {
-  roster: { create: vi.fn(), findFirst: vi.fn(), delete: vi.fn() },
+  roster: { create: vi.fn(), findFirst: vi.fn(), delete: vi.fn(), count: vi.fn().mockResolvedValue(10) },
   player: { findUnique: vi.fn() },
   transactionEvent: { create: vi.fn() },
 };
@@ -36,6 +36,7 @@ vi.mock("../../../middleware/asyncHandler.js", () => ({
 }));
 vi.mock("../../../lib/rosterGuard.js", () => ({
   assertPlayerAvailable: vi.fn().mockResolvedValue(undefined),
+  assertRosterLimit: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("../../../middleware/seasonGuard.js", () => ({
   requireSeasonStatus: vi.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()),

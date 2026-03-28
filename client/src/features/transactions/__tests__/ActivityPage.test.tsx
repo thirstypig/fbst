@@ -40,8 +40,14 @@ vi.mock("../../../contexts/ToastContext", () => ({
 }));
 
 // Mock child components
+vi.mock("../../../components/ui/button", () => ({
+  Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
+}));
 vi.mock("../../roster/components/AddDropTab", () => ({
   default: () => <div data-testid="add-drop-tab">AddDropTab</div>,
+}));
+vi.mock("../../waivers/components/WaiverClaimForm", () => ({
+  default: () => <div data-testid="waiver-claim-form">WaiverClaimForm</div>,
 }));
 vi.mock("../../trades/pages/TradesPage", () => ({
   TradeCard: () => <div data-testid="trade-card" />,

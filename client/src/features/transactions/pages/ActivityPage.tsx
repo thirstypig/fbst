@@ -16,6 +16,7 @@ import { useAuth } from "../../../auth/AuthProvider";
 import { useLeague, findMyTeam } from "../../../contexts/LeagueContext";
 import { useToast } from "../../../contexts/ToastContext";
 import AddDropTab from "../../roster/components/AddDropTab";
+import WaiverClaimForm from "../../waivers/components/WaiverClaimForm";
 import { TradeCard, LeagueTradeCard, CreateTradeForm } from "../../trades/pages/TradesPage";
 import TeamRosterView from "../../teams/components/TeamRosterView";
 import ActivityWaiversTab from "../components/ActivityWaiversTab";
@@ -244,9 +245,20 @@ export default function ActivityPage() {
           <div className="liquid-glass rounded-3xl p-1 bg-[var(--lg-tint)]">
             {isCommissioner ? (
               <AddDropTab players={players} onClaim={handleClaim} onDrop={handleDrop} />
+            ) : selectedTeamId ? (
+              <WaiverClaimForm
+                players={players}
+                myTeamId={selectedTeamId}
+                myTeamBudget={teams.find(t => t.id === selectedTeamId)?.budget ?? 400}
+                myRoster={players.filter((p: any) => {
+                  const tid = (p as any)._dbTeamId || teams.find(t => t.name === p.ogba_team_name)?.id;
+                  return tid === selectedTeamId;
+                })}
+                onComplete={loadData}
+              />
             ) : (
               <div className="p-16 text-center text-[var(--lg-text-muted)] opacity-40 italic font-medium">
-                Add/Drop is commissioner-only. Contact your league commissioner for roster changes.
+                Select a team to submit waiver claims.
               </div>
             )}
           </div>

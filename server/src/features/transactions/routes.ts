@@ -10,7 +10,7 @@ import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { requireSeasonStatus } from "../../middleware/seasonGuard.js";
 import { logger } from "../../lib/logger.js";
 import { writeAuditLog } from "../../lib/auditLog.js";
-import { assertPlayerAvailable } from "../../lib/rosterGuard.js";
+import { assertPlayerAvailable, assertRosterLimit } from "../../lib/rosterGuard.js";
 
 const dropSchema = z.object({
   leagueId: z.number().int().positive(),
@@ -110,6 +110,7 @@ router.post("/transactions/claim", requireAuth, validateBody(claimSchema), requi
   // 4. Perform Transaction (Atomic)
   await prisma.$transaction(async (tx) => {
     await assertPlayerAvailable(tx, playerId, leagueId);
+    await assertRosterLimit(tx, teamId, !!dropPlayerId);
 
     const player = await tx.player.findUnique({ where: { id: playerId }, select: { id: true, name: true, posPrimary: true, mlbId: true, mlbTeam: true } });
     const PITCHER_POS = new Set(["P", "SP", "RP", "CL"]);

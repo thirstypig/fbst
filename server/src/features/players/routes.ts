@@ -370,10 +370,59 @@ dataRouter.get("/player-season-stats", requireAuth, asyncHandler(async (req, res
   res.json({ stats: expandedStats });
 }));
 
-/** GET /api/player-period-stats?leagueId=N — no period stats yet for 2026 */
-dataRouter.get("/player-period-stats", requireAuth, (_req, res) => {
-  res.json({ stats: [] });
-});
+/** GET /api/player-period-stats?leagueId=N — player stats for the active period */
+dataRouter.get("/player-period-stats", requireAuth, asyncHandler(async (req, res) => {
+  const leagueId = req.query.leagueId ? Number(req.query.leagueId) : null;
+  if (!leagueId || !Number.isFinite(leagueId)) return res.json({ stats: [], periods: [] });
+
+  // Find active periods for this league
+  const periods = await prisma.period.findMany({
+    where: { leagueId, status: { in: ["active", "completed"] } },
+    orderBy: { startDate: "asc" },
+    select: { id: true, name: true, status: true, startDate: true, endDate: true },
+  });
+
+  if (periods.length === 0) return res.json({ stats: [], periods });
+
+  // Get stats for the most recent active period
+  const activePeriod = periods.find(p => p.status === "active") ?? periods[periods.length - 1];
+
+  const periodStats = await prisma.playerStatsPeriod.findMany({
+    where: { periodId: activePeriod.id },
+    include: { player: { select: { id: true, mlbId: true, name: true, posPrimary: true, mlbTeam: true } } },
+  });
+
+  // Get rosters for the league to know which players are on which teams
+  const rosters = await prisma.roster.findMany({
+    where: { team: { leagueId }, releasedAt: null },
+    select: { playerId: true, team: { select: { code: true, name: true } } },
+  });
+  const rosterMap = new Map(rosters.map(r => [r.playerId, { teamCode: r.team.code ?? "", teamName: r.team.name }]));
+
+  const stats = periodStats.map(ps => {
+    const roster = rosterMap.get(ps.playerId);
+    const isPitcher = (ps.player.posPrimary ?? "").toUpperCase() === "P";
+    const AVG = ps.AB > 0 ? ps.H / ps.AB : 0;
+    const ERA = ps.IP > 0 ? (ps.ER / ps.IP) * 9 : 0;
+    const WHIP = ps.IP > 0 ? ps.BB_H / ps.IP : 0;
+
+    return {
+      mlb_id: String(ps.player.mlbId ?? ps.playerId),
+      player_name: ps.player.name,
+      ogba_team_code: roster?.teamCode ?? "",
+      ogba_team_name: roster?.teamName ?? "",
+      positions: ps.player.posPrimary ?? "",
+      is_pitcher: isPitcher,
+      AB: ps.AB, H: ps.H, R: ps.R, HR: ps.HR, RBI: ps.RBI, SB: ps.SB, AVG,
+      W: ps.W, SV: ps.SV, K: ps.K, IP: ps.IP, ERA, WHIP,
+      mlb_team: ps.player.mlbTeam ?? "",
+      periodId: activePeriod.id,
+      periodName: activePeriod.name,
+    };
+  });
+
+  res.json({ stats, periods, activePeriodId: activePeriod.id });
+}));
 
 /** GET /api/auction-values?leagueId=N */
 dataRouter.get("/auction-values", requireAuth, (_req, res) => {

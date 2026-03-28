@@ -9,7 +9,7 @@ import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { logger } from "../../lib/logger.js";
 import { writeAuditLog } from "../../lib/auditLog.js";
 import { requireSeasonStatus } from "../../middleware/seasonGuard.js";
-import { assertPlayerAvailable } from "../../lib/rosterGuard.js";
+import { assertPlayerAvailable, assertRosterLimit } from "../../lib/rosterGuard.js";
 
 /**
  * Auto-generate AI analysis after a waiver claim is processed.
@@ -249,6 +249,9 @@ router.post("/process/:leagueId", requireAuth, requireCommissionerOrAdmin("leagu
 
       // Guard: ensure player isn't already on another team in this league
       await assertPlayerAvailable(tx, claim.playerId, claim.team.leagueId);
+
+      // Guard: ensure roster limit not exceeded
+      await assertRosterLimit(tx, claim.teamId, !!claim.dropPlayerId);
 
       // Add Player to Roster (auto-assign position from primary)
       const addedPlayer = await tx.player.findUnique({ where: { id: claim.playerId }, select: { posPrimary: true } });

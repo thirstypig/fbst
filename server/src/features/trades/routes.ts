@@ -4,7 +4,7 @@ import { z } from "zod";
 import { prisma } from "../../db/prisma.js";
 import { requireAuth, requireAdmin, requireTeamOwner, requireLeagueMember, isTeamOwner } from "../../middleware/auth.js";
 import { writeAuditLog } from "../../lib/auditLog.js";
-import { assertPlayerAvailable } from "../../lib/rosterGuard.js";
+import { assertPlayerAvailable, assertRosterLimit } from "../../lib/rosterGuard.js";
 import { validateBody } from "../../middleware/validate.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { requireSeasonStatus } from "../../middleware/seasonGuard.js";
@@ -412,6 +412,15 @@ router.post("/:id/process", requireAuth, asyncHandler(async (req, res) => {
           where: { id: item.recipientId },
           data: { budget: { increment: item.amount || 0 } },
         });
+      }
+    }
+
+    // Verify roster limits for all teams involved after all moves
+    const teamIds = new Set(trade.items.flatMap(i => [i.senderId, i.recipientId]));
+    for (const tid of teamIds) {
+      const count = await tx.roster.count({ where: { teamId: tid, releasedAt: null } });
+      if (count > 23) {
+        throw new Error(`Trade would leave team ${tid} with ${count} players (max 23)`);
       }
     }
 
