@@ -164,7 +164,8 @@ export async function getSeasonStandings(leagueId?: number): Promise<SeasonStand
 
       if (raw && Array.isArray(raw.rows)) {
         const periodIds = Array.isArray(raw.periodIds) ? (raw.periodIds as unknown[]).map((x) => Number(x)).filter(Number.isFinite) : [];
-        return { periodIds, rows: raw.rows as SeasonStandingRow[] };
+        const periodNames = Array.isArray(raw.periodNames) ? raw.periodNames as string[] : [];
+        return { periodIds, periodNames, rows: raw.rows as SeasonStandingRow[] };
       }
       if (Array.isArray(raw)) return { periodIds: [], rows: raw as SeasonStandingRow[] };
       return { periodIds: [], rows: [] };

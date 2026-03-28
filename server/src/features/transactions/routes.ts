@@ -7,6 +7,7 @@ import { prisma } from "../../db/prisma.js";
 import { requireAuth, requireLeagueMember } from "../../middleware/auth.js";
 import { validateBody } from "../../middleware/validate.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
+import { requireSeasonStatus } from "../../middleware/seasonGuard.js";
 import { logger } from "../../lib/logger.js";
 import { writeAuditLog } from "../../lib/auditLog.js";
 import { assertPlayerAvailable } from "../../lib/rosterGuard.js";
@@ -61,7 +62,7 @@ router.get("/transactions", requireAuth, requireLeagueMember("leagueId"), asyncH
  * POST /api/transactions/claim
  * Claims a player for a team. Commissioner-only per league rules.
  */
-router.post("/transactions/claim", requireAuth, validateBody(claimSchema), asyncHandler(async (req, res) => {
+router.post("/transactions/claim", requireAuth, validateBody(claimSchema), requireSeasonStatus(["IN_SEASON"]), asyncHandler(async (req, res) => {
   const { leagueId, teamId, dropPlayerId } = req.body;
 
   // Commissioner-only: verify user is commissioner of this league or site admin
@@ -110,11 +111,14 @@ router.post("/transactions/claim", requireAuth, validateBody(claimSchema), async
   await prisma.$transaction(async (tx) => {
     await assertPlayerAvailable(tx, playerId, leagueId);
 
-    await tx.roster.create({
-      data: { teamId, playerId, source: 'waiver_claim', acquiredAt: new Date() }
-    });
+    const player = await tx.player.findUnique({ where: { id: playerId }, select: { id: true, name: true, posPrimary: true, mlbId: true, mlbTeam: true } });
+    const PITCHER_POS = new Set(["P", "SP", "RP", "CL"]);
+    const primaryPos = (player?.posPrimary ?? "UT").toUpperCase();
+    const assignedPos = PITCHER_POS.has(primaryPos) ? "P" : primaryPos;
 
-    const player = await tx.player.findUnique({ where: { id: playerId } });
+    await tx.roster.create({
+      data: { teamId, playerId, source: 'waiver_claim', acquiredAt: new Date(), assignedPosition: assignedPos }
+    });
     const rowHash = `CLAIM-${crypto.randomUUID()}-${playerId}`;
 
     await tx.transactionEvent.create({
@@ -171,7 +175,7 @@ router.post("/transactions/claim", requireAuth, validateBody(claimSchema), async
  * POST /api/transactions/drop
  * Drops a player from a team roster. Commissioner-only.
  */
-router.post("/transactions/drop", requireAuth, validateBody(dropSchema), asyncHandler(async (req, res) => {
+router.post("/transactions/drop", requireAuth, validateBody(dropSchema), requireSeasonStatus(["IN_SEASON"]), asyncHandler(async (req, res) => {
   const { leagueId, teamId, playerId } = req.body;
 
   // Commissioner-only check

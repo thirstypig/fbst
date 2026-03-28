@@ -15,6 +15,7 @@ vi.mock("../../../db/prisma.js", () => ({
     roster: { findFirst: vi.fn() },
     player: { findFirst: vi.fn() },
     league: { findUnique: vi.fn() },
+    leagueMembership: { findUnique: vi.fn() },
     $transaction: vi.fn(async (fn: any) => fn(mockTx)),
   },
 }));
@@ -35,6 +36,9 @@ vi.mock("../../../middleware/asyncHandler.js", () => ({
 }));
 vi.mock("../../../lib/rosterGuard.js", () => ({
   assertPlayerAvailable: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("../../../middleware/seasonGuard.js", () => ({
+  requireSeasonStatus: vi.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()),
 }));
 
 import { prisma } from "../../../db/prisma.js";
@@ -60,7 +64,7 @@ app.use((err: any, _req: any, res: any, _next: NextFunction) => {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockTx.player.findUnique.mockResolvedValue({ id: 100, name: "Mike Trout" });
+  mockTx.player.findUnique.mockResolvedValue({ id: 100, name: "Mike Trout", posPrimary: "OF", mlbId: 545361, mlbTeam: "LAA" });
   mockTx.roster.create.mockResolvedValue({});
   mockTx.transactionEvent.create.mockResolvedValue({});
 });

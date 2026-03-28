@@ -41,6 +41,7 @@ enum TradeStatus {
   VETOED
   PROCESSED
   CANCELLED
+  REVERSED
 }
 
 enum AssetType {

@@ -250,7 +250,10 @@ router.post("/process/:leagueId", requireAuth, requireCommissionerOrAdmin("leagu
       // Guard: ensure player isn't already on another team in this league
       await assertPlayerAvailable(tx, claim.playerId, claim.team.leagueId);
 
-      // Add Player to Roster
+      // Add Player to Roster (auto-assign position from primary)
+      const addedPlayer = await tx.player.findUnique({ where: { id: claim.playerId }, select: { posPrimary: true } });
+      const PITCHER_POS = new Set(["P", "SP", "RP", "CL"]);
+      const waiverPos = (addedPlayer?.posPrimary ?? "UT").toUpperCase();
       await tx.roster.create({
         data: {
           teamId: claim.teamId,
@@ -258,6 +261,7 @@ router.post("/process/:leagueId", requireAuth, requireCommissionerOrAdmin("leagu
           source: "WAIVER",
           price: claim.bidAmount,
           acquiredAt: new Date(),
+          assignedPosition: PITCHER_POS.has(waiverPos) ? "P" : waiverPos,
         },
       });
 

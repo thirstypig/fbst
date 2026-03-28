@@ -381,6 +381,12 @@ router.post("/:id/process", requireAuth, asyncHandler(async (req, res) => {
 
            await assertPlayerAvailable(tx, item.playerId, trade.leagueId);
 
+           // Carry over assignedPosition from sender, or default to player's primary
+           const tradedPlayer = await tx.player.findUnique({ where: { id: item.playerId }, select: { posPrimary: true } });
+           const PITCHER_POS = new Set(["P", "SP", "RP", "CL"]);
+           const tradePos = rosterEntry.assignedPosition
+             || (PITCHER_POS.has((tradedPlayer?.posPrimary ?? "").toUpperCase()) ? "P" : (tradedPlayer?.posPrimary ?? "UT").toUpperCase());
+
            await tx.roster.create({
              data: {
                teamId: item.recipientId,
@@ -388,7 +394,7 @@ router.post("/:id/process", requireAuth, asyncHandler(async (req, res) => {
                source: "TRADE_IN",
                acquiredAt: new Date(),
                price: rosterEntry.price,
-               assignedPosition: null,
+               assignedPosition: tradePos,
              },
            });
         }
@@ -556,7 +562,7 @@ router.post("/:id/reverse", requireAuth, asyncHandler(async (req, res) => {
     // Mark trade as reversed
     await tx.trade.update({
       where: { id },
-      data: { status: "REVERSED" as any },
+      data: { status: "REVERSED" },
     });
   }, { timeout: 30_000 });
 
