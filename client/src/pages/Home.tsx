@@ -237,6 +237,9 @@ export default function Home() {
   const [yahooLoading, setYahooLoading] = useState(true);
   const [yahooFilter, setYahooFilter] = useState<string>('ALL');
 
+  // Roster status alerts (IL, minors)
+  const [rosterAlerts, setRosterAlerts] = useState<any[]>([]);
+
   // Derive list of fantasy teams from roster data
   const fantasyTeams = useMemo(() => {
     const teams = new Set<string>();
@@ -382,6 +385,14 @@ export default function Home() {
       .catch(() => setYahooArticles([]))
       .finally(() => setYahooLoading(false));
   }, []);
+
+  // Fetch roster status alerts (IL, minors)
+  useEffect(() => {
+    if (!currentLeagueId) return;
+    fetchJsonApi<{ players: any[] }>(`${API_BASE}/mlb/roster-status?leagueId=${currentLeagueId}`)
+      .then(res => setRosterAlerts((res.players || []).filter((p: any) => p.isInjured || p.isMinors)))
+      .catch(() => setRosterAlerts([]));
+  }, [currentLeagueId]);
 
   // Auto-refresh scores when live games
   useEffect(() => {
@@ -592,6 +603,22 @@ export default function Home() {
                 </div>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+      {/* Roster Alerts — IL / Minors */}
+      {rosterAlerts.length > 0 && (
+        <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2">
+          <div className="text-[9px] font-bold uppercase text-red-400 mb-1">Roster Alerts</div>
+          <div className="flex flex-wrap gap-2">
+            {rosterAlerts.map((p: any, i: number) => (
+              <span key={i} className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                p.isInjured ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+              }`}>
+                {p.playerName} · {p.isInjured ? 'IL' : 'Minors'} · {p.mlbTeam}
+              </span>
+            ))}
           </div>
         </div>
       )}

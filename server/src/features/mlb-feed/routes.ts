@@ -242,6 +242,78 @@ router.get("/trade-rumors", requireAuth, asyncHandler(async (_req, res) => {
   }
 }));
 
+// ─── GET /roster-status — MLB roster status for user's fantasy players ───
+
+router.get("/roster-status", requireAuth, requireLeagueMember("leagueId"), asyncHandler(async (req, res) => {
+  const leagueId = Number(req.query.leagueId);
+  if (!Number.isFinite(leagueId)) return res.status(400).json({ error: "Invalid leagueId" });
+
+  const userId = req.user!.id;
+
+  // Find user's team and roster
+  const team = await prisma.team.findFirst({
+    where: { leagueId, OR: [{ ownerUserId: userId }, { ownerships: { some: { userId } } }] },
+    select: { id: true, name: true },
+  });
+  if (!team) return res.json({ players: [], teamName: "" });
+
+  const roster = await prisma.roster.findMany({
+    where: { teamId: team.id, releasedAt: null },
+    include: { player: { select: { name: true, mlbId: true, mlbTeam: true, posPrimary: true } } },
+  });
+
+  // Get unique MLB teams from the roster
+  const mlbTeams = new Set(roster.map(r => r.player.mlbTeam).filter(Boolean));
+  const teamsMap = await fetchMlbTeamsMap();
+  const teamIdMap: Record<string, number> = {};
+  for (const [id, abbr] of Object.entries(teamsMap)) {
+    teamIdMap[abbr as string] = Number(id);
+  }
+
+  // Fetch roster/status for each MLB team (cached 6 hours)
+  const mlbStatusMap = new Map<number, { status: string; position: string }>();
+
+  for (const teamAbbr of mlbTeams) {
+    const teamId = teamIdMap[teamAbbr!];
+    if (!teamId) continue;
+
+    try {
+      const data = await mlbGetJson(`https://statsapi.mlb.com/api/v1/teams/${teamId}/roster?rosterType=fullSeason`, 21600);
+      for (const entry of (data.roster || [])) {
+        const mlbId = entry.person?.id;
+        const status = entry.status?.description || "Unknown";
+        const pos = entry.position?.abbreviation || "";
+        if (mlbId) mlbStatusMap.set(mlbId, { status, position: pos });
+      }
+    } catch (err) {
+      logger.warn({ error: String(err), teamAbbr }, "Failed to fetch MLB roster status");
+    }
+  }
+
+  // Cross-reference fantasy roster with MLB status
+  const players = roster.map(r => {
+    const mlbStatus = r.player.mlbId ? mlbStatusMap.get(r.player.mlbId) : undefined;
+    return {
+      playerName: r.player.name,
+      mlbId: r.player.mlbId,
+      mlbTeam: r.player.mlbTeam || "",
+      position: r.assignedPosition || r.player.posPrimary || "",
+      mlbStatus: mlbStatus?.status || "Unknown",
+      isInjured: mlbStatus?.status?.includes("Injured") || false,
+      isMinors: mlbStatus?.status?.includes("Minor") || mlbStatus?.status === "Reassigned" || false,
+    };
+  });
+
+  // Sort: injured/minors first (alerts), then by position
+  players.sort((a, b) => {
+    if (a.isInjured !== b.isInjured) return a.isInjured ? -1 : 1;
+    if (a.isMinors !== b.isMinors) return a.isMinors ? -1 : 1;
+    return 0;
+  });
+
+  res.json({ players, teamName: team.name });
+}));
+
 // ─── GET /injuries — MLB injury list ───
 
 router.get("/injuries", requireAuth, asyncHandler(async (_req, res) => {
