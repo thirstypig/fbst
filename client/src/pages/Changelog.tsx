@@ -31,14 +31,14 @@ interface ChangelogEntry {
 const changelog: ChangelogEntry[] = [
   {
     version: "0.43.0",
-    date: "Mar 27, 2026",
+    date: "Mar 27-28, 2026",
     session: "Session 49",
-    title: "Performance Audit, 2026 Season Launch, Position System, Home Page Redesign",
+    title: "Performance Audit, Season Launch, Positions, Home Page + YouTube/Reddit/Trade Rumors",
     highlights: [
-      "Comprehensive performance audit: 8 database indexes, 3 N+1 query fixes, standings query flattened from 4-level nested to 3 parallel queries",
-      "2026 season lifecycle: stats now show current year, draft report locked during season, period stats synced for Opening Day",
-      "Yahoo Fantasy position model: fixed POS column, positions locked during season, commissioner-only editing, auto-assignment script",
-      "Home page redesigned: Real-Time Stats Today (side-by-side roster tables with live boxscore data), MLB Trade Rumors RSS with fantasy team cross-referencing",
+      "Performance audit: 8 DB indexes, 3 N+1 fixes, standings flattened, client waterfalls eliminated",
+      "2026 season live: current year stats, draft report locked, Opening Day data synced",
+      "Yahoo Fantasy position model: fixed POS column, locked during season, auto-assignment, commissioner editing",
+      "Home page: Real-Time Stats (live boxscores, noon PST cutover), MLBTradeRumors.com RSS, YouTube highlights with inline modal, Reddit r/baseball + r/fantasybaseball",
     ],
     changes: [
       { type: "perf", description: "8 compound database indexes deployed (Season, Period, Roster, LeagueMembership, Trade, AiInsight, TransactionEvent, FinanceLedger)" },
@@ -56,6 +56,11 @@ const changelog: ChangelogEntry[] = [
       { type: "feat", description: "New server endpoints: /api/mlb/trade-rumors (RSS parser), /api/mlb/injuries, /api/mlb/roster-stats-today (boxscore)" },
       { type: "fix", description: "ERA/WHIP/IP formatting — shows dash for 0 IP pitchers instead of raw floats like 10.799999" },
       { type: "fix", description: "AI insights and Weekly Digest default to collapsed, auto-expand on Mondays" },
+      { type: "feat", description: "YouTube Player Highlights — Data API v3 search for rostered players (falls back to MLB + Jomboy RSS), inline video modal with autoplay" },
+      { type: "feat", description: "Reddit r/baseball + r/fantasybaseball feed — hot posts with player cross-referencing, flair tags, engagement metrics, fantasy team filter" },
+      { type: "feat", description: "MLBTradeRumors.com — fantasy team dropdown (8 teams + Free Agents), NL/AL toggle from league rules, player tag highlighting" },
+      { type: "fix", description: "Real-time stats timezone — uses Pacific time, yesterday's stats visible until noon PST next day" },
+      { type: "fix", description: "Boxscore data — switched from schedule hydration to per-game live feed endpoint for actual player stats" },
       { type: "docs", description: "Position backfill: 370 active roster entries assigned positions, 15 auction-set positions verified" },
     ],
   },

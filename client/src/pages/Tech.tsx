@@ -531,7 +531,7 @@ const buildJournal = [
   {
     date: "Mar 2026",
     title: "Session 31: 19 PRs, Auction UX, My Val, MLB Home, Guide Rewrite",
-    detail: "Massive session with 19 PRs merged (#46-#64). Completed 10 of 12 auction enhancements plus personalized My Val — roster-aware player valuation with 4 factors (position need, budget pressure, scarcity, market pressure). Val column colors (green/red) with hover tooltips showing base vs adjusted breakdown. Public guide pages, compact tabs, default league filter. Multi-user test script for My Val validation. Resource page audit. Also: opening bid picker (AUC-01), watchlist (AUC-02), chat (AUC-03), sounds (AUC-04), value/surplus (AUC-05), spending pace (AUC-06), nomination timer countdown (AUC-08), 'Going Once/Twice/SOLD!' visual (AUC-09), keeper cost preview (AUC-12). Position needs matrix (AUC-07), auction settings panel with 6 per-user toggles and Excel export. MLB-powered Home page with live scores, transactions, and date navigation via mlb-feed module. Guide rewritten into 3 pages with Playwright screenshots. Code review fixing 5 P1s and 9 P2s. CI pipeline fix. 691 tests passing across 69,600+ lines of TypeScript.",
+    detail: "Massive session with 19 PRs merged (#46-#64). Completed 10 of 12 auction enhancements plus personalized My Val — roster-aware player valuation with 4 factors (position need, budget pressure, scarcity, market pressure). Val column colors (green/red) with hover tooltips showing base vs adjusted breakdown. Public guide pages, compact tabs, default league filter. Multi-user test script for My Val validation. Resource page audit. Also: opening bid picker (AUC-01), watchlist (AUC-02), chat (AUC-03), sounds (AUC-04), value/surplus (AUC-05), spending pace (AUC-06), nomination timer countdown (AUC-08), 'Going Once/Twice/SOLD!' visual (AUC-09), keeper cost preview (AUC-12). Position needs matrix (AUC-07), auction settings panel with 6 per-user toggles and Excel export. MLB-powered Home page with live scores, transactions, and date navigation via mlb-feed module. Guide rewritten into 3 pages with Playwright screenshots. Code review fixing 5 P1s and 9 P2s. CI pipeline fix. 691 tests passing across 70,100+ lines of TypeScript.",
   },
   {
     date: "Mar 2026",
@@ -638,7 +638,7 @@ const costComparison = {
     note: "Offshore team (India/China). Lower hourly rate but often requires more hours due to communication overhead, timezone gaps, and iteration cycles. PM/QA often separate line items.",
   },
   scope: [
-    "69,600+ lines of TypeScript (strict mode)",
+    "70,100+ lines of TypeScript (strict mode)",
     "18 mirrored client/server feature modules",
     "119 API endpoints + WebSocket real-time auction",
     "30 Prisma database models with 10 migrations",
@@ -1173,7 +1173,7 @@ export default function Tech() {
         <p className="mt-2 text-sm text-[var(--lg-text-secondary)]">
           A look at what it took to build The Fantastic Leagues — the tools, the process,
           the decisions, and the numbers. Built from November 2025 to present across
-          49 sessions, 69,600+ lines of TypeScript, and an estimated 85 million+ AI tokens.
+          49 sessions, 70,100+ lines of TypeScript, and an estimated 85 million+ AI tokens.
         </p>
         <p className="mt-1 text-xs text-[var(--lg-text-muted)]">
           Last updated: March 20, 2026

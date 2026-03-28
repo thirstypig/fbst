@@ -4,7 +4,7 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
-## Session 49 (2026-03-27) — Performance Audit, 2026 Season Launch, Position System, Home Page Redesign (3 commits)
+## Session 49 (2026-03-27/28) — Performance, Season Launch, Positions, Home Page + YouTube/Reddit/Trade Rumors (9 commits)
 
 ### Summary
 Massive session covering 4 major areas: (1) comprehensive performance audit with 8 DB indexes and 3 N+1 fixes, (2) 2026 season lifecycle — stats showing current year, draft report locked, Opening Day stats synced, (3) Yahoo Fantasy position model — fixed POS columns, positions locked during season, auto-assignment script, (4) complete Home page redesign with Real-Time Stats Today, MLB Trade Rumors RSS, and fantasy team cross-referencing.
@@ -14,20 +14,27 @@ Massive session covering 4 major areas: (1) comprehensive performance audit with
 - **2026 Season**: getCurrentSeasonStats() replaces hardcoded 2025, draft report locked during IN_SEASON, period labels show names not IDs, 233 players synced for Period 1
 - **Position System**: Fixed POS column on Team/Auction/Draft Report (read-only during season), auto-assignment script for roster slots, 15 auction-set positions preserved, commissioner editing via Roster tool
 - **Home Page**: Real-Time Stats Today (side-by-side hitters/pitchers with stat columns, live boxscore, auto-refresh), MLB Trade Rumors RSS (NL/AL filter, team dropdown, fantasy team dropdown, roster cross-referencing), Weekly Digest collapsed by default (auto-expand Mondays)
-- **New Endpoints**: /api/mlb/trade-rumors, /api/mlb/injuries, /api/mlb/roster-stats-today
+- **New Endpoints**: /api/mlb/trade-rumors, /api/mlb/injuries, /api/mlb/roster-stats-today, /api/mlb/player-videos, /api/mlb/reddit-baseball
+- **YouTube Player Highlights**: Data API v3 search for rostered players (3 months back, short videos, 6-hour cache), falls back to MLB + Jomboy channel RSS, inline video modal with autoplay
+- **Reddit Feed**: r/baseball + r/fantasybaseball hot posts with player cross-referencing, fantasy team dropdown filter
+- **MLBTradeRumors.com**: Renamed, NL default from league rules, fantasy team dropdown (8 teams + Free Agents)
+- **Real-Time Stats timezone fix**: Uses Pacific time, yesterday's stats visible until noon PST, then clears for today
+- **Boxscore fix**: Switched from schedule hydration to per-game live feed endpoint for actual player stats
 - **ERA/WHIP/IP Formatting**: Shows "—" for 0 IP instead of raw floats
 - **AI Insights**: Default collapsed on Team page and Home page
+- **YouTube video modal**: Click thumbnail to play inline with autoplay, dark backdrop, close on click outside
 
 ### Pending / Next Session
-1. **MLB Depth Charts** — API endpoint ready (statsapi.mlb.com/api/v1/teams/{id}/roster/depthChart), needs UI to cross-reference with roster
-2. **Weekly Digest tabs** — Past weeks in tabs (only 1 digest exists currently, infrastructure ready)
-3. **My Players Today enrichment** — Probable pitcher matchups, starting lineup status
+1. **MLB Depth Charts** — API endpoint ready, needs UI to cross-reference with roster
+2. **Weekly Digest tabs** — Past weeks in tabs (only 1 digest exists, infrastructure ready)
+3. **X/Twitter integration** — $200/month Basic tier for @JeffPassan timeline + hashtag search (deferred)
 4. **Position system refinement** — Some players may need manual position corrections via Commissioner tool
+5. **YouTube search optimization** — Consider searching for pitchers too (currently top 5 hitters only)
 
 ### Concerns / Process Improvements
-- **Trade Rumors cross-referencing** — Only matches exact player name tags from RSS categories. Players with abbreviated or partial names won't match. Could enhance with fuzzy matching.
-- **Stats year transition** — getCurrentSeasonStats() has 2-hour cache; first load may be slow as it fetches all ~900 players from MLB API
-- **Position assignments** — 15 of 184 players had explicit auction positions; the rest were auto-assigned from MLB primary positions. Some may need manual correction.
+- **YouTube API quota** — 100 searches/day free, currently searching 5 players = 5 searches per user per 6 hours. Fine for small league but monitor usage.
+- **Reddit cross-referencing** — Uses last name matching (4+ chars) to avoid false positives. Short last names like "Lee", "May" excluded.
+- **Real-time stats** — Live feed fetched per-game (only for relevant games). Could add caching layer if too many API calls.
 
 ### Test Results
 - Server: 493 passing

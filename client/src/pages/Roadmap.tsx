@@ -172,6 +172,14 @@ const productRoadmap: RoadmapPhase[] = [
     icon: TrendingUp,
     items: [
       {
+        title: "YouTube + Reddit + Trade Rumors Integration (Session 49)",
+        description: "YouTube Data API v3 player highlights with inline modal. Reddit r/baseball + r/fantasybaseball with player cross-referencing. MLBTradeRumors.com RSS with NL/AL filter and fantasy team dropdown. All with rostered player highlighting.",
+        icon: Globe,
+        effort: "Large",
+        status: "done",
+        tags: ["home", "social", "data"],
+      },
+      {
         title: "Live Standings Dashboard",
         description: "Real-time standings powered by automated MLB stats sync. Period-over-period trends, category breakdowns, playoff race tracker.",
         icon: BarChart3,
