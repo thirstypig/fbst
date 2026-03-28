@@ -225,6 +225,7 @@ export default function Home() {
   // Reddit baseball feed
   const [redditPosts, setRedditPosts] = useState<any[]>([]);
   const [redditLoading, setRedditLoading] = useState(true);
+  const [redditFilter, setRedditFilter] = useState<string>('ALL'); // fantasy team filter for Reddit
 
   // Derive list of fantasy teams from roster data
   const fantasyTeams = useMemo(() => {
@@ -274,8 +275,11 @@ export default function Home() {
           teamCount: teams.length,
           myTeam: mine ? { name: mine.name, id: mine.id, budget: mine.budget, rosterCount: 0 } : null,
         });
-        // Default trade rumors filter to user's team
-        if (mine) setRumorsFantasyTeam(mine.name);
+        // Default filters to user's team
+        if (mine) {
+          setRumorsFantasyTeam(mine.name);
+          setRedditFilter(mine.name);
+        }
       })
       .catch(() => { setHasTeam(null); setDash(null); });
 
@@ -939,12 +943,33 @@ export default function Home() {
       {/* Reddit Baseball Feed */}
       {!redditLoading && redditPosts.length > 0 && (
         <div>
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--lg-text-muted)] mb-2">
-            <ArrowLeftRight size={12} className="inline -mt-0.5 mr-1 text-orange-500" />
-            r/baseball
-          </h2>
+          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--lg-text-muted)]">
+              <ArrowLeftRight size={12} className="inline -mt-0.5 mr-1 text-orange-500" />
+              r/baseball
+            </h2>
+            <div className="flex items-center gap-2">
+              <select
+                value={redditFilter}
+                onChange={(e) => setRedditFilter(e.target.value)}
+                className="bg-[var(--lg-tint)] border border-[var(--lg-border-subtle)] rounded px-1.5 py-0.5 text-[10px] font-semibold text-[var(--lg-text-muted)] outline-none cursor-pointer"
+              >
+                <option value="ALL">All Posts</option>
+                <option value="MY_ROSTER">My Roster Only</option>
+                {fantasyTeams.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+          </div>
           <div className="rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] divide-y divide-[var(--lg-border-faint)] max-h-[350px] overflow-y-auto">
-            {redditPosts.map((post: any, i: number) => {
+            {(() => {
+              let filtered = redditPosts;
+              if (redditFilter === 'MY_ROSTER') {
+                filtered = filtered.filter((p: any) => p.matchedPlayers?.length > 0);
+              } else if (redditFilter !== 'ALL') {
+                filtered = filtered.filter((p: any) => p.matchedPlayers?.some((mp: any) => mp.fantasyTeam === redditFilter));
+              }
+              return filtered;
+            })().map((post: any, i: number) => {
               const ago = post.createdUtc ? (() => {
                 const ms = Date.now() - post.createdUtc * 1000;
                 const hours = Math.floor(ms / 3_600_000);

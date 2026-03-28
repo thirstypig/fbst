@@ -62,7 +62,10 @@ interface MyPlayerToday {
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 function todayDateStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  // Use Pacific time for MLB dates — games that start at 10 PM ET / 7 PM PT
+  // should show on that day's date, not flip to tomorrow at midnight UTC.
+  // US/Pacific is UTC-7 (PDT) or UTC-8 (PST). Using America/Los_Angeles.
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
 }
 
 // NL/AL team sets for transaction filtering
@@ -495,41 +498,53 @@ router.get("/roster-stats-today", requireAuth, requireLeagueMember("leagueId"), 
     orderBy: { acquiredAt: "asc" },
   });
 
-  // Get today's schedule with boxscore data
-  const scheduleUrl = `https://statsapi.mlb.com/api/v1/schedule?date=${today}&sportId=1&hydrate=boxscore`;
+  // Get today's schedule
+  const scheduleUrl = `https://statsapi.mlb.com/api/v1/schedule?date=${today}&sportId=1`;
   const scheduleData = await mlbGetJson(scheduleUrl, 120); // 2-min cache for live data
 
-  // Build player stats from boxscores
+  // Build player stats from live game feeds (not schedule boxscore hydration)
   const playerStatsMap = new Map<number, { hitting?: any; pitching?: any; gameStatus: string; opponent: string; homeAway: string }>();
   const teamsMap = await fetchMlbTeamsMap();
+
+  // Build schedule map for all games (matchups, game times)
+  const teamScheduleMap = new Map<string, { opponent: string; homeAway: string; gameTime: string; gameStatus: string }>();
+  const liveGamePks: { gamePk: number; awayAbbr: string; homeAbbr: string; detailedState: string }[] = [];
 
   for (const dateEntry of scheduleData.dates || []) {
     for (const game of dateEntry.games || []) {
       const status = game.status?.abstractGameState || "Preview";
       const detailedState = game.status?.detailedState || status;
-      const isLiveOrFinal = status === "Live" || status === "Final";
-
       const awayTeam = game.teams?.away?.team;
       const homeTeam = game.teams?.home?.team;
       const awayAbbr = awayTeam?.abbreviation ?? (awayTeam?.id ? teamsMap[awayTeam.id] : "") ?? "";
       const homeAbbr = homeTeam?.abbreviation ?? (homeTeam?.id ? teamsMap[homeTeam.id] : "") ?? "";
+      const gameTime = game.gameDate ?? "";
 
-      if (!isLiveOrFinal) {
-        // For preview games, just record the matchup
-        // Map team abbreviations to game info without stats
-        continue;
+      if (awayAbbr) teamScheduleMap.set(awayAbbr, { opponent: homeAbbr, homeAway: "away", gameTime, gameStatus: detailedState });
+      if (homeAbbr) teamScheduleMap.set(homeAbbr, { opponent: awayAbbr, homeAway: "home", gameTime, gameStatus: detailedState });
+
+      // Collect Live/Final games for boxscore fetching
+      if (status === "Live" || status === "Final") {
+        liveGamePks.push({ gamePk: game.gamePk, awayAbbr, homeAbbr, detailedState });
       }
+    }
+  }
 
-      const boxscore = game.boxscore;
+  // Fetch live feeds for Live/Final games to get actual player boxscore stats
+  // Only fetch games where our roster players might be playing
+  const rosterTeams = new Set(rosterEntries.map(r => r.player.mlbTeam).filter(Boolean));
+  const relevantGames = liveGamePks.filter(g => rosterTeams.has(g.awayAbbr) || rosterTeams.has(g.homeAbbr));
+
+  for (const game of relevantGames) {
+    try {
+      const liveFeed = await mlbGetJson(`https://statsapi.mlb.com/api/v1.1/game/${game.gamePk}/feed/live`, 120);
+      const boxscore = liveFeed.liveData?.boxscore;
       if (!boxscore) continue;
 
-      // Process both teams' players from boxscore
       for (const side of ["away", "home"] as const) {
         const teamPlayers = boxscore.teams?.[side]?.players;
         if (!teamPlayers) continue;
-
-        const teamAbbr = side === "away" ? awayAbbr : homeAbbr;
-        const oppAbbr = side === "away" ? homeAbbr : awayAbbr;
+        const oppAbbr = side === "away" ? game.homeAbbr : game.awayAbbr;
 
         for (const [_key, player] of Object.entries(teamPlayers) as [string, any][]) {
           const mlbId = player.person?.id;
@@ -537,55 +552,37 @@ router.get("/roster-stats-today", requireAuth, requireLeagueMember("leagueId"), 
 
           const hitting = player.stats?.batting;
           const pitching = player.stats?.pitching;
-          const hasPlayed = (hitting && (hitting.atBats > 0 || hitting.runs > 0)) ||
-                           (pitching && (pitching.inningsPitched && pitching.inningsPitched !== "0.0"));
 
-          if (hasPlayed || status === "Live") {
-            playerStatsMap.set(mlbId, {
-              hitting: hitting?.atBats > 0 || hitting?.runs > 0 ? {
-                AB: hitting.atBats || 0,
-                H: hitting.hits || 0,
-                R: hitting.runs || 0,
-                HR: hitting.homeRuns || 0,
-                RBI: hitting.rbi || 0,
-                SB: hitting.stolenBases || 0,
-                BB: hitting.baseOnBalls || 0,
-                K: hitting.strikeOuts || 0,
-              } : undefined,
-              pitching: pitching?.inningsPitched && pitching.inningsPitched !== "0.0" ? {
-                IP: pitching.inningsPitched || "0.0",
-                H: pitching.hits || 0,
-                R: pitching.runs || 0,
-                ER: pitching.earnedRuns || 0,
-                K: pitching.strikeOuts || 0,
-                BB: pitching.baseOnBalls || 0,
-                W: pitching.wins || 0,
-                L: pitching.losses || 0,
-                SV: pitching.saves || 0,
-              } : undefined,
-              gameStatus: detailedState,
-              opponent: oppAbbr,
-              homeAway: side,
-            });
-          }
+          playerStatsMap.set(mlbId, {
+            hitting: hitting && (hitting.atBats > 0 || hitting.runs > 0 || hitting.walks > 0) ? {
+              AB: hitting.atBats || 0,
+              H: hitting.hits || 0,
+              R: hitting.runs || 0,
+              HR: hitting.homeRuns || 0,
+              RBI: hitting.rbi || 0,
+              SB: hitting.stolenBases || 0,
+              BB: hitting.baseOnBalls || 0,
+              K: hitting.strikeOuts || 0,
+            } : undefined,
+            pitching: pitching && pitching.inningsPitched && pitching.inningsPitched !== "0.0" ? {
+              IP: pitching.inningsPitched || "0.0",
+              H: pitching.hits || 0,
+              R: pitching.runs || 0,
+              ER: pitching.earnedRuns || 0,
+              K: pitching.strikeOuts || 0,
+              BB: pitching.baseOnBalls || 0,
+              W: pitching.wins || 0,
+              L: pitching.losses || 0,
+              SV: pitching.saves || 0,
+            } : undefined,
+            gameStatus: game.detailedState,
+            opponent: oppAbbr,
+            homeAway: side,
+          });
         }
       }
-    }
-  }
-
-  // Also build a schedule map for players who haven't played yet
-  const teamScheduleMap = new Map<string, { opponent: string; homeAway: string; gameTime: string; gameStatus: string }>();
-  for (const dateEntry of scheduleData.dates || []) {
-    for (const game of dateEntry.games || []) {
-      const awayTeam = game.teams?.away?.team;
-      const homeTeam = game.teams?.home?.team;
-      const awayAbbr = awayTeam?.abbreviation ?? (awayTeam?.id ? teamsMap[awayTeam.id] : "") ?? "";
-      const homeAbbr = homeTeam?.abbreviation ?? (homeTeam?.id ? teamsMap[homeTeam.id] : "") ?? "";
-      const gameTime = game.gameDate ?? "";
-      const gameStatus = game.status?.detailedState || game.status?.abstractGameState || "Preview";
-
-      if (awayAbbr) teamScheduleMap.set(awayAbbr, { opponent: homeAbbr, homeAway: "away", gameTime, gameStatus });
-      if (homeAbbr) teamScheduleMap.set(homeAbbr, { opponent: awayAbbr, homeAway: "home", gameTime, gameStatus });
+    } catch (err) {
+      logger.warn({ error: String(err), gamePk: game.gamePk }, "Failed to fetch live feed for boxscore");
     }
   }
 
