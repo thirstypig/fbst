@@ -206,6 +206,9 @@ export default function Home() {
   const [rosterStats, setRosterStats] = useState<{ date: string; teamName: string; players: any[] }>({ date: '', teamName: '', players: [] });
   const [rosterStatsLoading, setRosterStatsLoading] = useState(true);
 
+  // YouTube video modal
+  const [activeVideo, setActiveVideo] = useState<{ videoId: string; title: string } | null>(null);
+
   // Trade Rumors
   const [rumors, setRumors] = useState<{ title: string; link: string; pubDate: string; categories: string[] }[]>([]);
   const [rumorsLoading, setRumorsLoading] = useState(true);
@@ -911,17 +914,15 @@ export default function Home() {
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {playerVideos.map((v: any, i: number) => (
-              <a
+              <button
                 key={`yt-${i}`}
-                href={`https://www.youtube.com/watch?v=${v.videoId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-lg border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] overflow-hidden hover:border-[var(--lg-accent)]/30 transition-colors group"
+                onClick={() => setActiveVideo({ videoId: v.videoId, title: v.title })}
+                className="rounded-lg border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] overflow-hidden hover:border-[var(--lg-accent)]/30 transition-colors group text-left"
               >
                 <div className="relative aspect-video bg-black">
                   <img src={v.thumbnail} alt={v.title} className="w-full h-full object-cover" loading="lazy" />
                   <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                    <div className="w-10 h-10 rounded-full bg-red-600/90 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-full bg-red-600/90 flex items-center justify-center group-hover:scale-110 transition-transform">
                       <div className="w-0 h-0 border-l-[10px] border-l-white border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent ml-1" />
                     </div>
                   </div>
@@ -937,7 +938,7 @@ export default function Home() {
                     <span className="text-[9px] text-[var(--lg-text-muted)]">{v.channelTitle || v.source}</span>
                   </div>
                 </div>
-              </a>
+              </button>
             ))}
           </div>
         </div>
@@ -1006,6 +1007,36 @@ export default function Home() {
                 </a>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* YouTube Video Modal */}
+      {activeVideo && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={() => setActiveVideo(null)}
+        >
+          <div
+            className="relative w-full max-w-4xl mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setActiveVideo(null)}
+              className="absolute -top-10 right-0 text-white/70 hover:text-white text-sm font-medium transition-colors"
+            >
+              Close
+            </button>
+            <div className="relative aspect-video rounded-xl overflow-hidden shadow-2xl">
+              <iframe
+                src={`https://www.youtube.com/embed/${activeVideo.videoId}?autoplay=1&rel=0`}
+                title={activeVideo.title}
+                className="w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+            <div className="mt-2 text-sm text-white/80 font-medium line-clamp-2">{activeVideo.title}</div>
           </div>
         </div>
       )}
