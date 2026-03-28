@@ -206,8 +206,10 @@ export default function Home() {
   const [rosterStats, setRosterStats] = useState<{ date: string; teamName: string; players: any[] }>({ date: '', teamName: '', players: [] });
   const [rosterStatsLoading, setRosterStatsLoading] = useState(true);
 
-  // YouTube video modal
+  // YouTube video modal + pagination
   const [activeVideo, setActiveVideo] = useState<{ videoId: string; title: string } | null>(null);
+  const [ytPage, setYtPage] = useState(0);
+  const YT_PER_PAGE = 6; // 2 rows of 3
 
   // Trade Rumors
   const [rumors, setRumors] = useState<{ title: string; link: string; pubDate: string; categories: string[] }[]>([]);
@@ -233,6 +235,7 @@ export default function Home() {
   // Yahoo Sports MLB feed
   const [yahooArticles, setYahooArticles] = useState<any[]>([]);
   const [yahooLoading, setYahooLoading] = useState(true);
+  const [yahooFilter, setYahooFilter] = useState<string>('ALL');
 
   // Derive list of fantasy teams from roster data
   const fantasyTeams = useMemo(() => {
@@ -744,68 +747,8 @@ export default function Home() {
         </div>
       )}
 
-      {/* Date navigator */}
-      <DateNavigator date={date} onChange={setDate} />
-
-      {/* Scores */}
-      <div>
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--lg-text-muted)] mb-2">
-          Scores {games.some(g => g.status === 'Live') && <span className="text-emerald-400 ml-1 animate-pulse">Live</span>}
-        </h2>
-        {loadingScores ? (
-          <div className="flex gap-3 overflow-x-auto pb-2">
-            {[1,2,3,4].map(i => <div key={i} className="h-24 w-[150px] rounded-lg bg-[var(--lg-tint)] animate-pulse shrink-0" />)}
-          </div>
-        ) : games.length === 0 ? (
-          <div className="text-center py-8 text-xs text-[var(--lg-text-muted)] opacity-50">No games scheduled</div>
-        ) : (
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-            {games.map(g => <GameCard key={g.gamePk} game={g} />)}
-          </div>
-        )}
-      </div>
-
-      {/* ─── YouTube Shorts ─── */}
-      {!videosLoading && playerVideos.length > 0 && (
-        <div>
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--lg-text-muted)] mb-2">
-            <TrendingUp size={12} className="inline -mt-0.5 mr-1 text-red-500" />
-            YouTube Shorts
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {playerVideos.map((v: any, i: number) => (
-              <button
-                key={`yt-${i}`}
-                onClick={() => setActiveVideo({ videoId: v.videoId, title: v.title })}
-                className="rounded-lg border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] overflow-hidden hover:border-[var(--lg-accent)]/30 transition-colors group text-left"
-              >
-                <div className="relative aspect-video bg-black">
-                  <img src={v.thumbnail} alt={v.title} className="w-full h-full object-cover" loading="lazy" />
-                  <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                    <div className="w-10 h-10 rounded-full bg-red-600/90 flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <div className="w-0 h-0 border-l-[10px] border-l-white border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent ml-1" />
-                    </div>
-                  </div>
-                </div>
-                <div className="p-2">
-                  <div className="text-[11px] font-medium text-[var(--lg-text-primary)] leading-snug line-clamp-2">{v.title}</div>
-                  <div className="flex items-center gap-1.5 mt-1">
-                    {v.matchedPlayer && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--lg-accent)]/20 text-[var(--lg-accent)] font-semibold border border-[var(--lg-accent)]/30">
-                        {v.matchedPlayer}
-                      </span>
-                    )}
-                    <span className="text-[9px] text-[var(--lg-text-muted)]">{v.channelTitle || v.source}</span>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* ─── News Feeds: Trade Rumors | Reddit | Yahoo — side by side ─── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:[&>div]:h-[420px] lg:[&>div]:flex lg:[&>div]:flex-col">
 
       {/* MLBTradeRumors.com */}
       <div>
@@ -962,23 +905,19 @@ export default function Home() {
 
       {/* Reddit */}
       <div>
-        <div className="flex items-center justify-between mb-1">
-          <h2 className="text-[9px] font-bold uppercase tracking-wide text-[var(--lg-text-muted)]">
-            Reddit r/baseball
-            </h2>
-            <div className="flex items-center gap-2">
-              <select
-                value={redditFilter}
-                onChange={(e) => setRedditFilter(e.target.value)}
-                className="bg-[var(--lg-tint)] border border-[var(--lg-border-subtle)] rounded px-1.5 py-0.5 text-[10px] font-semibold text-[var(--lg-text-muted)] outline-none cursor-pointer"
-              >
-                <option value="ALL">All Posts</option>
-                <option value="MY_ROSTER">My Roster Only</option>
-                {fantasyTeams.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-          </div>
-          <div className="rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] divide-y divide-[var(--lg-border-faint)] max-h-[350px] overflow-y-auto">
+        <div className="flex items-center justify-between mb-1 flex-wrap gap-1">
+          <h2 className="text-[9px] font-bold uppercase tracking-wide text-[var(--lg-text-muted)]">Reddit r/baseball</h2>
+          <select
+            value={redditFilter}
+            onChange={(e) => setRedditFilter(e.target.value)}
+            className="bg-[var(--lg-tint)] border border-[var(--lg-border-subtle)] rounded px-1 py-0.5 text-[9px] font-semibold text-[var(--lg-text-muted)] outline-none cursor-pointer"
+          >
+            <option value="ALL">All League News</option>
+            {fantasyTeams.map(t => <option key={t} value={t}>{t}</option>)}
+            <option value="FREE_AGENTS">Free Agents</option>
+          </select>
+        </div>
+          <div className="rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] divide-y divide-[var(--lg-border-faint)] flex-1 overflow-y-auto">
             {(() => {
               let filtered = redditPosts;
               if (redditFilter === 'MY_ROSTER') {
@@ -1026,34 +965,157 @@ export default function Home() {
 
       {/* Yahoo Sports MLB */}
       <div>
-        <h2 className="text-[9px] font-bold uppercase tracking-wide text-[var(--lg-text-muted)] mb-1">Yahoo Sports MLB</h2>
+        <div className="flex items-center justify-between mb-1 flex-wrap gap-1">
+          <h2 className="text-[9px] font-bold uppercase tracking-wide text-[var(--lg-text-muted)]">Yahoo Sports MLB</h2>
+          <select
+            value={yahooFilter}
+            onChange={(e) => setYahooFilter(e.target.value)}
+            className="bg-[var(--lg-tint)] border border-[var(--lg-border-subtle)] rounded px-1 py-0.5 text-[9px] font-semibold text-[var(--lg-text-muted)] outline-none cursor-pointer"
+          >
+            <option value="ALL">All League News</option>
+            {fantasyTeams.map(t => <option key={t} value={t}>{t}</option>)}
+            <option value="FREE_AGENTS">Free Agents</option>
+          </select>
+        </div>
         {yahooLoading ? (
           <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-6 rounded bg-[var(--lg-tint)] animate-pulse" />)}</div>
-        ) : yahooArticles.length === 0 ? (
-          <div className="text-center py-4 text-[10px] text-[var(--lg-text-muted)] opacity-50">No articles</div>
-        ) : (
-          <div className="rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] divide-y divide-[var(--lg-border-faint)] max-h-[350px] overflow-y-auto">
-            {yahooArticles.map((a: any, i: number) => {
-              const ago = a.pubDate ? (() => {
-                const ms = Date.now() - new Date(a.pubDate).getTime();
-                const hours = Math.floor(ms / 3_600_000);
-                if (hours < 1) return "just now";
-                if (hours < 24) return `${hours}h ago`;
-                return `${Math.floor(hours / 24)}d ago`;
-              })() : "";
-              return (
-                <a key={`yh-${i}`} href={a.link} target="_blank" rel="noopener noreferrer"
-                  className="block px-2.5 py-2 hover:bg-[var(--lg-tint-hover)] transition-colors">
-                  <div className="text-[11px] font-medium text-[var(--lg-text-primary)] leading-snug line-clamp-2">{a.title}</div>
-                  <div className="text-[9px] text-[var(--lg-text-muted)] mt-0.5">{ago}</div>
-                </a>
-              );
-            })}
-          </div>
-        )}
+        ) : (() => {
+          // Cross-reference Yahoo articles with league roster
+          const articles = yahooArticles.map(a => {
+            const lowerTitle = (a.title || "").toLowerCase();
+            const matched: { name: string; fantasyTeam: string }[] = [];
+            for (const [key, team] of leagueRoster) {
+              if (key.length >= 4 && lowerTitle.includes(key)) {
+                matched.push({ name: key, fantasyTeam: team });
+              }
+            }
+            return { ...a, matchedPlayers: matched };
+          });
+          let filtered = articles;
+          if (yahooFilter !== 'ALL') {
+            filtered = filtered.filter(a => a.matchedPlayers.some((mp: any) => mp.fantasyTeam === yahooFilter));
+          }
+          return filtered.length === 0 ? (
+            <div className="text-center py-4 text-[10px] text-[var(--lg-text-muted)] opacity-50">No articles</div>
+          ) : (
+            <div className="rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] divide-y divide-[var(--lg-border-faint)] flex-1 overflow-y-auto">
+              {filtered.map((a: any, i: number) => {
+                const ago = a.pubDate ? (() => {
+                  const ms = Date.now() - new Date(a.pubDate).getTime();
+                  const hours = Math.floor(ms / 3_600_000);
+                  if (hours < 1) return "just now";
+                  if (hours < 24) return `${hours}h ago`;
+                  return `${Math.floor(hours / 24)}d ago`;
+                })() : "";
+                return (
+                  <a key={`yh-${i}`} href={a.link} target="_blank" rel="noopener noreferrer"
+                    className={`block px-2.5 py-2 hover:bg-[var(--lg-tint-hover)] transition-colors ${a.matchedPlayers?.length > 0 ? 'border-l-2 border-l-[var(--lg-accent)]' : ''}`}>
+                    <div className="text-[11px] font-medium text-[var(--lg-text-primary)] leading-snug line-clamp-2">{a.title}</div>
+                    <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                      {(a.matchedPlayers || []).slice(0, 2).map((mp: any, mi: number) => (
+                        <span key={mi} className="text-[8px] px-1 py-0.5 rounded bg-[var(--lg-accent)]/20 text-[var(--lg-accent)] font-semibold">{mp.name}</span>
+                      ))}
+                      <span className="text-[9px] text-[var(--lg-text-muted)]">{ago}</span>
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
 
       </div>{/* end 3-column grid */}
+
+      {/* ─── YouTube Shorts with pagination ─── */}
+      {!videosLoading && playerVideos.length > 0 && (
+        <div>
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--lg-text-muted)] mb-2">
+            <TrendingUp size={12} className="inline -mt-0.5 mr-1 text-red-500" />
+            YouTube Shorts
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {playerVideos.slice(ytPage * YT_PER_PAGE, (ytPage + 1) * YT_PER_PAGE).map((v: any, i: number) => (
+              <button
+                key={`yt-${ytPage}-${i}`}
+                onClick={() => setActiveVideo({ videoId: v.videoId, title: v.title })}
+                className="rounded-lg border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] overflow-hidden hover:border-[var(--lg-accent)]/30 transition-colors group text-left"
+              >
+                <div className="relative aspect-video bg-black">
+                  <img src={v.thumbnail} alt={v.title} className="w-full h-full object-cover" loading="lazy" />
+                  <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-full bg-red-600/90 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <div className="w-0 h-0 border-l-[10px] border-l-white border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent ml-1" />
+                    </div>
+                  </div>
+                </div>
+                <div className="p-2">
+                  <div className="text-[11px] font-medium text-[var(--lg-text-primary)] leading-snug line-clamp-2">{v.title}</div>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    {v.matchedPlayer && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--lg-accent)]/20 text-[var(--lg-accent)] font-semibold border border-[var(--lg-accent)]/30">
+                        {v.matchedPlayer}
+                      </span>
+                    )}
+                    <span className="text-[9px] text-[var(--lg-text-muted)]">{v.channelTitle || v.source}</span>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+          {/* Pagination */}
+          {playerVideos.length > YT_PER_PAGE && (
+            <div className="flex items-center justify-center gap-2 mt-3">
+              <button
+                onClick={() => setYtPage(p => Math.max(0, p - 1))}
+                disabled={ytPage === 0}
+                className="px-2 py-1 text-[10px] font-semibold rounded border border-[var(--lg-border-subtle)] text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] disabled:opacity-30 transition-colors"
+              >
+                <ChevronLeft size={12} />
+              </button>
+              {Array.from({ length: Math.ceil(playerVideos.length / YT_PER_PAGE) }, (_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setYtPage(i)}
+                  className={`w-6 h-6 text-[10px] font-semibold rounded transition-colors ${
+                    ytPage === i ? 'bg-[var(--lg-accent)] text-white' : 'text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)]'
+                  }`}
+                >
+                  {i + 1}
+                </button>
+              ))}
+              <button
+                onClick={() => setYtPage(p => Math.min(Math.ceil(playerVideos.length / YT_PER_PAGE) - 1, p + 1))}
+                disabled={ytPage >= Math.ceil(playerVideos.length / YT_PER_PAGE) - 1}
+                className="px-2 py-1 text-[10px] font-semibold rounded border border-[var(--lg-border-subtle)] text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] disabled:opacity-30 transition-colors"
+              >
+                <ChevronRight size={12} />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Date navigator */}
+      <DateNavigator date={date} onChange={setDate} />
+
+      {/* Scores */}
+      <div>
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--lg-text-muted)] mb-2">
+          Scores {games.some(g => g.status === 'Live') && <span className="text-emerald-400 ml-1 animate-pulse">Live</span>}
+        </h2>
+        {loadingScores ? (
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {[1,2,3,4].map(i => <div key={i} className="h-24 w-[150px] rounded-lg bg-[var(--lg-tint)] animate-pulse shrink-0" />)}
+          </div>
+        ) : games.length === 0 ? (
+          <div className="text-center py-8 text-xs text-[var(--lg-text-muted)] opacity-50">No games scheduled</div>
+        ) : (
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            {games.map(g => <GameCard key={g.gamePk} game={g} />)}
+          </div>
+        )}
+      </div>
 
       {/* YouTube Video Modal */}
       {activeVideo && (
