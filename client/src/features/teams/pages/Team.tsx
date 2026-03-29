@@ -584,6 +584,29 @@ export default function Team() {
                       );
                     })
                   )}
+                  {/* Totals row */}
+                  {hitters.length > 0 && (() => {
+                    const totR = hitters.reduce((s, p) => s + asNum(p?.R), 0);
+                    const totHR = hitters.reduce((s, p) => s + asNum(p?.HR), 0);
+                    const totRBI = hitters.reduce((s, p) => s + asNum(p?.RBI), 0);
+                    const totSB = hitters.reduce((s, p) => s + asNum(p?.SB), 0);
+                    const totH = hitters.reduce((s, p) => s + asNum(p?.H), 0);
+                    const totAB = hitters.reduce((s, p) => s + asNum(p?.AB), 0);
+                    const teamAvg = totAB > 0 ? totH / totAB : 0;
+                    return (
+                      <tr className="border-t-2 border-[var(--lg-accent)]/30 bg-[var(--lg-tint)]">
+                        <Td align="center"><span className="text-[10px] font-bold text-[var(--lg-accent)]">TOT</span></Td>
+                        <Td align="center"><span className="font-bold text-xs text-[var(--lg-text-heading)]">Team Totals</span></Td>
+                        <Td align="center">{""}</Td>
+                        <Td align="center"><span className="font-bold">{totR}</span></Td>
+                        <Td align="center"><span className="font-bold">{totHR}</span></Td>
+                        <Td align="center"><span className="font-bold">{totRBI}</span></Td>
+                        <Td align="center"><span className="font-bold">{totSB}</span></Td>
+                        <Td align="center"><span className="font-bold">{formatAvg(teamAvg)}</span></Td>
+                        <Td align="center">{""}</Td>
+                      </tr>
+                    );
+                  })()}
                 </tbody>
               </Table>
             </TableCard>
@@ -691,6 +714,31 @@ export default function Team() {
                       );
                     })
                   )}
+                  {/* Totals row */}
+                  {pitchers.length > 0 && (() => {
+                    const totW = pitchers.reduce((s, p) => s + asNum(p?.W), 0);
+                    const totSV = pitchers.reduce((s, p) => s + asNum(p?.SV), 0);
+                    const totK = pitchers.reduce((s, p) => s + asNum(p?.K), 0);
+                    const totIP = pitchers.reduce((s, p) => s + asNum(p?.IP), 0);
+                    const totER = pitchers.reduce((s, p) => s + asNum(p?.ER), 0);
+                    const totBBH = pitchers.reduce((s, p) => s + asNum(p?.BB_H), 0);
+                    const teamERA = totIP > 0 ? (totER / totIP) * 9 : 0;
+                    const teamWHIP = totIP > 0 ? totBBH / totIP : 0;
+                    return (
+                      <tr className="border-t-2 border-[var(--lg-accent)]/30 bg-[var(--lg-tint)]">
+                        <Td align="center"><span className="text-[10px] font-bold text-[var(--lg-accent)]">TOT</span></Td>
+                        <Td align="center"><span className="font-bold text-xs text-[var(--lg-text-heading)]">Team Totals</span></Td>
+                        <Td align="center">{""}</Td>
+                        <Td align="center"><span className="font-bold">{totW}</span></Td>
+                        <Td align="center"><span className="font-bold">{totSV}</span></Td>
+                        <Td align="center"><span className="font-bold">{totK}</span></Td>
+                        <Td align="center"><span className="font-bold">{totIP > 0 ? totIP.toFixed(1) : "—"}</span></Td>
+                        <Td align="center"><span className="font-bold">{totIP > 0 ? teamERA.toFixed(2) : "—"}</span></Td>
+                        <Td align="center"><span className="font-bold">{totIP > 0 ? teamWHIP.toFixed(2) : "—"}</span></Td>
+                        <Td align="center">{""}</Td>
+                      </tr>
+                    );
+                  })()}
                 </tbody>
               </Table>
             </TableCard>
