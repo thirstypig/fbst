@@ -199,9 +199,15 @@ const SeasonPage: React.FC = () => {
         const teamSummaryMap = new Map<string, TeamPeriodSummaryRow>();
 
         const groupMap: Record<string, string> = {};
+        const totalDelta: Record<number, number> = resp.totalDelta || {};
+
         (resp.categories || []).forEach((cat: any) => {
           const catKey = cat.key || cat.id;
-          catMap[catKey] = cat.rows || [];
+          // Include pointsDelta from server in each row
+          catMap[catKey] = (cat.rows || []).map((row: any) => ({
+            ...row,
+            pointsDelta: toNum(row.pointsDelta),
+          }));
           if (cat.group) groupMap[catKey] = cat.group;
 
           (cat.rows || []).forEach((row: any) => {
@@ -212,7 +218,7 @@ const SeasonPage: React.FC = () => {
                 teamName: row.teamName || OGBA_TEAM_NAMES[code] || code,
                 gamesPlayed: 0,
                 totalPoints: 0,
-                totalPointsDelta: 0,
+                totalPointsDelta: toNum(totalDelta[row.teamId]),
                 categories: []
               });
             }

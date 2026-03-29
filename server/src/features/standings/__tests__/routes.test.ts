@@ -8,6 +8,7 @@ vi.mock("../../../db/prisma.js", () => ({
     period: { findFirst: vi.fn(), findMany: vi.fn() },
     team: { findMany: vi.fn() },
     leagueRule: { findMany: vi.fn() },
+    teamStatsPeriod: { findMany: vi.fn().mockResolvedValue([]), upsert: vi.fn().mockResolvedValue({}) },
   },
 }));
 vi.mock("../../../lib/logger.js", () => ({

@@ -191,6 +191,7 @@ export type PeriodCategoryStandingsResponse = {
   periodNum?: number;
   teamCount: number;
   categories: PeriodCategoryStandingTable[];
+  totalDelta?: Record<number, number>;
 };
 
 export type PlayerSeasonStat = {

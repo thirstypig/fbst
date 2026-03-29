@@ -62,15 +62,65 @@ router.get("/period-category-standings", requireAuth, asyncHandler(async (req, r
 
   const teamStats = await computeTeamStatsFromDb(leagueId, pid);
 
-  const categories = CATEGORY_CONFIG.map((cfg) => ({
-    key: cfg.key,
-    label: cfg.label,
-    lowerIsBetter: cfg.lowerIsBetter,
-    group: cfg.group, // "H" = hitter, "P" = pitcher
-    rows: computeCategoryRows(teamStats, cfg.key, cfg.lowerIsBetter),
-  }));
+  // Compute current standings
+  const currentStandings = computeStandingsFromStats(teamStats);
 
-  res.json({ periodId: pid, categories, teamCount: teamStats.length });
+  // Load previous snapshot from TeamStatsPeriod for delta calculation
+  const snapshots = await prisma.teamStatsPeriod.findMany({
+    where: { periodId: pid },
+    select: { teamId: true, R: true, HR: true, RBI: true, SB: true, AVG: true, W: true, S: true, ERA: true, WHIP: true, K: true },
+  });
+  const snapshotMap = new Map(snapshots.map(s => [s.teamId, s]));
+
+  // Compute previous standings from snapshots (if they exist)
+  let prevStandingsMap = new Map<number, number>(); // teamId → previous total points
+  if (snapshots.length > 0) {
+    const prevTeamStats = teamStats.map(t => {
+      const snap = snapshotMap.get(t.team.id);
+      if (!snap) return t;
+      return { ...t, R: snap.R, HR: snap.HR, RBI: snap.RBI, SB: snap.SB, AVG: snap.AVG, W: snap.W, S: snap.S, ERA: snap.ERA, WHIP: snap.WHIP, K: snap.K };
+    });
+    const prevStandings = computeStandingsFromStats(prevTeamStats);
+    prevStandingsMap = new Map(prevStandings.map(s => [s.teamId, s.points]));
+  }
+
+  // Save current stats as the new snapshot (upsert)
+  for (const t of teamStats) {
+    await prisma.teamStatsPeriod.upsert({
+      where: { teamId_periodId: { teamId: t.team.id, periodId: pid } },
+      update: { R: t.R, HR: t.HR, RBI: t.RBI, SB: t.SB, AVG: t.AVG, W: t.W, S: t.S, ERA: t.ERA, WHIP: t.WHIP, K: t.K },
+      create: { teamId: t.team.id, periodId: pid, R: t.R, HR: t.HR, RBI: t.RBI, SB: t.SB, AVG: t.AVG, W: t.W, S: t.S, ERA: t.ERA, WHIP: t.WHIP, K: t.K },
+    });
+  }
+
+  // Build categories with delta from previous snapshot
+  const categories = CATEGORY_CONFIG.map((cfg) => {
+    const rows = computeCategoryRows(teamStats, cfg.key, cfg.lowerIsBetter);
+    // Compute previous category rankings for delta
+    if (snapshots.length > 0) {
+      const prevTeamStats = teamStats.map(t => {
+        const snap = snapshotMap.get(t.team.id);
+        if (!snap) return t;
+        return { ...t, R: snap.R, HR: snap.HR, RBI: snap.RBI, SB: snap.SB, AVG: snap.AVG, W: snap.W, S: snap.S, ERA: snap.ERA, WHIP: snap.WHIP, K: snap.K };
+      });
+      const prevRows = computeCategoryRows(prevTeamStats, cfg.key, cfg.lowerIsBetter);
+      const prevPointsMap = new Map(prevRows.map(r => [r.teamId, r.points]));
+      for (const row of rows) {
+        const prevPts = prevPointsMap.get(row.teamId) ?? 0;
+        (row as any).pointsDelta = row.points - prevPts;
+      }
+    }
+    return { key: cfg.key, label: cfg.label, lowerIsBetter: cfg.lowerIsBetter, group: cfg.group, rows };
+  });
+
+  // Add total delta to each team's summary
+  const totalDeltaMap = new Map<number, number>();
+  for (const s of currentStandings) {
+    const prevTotal = prevStandingsMap.get(s.teamId) ?? 0;
+    totalDeltaMap.set(s.teamId, snapshots.length > 0 ? s.points - prevTotal : 0);
+  }
+
+  res.json({ periodId: pid, categories, teamCount: teamStats.length, totalDelta: Object.fromEntries(totalDeltaMap) });
 }));
 
 // --- Season (cumulative) standings: /api/standings/season ---
