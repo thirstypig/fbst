@@ -31,9 +31,9 @@ interface ChangelogEntry {
 const changelog: ChangelogEntry[] = [
   {
     version: "0.43.0",
-    date: "Mar 27-28, 2026",
+    date: "Mar 27-29, 2026",
     session: "Session 49",
-    title: "Performance Audit, Season Launch, Positions, Home Page + YouTube/Reddit/Trade Rumors",
+    title: "Performance, Season Launch, Positions, Home Page, YouTube/Reddit/Yahoo, Waiver/Trade Fixes",
     highlights: [
       "Performance audit: 8 DB indexes, 3 N+1 fixes, standings flattened, client waterfalls eliminated",
       "2026 season live: current year stats, draft report locked, Opening Day data synced",
@@ -61,6 +61,16 @@ const changelog: ChangelogEntry[] = [
       { type: "feat", description: "MLBTradeRumors.com — fantasy team dropdown (8 teams + Free Agents), NL/AL toggle from league rules, player tag highlighting" },
       { type: "fix", description: "Real-time stats timezone — uses Pacific time, yesterday's stats visible until noon PST next day" },
       { type: "fix", description: "Boxscore data — switched from schedule hydration to per-game live feed endpoint for actual player stats" },
+      { type: "feat", description: "Yahoo Sports MLB RSS feed — 3rd news column with player cross-referencing and fantasy team filter" },
+      { type: "feat", description: "3-column news layout — MLBTradeRumors | Reddit | Yahoo side-by-side with equal height, above YouTube Shorts" },
+      { type: "feat", description: "YouTube Shorts pagination — 2 rows of 3 per page with < 1 2 3 > navigation" },
+      { type: "feat", description: "Waiver Claim Form — team owners can submit FAAB bids (player search, bid amount, drop selection)" },
+      { type: "feat", description: "Period stats endpoint enabled — returns PlayerStatsPeriod data for active period" },
+      { type: "feat", description: "Roster limit validation — 23-player max enforced on waivers, claims, and trades" },
+      { type: "feat", description: "MLB Roster Status alerts — IL and minors players shown as badges on Home page" },
+      { type: "feat", description: "REVERSED added to TradeStatus enum — trade reversal no longer uses unsafe type cast" },
+      { type: "fix", description: "Season guards added to /transactions/claim and /drop endpoints" },
+      { type: "fix", description: "assignedPosition set on waiver claim, waiver processing, and trade processing" },
       { type: "docs", description: "Position backfill: 370 active roster entries assigned positions, 15 auction-set positions verified" },
     ],
   },

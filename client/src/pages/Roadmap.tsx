@@ -180,6 +180,22 @@ const productRoadmap: RoadmapPhase[] = [
         tags: ["home", "social", "data"],
       },
       {
+        title: "Waiver/Trade System Hardening (Session 49)",
+        description: "Season guards on claim/drop endpoints. Roster limit validation (23 max). assignedPosition auto-set on waivers/trades. REVERSED enum fix. Waiver claim UI for team owners with FAAB bid form. Period stats endpoint enabled.",
+        icon: Shield,
+        effort: "Medium",
+        status: "done",
+        tags: ["waivers", "trades", "fix"],
+      },
+      {
+        title: "Yahoo Sports MLB + Roster Alerts (Session 49)",
+        description: "Yahoo Sports MLB RSS feed as 3rd news column. MLB Roster Status alerts showing IL and minors players. 3-column equal-height news layout. YouTube pagination with pitcher search.",
+        icon: Bell,
+        effort: "Medium",
+        status: "done",
+        tags: ["home", "data", "feature"],
+      },
+      {
         title: "Live Standings Dashboard",
         description: "Real-time standings powered by automated MLB stats sync. Period-over-period trends, category breakdowns, playoff race tracker.",
         icon: BarChart3,

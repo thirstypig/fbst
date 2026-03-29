@@ -4,7 +4,7 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
-## Session 49 (2026-03-27/28) — Performance, Season Launch, Positions, Home Page + YouTube/Reddit/Trade Rumors (9 commits)
+## Session 49 (2026-03-27/29) — Performance, Season, Positions, Home Page, YouTube/Reddit/Yahoo, Waiver/Trade Fixes (15 commits)
 
 ### Summary
 Massive session covering 4 major areas: (1) comprehensive performance audit with 8 DB indexes and 3 N+1 fixes, (2) 2026 season lifecycle — stats showing current year, draft report locked, Opening Day stats synced, (3) Yahoo Fantasy position model — fixed POS columns, positions locked during season, auto-assignment script, (4) complete Home page redesign with Real-Time Stats Today, MLB Trade Rumors RSS, and fantasy team cross-referencing.
@@ -24,21 +24,32 @@ Massive session covering 4 major areas: (1) comprehensive performance audit with
 - **AI Insights**: Default collapsed on Team page and Home page
 - **YouTube video modal**: Click thumbnail to play inline with autoplay, dark backdrop, close on click outside
 
+### Extended Session (Mar 28-29)
+- **Yahoo Sports MLB RSS** — 3rd news column with cross-referencing + fantasy team filter
+- **3-column news layout** — MLBTradeRumors | Reddit | Yahoo side-by-side, equal height, above YouTube
+- **YouTube Shorts pagination** — 2 rows of 3 per page, search includes 4 hitters + 2 pitchers
+- **Waiver Claim Form** — team owners can submit FAAB bids (search, bid, drop selection)
+- **Period stats endpoint enabled** — returns PlayerStatsPeriod for active period
+- **Roster limit validation** — 23-player max on waivers, claims, trades
+- **Season guards** — added to /transactions/claim and /drop
+- **assignedPosition** — auto-set on waiver claim, waiver processing, trade processing
+- **REVERSED enum** — added to TradeStatus, removed unsafe type cast
+- **MLB Roster Status alerts** — IL/minors players shown as badges on Home page
+
 ### Pending / Next Session
-1. **MLB Depth Charts** — API endpoint ready, needs UI to cross-reference with roster
-2. **Weekly Digest tabs** — Past weeks in tabs (only 1 digest exists, infrastructure ready)
-3. **X/Twitter integration** — $200/month Basic tier for @JeffPassan timeline + hashtag search (deferred)
-4. **Position system refinement** — Some players may need manual position corrections via Commissioner tool
-5. **YouTube search optimization** — Consider searching for pitchers too (currently top 5 hitters only)
+1. **Weekly Digest tabs** — Past weeks in tabs (only 1 digest exists, infrastructure ready)
+2. **X/Twitter integration** — $200/month Basic tier (deferred indefinitely)
+3. **Position system refinement** — Some players may need manual corrections via Commissioner tool
+4. **ActivityPage test fix** — Pre-existing @/lib/utils alias issue in vitest environment
 
 ### Concerns / Process Improvements
-- **YouTube API quota** — 100 searches/day free, currently searching 5 players = 5 searches per user per 6 hours. Fine for small league but monitor usage.
-- **Reddit cross-referencing** — Uses last name matching (4+ chars) to avoid false positives. Short last names like "Lee", "May" excluded.
-- **Real-time stats** — Live feed fetched per-game (only for relevant games). Could add caching layer if too many API calls.
+- **YouTube API quota** — 100 searches/day free, currently 6 searches per user per 6 hours. Fine for small league.
+- **Reddit cross-referencing** — Uses last name matching (4+ chars) to avoid false positives.
+- **Roster alerts** — Uses fullSeason roster type (6-hour cache). May miss same-day IL moves until cache refreshes.
 
 ### Test Results
 - Server: 493 passing
-- Client: 187 passing
+- Client: 186 passing (1 pre-existing ActivityPage test failure — vitest env issue)
 - Total: 680 passing, TypeScript clean on both sides
 
 ---
