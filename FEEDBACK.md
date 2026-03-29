@@ -4,7 +4,7 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
-## Session 49 (2026-03-27/29) — Performance, Season, Positions, Home Page, YouTube/Reddit/Yahoo, Waiver/Trade Fixes (15 commits)
+## Session 49 (2026-03-27/29) — Performance, Season, Positions, Home Page, YouTube/Reddit/Yahoo, Waiver/Trade, Ohtani Split, Stat Fixes (25 commits)
 
 ### Summary
 Massive session covering 4 major areas: (1) comprehensive performance audit with 8 DB indexes and 3 N+1 fixes, (2) 2026 season lifecycle — stats showing current year, draft report locked, Opening Day stats synced, (3) Yahoo Fantasy position model — fixed POS columns, positions locked during season, auto-assignment script, (4) complete Home page redesign with Real-Time Stats Today, MLB Trade Rumors RSS, and fantasy team cross-referencing.
@@ -35,17 +35,24 @@ Massive session covering 4 major areas: (1) comprehensive performance audit with
 - **assignedPosition** — auto-set on waiver claim, waiver processing, trade processing
 - **REVERSED enum** — added to TradeStatus, removed unsafe type cast
 - **MLB Roster Status alerts** — IL/minors players shown as badges on Home page
+- **Ohtani split** — 2 separate player records: Shohei Ohtani (Hitter) on DLC, Shohei Ohtani (Pitcher) on Skunk Dogs (keeper)
+- **Team page totals** — hitter totals (R/HR/RBI/SB/AVG) and pitcher totals (W/SV/K/IP/ERA/WHIP)
+- **IP field fix** — was entirely missing from SeasonStatEntry, now pitcher IP/ERA/WHIP display on team pages
+- **Category tables fix** — real stat values display (was showing dashes), proper labels (Runs not R Metric)
+- **Season page** — hitters left / pitchers right, Chg column with daily standings snapshots, GP column removed
+- **Players page** — NL default, All NL/AL team groups, Season Total + Period 1 dropdown labels
+- **2026 positions** — fielding stats now fetch current year (was 2025 due to March offseason bug), "2026 Positions Played:" label
+- **Team links** — category tables use team code not database ID
 
 ### Pending / Next Session
 1. **Weekly Digest tabs** — Past weeks in tabs (only 1 digest exists, infrastructure ready)
-2. **X/Twitter integration** — $200/month Basic tier (deferred indefinitely)
-3. **Position system refinement** — Some players may need manual corrections via Commissioner tool
-4. **ActivityPage test fix** — Pre-existing @/lib/utils alias issue in vitest environment
+2. **Deploy to production** — All changes ready for Render deployment
+3. **ActivityPage test fix** — Pre-existing @/lib/utils alias issue in vitest environment
 
 ### Concerns / Process Improvements
 - **YouTube API quota** — 100 searches/day free, currently 6 searches per user per 6 hours. Fine for small league.
-- **Reddit cross-referencing** — Uses last name matching (4+ chars) to avoid false positives.
-- **Roster alerts** — Uses fullSeason roster type (6-hour cache). May miss same-day IL moves until cache refreshes.
+- **Ohtani pitcher mlbId** — Uses derived ID 1660271 (original + 1M). Daily sync won't find this ID in MLB API. May need special handling.
+- **Standings snapshots** — Saved on every page load. Consider moving to daily cron for consistency.
 
 ### Test Results
 - Server: 493 passing

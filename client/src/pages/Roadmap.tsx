@@ -196,6 +196,14 @@ const productRoadmap: RoadmapPhase[] = [
         tags: ["home", "data", "feature"],
       },
       {
+        title: "Ohtani Split + Team Totals + Stat Fixes (Session 49)",
+        description: "Ohtani split into 2 player records (Hitter/Pitcher). Team page totals rows. IP field in season stats. Category tables with real values. 2026 positions with GP. Players page NL defaults. Season dropdown labels.",
+        icon: Zap,
+        effort: "Medium",
+        status: "done",
+        tags: ["data", "ux", "fix"],
+      },
+      {
         title: "Live Standings Dashboard",
         description: "Real-time standings powered by automated MLB stats sync. Period-over-period trends, category breakdowns, playoff race tracker.",
         icon: BarChart3,
