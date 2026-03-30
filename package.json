@@ -2,6 +2,9 @@
   "name": "fbst",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "// NOTE_1": "Front-end (React/Vite) lives in ./client",
     "// NOTE_2": "API server (Express/TS) lives in ./server",
