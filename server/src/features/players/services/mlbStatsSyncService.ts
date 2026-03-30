@@ -20,9 +20,16 @@ export async function syncPeriodStats(periodId: number): Promise<{
   const startDate = period.startDate.toISOString().split("T")[0];
   const endDate = period.endDate.toISOString().split("T")[0];
 
-  // Find all rostered players with mlbIds across all leagues
+  // Find all players who were ever rostered during this period
+  // (includes released players so their stats are captured for date-aware attribution)
   const rosters = await prisma.roster.findMany({
-    where: { releasedAt: null },
+    where: {
+      OR: [
+        { releasedAt: null },
+        { releasedAt: { gte: period.startDate } },
+      ],
+      acquiredAt: { lte: period.endDate },
+    },
     select: { player: { select: { id: true, mlbId: true } } },
   });
 
@@ -152,4 +159,88 @@ export async function syncAllActivePeriods(): Promise<void> {
       logger.error({ error: String(err), periodId: period.id }, "Failed to sync period stats");
     }
   }
+}
+
+/**
+ * Sync daily stats for a single date into PlayerStatsDaily.
+ * Queries all players who were rostered on that date (including recently released).
+ */
+export async function syncDailyStats(dateStr: string): Promise<{
+  synced: number;
+  skipped: number;
+  errors: number;
+}> {
+  const targetDate = new Date(`${dateStr}T00:00:00Z`);
+
+  // Find all players rostered on this date (active or released after this date)
+  const rosters = await prisma.roster.findMany({
+    where: {
+      acquiredAt: { lte: targetDate },
+      OR: [
+        { releasedAt: null },
+        { releasedAt: { gt: targetDate } },
+      ],
+    },
+    select: { player: { select: { id: true, mlbId: true } } },
+  });
+
+  const playerMap = new Map<number, number>();
+  for (const r of rosters) {
+    if (r.player.mlbId) {
+      playerMap.set(r.player.mlbId, r.player.id);
+    }
+  }
+
+  const mlbIds = [...playerMap.keys()];
+  if (mlbIds.length === 0) {
+    logger.info({ dateStr }, "No rostered players for daily stats sync");
+    return { synced: 0, skipped: 0, errors: 0 };
+  }
+
+  logger.info({ dateStr, playerCount: mlbIds.length }, "Starting daily stats sync");
+
+  let synced = 0;
+  let skipped = 0;
+  let errors = 0;
+
+  const batches = chunk(mlbIds.map(String), 50);
+
+  for (const batch of batches) {
+    try {
+      const ids = batch.join(",");
+      const hydrate = `stats(group=[hitting,pitching],type=[byDateRange],startDate=${dateStr},endDate=${dateStr})`;
+      const url = `${MLB_BASE}/people?personIds=${ids}&hydrate=${hydrate}`;
+      const data = await mlbGetJson(url);
+      const people: any[] = data.people || [];
+
+      for (const person of people) {
+        const mlbId = person.id;
+        const playerId = playerMap.get(mlbId);
+        if (!playerId) { skipped++; continue; }
+
+        const stats = parsePlayerStats(person);
+
+        // Skip if all zeros (off-day / no game)
+        const hasStats = stats.AB > 0 || stats.H > 0 || stats.R > 0 || stats.HR > 0 ||
+          stats.W > 0 || stats.SV > 0 || stats.K > 0 || stats.IP > 0;
+        if (!hasStats) { skipped++; continue; }
+
+        await prisma.playerStatsDaily.upsert({
+          where: { playerId_gameDate: { playerId, gameDate: targetDate } },
+          create: { playerId, gameDate: targetDate, ...stats },
+          update: stats,
+        });
+
+        synced++;
+      }
+
+      await new Promise((r) => setTimeout(r, 100));
+    } catch (err) {
+      logger.error({ error: String(err), batch: batch.slice(0, 3) }, "Daily stats batch failed");
+      errors += batch.length;
+    }
+  }
+
+  logger.info({ synced, skipped, errors, dateStr }, "Daily stats sync complete");
+  return { synced, skipped, errors };
 }

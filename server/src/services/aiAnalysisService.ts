@@ -1049,46 +1049,39 @@ Return ONLY a valid JSON object (no markdown, no code blocks) with:
       const hitters = roster.filter(r => !isPitcherPos(r.position));
       const pitchers = roster.filter(r => isPitcherPos(r.position));
 
-      const prompt = `You are a fantasy baseball team analyst providing ${mode === "pre-season" ? "pre-season outlook and" : ""} weekly insights for an ${leagueTypeLabel} 10-category roto league (R, HR, RBI, SB, AVG | W, SV, K, ERA, WHIP).
-
-MODE: ${mode === "pre-season" ? "PRE-SEASON — no actual stats yet, use projected values and your knowledge of these players to provide a team outlook with actionable recommendations." : "IN-SEASON — actual stats are available, compare performance to projections and identify trends."}
+      const prompt = `You are a fantasy baseball analyst giving concise weekly performance updates for an ${leagueTypeLabel} 10-category roto league (R, HR, RBI, SB, AVG | W, SV, K, ERA, WHIP).
 
 TEAM: ${team.name}
-${teamStanding ? `Current Rank: ${teamStanding.rank} / ${standings.length} teams (${teamStanding.totalScore} roto pts)` : 'Standings not yet available'}
-Remaining Waiver Budget Budget: $${team.budget}
+${teamStanding ? `Rank: ${teamStanding.rank}/${standings.length} (${teamStanding.totalScore} roto pts)` : 'Standings not yet available'}
 
-ROSTER (${roster.length} players):
-Hitters (${hitters.length}):
-${hitters.map(r => `  ${r.playerName} (${r.position}, ${r.mlbTeam || '?'}, $${r.price}${r.projectedValue !== null ? `, val $${r.projectedValue}` : ''})`).join('\n')}
-Pitchers (${pitchers.length}):
-${pitchers.map(r => `  ${r.playerName} (${r.position}, ${r.mlbTeam || '?'}, $${r.price}${r.projectedValue !== null ? `, val $${r.projectedValue}` : ''})`).join('\n')}
+ROSTER:
+Hitters (${hitters.length}): ${hitters.map(r => `${r.playerName} (${r.position}, ${r.mlbTeam || '?'})`).join(', ')}
+Pitchers (${pitchers.length}): ${pitchers.map(r => `${r.playerName} (${r.position}, ${r.mlbTeam || '?'})`).join(', ')}
 
-NOTE: All players listed above are confirmed NL-only eligible based on their current MLB team assignments in our database. Do NOT flag any of these players as ineligible.
+${categoryRankings ? `CATEGORY RANKS (out of ${standings.length}):
+${categoryRankings.map(c => `  ${c.category}: #${c.rank}${c.rank <= 2 ? ' ★' : c.rank >= standings.length - 1 ? ' ⚠' : ''} (${c.value})`).join('\n')}` : ''}
 
-${categoryRankings ? `CATEGORY STANDINGS (your rank out of ${standings.length} teams):
-${categoryRankings.map(c => `  ${c.category}: ${c.rank}${c.rank <= 2 ? ' ★' : c.rank >= standings.length - 1 ? ' ⚠' : ''} (${c.value})`).join('\n')}` : 'No category standings available yet.'}
+STANDINGS: ${standings.map(s => `${s.rank}. ${s.teamName} ${s.totalScore}pts`).join(' | ')}
 
-LEAGUE STANDINGS:
-${standings.map(s => `${s.rank}. ${s.teamName}: ${s.totalScore} pts`).join('\n')}
+${recentTransactions.length > 0 ? `RECENT MOVES: ${recentTransactions.map(t => `${t.type}: ${t.playerName}`).join(', ')}` : ''}
 
-RECENT TRANSACTIONS (last 14 days):
-${recentTransactions.length > 0 ? recentTransactions.map(t => `  ${t.type}: ${t.playerName} (${t.date})`).join('\n') : 'None'}
+Provide exactly 3 concise insights focused on PLAYER PERFORMANCE. Do NOT talk about auction prices or budget strategy. Focus on:
+1. **Hot/Cold Players** — Which hitters or pitchers are performing well or struggling? Name specific players and their recent production vs expectations.
+2. **Pitching Watch** — Which pitchers have been effective, which have been shaky, and who hasn't pitched yet? Mention injury status if relevant.
+3. **Roster Alert** — Any injured players, players returning from injury, underperformers to consider dropping, or waiver pickups that could help. Compare to rival teams.
 
-Provide 4-6 actionable insights. Each insight should be specific and reference actual players on the roster. Prioritize:
-1. ${mode === "pre-season" ? "Category projections — where will this team be strong/weak?" : "Category standings — where is the team gaining/losing ground?"}
-2. Roster risks — injury-prone players, unproven prospects, position depth issues
-3. Trade/waiver recommendations — specific category gaps to address and what type of player to target
-4. ${mode === "pre-season" ? "Sleeper picks — which roster players could outperform projections?" : "Over/underperformers — who is exceeding or falling short of expectations?"}
-5. Budget strategy — how to deploy remaining Waiver Budget budget effectively
-6. Competitive positioning — realistic path to winning categories or improving rank
+Each insight must name specific players. Keep details to 1-2 sentences max. Be direct and useful.
 
-Return ONLY a valid JSON object (no markdown, no code blocks):
+GRADING: Grade RELATIVE to the other ${standings.length} teams. Best=A+, average=C, worst=F.
+
+Return ONLY valid JSON (no markdown):
 {
-  "insights": [{ "category": string, "title": string (short headline), "detail": string (2-3 specific sentences), "priority": "high" | "medium" | "low" }],
-  "overallGrade": "A+ through F grade for the team's outlook/trajectory"
+  "insights": [{ "category": string, "title": string (short headline), "detail": string (1-2 punchy sentences), "priority": "high" | "medium" | "low" }],
+  "overallGrade": "A+ through F"
 }
 
-For category, use one of: "Hitting", "Pitching", "Roster", "Standings", "Budget", "Trade Target", "Waiver Wire", "Sleeper", "Risk"`;
+Categories: "Hot Bats", "Cold Bats", "Pitching", "Injury", "Waiver Wire", "Standings"`;
+
 
       const result = await model.generateContent(prompt);
       const text = result.response.text().trim();

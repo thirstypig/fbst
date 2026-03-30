@@ -346,37 +346,156 @@ export async function computeTeamStatsFromDb(
   leagueId: number,
   periodId: number
 ): Promise<TeamStatRow[]> {
-  // Optimized: 3 flat queries instead of deeply nested includes (team→roster→player→periodStats).
-  // This avoids the O(N*M*K) query explosion that Prisma's nested includes can produce.
-
-  const [teams, rosters, periodStats] = await Promise.all([
-    // 1. Teams (lightweight)
+  // Fetch period and teams in parallel
+  const [period, teams] = await Promise.all([
+    prisma.period.findUnique({ where: { id: periodId } }),
     prisma.team.findMany({
       where: { leagueId },
       select: { id: true, name: true, code: true },
       orderBy: { id: "asc" },
     }),
-    // 2. Active rosters with player info (flat, no nested stats)
-    prisma.roster.findMany({
-      where: { team: { leagueId }, releasedAt: null },
-      select: {
-        teamId: true,
-        assignedPosition: true,
-        player: { select: { id: true, mlbId: true, posPrimary: true } },
-      },
-    }),
-    // 3. Period stats for all players in this period (single flat query)
-    prisma.playerStatsPeriod.findMany({
-      where: { periodId },
-      select: {
-        playerId: true,
-        AB: true, H: true, R: true, HR: true, RBI: true, SB: true,
-        W: true, SV: true, K: true, IP: true, ER: true, BB_H: true,
-      },
-    }),
   ]);
 
-  // Index period stats by playerId for O(1) lookup
+  if (!period) return [];
+
+  // Get ALL roster entries that overlapped with this period (not just active ones)
+  // This enables date-aware stats attribution for mid-period trades/drops
+  const rosters = await prisma.roster.findMany({
+    where: {
+      team: { leagueId },
+      acquiredAt: { lt: period.endDate },
+      OR: [
+        { releasedAt: null },
+        { releasedAt: { gt: period.startDate } },
+      ],
+    },
+    select: {
+      teamId: true,
+      playerId: true,
+      acquiredAt: true,
+      releasedAt: true,
+      assignedPosition: true,
+      player: { select: { id: true, mlbId: true, posPrimary: true } },
+    },
+  });
+
+  // Check if daily stats exist for this period (enables precise date-aware attribution)
+  const dailyStatsCount = await prisma.playerStatsDaily.count({
+    where: {
+      gameDate: { gte: period.startDate, lte: period.endDate },
+    },
+  });
+
+  if (dailyStatsCount > 0) {
+    return computeWithDailyStats(teams, rosters, period);
+  } else {
+    return computeWithPeriodStats(teams, rosters, periodId);
+  }
+}
+
+/** Precise path: sum daily stats within each roster entry's ownership window. */
+async function computeWithDailyStats(
+  teams: { id: number; name: string; code: string | null }[],
+  rosters: {
+    teamId: number; playerId: number; acquiredAt: Date; releasedAt: Date | null;
+    assignedPosition: string | null;
+    player: { id: number; mlbId: number | null; posPrimary: string };
+  }[],
+  period: { startDate: Date; endDate: Date },
+): Promise<TeamStatRow[]> {
+  // Collect all unique playerIds for a single bulk query
+  const playerIds = [...new Set(rosters.map(r => r.playerId))];
+
+  // Fetch all daily stats for these players within the period
+  const dailyStats = await prisma.playerStatsDaily.findMany({
+    where: {
+      playerId: { in: playerIds },
+      gameDate: { gte: period.startDate, lte: period.endDate },
+    },
+    select: {
+      playerId: true, gameDate: true,
+      AB: true, H: true, R: true, HR: true, RBI: true, SB: true,
+      W: true, SV: true, K: true, IP: true, ER: true, BB_H: true,
+    },
+  });
+
+  // Index: playerId → date → stats
+  const statsIndex = new Map<number, Map<number, typeof dailyStats[0]>>();
+  for (const ds of dailyStats) {
+    if (!statsIndex.has(ds.playerId)) statsIndex.set(ds.playerId, new Map());
+    statsIndex.get(ds.playerId)!.set(ds.gameDate.getTime(), ds);
+  }
+
+  // For each roster entry, sum daily stats within ownership window
+  const teamAccum = new Map<number, { R: number; HR: number; RBI: number; SB: number; H: number; AB: number; W: number; S: number; K: number; ER: number; IP: number; BB_H: number }>();
+
+  for (const roster of rosters) {
+    const from = roster.acquiredAt > period.startDate ? roster.acquiredAt : period.startDate;
+    const to = roster.releasedAt && roster.releasedAt < period.endDate ? roster.releasedAt : period.endDate;
+
+    const playerDailyStats = statsIndex.get(roster.playerId);
+    if (!playerDailyStats) continue;
+
+    // Two-way player check
+    const isTwoWay = roster.player.mlbId ? TWO_WAY_PLAYERS.has(roster.player.mlbId) : false;
+    const assignedAsP = PITCHER_CODES.includes(
+      (roster.assignedPosition ?? roster.player.posPrimary ?? "").toUpperCase() as any
+    );
+    const countHitting = !isTwoWay || !assignedAsP;
+    const countPitching = !isTwoWay || assignedAsP;
+
+    if (!teamAccum.has(roster.teamId)) {
+      teamAccum.set(roster.teamId, { R: 0, HR: 0, RBI: 0, SB: 0, H: 0, AB: 0, W: 0, S: 0, K: 0, ER: 0, IP: 0, BB_H: 0 });
+    }
+    const acc = teamAccum.get(roster.teamId)!;
+
+    for (const [dateMs, ds] of playerDailyStats) {
+      const d = new Date(dateMs);
+      if (d >= from && d <= to) {
+        if (countHitting) {
+          acc.R += ds.R; acc.HR += ds.HR; acc.RBI += ds.RBI; acc.SB += ds.SB;
+          acc.H += ds.H; acc.AB += ds.AB;
+        }
+        if (countPitching) {
+          acc.W += ds.W; acc.S += ds.SV; acc.K += ds.K;
+          acc.ER += ds.ER; acc.IP += ds.IP; acc.BB_H += ds.BB_H;
+        }
+      }
+    }
+  }
+
+  return teams.map((t) => {
+    const acc = teamAccum.get(t.id) ?? { R: 0, HR: 0, RBI: 0, SB: 0, H: 0, AB: 0, W: 0, S: 0, K: 0, ER: 0, IP: 0, BB_H: 0 };
+    return {
+      team: { id: t.id, name: t.name, code: t.code ?? t.name.substring(0, 3).toUpperCase() },
+      R: acc.R, HR: acc.HR, RBI: acc.RBI, SB: acc.SB,
+      AVG: acc.AB > 0 ? acc.H / acc.AB : 0,
+      W: acc.W, S: acc.S, K: acc.K,
+      ERA: acc.IP > 0 ? (acc.ER / acc.IP) * 9 : 0,
+      WHIP: acc.IP > 0 ? acc.BB_H / acc.IP : 0,
+    };
+  });
+}
+
+/** Fallback path: use cumulative PlayerStatsPeriod (pre-daily-data periods). */
+async function computeWithPeriodStats(
+  teams: { id: number; name: string; code: string | null }[],
+  rosters: {
+    teamId: number; playerId: number; acquiredAt: Date; releasedAt: Date | null;
+    assignedPosition: string | null;
+    player: { id: number; mlbId: number | null; posPrimary: string };
+  }[],
+  periodId: number,
+): Promise<TeamStatRow[]> {
+  const periodStats = await prisma.playerStatsPeriod.findMany({
+    where: { periodId },
+    select: {
+      playerId: true,
+      AB: true, H: true, R: true, HR: true, RBI: true, SB: true,
+      W: true, SV: true, K: true, IP: true, ER: true, BB_H: true,
+    },
+  });
+
   const statsMap = new Map(periodStats.map(s => [s.playerId, s]));
 
   // Group rosters by teamId
@@ -392,11 +511,17 @@ export async function computeTeamStatsFromDb(
     let W = 0, S = 0, K = 0, ER = 0, IP = 0, BB_H = 0;
 
     const teamRosters = rostersByTeam.get(t.id) ?? [];
+    // Track which players we've already counted (avoid double-counting if player
+    // was traded away and back — only count for the ACTIVE entry or most recent)
+    const countedPlayers = new Set<number>();
+
     for (const roster of teamRosters) {
+      if (countedPlayers.has(roster.playerId)) continue;
+      countedPlayers.add(roster.playerId);
+
       const stats = statsMap.get(roster.player.id);
       if (!stats) continue;
 
-      // Two-way players (Ohtani): only count the stat group matching their assigned role.
       const isTwoWay = roster.player.mlbId ? TWO_WAY_PLAYERS.has(roster.player.mlbId) : false;
       const assignedAsP = PITCHER_CODES.includes(
         (roster.assignedPosition ?? roster.player.posPrimary ?? "").toUpperCase() as any
@@ -406,35 +531,22 @@ export async function computeTeamStatsFromDb(
       const countPitching = !isTwoWay || assignedAsP;
 
       if (countHitting) {
-        R += stats.R;
-        HR += stats.HR;
-        RBI += stats.RBI;
-        SB += stats.SB;
-        H += stats.H;
-        AB += stats.AB;
+        R += stats.R; HR += stats.HR; RBI += stats.RBI; SB += stats.SB;
+        H += stats.H; AB += stats.AB;
       }
       if (countPitching) {
-        W += stats.W;
-        S += stats.SV;
-        K += stats.K;
-        ER += stats.ER;
-        IP += stats.IP;
-        BB_H += stats.BB_H;
+        W += stats.W; S += stats.SV; K += stats.K;
+        ER += stats.ER; IP += stats.IP; BB_H += stats.BB_H;
       }
     }
 
-    const AVG = AB > 0 ? H / AB : 0;
-    const ERA = IP > 0 ? (ER / IP) * 9 : 0;
-    const WHIP = IP > 0 ? BB_H / IP : 0;
-
     return {
-      team: {
-        id: t.id,
-        name: t.name,
-        code: t.code ?? t.name.substring(0, 3).toUpperCase(),
-      },
-      R, HR, RBI, SB, AVG,
-      W, S, ERA, WHIP, K,
+      team: { id: t.id, name: t.name, code: t.code ?? t.name.substring(0, 3).toUpperCase() },
+      R, HR, RBI, SB,
+      AVG: AB > 0 ? H / AB : 0,
+      W, S, K,
+      ERA: IP > 0 ? (ER / IP) * 9 : 0,
+      WHIP: IP > 0 ? BB_H / IP : 0,
     };
   });
 }

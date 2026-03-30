@@ -10,6 +10,8 @@ import { logger } from "../../lib/logger.js";
 import { writeAuditLog } from "../../lib/auditLog.js";
 import { requireSeasonStatus } from "../../middleware/seasonGuard.js";
 import { assertPlayerAvailable, assertRosterLimit } from "../../lib/rosterGuard.js";
+import { computeTeamStatsFromDb, computeStandingsFromStats } from "../standings/services/standingsService.js";
+import { nextDayEffective } from "../../lib/utils.js";
 
 /**
  * Auto-generate AI analysis after a waiver claim is processed.
@@ -177,17 +179,45 @@ router.post("/process/:leagueId", requireAuth, requireCommissionerOrAdmin("leagu
   });
 
   // 2. Compute inverse-standings waiver priority (worst team = priority 1)
-  // Use TeamStatsSeason raw stats to approximate roto points via simple sum of counting stats.
-  // Higher sum ≈ better team → higher waiver rank number → lower priority.
-  const seasonStats = await prisma.teamStatsSeason.findMany({
-    where: { team: { leagueId } },
-    select: { teamId: true, R: true, HR: true, RBI: true, SB: true, W: true, S: true, K: true },
+  // Use the most recently completed period's roto standings. Lowest points = first pick.
+  // Fallback: if no completed period, use season-wide stats.
+  const waiverRank = new Map<number, number>();
+
+  // Check for commissioner-set overrides first
+  const teamsWithOverrides = await prisma.team.findMany({
+    where: { leagueId, waiverPriorityOverride: { not: null } },
+    select: { id: true, waiverPriorityOverride: true },
   });
-  // Approximate team strength: sum of all counting stats (simple proxy for standings)
-  const strengthMap = new Map(seasonStats.map(s => [s.teamId, s.R + s.HR + s.RBI + s.SB + s.W + s.S + s.K]));
-  // Sort teams by strength ASC (weakest team gets priority 1 = first pick on tied bids)
-  const teamsByStrength = [...strengthMap.entries()].sort((a, b) => a[1] - b[1]);
-  const waiverRank = new Map(teamsByStrength.map(([teamId], idx) => [teamId, idx + 1]));
+  const overrideMap = new Map(teamsWithOverrides.map(t => [t.id, t.waiverPriorityOverride!]));
+
+  // Compute standings-based ranks from most recent completed period
+  const lastPeriod = await prisma.period.findFirst({
+    where: { season: { leagueId }, status: "completed" },
+    orderBy: { endDate: "desc" },
+  });
+
+  if (lastPeriod) {
+    // Use proper roto standings from the most recent completed period
+    const teamStats = await computeTeamStatsFromDb(leagueId, lastPeriod.id);
+    const standings = computeStandingsFromStats(teamStats);
+    // Reverse: worst team (highest rank number / lowest points) gets priority 1
+    const sorted = [...standings].sort((a, b) => a.points - b.points);
+    sorted.forEach((s, idx) => {
+      // Override takes precedence if set
+      waiverRank.set(s.teamId, overrideMap.get(s.teamId) ?? (idx + 1));
+    });
+  } else {
+    // Fallback: season-wide counting stats (Period 1 or no completed periods)
+    const seasonStats = await prisma.teamStatsSeason.findMany({
+      where: { team: { leagueId } },
+      select: { teamId: true, R: true, HR: true, RBI: true, SB: true, W: true, S: true, K: true },
+    });
+    const strengthMap = new Map(seasonStats.map(s => [s.teamId, s.R + s.HR + s.RBI + s.SB + s.W + s.S + s.K]));
+    const teamsByStrength = [...strengthMap.entries()].sort((a, b) => a[1] - b[1]);
+    teamsByStrength.forEach(([teamId], idx) => {
+      waiverRank.set(teamId, overrideMap.get(teamId) ?? (idx + 1));
+    });
+  }
 
   // Sort: bid DESC, then waiver priority ASC (inverse standings), then submission time ASC
   claims.sort((a, b) => {
@@ -263,7 +293,7 @@ router.post("/process/:leagueId", requireAuth, requireCommissionerOrAdmin("leagu
           playerId: claim.playerId,
           source: "WAIVER",
           price: claim.bidAmount,
-          acquiredAt: new Date(),
+          acquiredAt: nextDayEffective(),
           assignedPosition: PITCHER_POS.has(waiverPos) ? "P" : waiverPos,
         },
       });
@@ -276,7 +306,7 @@ router.post("/process/:leagueId", requireAuth, requireCommissionerOrAdmin("leagu
         if (rosterEntry) {
           await tx.roster.update({
             where: { id: rosterEntry.id },
-            data: { releasedAt: new Date(), source: "WAIVER_DROP" },
+            data: { releasedAt: nextDayEffective(), source: "WAIVER_DROP" },
           });
 
           if (!teamDropMap.has(claim.teamId)) teamDropMap.set(claim.teamId, new Set());
@@ -291,6 +321,14 @@ router.post("/process/:leagueId", requireAuth, requireCommissionerOrAdmin("leagu
       });
 
       logs.push(`Claim ${claim.id} SUCCESS: Team ${claim.teamId} gets Player ${claim.playerId} for $${claim.bidAmount}`);
+    }
+
+    // Clear waiver priority overrides inside transaction (one-time use per run)
+    if (teamsWithOverrides.length > 0) {
+      await tx.team.updateMany({
+        where: { leagueId, waiverPriorityOverride: { not: null } },
+        data: { waiverPriorityOverride: null },
+      });
     }
   }, { timeout: 30_000 });
 

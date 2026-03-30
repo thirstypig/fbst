@@ -4,7 +4,7 @@ import type { NextFunction } from "express";
 // ── Mocks (hoisted) ──────────────────────────────────────────────
 
 const mockTx = {
-  roster: { create: vi.fn(), findFirst: vi.fn(), delete: vi.fn(), count: vi.fn().mockResolvedValue(10) },
+  roster: { create: vi.fn(), findFirst: vi.fn(), delete: vi.fn(), update: vi.fn(), count: vi.fn().mockResolvedValue(10) },
   player: { findUnique: vi.fn() },
   transactionEvent: { create: vi.fn() },
 };
@@ -175,6 +175,12 @@ describe("POST /transactions/claim", () => {
     });
 
     expect(res.status).toBe(200);
-    expect(mockTx.roster.delete).toHaveBeenCalled();
+    // Drop now uses soft-delete (update with releasedAt) instead of hard delete
+    expect(mockTx.roster.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 50 },
+        data: expect.objectContaining({ source: "DROP" }),
+      })
+    );
   });
 });

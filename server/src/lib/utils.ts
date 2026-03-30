@@ -1,4 +1,24 @@
 
+/**
+ * Returns tomorrow at 00:00 Pacific time.
+ * Used for roster effective dates — both acquiredAt and releasedAt
+ * are set to this so old owner keeps today's stats, new owner starts tomorrow.
+ */
+export function nextDayEffective(): Date {
+  const now = new Date();
+  const pacific = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+  const [m, d, y] = pacific.split("/");
+  // Build a date in UTC that represents tomorrow midnight Pacific
+  const todayPacific = new Date(`${y}-${m}-${d}T00:00:00-08:00`);
+  todayPacific.setDate(todayPacific.getDate() + 1);
+  return todayPacific;
+}
+
 /** Get ISO week key like "2026-W13" for weekly dedup. */
 export function getWeekKey(date: Date = new Date()): string {
   const d = new Date(date);

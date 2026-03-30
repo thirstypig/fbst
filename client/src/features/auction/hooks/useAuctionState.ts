@@ -153,10 +153,8 @@ export function useAuctionState(leagueId?: number | null) {
                 }
 
                 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                // Render's custom domain doesn't forward WebSocket upgrades — connect directly to Render URL in production
-                const host = window.location.hostname === 'thefantasticleagues.com'
-                    ? 'fbst-api.onrender.com'
-                    : window.location.host;
+                // Railway properly forwards WebSocket upgrades — use same host as the page
+                const host = window.location.host;
                 const wsUrl = `${protocol}//${host}/ws/auction?leagueId=${leagueId}&token=${encodeURIComponent(token)}`;
 
                 const ws = new WebSocket(wsUrl);

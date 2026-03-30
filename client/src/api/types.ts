@@ -73,6 +73,12 @@ export type TeamDetailResponse = {
     posPrimary: string;
     price: number;
   }>;
+  periodSummaries?: Array<{
+    periodId: number;
+    label: string;
+    periodPoints: number;
+    seasonPoints: number;
+  }>;
 };
 
 export interface TeamOwnership {

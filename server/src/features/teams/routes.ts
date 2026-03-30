@@ -300,6 +300,59 @@ router.get("/:id/summary", requireAuth, asyncHandler(async (req, res) => {
   }
 }));
 
+// GET /api/teams/:id/period-roster?periodId=X
+// Returns all roster entries that overlapped with the given period (including traded/dropped players)
+router.get("/:id/period-roster", requireAuth, asyncHandler(async (req, res) => {
+  const teamId = Number(req.params.id);
+  const periodId = Number(req.query.periodId);
+  if (Number.isNaN(teamId) || Number.isNaN(periodId)) {
+    return res.status(400).json({ error: "Invalid team or period id" });
+  }
+
+  const period = await prisma.period.findUnique({ where: { id: periodId } });
+  if (!period) return res.status(404).json({ error: "Period not found" });
+
+  // All roster entries that overlapped with this period
+  const rosters = await prisma.roster.findMany({
+    where: {
+      teamId,
+      acquiredAt: { lt: period.endDate },
+      OR: [
+        { releasedAt: null },
+        { releasedAt: { gt: period.startDate } },
+      ],
+    },
+    include: { player: true },
+    orderBy: { acquiredAt: "asc" },
+  });
+
+  // Fetch period stats for these players
+  const playerIds = rosters.map(r => r.playerId);
+  const periodStats = await prisma.playerStatsPeriod.findMany({
+    where: { periodId, playerId: { in: playerIds } },
+  });
+  const statsMap = new Map(periodStats.map(s => [s.playerId, s]));
+
+  const result = rosters.map(r => ({
+    id: r.id,
+    playerId: r.playerId,
+    mlbId: r.player.mlbId,
+    name: r.player.name,
+    posPrimary: r.player.posPrimary,
+    posList: r.player.posList,
+    mlbTeam: r.player.mlbTeam,
+    acquiredAt: r.acquiredAt,
+    releasedAt: r.releasedAt,
+    source: r.source,
+    price: r.price,
+    assignedPosition: r.assignedPosition,
+    isActive: r.releasedAt === null,
+    periodStats: statsMap.get(r.playerId) ?? null,
+  }));
+
+  res.json({ period: { id: period.id, name: period.name, startDate: period.startDate, endDate: period.endDate }, roster: result });
+}));
+
 // PATCH /api/teams/:teamId/roster/:rosterId
 // Update roster details (e.g. assigned position)
 router.patch("/:teamId/roster/:rosterId", requireAuth, requireTeamOwner("teamId"), validateBody(rosterUpdateSchema), asyncHandler(async (req, res) => {

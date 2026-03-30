@@ -43,7 +43,7 @@ import { logger } from './lib/logger.js';
 import cron from 'node-cron';
 import { syncAllPlayers } from './features/players/services/mlbSyncService.js';
 import { attachAuctionWs } from './features/auction/services/auctionWsService.js';
-import { syncAllActivePeriods } from './features/players/services/mlbStatsSyncService.js';
+import { syncAllActivePeriods, syncDailyStats } from './features/players/services/mlbStatsSyncService.js';
 
 // Validate required env vars at startup
 const REQUIRED_ENV = ["DATABASE_URL", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SESSION_SECRET"];
@@ -81,7 +81,7 @@ async function main() {
         directives: {
           defaultSrc: ["'self'"],
           scriptSrc: ["'self'", "https://accounts.google.com", "https://apis.google.com", "https://us-assets.i.posthog.com"],
-          connectSrc: ["'self'", "wss://thefantasticleagues.com", "wss://fbst-api.onrender.com", "wss://*.supabase.co", "https://*.supabase.co", "https://us.i.posthog.com", "https://us.posthog.com", "https://statsapi.mlb.com"],
+          connectSrc: ["'self'", "wss://app.thefantasticleagues.com", "wss://thefantasticleagues.com", "wss://*.supabase.co", "https://*.supabase.co", "https://us.i.posthog.com", "https://us.posthog.com", "https://statsapi.mlb.com"],
           imgSrc: ["'self'", "data:", "https://*.googleusercontent.com"],
           styleSrc: ["'self'", "'unsafe-inline'", "https:"],
           fontSrc: ["'self'", "https:", "data:"],
@@ -216,6 +216,21 @@ async function main() {
     }
   });
   logger.info({}, "Scheduled daily player stats sync at 13:00 UTC (~6 AM PT)");
+
+  // Daily per-day stats sync at 6:30 AM PT (13:30 UTC) — for date-aware stats attribution
+  cron.schedule('30 13 * * *', async () => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const dateStr = yesterday.toISOString().split("T")[0];
+    logger.info({ dateStr }, "Starting daily stats sync (per-day)");
+    try {
+      await syncDailyStats(dateStr);
+      logger.info({ dateStr }, "Daily stats sync (per-day) complete");
+    } catch (err) {
+      logger.error({ error: String(err), dateStr }, "Daily stats sync (per-day) failed");
+    }
+  });
+  logger.info({}, "Scheduled daily per-day stats sync at 13:30 UTC (~6:30 AM PT)");
 
   // --- 1. Static Assets (Frontend) ---
   // Resolve path to client/dist relative to this file (server/src/index.ts -> server/src -> server -> root -> client/dist)

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 
 import { getPlayerSeasonStats, type PlayerSeasonStat, getTeamDetails, getTeams, getTeamAiInsights, TeamInsightsResult } from "../../../api";
-import { getTeamAiInsightsHistory, type WeeklyInsightEntry } from "../api";
+import { getTeamAiInsightsHistory, getTeamPeriodRoster, type WeeklyInsightEntry, type PeriodRosterEntry } from "../api";
 import PlayerDetailModal from "../../../components/shared/PlayerDetailModal";
 import PlayerExpandedRow from "../../auction/components/PlayerExpandedRow";
 import { useLeague } from "../../../contexts/LeagueContext";
@@ -114,6 +114,12 @@ export default function Team() {
   // Trade block state
   const [tradeBlockIds, setTradeBlockIds] = useState<Set<number>>(new Set());
 
+  // Period roster state (for viewing historical period rosters)
+  const [periodRoster, setPeriodRoster] = useState<PeriodRosterEntry[] | null>(null);
+  const [selectedPeriodId, setSelectedPeriodId] = useState<number | null>(null);
+  const [periodRosterLoading, setPeriodRosterLoading] = useState(false);
+  const [availablePeriods, setAvailablePeriods] = useState<{ id: number; name: string }[]>([]);
+
   useEffect(() => {
     let ok = true;
 
@@ -146,6 +152,14 @@ export default function Team() {
           ]);
           if (!ok) return;
           setTradeBlockIds(new Set(tradeBlockData.playerIds));
+
+          // Extract available periods from team summary
+          if ((details.periodSummaries?.length ?? 0) > 0) {
+            setAvailablePeriods((details.periodSummaries ?? []).map((ps: any) => ({
+              id: ps.periodId,
+              name: ps.label || `Period ${ps.periodId}`,
+            })));
+          }
 
           // 4. Build player list from DB roster, merge in CSV stats
           const dbRoster: any[] = details.currentRoster || [];
@@ -261,6 +275,21 @@ export default function Team() {
     return () => { ok = false; };
   }, [dbTeamId, leagueId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Load period roster when a period is selected
+  useEffect(() => {
+    if (!selectedPeriodId || !dbTeamId) {
+      setPeriodRoster(null);
+      return;
+    }
+    let ok = true;
+    setPeriodRosterLoading(true);
+    getTeamPeriodRoster(dbTeamId, selectedPeriodId)
+      .then(data => { if (ok) setPeriodRoster(data.roster); })
+      .catch(() => { if (ok) setPeriodRoster(null); })
+      .finally(() => { if (ok) setPeriodRosterLoading(false); });
+    return () => { ok = false; };
+  }, [selectedPeriodId, dbTeamId]);
+
   const teamName = useMemo(() => getOgbaTeamName(code) || code, [code]);
 
   // Sort hitters by roster slot order: C, 1B, 2B, 3B, SS, MI, CM, OF, DH
@@ -332,8 +361,6 @@ export default function Team() {
             ? insightHistory.find(w => w.weekKey === selectedWeekKey) || aiInsights
             : aiInsights;
           const activeGrade = activeInsight?.overallGrade || aiInsights.overallGrade;
-          const activeMode = activeInsight?.mode || (aiInsights as any).mode;
-          const activeDate = activeInsight?.generatedAt || (aiInsights as any).generatedAt;
           const activeWeekKey = activeInsight?.weekKey || (aiInsights as any).weekKey;
           const activeInsightsList = activeInsight?.insights || aiInsights.insights || [];
 
@@ -347,20 +374,7 @@ export default function Team() {
               <div className="flex items-center gap-2 flex-wrap min-w-0">
                 <Sparkles size={14} className="text-[var(--lg-accent)] flex-shrink-0" />
                 <span className="text-xs font-semibold uppercase text-[var(--lg-text-muted)]">Weekly Insights</span>
-                {activeMode && (
-                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
-                    activeMode === "in-season"
-                      ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                      : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                  }`}>
-                    {activeMode}
-                  </span>
-                )}
-                {activeDate && (
-                  <span className="text-[10px] text-[var(--lg-text-muted)] opacity-60">
-                    {new Date(activeDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                  </span>
-                )}
+                <span className="text-[10px] text-[var(--lg-text-muted)] opacity-60">Updated Every Monday</span>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 {activeGrade && (
@@ -379,7 +393,22 @@ export default function Team() {
                 {insightHistory.length > 1 && (
                   <div className="mb-4 flex gap-1 overflow-x-auto pb-1 scrollbar-thin">
                     {insightHistory.map((week) => {
-                      const weekNum = week.weekKey.split("-W")[1] || week.weekKey;
+                      // Convert ISO week key (e.g., "2026-W14") to "Week of M/D"
+                      const weekLabel = (() => {
+                        const match = week.weekKey.match(/^(\d{4})-W(\d{1,2})$/);
+                        if (!match) return week.weekKey;
+                        const [, yearStr, weekStr] = match;
+                        const year = parseInt(yearStr);
+                        const weekNum = parseInt(weekStr);
+                        // ISO week 1 contains Jan 4; Monday of week 1
+                        const jan4 = new Date(year, 0, 4);
+                        const dayOfWeek = jan4.getDay() || 7; // Mon=1..Sun=7
+                        const mondayWeek1 = new Date(jan4);
+                        mondayWeek1.setDate(jan4.getDate() - dayOfWeek + 1);
+                        const monday = new Date(mondayWeek1);
+                        monday.setDate(mondayWeek1.getDate() + (weekNum - 1) * 7);
+                        return `Week of ${monday.getMonth() + 1}/${monday.getDate()}`;
+                      })();
                       const isActive = week.weekKey === selectedWeekKey;
                       return (
                         <button
@@ -391,7 +420,7 @@ export default function Team() {
                               : "bg-[var(--lg-bg-card)] text-[var(--lg-text-muted)] border border-[var(--lg-border-faint)] hover:text-[var(--lg-text-primary)] hover:border-[var(--lg-accent)]/30"
                           }`}
                         >
-                          W{weekNum}
+                          {weekLabel}
                           {week.overallGrade && (
                             <span className={`ml-1.5 ${isActive ? "opacity-80" : "opacity-60"}`}>{week.overallGrade}</span>
                           )}
@@ -424,16 +453,98 @@ export default function Team() {
                     </div>
                   ))}
                 </div>
-                {activeWeekKey && (
-                  <div className="mt-3 text-center text-[10px] text-[var(--lg-text-muted)] opacity-50">
-                    Week {activeWeekKey} · Powered by <strong>Google Gemini</strong> & <strong>Anthropic Claude</strong>
-                  </div>
-                )}
+                <div className="mt-3 text-center text-[10px] text-[var(--lg-text-muted)] opacity-50">
+                  Powered by <strong>Google Gemini</strong> & <strong>Anthropic Claude</strong>
+                </div>
               </div>
             )}
           </div>
           );
         })()}
+
+        {/* Period Roster Selector */}
+        {availablePeriods.length > 0 && (
+          <div className="mb-6 flex items-center gap-3">
+            <span className="text-xs font-semibold uppercase text-[var(--lg-text-muted)]">Period Roster</span>
+            <select
+              className="appearance-none bg-[var(--lg-tint)] border border-[var(--lg-border-subtle)] rounded-lg px-3 py-1.5 text-xs text-[var(--lg-text-primary)] cursor-pointer"
+              value={selectedPeriodId ?? ""}
+              onChange={e => setSelectedPeriodId(e.target.value ? Number(e.target.value) : null)}
+            >
+              <option value="">Current Roster</option>
+              {availablePeriods.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+            {selectedPeriodId && (
+              <span className="text-[10px] text-[var(--lg-text-muted)] opacity-60">
+                Showing all players on this team during the selected period
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Period Roster View (when a period is selected) */}
+        {selectedPeriodId && (
+          <div className="mb-8">
+            {periodRosterLoading ? (
+              <div className="text-center py-8 text-sm text-[var(--lg-text-muted)] animate-pulse">Loading period roster...</div>
+            ) : periodRoster && periodRoster.length > 0 ? (
+              <TableCard>
+                <Table>
+                  <THead>
+                    <Tr>
+                      <Th align="center">POS</Th>
+                      <Th align="center">PLAYER</Th>
+                      <Th align="center">TM</Th>
+                      <Th align="center">$</Th>
+                      <Th align="center">STATUS</Th>
+                      <Th align="center">SOURCE</Th>
+                    </Tr>
+                  </THead>
+                  <tbody>
+                    {periodRoster.map(r => (
+                      <Tr
+                        key={r.id}
+                        className={`border-t border-[var(--lg-border-faint)] ${!r.isActive ? "opacity-50" : ""}`}
+                      >
+                        <Td align="center">
+                          <span className="text-[10px] font-mono font-semibold text-[var(--lg-accent)]">
+                            {r.assignedPosition || mapPosition(r.posPrimary, outfieldMode)}
+                          </span>
+                        </Td>
+                        <Td align="center">
+                          <span className="text-xs font-medium text-[var(--lg-text-primary)]">{r.name}</span>
+                        </Td>
+                        <Td align="center">
+                          <span className="text-[10px] text-[var(--lg-text-muted)]">{r.mlbTeam || "—"}</span>
+                        </Td>
+                        <Td align="center">
+                          <span className="text-[10px] text-[var(--lg-text-muted)]">${r.price}</span>
+                        </Td>
+                        <Td align="center">
+                          {r.isActive ? (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Active</span>
+                          ) : (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-500/10 text-red-400 border border-red-500/20">
+                              {r.source === "TRADE_OUT" ? "Traded" : r.source === "WAIVER_DROP" ? "Waived" : "Dropped"}{" "}
+                              {r.releasedAt ? new Date(r.releasedAt).toLocaleDateString("en-US", { month: "numeric", day: "numeric" }) : ""}
+                            </span>
+                          )}
+                        </Td>
+                        <Td align="center">
+                          <span className="text-[10px] text-[var(--lg-text-muted)]">{r.source}</span>
+                        </Td>
+                      </Tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </TableCard>
+            ) : (
+              <div className="text-center py-8 text-sm text-[var(--lg-text-muted)]">No roster data for this period.</div>
+            )}
+          </div>
+        )}
 
         <div className="mb-10 flex justify-center">
           <div className="lg-card p-1">

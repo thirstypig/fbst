@@ -40,7 +40,7 @@ export default function ActivityPage() {
       (m: any) => Number(m.leagueId) === currentLeagueId && m.role === "COMMISSIONER"
     );
 
-  const [activeTab, setActiveTab] = useState<ActivityTab>("add_drop");
+  const [activeTab, setActiveTab] = useState<ActivityTab>("waivers");
   const [loading, setLoading] = useState(true);
 
   // Transaction data
@@ -202,6 +202,14 @@ export default function ActivityPage() {
             <div className="flex items-center gap-4">
               <div className="lg-card p-1 flex gap-2">
                 <Button
+                  onClick={() => setActiveTab("waivers")}
+                  variant={activeTab === "waivers" ? "default" : "ghost"}
+                  size="sm"
+                  className="px-6"
+                >
+                  Waivers
+                </Button>
+                <Button
                   onClick={() => setActiveTab("add_drop")}
                   variant={activeTab === "add_drop" ? "default" : "ghost"}
                   size="sm"
@@ -218,14 +226,6 @@ export default function ActivityPage() {
                   Trades
                 </Button>
                 <Button
-                  onClick={() => setActiveTab("waivers")}
-                  variant={activeTab === "waivers" ? "default" : "ghost"}
-                  size="sm"
-                  className="px-6"
-                >
-                  Waivers
-                </Button>
-                <Button
                   onClick={() => setActiveTab("history")}
                   variant={activeTab === "history" ? "default" : "ghost"}
                   size="sm"
@@ -240,6 +240,15 @@ export default function ActivityPage() {
       </div>
 
       <div className="mt-6">
+        {/* Waivers Tab */}
+        {activeTab === "waivers" && (
+          <ActivityWaiversTab
+            sortedWaiverOrder={sortedWaiverOrder}
+            leagueId={currentLeagueId}
+            isCommissioner={isCommissioner}
+          />
+        )}
+
         {/* Add/Drop Tab */}
         {activeTab === "add_drop" && (
           <div className="liquid-glass rounded-3xl p-1 bg-[var(--lg-tint)]">
@@ -349,15 +358,6 @@ export default function ActivityPage() {
               </div>
             )}
           </div>
-        )}
-
-        {/* Waivers Tab */}
-        {activeTab === "waivers" && (
-          <ActivityWaiversTab
-            sortedWaiverOrder={sortedWaiverOrder}
-            leagueId={currentLeagueId}
-            isCommissioner={isCommissioner}
-          />
         )}
 
         {/* History Tab */}

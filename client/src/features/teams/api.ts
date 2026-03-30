@@ -20,6 +20,32 @@ export async function updateRosterPosition(teamId: number, rosterId: number, pos
   });
 }
 
+// --- Period Roster ---
+
+export interface PeriodRosterEntry {
+  id: number;
+  playerId: number;
+  mlbId: number | null;
+  name: string;
+  posPrimary: string;
+  posList: string;
+  mlbTeam: string | null;
+  acquiredAt: string;
+  releasedAt: string | null;
+  source: string;
+  price: number;
+  assignedPosition: string | null;
+  isActive: boolean;
+  periodStats: any | null;
+}
+
+export async function getTeamPeriodRoster(teamId: number, periodId: number): Promise<{
+  period: { id: number; name: string; startDate: string; endDate: string };
+  roster: PeriodRosterEntry[];
+}> {
+  return fetchJsonApi(`${API_BASE}/teams/${teamId}/period-roster?periodId=${periodId}`);
+}
+
 // --- Trade Block ---
 
 export async function getTradeBlock(teamId: number): Promise<{ playerIds: number[] }> {

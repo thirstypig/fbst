@@ -9,6 +9,7 @@ import { validateBody } from "../../middleware/validate.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { requireSeasonStatus } from "../../middleware/seasonGuard.js";
 import { logger } from "../../lib/logger.js";
+import { nextDayEffective } from "../../lib/utils.js";
 
 /**
  * Auto-generate AI analysis after a trade is processed.
@@ -120,11 +121,18 @@ async function assertCounterpartyAccess(
 export const tradeItemSchema = z.object({
   senderId: z.number().int().positive(),
   recipientId: z.number().int().positive(),
-  assetType: z.enum(["PLAYER", "BUDGET", "PICK"]),
+  assetType: z.enum(["PLAYER", "BUDGET", "PICK", "FUTURE_BUDGET", "WAIVER_PRIORITY"]),
   playerId: z.number().int().positive().optional(),
   amount: z.number().nonnegative().optional(),
   pickRound: z.number().int().positive().optional(),
-});
+  season: z.number().int().min(2020).max(2100).optional(),
+}).refine((item) => {
+  if (item.assetType === "PLAYER") return !!item.playerId;
+  if (item.assetType === "BUDGET") return item.amount != null && item.amount > 0;
+  if (item.assetType === "FUTURE_BUDGET") return item.amount != null && item.amount > 0 && !!item.season;
+  if (item.assetType === "PICK") return !!item.pickRound;
+  return true; // WAIVER_PRIORITY has no required fields
+}, { message: "Missing required fields for asset type" });
 
 export const tradeProposalSchema = z.object({
   leagueId: z.number().int().positive(),
@@ -170,6 +178,7 @@ router.post("/", requireAuth, validateBody(tradeProposalSchema), requireSeasonSt
           playerId: item.playerId,
           amount: item.amount,
           pickRound: item.pickRound,
+          season: item.season,
         })),
       },
     },
@@ -376,7 +385,7 @@ router.post("/:id/process", requireAuth, asyncHandler(async (req, res) => {
         if (rosterEntry) {
            await tx.roster.update({
              where: { id: rosterEntry.id },
-             data: { releasedAt: new Date(), source: "TRADE_OUT" },
+             data: { releasedAt: nextDayEffective(), source: "TRADE_OUT" },
            });
 
            await assertPlayerAvailable(tx, item.playerId, trade.leagueId);
@@ -392,7 +401,7 @@ router.post("/:id/process", requireAuth, asyncHandler(async (req, res) => {
                teamId: item.recipientId,
                playerId: item.playerId,
                source: "TRADE_IN",
-               acquiredAt: new Date(),
+               acquiredAt: nextDayEffective(),
                price: rosterEntry.price,
                assignedPosition: tradePos,
              },
@@ -412,6 +421,28 @@ router.post("/:id/process", requireAuth, asyncHandler(async (req, res) => {
           where: { id: item.recipientId },
           data: { budget: { increment: item.amount || 0 } },
         });
+      } else if (item.assetType === "FUTURE_BUDGET") {
+        // Future draft dollars — stored in DB only. Applied when target season transitions to DRAFT.
+        if (!item.season || !item.amount || item.amount <= 0) {
+          throw new Error("FUTURE_BUDGET requires a valid season and positive amount");
+        }
+        logger.info({ tradeId: id, amount: item.amount, season: item.season }, "Future budget trade recorded");
+      } else if (item.assetType === "WAIVER_PRIORITY") {
+        // Swap waiver priority overrides between sender and recipient
+        const senderTeam = await tx.team.findUnique({ where: { id: item.senderId }, select: { waiverPriorityOverride: true } });
+        const recipientTeam = await tx.team.findUnique({ where: { id: item.recipientId }, select: { waiverPriorityOverride: true } });
+        // Swap: sender gets recipient's priority, recipient gets sender's
+        await tx.team.update({
+          where: { id: item.senderId },
+          data: { waiverPriorityOverride: recipientTeam?.waiverPriorityOverride ?? null },
+        });
+        await tx.team.update({
+          where: { id: item.recipientId },
+          data: { waiverPriorityOverride: senderTeam?.waiverPriorityOverride ?? null },
+        });
+      } else if (item.assetType === "PICK" && item.pickRound) {
+        // Draft pick trade — recorded in DB. For auction leagues this is a placeholder.
+        logger.info({ tradeId: id, round: item.pickRound, season: item.season }, "Draft pick trade recorded");
       }
     }
 

@@ -11,6 +11,7 @@ import { requireSeasonStatus } from "../../middleware/seasonGuard.js";
 import { logger } from "../../lib/logger.js";
 import { writeAuditLog } from "../../lib/auditLog.js";
 import { assertPlayerAvailable, assertRosterLimit } from "../../lib/rosterGuard.js";
+import { nextDayEffective } from "../../lib/utils.js";
 
 const dropSchema = z.object({
   leagueId: z.number().int().positive(),
@@ -118,7 +119,7 @@ router.post("/transactions/claim", requireAuth, validateBody(claimSchema), requi
     const assignedPos = PITCHER_POS.has(primaryPos) ? "P" : primaryPos;
 
     await tx.roster.create({
-      data: { teamId, playerId, source: 'waiver_claim', acquiredAt: new Date(), assignedPosition: assignedPos }
+      data: { teamId, playerId, source: 'waiver_claim', acquiredAt: nextDayEffective(), assignedPosition: assignedPos }
     });
     const rowHash = `CLAIM-${crypto.randomUUID()}-${playerId}`;
 
@@ -142,7 +143,7 @@ router.post("/transactions/claim", requireAuth, validateBody(claimSchema), requi
       });
 
       if (dropRoster) {
-        await tx.roster.delete({ where: { id: dropRoster.id } });
+        await tx.roster.update({ where: { id: dropRoster.id }, data: { releasedAt: nextDayEffective(), source: "DROP" } });
 
         const dropPlayer = await tx.player.findUnique({ where: { id: dropPlayerId } });
         await tx.transactionEvent.create({
@@ -202,7 +203,7 @@ router.post("/transactions/drop", requireAuth, validateBody(dropSchema), require
   const season = league?.season ?? new Date().getFullYear();
 
   await prisma.$transaction(async (tx) => {
-    await tx.roster.delete({ where: { id: rosterEntry.id } });
+    await tx.roster.update({ where: { id: rosterEntry.id }, data: { releasedAt: nextDayEffective(), source: "DROP" } });
 
     const player = await tx.player.findUnique({ where: { id: playerId } });
     await tx.transactionEvent.create({
