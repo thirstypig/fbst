@@ -486,7 +486,28 @@ router.get("/player-videos", requireAuth, requireLeagueMember("leagueId"), async
   // Sort by published date descending
   allVideos.sort((a, b) => new Date(b.published).getTime() - new Date(a.published).getTime());
 
-  res.json({ videos: allVideos.slice(0, 12), teamName: team.name, source: "api" });
+  // Filter out non-embeddable videos using YouTube Videos API
+  let embeddableVideos = allVideos;
+  if (YOUTUBE_API_KEY && allVideos.length > 0) {
+    try {
+      const ids = allVideos.slice(0, 20).map(v => v.videoId).filter(Boolean).join(",");
+      const statusUrl = `https://www.googleapis.com/youtube/v3/videos?part=status&id=${ids}&key=${YOUTUBE_API_KEY}`;
+      const statusRes = await fetch(statusUrl, { signal: AbortSignal.timeout(5000) });
+      if (statusRes.ok) {
+        const statusData = await statusRes.json() as any;
+        const embeddableIds = new Set(
+          (statusData.items || [])
+            .filter((item: any) => item.status?.embeddable === true)
+            .map((item: any) => item.id)
+        );
+        embeddableVideos = allVideos.filter(v => embeddableIds.has(v.videoId));
+      }
+    } catch (err) {
+      logger.warn({ error: String(err) }, "Failed to check video embeddability — returning all videos");
+    }
+  }
+
+  res.json({ videos: embeddableVideos.slice(0, 12), teamName: team.name, source: "api" });
 }));
 
 // ─── GET /reddit-baseball — Reddit baseball feed with player cross-referencing ───

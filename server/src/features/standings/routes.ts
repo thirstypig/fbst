@@ -161,27 +161,40 @@ router.get("/season", requireAuth, asyncHandler(async (req, res) => {
   const periodIds = periods.map((p) => p.id);
   const periodNames = periods.map((p) => p.name);
 
-  // Compute standings per period
-  const periodStandings = await Promise.all(
+  // Compute standings + raw stats per period
+  const periodData = await Promise.all(
     periodIds.map(async (pid) => {
       const teamStats = await computeTeamStatsFromDb(leagueId, pid);
-      return computeStandingsFromStats(teamStats);
+      const standings = computeStandingsFromStats(teamStats);
+      return { teamStats, standings };
     })
   );
 
-  // Build per-team rows with period point breakdowns
+  // Build per-team rows with period point breakdowns + raw stats
   const teams = await prisma.team.findMany({
     where: { leagueId },
     select: { id: true, name: true, code: true },
     orderBy: { id: "asc" },
   });
 
+  // Category keys for stats view
+  const categoryKeys = ["R", "HR", "RBI", "SB", "AVG", "W", "S", "K", "ERA", "WHIP"];
+
   const rows = teams.map((t) => {
-    const periodPoints = periodStandings.map((standings) => {
+    const periodPoints = periodData.map(({ standings }) => {
       const entry = standings.find((s) => s.teamId === t.id);
       return entry?.points ?? 0;
     });
     const totalPoints = periodPoints.reduce((sum, p) => sum + p, 0);
+
+    // Raw stats per period (for stats toggle view)
+    const periodStatValues: Record<string, number[]> = {};
+    for (const key of categoryKeys) {
+      periodStatValues[key] = periodData.map(({ teamStats }) => {
+        const team = teamStats.find((ts) => ts.team.id === t.id);
+        return team ? (team as any)[key] ?? 0 : 0;
+      });
+    }
 
     return {
       teamId: t.id,
@@ -189,13 +202,14 @@ router.get("/season", requireAuth, asyncHandler(async (req, res) => {
       teamCode: t.code ?? t.name.substring(0, 3).toUpperCase(),
       periodPoints,
       totalPoints,
+      periodStats: periodStatValues,
     };
   });
 
   // Sort by totalPoints descending
   rows.sort((a, b) => b.totalPoints - a.totalPoints);
 
-  res.json({ periodIds, periodNames, rows });
+  res.json({ periodIds, periodNames, categoryKeys, rows });
 }));
 
 // --- Settlement data: /api/standings/settlement/:leagueId ---

@@ -29,6 +29,7 @@ type SeasonStandingsApiRow = {
 type SeasonStandingsApiResponse = {
   periodIds: number[];
   periodNames?: string[];
+  categoryKeys?: string[];
   rows: SeasonStandingsApiRow[];
 };
 
@@ -39,6 +40,7 @@ type NormalizedSeasonRow = {
   teamCode?: string;
   periodPoints: number[];
   totalPoints: number;
+  periodStats?: Record<string, number[]>; // category key → values per period
 };
 
 
@@ -69,6 +71,7 @@ function normalizeSeasonRow(row: SeasonStandingsApiRow, periodIds: number[]): No
     teamCode,
     periodPoints,
     totalPoints,
+    periodStats: (row as any).periodStats ?? undefined,
   };
 }
 
@@ -98,6 +101,11 @@ const SeasonPage: React.FC = () => {
   // Last updated timestamps
   const [seasonUpdatedAt, setSeasonUpdatedAt] = useState<Date | null>(null);
   const [periodUpdatedAt, setPeriodUpdatedAt] = useState<Date | null>(null);
+
+  // Season matrix mode: points (roto) vs stats (raw values)
+  const [matrixMode, setMatrixMode] = useState<'points' | 'stats'>('points');
+  const [selectedStatCat, setSelectedStatCat] = useState<string>("R");
+  const [categoryKeys, setCategoryKeys] = useState<string[]>([]);
 
   // Season matrix sort state
   const [matrixSortKey, setMatrixSortKey] = useState<string>("total");
@@ -140,7 +148,7 @@ const SeasonPage: React.FC = () => {
     }
   }, [expandedTeamId, teamRosters]);
 
-  // Sort logic for matrix
+  // Sort logic for matrix (handles both points and stats mode)
   const sortedRows = useMemo(() => {
     return [...rows].sort((a, b) => {
       let va: number | string;
@@ -150,11 +158,21 @@ const SeasonPage: React.FC = () => {
         vb = b.teamName.toLowerCase();
       } else if (matrixSortKey.startsWith("p_")) {
         const idx = Number(matrixSortKey.slice(2));
-        va = a.periodPoints[idx] ?? 0;
-        vb = b.periodPoints[idx] ?? 0;
+        if (matrixMode === "stats" && selectedStatCat) {
+          va = a.periodStats?.[selectedStatCat]?.[idx] ?? 0;
+          vb = b.periodStats?.[selectedStatCat]?.[idx] ?? 0;
+        } else {
+          va = a.periodPoints[idx] ?? 0;
+          vb = b.periodPoints[idx] ?? 0;
+        }
       } else {
-        va = a.totalPoints;
-        vb = b.totalPoints;
+        if (matrixMode === "stats" && selectedStatCat) {
+          va = (a.periodStats?.[selectedStatCat] ?? []).reduce((s, v) => s + v, 0);
+          vb = (b.periodStats?.[selectedStatCat] ?? []).reduce((s, v) => s + v, 0);
+        } else {
+          va = a.totalPoints;
+          vb = b.totalPoints;
+        }
       }
       const cmp = typeof va === "string" ? va.localeCompare(vb as string) : (va as number) - (vb as number);
       return matrixSortDesc ? -cmp : cmp;
@@ -175,6 +193,7 @@ const SeasonPage: React.FC = () => {
 
         const normalized = (data.rows || []).map(r => normalizeSeasonRow(r as any, data.periodIds));
         setRows(normalized);
+        if (data.categoryKeys) setCategoryKeys(data.categoryKeys);
         setSeasonUpdatedAt(new Date());
 
         if (data.periodIds?.length > 0) {
@@ -312,13 +331,38 @@ const SeasonPage: React.FC = () => {
           <div className="mt-8">
             <div className="mb-6 flex items-center justify-between px-2">
                <div>
-                  <h2 className="text-2xl font-semibold text-[var(--lg-text-heading)]">Point Matrix</h2>
+                  <h2 className="text-2xl font-semibold text-[var(--lg-text-heading)]">
+                    {matrixMode === "points" ? "Point Matrix" : `Stat Matrix — ${selectedStatCat}`}
+                  </h2>
                   <div className="mt-1 text-sm font-medium text-[var(--lg-text-secondary)]">
-                    Cumulative results across all completed periods.
+                    {matrixMode === "points" ? "Roto points across all periods." : "Raw stat values across all periods."}
                     {seasonUpdatedAt && (
                       <span className="ml-2 text-[10px] text-[var(--lg-text-muted)] opacity-60">
                         Updated {seasonUpdatedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })} at {seasonUpdatedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
                       </span>
+                    )}
+                  </div>
+                  <div className="mt-3 flex items-center gap-3 flex-wrap">
+                    <div className="lg-card p-1 flex gap-1">
+                      <Button onClick={() => setMatrixMode("points")} variant={matrixMode === "points" ? "default" : "ghost"} size="sm" className="px-4">Points</Button>
+                      <Button onClick={() => setMatrixMode("stats")} variant={matrixMode === "stats" ? "default" : "ghost"} size="sm" className="px-4">Stats</Button>
+                    </div>
+                    {matrixMode === "stats" && categoryKeys.length > 0 && (
+                      <div className="flex gap-1 flex-wrap">
+                        {categoryKeys.map(cat => (
+                          <button
+                            key={cat}
+                            onClick={() => setSelectedStatCat(cat)}
+                            className={`px-2 py-1 rounded text-[10px] font-bold transition-colors ${
+                              selectedStatCat === cat
+                                ? "bg-[var(--lg-accent)] text-white"
+                                : "bg-[var(--lg-bg-card)] text-[var(--lg-text-muted)] border border-[var(--lg-border-faint)] hover:text-[var(--lg-text-primary)]"
+                            }`}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
                     )}
                   </div>
                </div>
@@ -373,14 +417,28 @@ const SeasonPage: React.FC = () => {
                             </div>
                           </ThemedTd>
 
-                          {periodIds.map((_pid, pIdx) => (
-                            <ThemedTd key={pIdx} align="center">
-                              {Number(row.periodPoints[pIdx] || 0).toFixed(1).replace(/\.0$/, "")}
-                            </ThemedTd>
-                          ))}
+                          {periodIds.map((_pid, pIdx) => {
+                            const val = matrixMode === "stats"
+                              ? (row.periodStats?.[selectedStatCat]?.[pIdx] ?? 0)
+                              : (row.periodPoints[pIdx] ?? 0);
+                            const isRate = ["AVG", "ERA", "WHIP"].includes(selectedStatCat);
+                            const formatted = matrixMode === "stats"
+                              ? (isRate ? Number(val).toFixed(3).replace(/^0/, "") : String(Math.round(val)))
+                              : Number(val).toFixed(1).replace(/\.0$/, "");
+                            return (
+                              <ThemedTd key={pIdx} align="center">{formatted}</ThemedTd>
+                            );
+                          })}
 
                           <ThemedTd align="center">
-                            <span className="text-sm font-semibold text-[var(--lg-accent)]">{row.totalPoints.toFixed(1).replace(/\.0$/, "")}</span>
+                            {matrixMode === "stats" ? (() => {
+                              const vals = row.periodStats?.[selectedStatCat] ?? [];
+                              const total = vals.reduce((s, v) => s + v, 0);
+                              const isRate = ["AVG", "ERA", "WHIP"].includes(selectedStatCat);
+                              return <span className="text-sm font-semibold text-[var(--lg-accent)]">{isRate ? (total / Math.max(vals.length, 1)).toFixed(3).replace(/^0/, "") : String(Math.round(total))}</span>;
+                            })() : (
+                              <span className="text-sm font-semibold text-[var(--lg-accent)]">{row.totalPoints.toFixed(1).replace(/\.0$/, "")}</span>
+                            )}
                           </ThemedTd>
                           <ThemedTd align="right" className="pr-8">
                              {row.teamCode ? (
