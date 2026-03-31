@@ -4,6 +4,40 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
+## Session 2026-03-31 (Session 53) — Code Review Remediation, Dashboard Overhaul, Depth Charts
+
+### Completed
+- **6-agent code review**: TypeScript, Security, Performance, Architecture, Simplicity, Learnings reviewers ran in parallel — 17 findings synthesized
+- **P1 fix**: Missing `releasedAt: null` in `/my-players-today` — ghost players appearing in widget
+- **P2 security**: Added `requireAuth` to `/scores` and `/transactions` (were open proxies)
+- **P2 validation**: `weekKey` format validation with `WEEK_KEY_REGEX`
+- **P2 type safety**: Created `DigestResponse` type, eliminated all `any` casts in digest JSX; imported `TeamStatRow` via `ReturnType` to remove `as any` double-casts
+- **P2 architecture**: Extracted `digestService.ts` from mlb-feed/routes.ts (routes: 1,196→1,153 lines)
+- **News feed overhaul**: Unified shared filter across all feeds; converted 3-column grid to 5-tab layout (MLBTradeRumors.com, Reddit, MLB.com, ESPN, Yahoo Sports); added source attribution
+- **New RSS endpoints**: `GET /mlb/mlb-news` (MLB.com), `GET /mlb/espn-news` (ESPN)
+- **Depth charts**: `GET /mlb/depth-chart?teamId=N` endpoint (MLB Stats API, 1hr cache); Home page component with 30-team dropdown, position-grouped table, injury tags
+- **Dashboard redesign**: "MLB Today" → "Dashboard" with league/team subtitle; section anchor navigation (Stats, Digest, Scores, News, YouTube, Depth Charts)
+
+### Pending / Next Steps
+- [ ] AI Insights page — remove Generate button, show prompts for transparency
+- [ ] Weekly Digest — add AI attribution/source
+- [ ] Commissioner Seasons tab — edit/add periods for 2026
+- [ ] Create test season for trades/waivers testing
+- [ ] Home.tsx decomposition (Phase 3B) — extract sub-components
+- [ ] Auto-refresh interval stabilization (Phase 3C)
+
+### Concerns / Tech Debt
+- Home.tsx still 1,390 lines (grew with depth charts + nav); Phase 3B extraction still needed
+- 3 RSS endpoint handlers duplicate the same XML parsing logic — could extract shared `parseRssFeed()` helper
+- Depth chart default is hardcoded to LAD (119); could auto-detect from user's rostered players' MLB teams
+
+### Test Results
+- Server: 484 passing, 2 pre-existing failures (standings/routes.test.ts)
+- Client: TypeScript compiles clean
+- Both servers verified running on 4010/3010
+
+---
+
 ## Session 2026-03-31 (Session 52)
 
 ### Completed

@@ -85,7 +85,7 @@ The codebase is organized by **domain feature modules**. Each feature encapsulat
 | `admin` | routes | 1 page, 2 components | System admin panel (includes league creation + CSV import) |
 | `archive` | routes, 3 archive services | 1 page, api | Historical data import/export |
 | `periods` | routes | 1 page (Season) | Season/period standings with toggle |
-| `mlb-feed` | routes | — | Live MLB scores, transactions, my-players-today, weekly league digest |
+| `mlb-feed` | routes, digestService | — | Live MLB scores, transactions, my-players-today, weekly league digest, depth charts, news feeds (MLB.com, ESPN, Yahoo, Reddit, Trade Rumors) |
 | `ai` | — | 3 pages | AI Insights hub, Draft Report (`/draft-report`), league digest on Home page |
 
 ### Feature Module Pattern
@@ -130,6 +130,9 @@ Some features import from other features' services or components.
 - `auction/routes.ts` imports `seasons/services/seasonService` (auto-transition on init)
 - `leagues/routes.ts` reads `franchise.inviteCode` for invite code endpoints
 - `commissioner/services/CommissionerService` creates/links `Franchise` rows on league creation
+- `mlb-feed/services/digestService` imports `standings/services/standingsService` (dynamic, for digest context)
+- `mlb-feed/services/digestService` imports `lib/sportConfig` (dynamic, `isKeeperRoster`)
+- `mlb-feed/routes.ts` imports `services/aiAnalysisService` (dynamic, for digest generation)
 
 **Client (component imports):**
 - `commissioner/pages/Commissioner` imports `keeper-prep/components/KeeperPrepDashboard`
