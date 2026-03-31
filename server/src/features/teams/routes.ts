@@ -309,6 +309,16 @@ router.get("/:id/period-roster", requireAuth, asyncHandler(async (req, res) => {
     return res.status(400).json({ error: "Invalid team or period id" });
   }
 
+  // Verify league membership (admins bypass)
+  if (!req.user!.isAdmin) {
+    const team = await prisma.team.findUnique({ where: { id: teamId }, select: { leagueId: true } });
+    if (!team) return res.status(404).json({ error: "Team not found" });
+    const membership = await prisma.leagueMembership.findUnique({
+      where: { leagueId_userId: { leagueId: team.leagueId, userId: req.user!.id } },
+    });
+    if (!membership) return res.status(403).json({ error: "Not a member of this league" });
+  }
+
   const period = await prisma.period.findUnique({ where: { id: periodId } });
   if (!period) return res.status(404).json({ error: "Period not found" });
 

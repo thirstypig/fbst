@@ -579,7 +579,7 @@ router.post("/:id/reverse", requireAuth, asyncHandler(async (req, res) => {
         // Release from recipient (who received the player)
         await tx.roster.updateMany({
           where: { teamId: item.recipientId, playerId: item.playerId, releasedAt: null },
-          data: { releasedAt: new Date(), source: "TRADE_REVERSE" },
+          data: { releasedAt: nextDayEffective(), source: "TRADE_REVERSE" },
         });
         // Create new roster entry on original sender
         await tx.roster.create({
@@ -588,7 +588,7 @@ router.post("/:id/reverse", requireAuth, asyncHandler(async (req, res) => {
             playerId: item.playerId,
             price: item.amount || 0,
             source: "TRADE_REVERSE",
-            acquiredAt: new Date(),
+            acquiredAt: nextDayEffective(),
           },
         });
       } else if (item.assetType === "BUDGET") {

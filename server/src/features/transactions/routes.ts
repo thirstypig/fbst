@@ -139,7 +139,7 @@ router.post("/transactions/claim", requireAuth, validateBody(claimSchema), requi
 
     if (dropPlayerId) {
       const dropRoster = await tx.roster.findFirst({
-        where: { teamId, playerId: dropPlayerId }
+        where: { teamId, playerId: dropPlayerId, releasedAt: null }
       });
 
       if (dropRoster) {

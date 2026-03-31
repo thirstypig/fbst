@@ -6,17 +6,15 @@
  */
 export function nextDayEffective(): Date {
   const now = new Date();
-  const pacific = new Intl.DateTimeFormat("en-US", {
+  // Get today's date in Pacific time (handles PST/PDT automatically)
+  const pacific = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Los_Angeles",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(now);
-  const [m, d, y] = pacific.split("/");
-  // Build a date in UTC that represents tomorrow midnight Pacific
-  const todayPacific = new Date(`${y}-${m}-${d}T00:00:00-08:00`);
-  todayPacific.setDate(todayPacific.getDate() + 1);
-  return todayPacific;
+  }).format(now); // "2026-03-30" (YYYY-MM-DD format from en-CA locale)
+  // Parse as a plain date (noon UTC avoids any date-boundary issues)
+  const today = new Date(pacific + "T12:00:00Z");
+  today.setUTCDate(today.getUTCDate() + 1);
+  today.setUTCHours(0, 0, 0, 0);
+  return today;
 }
 
 /** Get ISO week key like "2026-W13" for weekly dedup. */
