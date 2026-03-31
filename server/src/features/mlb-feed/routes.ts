@@ -900,16 +900,51 @@ router.get(
 
 // ─── Weekly League Digest ────────────────────────────────────────────────────
 
-import { getWeekKey } from "../../lib/utils.js";
+import { getWeekKey, weekKeyLabel } from "../../lib/utils.js";
 
 const tradeStyles = ["conservative", "outrageous", "fun"] as const;
 
-// GET /api/mlb/league-digest?leagueId=N
+/** Ordinal suffix: 1→"st", 2→"nd", 3→"rd", else "th" */
+function ordinal(n: number): string {
+  if (n % 100 >= 11 && n % 100 <= 13) return "th";
+  return ["th", "st", "nd", "rd"][n % 10] ?? "th";
+}
+
+// GET /api/mlb/league-digest/weeks?leagueId=N — list all persisted digest weeks
+router.get("/league-digest/weeks", requireAuth, requireLeagueMember("leagueId"), asyncHandler(async (req, res) => {
+  const leagueId = Number(req.query.leagueId);
+  if (!Number.isFinite(leagueId)) return res.status(400).json({ error: "Missing leagueId" });
+
+  const rows = await prisma.aiInsight.findMany({
+    where: { type: "league_digest", leagueId },
+    select: { weekKey: true, createdAt: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const currentWeekKey = getWeekKey();
+  const weeks = rows.map(r => ({
+    weekKey: r.weekKey,
+    generatedAt: r.createdAt.toISOString(),
+    label: weekKeyLabel(r.weekKey),
+  }));
+
+  // Always include current week (even if not yet generated)
+  if (!weeks.some(w => w.weekKey === currentWeekKey)) {
+    weeks.push({ weekKey: currentWeekKey, generatedAt: null as any, label: weekKeyLabel(currentWeekKey) });
+  }
+
+  res.json({ weeks, currentWeekKey });
+}));
+
+// GET /api/mlb/league-digest?leagueId=N[&weekKey=YYYY-WNN]
 router.get("/league-digest", requireAuth, requireLeagueMember("leagueId"), asyncHandler(async (req, res) => {
   const leagueId = Number(req.query.leagueId);
   if (!Number.isFinite(leagueId)) return res.status(400).json({ error: "Missing leagueId" });
 
-  const weekKey = getWeekKey();
+  const currentWeekKey = getWeekKey();
+  const requestedWeekKey = typeof req.query.weekKey === "string" ? req.query.weekKey : null;
+  const weekKey = requestedWeekKey || currentWeekKey;
+  const isCurrentWeek = weekKey === currentWeekKey;
 
   // Check DB for persisted digest
   const persisted = await prisma.aiInsight.findFirst({
@@ -918,12 +953,17 @@ router.get("/league-digest", requireAuth, requireLeagueMember("leagueId"), async
   if (persisted) {
     const data = (persisted.data ?? {}) as DigestData & Record<string, unknown>;
     const voteData = extractVotes(data, req.user!.id);
-    return res.json({ ...data, generatedAt: persisted.createdAt.toISOString(), weekKey, votes: undefined, voteResults: voteData });
+    return res.json({ ...data, generatedAt: persisted.createdAt.toISOString(), weekKey, isCurrentWeek, votes: undefined, voteResults: voteData });
+  }
+
+  // For past weeks, never auto-generate — return 404
+  if (!isCurrentWeek) {
+    return res.status(404).json({ error: "No digest found for this week" });
   }
 
   // Build context — parallelize independent queries
   const prevWeekKey = getWeekKey(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
-  const [league, teams, prevDigest] = await Promise.all([
+  const [league, teams, prevDigest, activePeriod] = await Promise.all([
     prisma.league.findUnique({ where: { id: leagueId }, select: { name: true, season: true, rules: true } }),
     prisma.team.findMany({
       where: { leagueId },
@@ -937,8 +977,43 @@ router.get("/league-digest", requireAuth, requireLeagueMember("leagueId"), async
       orderBy: { name: "asc" },
     }),
     prisma.aiInsight.findFirst({ where: { type: "league_digest", leagueId, weekKey: prevWeekKey } }),
+    prisma.period.findFirst({ where: { leagueId, status: "ACTIVE" }, orderBy: { startDate: "desc" } }),
   ]);
   if (!league) return res.status(404).json({ error: "League not found" });
+
+  // Compute real standings if active period exists
+  const { computeTeamStatsFromDb, computeStandingsFromStats, computeCategoryRows, CATEGORY_CONFIG } =
+    await import("../standings/services/standingsService.js");
+
+  type StandingsContext = {
+    standings: { teamId: number; teamName: string; points: number; rank: number }[];
+    categoryRanks: Record<number, Record<string, { value: number; rank: number }>>;
+    teamStats: { team: { id: number; name: string }; R: number; HR: number; RBI: number; SB: number; AVG: number; W: number; S: number; ERA: number; WHIP: number; K: number }[];
+  };
+  let standingsCtx: StandingsContext | null = null;
+
+  if (activePeriod) {
+    try {
+      const teamStats = await computeTeamStatsFromDb(leagueId, activePeriod.id);
+      const standings = computeStandingsFromStats(teamStats);
+      // Build per-team category ranks
+      const categoryRanks: Record<number, Record<string, { value: number; rank: number }>> = {};
+      for (const t of teamStats) {
+        categoryRanks[t.team.id] = {};
+      }
+      for (const cfg of CATEGORY_CONFIG) {
+        const rows = computeCategoryRows(teamStats, cfg.key, cfg.lowerIsBetter);
+        for (const r of rows) {
+          if (categoryRanks[r.teamId]) {
+            categoryRanks[r.teamId][cfg.key] = { value: r.value, rank: r.rank };
+          }
+        }
+      }
+      standingsCtx = { standings, categoryRanks, teamStats: teamStats as StandingsContext["teamStats"] };
+    } catch (err) {
+      logger.warn({ error: String(err) }, "Could not compute standings for digest — proceeding without");
+    }
+  }
 
   // Recent transactions (last 14 days) per team — depends on teams query
   const recentRosters = await prisma.roster.findMany({
@@ -947,13 +1022,13 @@ router.get("/league-digest", requireAuth, requireLeagueMember("leagueId"), async
       acquiredAt: { gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) },
       source: { not: "import" },
     },
-    include: { player: { select: { name: true } }, team: { select: { name: true } } },
+    include: { player: { select: { name: true, posPrimary: true } }, team: { select: { name: true } } },
     orderBy: { acquiredAt: "desc" },
   });
   const movesByTeam = new Map<number, string[]>();
   for (const r of recentRosters) {
     const moves = movesByTeam.get(r.teamId) || [];
-    moves.push(`${r.source}: ${r.player.name}`);
+    moves.push(`${r.source}: ${r.player.name} (${r.player.posPrimary})`);
     movesByTeam.set(r.teamId, moves);
   }
 
@@ -961,19 +1036,68 @@ router.get("/league-digest", requireAuth, requireLeagueMember("leagueId"), async
   const weekNum = parseInt(weekKey.split("-W")[1]) || 0;
   const tradeStyle = tradeStyles[weekNum % 3];
 
-  // Identify keepers per team
+  // Identify keepers per team and build team data (NO auction prices)
   const { isKeeperRoster } = await import("../../lib/sportConfig.js");
   const teamData = teams.map(t => {
     const keepers = t.rosters.filter(r => isKeeperRoster(r));
+    const standingsRow = standingsCtx?.standings.find(s => s.teamId === t.id);
+    const catRanks = standingsCtx?.categoryRanks[t.id];
+
+    // Build structured stats line if available
+    let statsLine = "";
+    let categoryRankLine = "";
+    if (catRanks) {
+      const hitting = ["R", "HR", "RBI", "SB", "AVG"].map(k => {
+        const c = catRanks[k];
+        if (!c) return null;
+        const val = k === "AVG" ? `.${Math.round(c.value * 1000)}` : String(Math.round(c.value));
+        return `${k}:${val}(${c.rank}${ordinal(c.rank)})`;
+      }).filter(Boolean).join(" ");
+      const pitching = ["W", "S", "K", "ERA", "WHIP"].map(k => {
+        const c = catRanks[k];
+        if (!c) return null;
+        const val = (k === "ERA" || k === "WHIP") ? c.value.toFixed(2) : String(Math.round(c.value));
+        return `${k}:${val}(${c.rank}${ordinal(c.rank)})`;
+      }).filter(Boolean).join(" ");
+      statsLine = `${hitting} | ${pitching}`;
+      categoryRankLine = Object.entries(catRanks).map(([k, v]) => `${k}:${v.rank}`).join(" ");
+    }
+
     return {
       id: t.id,
       name: t.name,
-      budget: t.budget,
-      rosterHighlights: t.rosters.slice(0, 8).map(r => `${r.player.name} (${r.player.posPrimary}, $${r.price})`).join(", "),
+      keyPlayers: t.rosters.slice(0, 6).map(r => `${r.player.name} (${r.player.posPrimary})`).join(", "),
       keeperNames: keepers.map(k => k.player.name).join(", "),
       recentMoves: (movesByTeam.get(t.id) || []).slice(0, 5).join("; "),
+      overallRank: standingsRow?.rank ?? null,
+      totalPoints: standingsRow?.points ?? null,
+      statsLine,
+      categoryRankLine,
     };
   });
+
+  // Pre-compute narrative hints for the AI
+  const narrativeHints: string[] = [];
+  if (standingsCtx) {
+    // Find tightest category race (smallest spread between 3rd and 7th)
+    for (const cfg of CATEGORY_CONFIG) {
+      const rows = computeCategoryRows(standingsCtx.teamStats as any, cfg.key, cfg.lowerIsBetter);
+      if (rows.length >= 7) {
+        const third = rows.find(r => r.rank === 3);
+        const seventh = rows.find(r => r.rank === 7);
+        if (third && seventh) {
+          const spread = Math.abs(third.value - seventh.value);
+          if (cfg.key === "AVG" && spread < 0.010) {
+            narrativeHints.push(`Tight race in AVG: only ${(spread * 1000).toFixed(0)} points separate 3rd-7th`);
+          } else if ((cfg.key === "ERA" || cfg.key === "WHIP") && spread < 0.50) {
+            narrativeHints.push(`Tight race in ${cfg.key}: only ${spread.toFixed(2)} separates 3rd-7th`);
+          } else if (spread < 10 && cfg.key !== "AVG" && cfg.key !== "ERA" && cfg.key !== "WHIP") {
+            narrativeHints.push(`Tight race in ${cfg.key}: only ${Math.round(spread)} separates 3rd-7th`);
+          }
+        }
+      }
+    }
+  }
 
   // Extract previous week's vote results
   let previousVotes: { yes: number; no: number } | null = null;
@@ -994,6 +1118,7 @@ router.get("/league-digest", requireAuth, requireLeagueMember("leagueId"), async
     tradeStyle,
     weekNumber: weekNum,
     previousVotes,
+    narrativeHints,
   });
 
   if (!result.success) {
@@ -1016,7 +1141,7 @@ router.get("/league-digest", requireAuth, requireLeagueMember("leagueId"), async
     }
   });
 
-  res.json({ ...result.result, generatedAt: new Date().toISOString(), weekKey, voteResults: { yes: 0, no: 0, myVote: null } });
+  res.json({ ...result.result, generatedAt: new Date().toISOString(), weekKey, isCurrentWeek: true, voteResults: { yes: 0, no: 0, myVote: null } });
 }));
 
 // POST /api/mlb/league-digest/vote — Vote on the Trade of the Week

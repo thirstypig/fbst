@@ -76,6 +76,22 @@ export function lookupAuctionValue(playerName: string): AuctionValueEntry | unde
   return _normalizedCache?.get(normalizeName(playerName));
 }
 
+/**
+ * Parse a stats string like "R:12.6, HR:12.5, SB:5.5" into a numeric map.
+ * Returns only categories that have values in the string.
+ */
+export function parseStatsString(stats: string): Record<string, number> {
+  const result: Record<string, number> = {};
+  for (const part of stats.split(",")) {
+    const [key, val] = part.trim().split(":");
+    if (key && val) {
+      const num = parseFloat(val);
+      if (!isNaN(num)) result[key.trim()] = num;
+    }
+  }
+  return result;
+}
+
 /** Clear the cached values (for testing or season rollover). */
 export function clearAuctionValueCache(): void {
   _cache = null;

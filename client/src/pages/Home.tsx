@@ -1,5 +1,5 @@
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { fetchJsonApi, API_BASE, yyyyMmDd, addDays } from "../api/base";
@@ -259,6 +259,11 @@ export default function Home() {
   // Auto-expand on Mondays (day 1), collapsed other days
   const [digestExpanded, setDigestExpanded] = useState(() => new Date().getDay() === 1);
   const [voting, setVoting] = useState(false);
+  // Week tabs
+  const [digestWeeks, setDigestWeeks] = useState<{ weekKey: string; generatedAt: string | null; label: string }[]>([]);
+  const [selectedWeekKey, setSelectedWeekKey] = useState<string | null>(null);
+  const [currentWeekKey, setCurrentWeekKey] = useState<string | null>(null);
+  const activeTabRef = useRef<HTMLButtonElement>(null);
 
   const handleVote = async (v: "yes" | "no") => {
     if (!currentLeagueId || voting) return;
@@ -406,10 +411,20 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [games, date]);
 
-  // Auto-load league digest (once per week, persisted)
+  // Load digest weeks index + current week digest
   useEffect(() => {
-    if (!currentLeagueId || digest || digestLoading) return;
+    if (!currentLeagueId) return;
     let ok = true;
+    // Fetch weeks list
+    fetchJsonApi<{ weeks: { weekKey: string; generatedAt: string | null; label: string }[]; currentWeekKey: string }>(
+      `${API_BASE}/mlb/league-digest/weeks?leagueId=${currentLeagueId}`
+    ).then(res => {
+      if (!ok) return;
+      setDigestWeeks(res.weeks);
+      setCurrentWeekKey(res.currentWeekKey);
+      setSelectedWeekKey(res.currentWeekKey);
+    }).catch(() => {});
+    // Fetch current week's digest
     setDigestLoading(true);
     fetchJsonApi<any>(`${API_BASE}/mlb/league-digest?leagueId=${currentLeagueId}`)
       .then(data => { if (ok) setDigest(data); })
@@ -417,6 +432,25 @@ export default function Home() {
       .finally(() => { if (ok) setDigestLoading(false); });
     return () => { ok = false; };
   }, [currentLeagueId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch digest when user switches week tab
+  const handleWeekSelect = (weekKey: string) => {
+    if (!currentLeagueId || weekKey === selectedWeekKey) return;
+    setSelectedWeekKey(weekKey);
+    setDigest(null);
+    setDigestLoading(true);
+    fetchJsonApi<any>(`${API_BASE}/mlb/league-digest?leagueId=${currentLeagueId}&weekKey=${weekKey}`)
+      .then(data => setDigest(data))
+      .catch(() => setDigest(null))
+      .finally(() => setDigestLoading(false));
+  };
+
+  // Auto-scroll to active tab when weeks load
+  useEffect(() => {
+    if (activeTabRef.current) {
+      activeTabRef.current.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    }
+  }, [digestWeeks, selectedWeekKey]);
 
   // Invite code handler
   const handleJoin = async () => {
@@ -518,12 +552,13 @@ export default function Home() {
                       <tr className="text-[9px] font-bold uppercase text-[var(--lg-text-muted)] border-b border-[var(--lg-border-faint)] bg-[var(--lg-bg-card)]/50">
                         <th className="px-1.5 py-1 text-left w-7">POS</th>
                         <th className="px-1 py-1 text-left">HITTER</th>
-                        <th className="px-1 py-1 text-center w-6">AB</th>
-                        <th className="px-1 py-1 text-center w-5">H</th>
-                        <th className="px-1 py-1 text-center w-5">R</th>
-                        <th className="px-1 py-1 text-center w-5">HR</th>
-                        <th className="px-1 py-1 text-center w-6">RBI</th>
-                        <th className="px-1 py-1 text-center w-5">SB</th>
+                        <th className="px-1 py-1 text-center w-6 opacity-50">AB</th>
+                        <th className="px-1 py-1 text-center w-5 opacity-50">H</th>
+                        <th className="px-1 py-1 text-center w-5 font-black">R</th>
+                        <th className="px-1 py-1 text-center w-5 font-black">HR</th>
+                        <th className="px-1 py-1 text-center w-6 font-black">RBI</th>
+                        <th className="px-1 py-1 text-center w-5 font-black">SB</th>
+                        <th className="px-1 py-1 text-center w-8 font-black">AVG</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--lg-border-faint)]">
@@ -540,12 +575,13 @@ export default function Home() {
                               {!p.gameToday && <span className="ml-1 text-[8px] text-[var(--lg-text-muted)] opacity-50">off</span>}
                               {isLive && <span className="ml-1 text-[8px] text-emerald-400 animate-pulse font-bold">LIVE</span>}
                             </td>
-                            <td className={`px-1 py-1 text-center tabular-nums ${hasStats ? '' : dim}`}>{h?.AB ?? '—'}</td>
-                            <td className={`px-1 py-1 text-center tabular-nums ${h?.H > 0 ? 'text-emerald-400 font-semibold' : hasStats ? '' : dim}`}>{h?.H ?? '—'}</td>
-                            <td className={`px-1 py-1 text-center tabular-nums ${h?.R > 0 ? 'text-blue-400 font-semibold' : hasStats ? '' : dim}`}>{h?.R ?? '—'}</td>
-                            <td className={`px-1 py-1 text-center tabular-nums ${h?.HR > 0 ? 'text-amber-400 font-semibold' : hasStats ? '' : dim}`}>{h?.HR ?? '—'}</td>
-                            <td className={`px-1 py-1 text-center tabular-nums ${h?.RBI > 0 ? 'text-purple-400 font-semibold' : hasStats ? '' : dim}`}>{h?.RBI ?? '—'}</td>
-                            <td className={`px-1 py-1 text-center tabular-nums ${h?.SB > 0 ? 'text-cyan-400 font-semibold' : hasStats ? '' : dim}`}>{h?.SB ?? '—'}</td>
+                            <td className={`px-1 py-1 text-center tabular-nums opacity-60 ${hasStats ? '' : dim}`}>{h?.AB ?? '—'}</td>
+                            <td className={`px-1 py-1 text-center tabular-nums opacity-60 ${h?.H > 0 ? 'text-emerald-400' : hasStats ? '' : dim}`}>{h?.H ?? '—'}</td>
+                            <td className={`px-1 py-1 text-center tabular-nums ${h?.R > 0 ? 'text-blue-400 font-bold' : hasStats ? '' : dim}`}>{h?.R ?? '—'}</td>
+                            <td className={`px-1 py-1 text-center tabular-nums ${h?.HR > 0 ? 'text-amber-400 font-bold' : hasStats ? '' : dim}`}>{h?.HR ?? '—'}</td>
+                            <td className={`px-1 py-1 text-center tabular-nums ${h?.RBI > 0 ? 'text-purple-400 font-bold' : hasStats ? '' : dim}`}>{h?.RBI ?? '—'}</td>
+                            <td className={`px-1 py-1 text-center tabular-nums ${h?.SB > 0 ? 'text-cyan-400 font-bold' : hasStats ? '' : dim}`}>{h?.SB ?? '—'}</td>
+                            <td className={`px-1 py-1 text-center tabular-nums font-bold ${hasStats && h?.AB > 0 ? '' : dim}`}>{hasStats && h?.AB > 0 ? (h.H / h.AB).toFixed(3).replace('0.', '.') : '—'}</td>
                           </tr>
                         );
                       })}
@@ -566,12 +602,15 @@ export default function Home() {
                       <tr className="text-[9px] font-bold uppercase text-[var(--lg-text-muted)] border-b border-[var(--lg-border-faint)] bg-[var(--lg-bg-card)]/50">
                         <th className="px-1.5 py-1 text-left w-7">POS</th>
                         <th className="px-1 py-1 text-left">PITCHER</th>
-                        <th className="px-1 py-1 text-center w-6">IP</th>
-                        <th className="px-1 py-1 text-center w-5">H</th>
-                        <th className="px-1 py-1 text-center w-5">ER</th>
-                        <th className="px-1 py-1 text-center w-5">K</th>
-                        <th className="px-1 py-1 text-center w-5">BB</th>
-                        <th className="px-1 py-1 text-center w-6">DEC</th>
+                        <th className="px-1 py-1 text-center w-6 opacity-50">IP</th>
+                        <th className="px-1 py-1 text-center w-5 opacity-50">H</th>
+                        <th className="px-1 py-1 text-center w-5 opacity-50">ER</th>
+                        <th className="px-1 py-1 text-center w-5 font-black">K</th>
+                        <th className="px-1 py-1 text-center w-5 opacity-50">BB</th>
+                        <th className="px-1 py-1 text-center w-5 font-black">W</th>
+                        <th className="px-1 py-1 text-center w-5 font-black">SV</th>
+                        <th className="px-1 py-1 text-center w-8 font-black">ERA</th>
+                        <th className="px-1 py-1 text-center w-8 font-black">WHIP</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--lg-border-faint)]">
@@ -579,8 +618,10 @@ export default function Home() {
                         const s = p.pitching;
                         const hasStats = !!s;
                         const isLive = p.gameStatus === "In Progress";
-                        const wl = s ? (s.W > 0 ? 'W' : s.L > 0 ? 'L' : s.SV > 0 ? 'SV' : '—') : '—';
                         const dim = 'text-[var(--lg-text-muted)] opacity-30';
+                        const ip = s?.IP ?? 0;
+                        const era = hasStats && ip > 0 ? ((s.ER / ip) * 9).toFixed(2) : '—';
+                        const whip = hasStats && ip > 0 ? (((s.BB ?? 0) + (s.H ?? 0)) / ip).toFixed(2) : '—';
                         return (
                           <tr key={`p-${idx}`} className={isLive ? 'bg-emerald-500/5' : ''}>
                             <td className="px-1.5 py-1"><span className="text-[9px] font-mono font-semibold text-[var(--lg-accent)]">P</span></td>
@@ -589,12 +630,15 @@ export default function Home() {
                               {!p.gameToday && <span className="ml-1 text-[8px] text-[var(--lg-text-muted)] opacity-50">off</span>}
                               {isLive && <span className="ml-1 text-[8px] text-emerald-400 animate-pulse font-bold">LIVE</span>}
                             </td>
-                            <td className={`px-1 py-1 text-center tabular-nums ${hasStats ? '' : dim}`}>{s?.IP ?? '—'}</td>
-                            <td className={`px-1 py-1 text-center tabular-nums ${hasStats ? '' : dim}`}>{s?.H ?? '—'}</td>
-                            <td className={`px-1 py-1 text-center tabular-nums ${s?.ER > 0 ? 'text-red-400' : hasStats ? '' : dim}`}>{s?.ER ?? '—'}</td>
-                            <td className={`px-1 py-1 text-center tabular-nums ${s?.K > 0 ? 'text-emerald-400 font-semibold' : hasStats ? '' : dim}`}>{s?.K ?? '—'}</td>
-                            <td className={`px-1 py-1 text-center tabular-nums ${hasStats ? '' : dim}`}>{s?.BB ?? '—'}</td>
-                            <td className={`px-1 py-1 text-center tabular-nums ${wl === 'W' || wl === 'SV' ? 'text-emerald-400 font-semibold' : wl === 'L' ? 'text-red-400' : hasStats ? '' : dim}`}>{wl}</td>
+                            <td className={`px-1 py-1 text-center tabular-nums opacity-60 ${hasStats ? '' : dim}`}>{s?.IP ?? '—'}</td>
+                            <td className={`px-1 py-1 text-center tabular-nums opacity-60 ${hasStats ? '' : dim}`}>{s?.H ?? '—'}</td>
+                            <td className={`px-1 py-1 text-center tabular-nums opacity-60 ${s?.ER > 0 ? 'text-red-400' : hasStats ? '' : dim}`}>{s?.ER ?? '—'}</td>
+                            <td className={`px-1 py-1 text-center tabular-nums ${s?.K > 0 ? 'text-emerald-400 font-bold' : hasStats ? '' : dim}`}>{s?.K ?? '—'}</td>
+                            <td className={`px-1 py-1 text-center tabular-nums opacity-60 ${hasStats ? '' : dim}`}>{s?.BB ?? '—'}</td>
+                            <td className={`px-1 py-1 text-center tabular-nums ${s?.W > 0 ? 'text-emerald-400 font-bold' : hasStats ? '' : dim}`}>{hasStats ? (s.W ?? 0) : '—'}</td>
+                            <td className={`px-1 py-1 text-center tabular-nums ${s?.SV > 0 ? 'text-amber-400 font-bold' : hasStats ? '' : dim}`}>{hasStats ? (s.SV ?? 0) : '—'}</td>
+                            <td className={`px-1 py-1 text-center tabular-nums font-bold ${hasStats && ip > 0 ? '' : dim}`}>{era}</td>
+                            <td className={`px-1 py-1 text-center tabular-nums font-bold ${hasStats && ip > 0 ? '' : dim}`}>{whip}</td>
                           </tr>
                         );
                       })}
@@ -624,13 +668,13 @@ export default function Home() {
       )}
 
       {/* Weekly League Digest */}
-      {digestLoading && !digest && (
+      {digestLoading && !digest && digestWeeks.length === 0 && (
         <div className="flex items-center justify-center gap-2 py-4 text-xs text-[var(--lg-text-muted)] animate-pulse">
           <Sparkles size={14} className="text-blue-400" />
           Loading weekly digest...
         </div>
       )}
-      {digest && (
+      {(digest || digestWeeks.length > 0) && (
         <div className="rounded-2xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] overflow-hidden">
           {/* Header toggle */}
           <button
@@ -641,7 +685,7 @@ export default function Home() {
               <Sparkles size={14} className="text-[var(--lg-accent)] flex-shrink-0" />
               <span className="text-xs font-semibold uppercase text-[var(--lg-text-muted)]">Weekly Digest</span>
               <span className="text-[10px] text-[var(--lg-text-muted)] opacity-60">Updated Every Monday</span>
-              {digest.generatedAt && (
+              {digest?.generatedAt && (
                 <span className="text-[10px] text-[var(--lg-text-muted)] opacity-60">
                   · {new Date(digest.generatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                 </span>
@@ -650,61 +694,174 @@ export default function Home() {
             {digestExpanded ? <ChevronUp size={14} className="text-[var(--lg-text-muted)]" /> : <ChevronDown size={14} className="text-[var(--lg-text-muted)]" />}
           </button>
 
-          {digestExpanded && (
-            <div className="px-4 pb-4 md:px-5 md:pb-5 space-y-4">
-              {/* Overview */}
-              <p className="text-sm text-[var(--lg-text-secondary)] leading-relaxed">{digest.overview}</p>
-
-              {/* Hot & Cold */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {digest.hotTeam && (
-                  <div className="flex items-start gap-2 px-3 py-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
-                    <TrendingUp size={14} className="text-emerald-500 flex-shrink-0 mt-0.5" />
-                    <div className="text-[11px] min-w-0">
-                      <span className="font-bold text-emerald-500">Hot: </span>
-                      <span className="font-medium text-[var(--lg-text-primary)]">{digest.hotTeam.name}</span>
-                      <span className="text-[var(--lg-text-muted)]"> — {digest.hotTeam.reason}</span>
-                    </div>
-                  </div>
-                )}
-                {digest.coldTeam && (
-                  <div className="flex items-start gap-2 px-3 py-2 rounded-lg border border-red-500/20 bg-red-500/5">
-                    <TrendingDown size={14} className="text-red-400 flex-shrink-0 mt-0.5" />
-                    <div className="text-[11px] min-w-0">
-                      <span className="font-bold text-red-400">Cold: </span>
-                      <span className="font-medium text-[var(--lg-text-primary)]">{digest.coldTeam.name}</span>
-                      <span className="text-[var(--lg-text-muted)]"> — {digest.coldTeam.reason}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Team Grades */}
-              {digest.teamGrades && (
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--lg-text-muted)] mb-2">Team Grades</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                    {digest.teamGrades.map((tg: any) => (
+          {/* Week pill tabs */}
+          {digestExpanded && digestWeeks.length > 1 && (
+            <div className="relative px-4 md:px-5 pb-2">
+              <div className="overflow-x-auto scrollbar-hide" style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}>
+                <div className="flex gap-1.5 min-w-max">
+                  {digestWeeks.map(w => {
+                    const isActive = w.weekKey === selectedWeekKey;
+                    const isCurrent = w.weekKey === currentWeekKey;
+                    return (
                       <button
-                        key={tg.teamName}
-                        onClick={(e) => {
-                          const el = e.currentTarget.querySelector('[data-trend]') as HTMLElement;
-                          if (el) el.classList.toggle('line-clamp-1');
-                        }}
-                        className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[var(--lg-bg-card)] border border-[var(--lg-border-faint)] text-left hover:bg-[var(--lg-tint)] transition-colors w-full"
+                        key={w.weekKey}
+                        ref={isActive ? activeTabRef : undefined}
+                        onClick={() => handleWeekSelect(w.weekKey)}
+                        className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-medium whitespace-nowrap transition-colors ${
+                          isActive
+                            ? "bg-[var(--lg-accent)] text-white"
+                            : "bg-[var(--lg-bg-card)] text-[var(--lg-text-muted)] border border-[var(--lg-border-faint)] hover:border-[var(--lg-accent)]/30 hover:text-[var(--lg-text-primary)]"
+                        }`}
                       >
-                        <span className={`text-sm font-black tabular-nums w-7 text-center flex-shrink-0 mt-0.5 ${gradeColor(tg.grade || "")}`}>{tg.grade}</span>
-                        <div className="min-w-0">
-                          <div className="text-xs font-semibold text-[var(--lg-text-primary)]">{tg.teamName}</div>
-                          <div data-trend className="text-[10px] text-[var(--lg-text-muted)] leading-relaxed line-clamp-1">{tg.trend}</div>
-                        </div>
+                        {w.label}
+                        {isCurrent && !isActive && (
+                          <span className="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-[var(--lg-accent)] align-middle" />
+                        )}
                       </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {digestExpanded && digestLoading && !digest && (
+            <div className="px-4 pb-4 md:px-5 md:pb-5">
+              <div className="space-y-3 animate-pulse">
+                <div className="h-4 bg-[var(--lg-bg-card)] rounded w-3/4" />
+                <div className="h-4 bg-[var(--lg-bg-card)] rounded w-1/2" />
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="h-16 bg-[var(--lg-bg-card)] rounded-lg" />
+                  <div className="h-16 bg-[var(--lg-bg-card)] rounded-lg" />
+                </div>
+                <div className="h-24 bg-[var(--lg-bg-card)] rounded-lg" />
+              </div>
+            </div>
+          )}
+
+          {digestExpanded && digest && (
+            <div className="px-4 pb-4 md:px-5 md:pb-5 space-y-4">
+
+              {/* NEW FORMAT: Week headline + Power Rankings + new sections */}
+              {digest.powerRankings ? (<>
+                {/* Week in One Sentence */}
+                {digest.weekInOneSentence && (
+                  <p className="text-sm font-semibold text-[var(--lg-text-primary)] leading-relaxed">{digest.weekInOneSentence}</p>
+                )}
+
+                {/* Power Rankings */}
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--lg-text-muted)] mb-2">Power Rankings</div>
+                  <div className="space-y-1">
+                    {digest.powerRankings.map((pr: any) => (
+                      <div key={pr.teamName} className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[var(--lg-bg-card)] border border-[var(--lg-border-faint)]">
+                        <span className="text-sm font-black tabular-nums w-6 text-center flex-shrink-0 text-[var(--lg-accent)]">
+                          {pr.rank}
+                        </span>
+                        <span className="text-xs flex-shrink-0 mt-0.5">
+                          {pr.movement === "up" ? "↑" : pr.movement === "down" ? "↓" : "→"}
+                        </span>
+                        <div className="min-w-0">
+                          <span className="text-xs font-semibold text-[var(--lg-text-primary)]">{pr.teamName}</span>
+                          <span className="text-[10px] text-[var(--lg-text-muted)] ml-1.5">{pr.commentary}</span>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
-              )}
 
-              {/* Proposed Trade */}
+                {/* Hot & Cold */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {digest.hotTeam && (
+                    <div className="flex items-start gap-2 px-3 py-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
+                      <TrendingUp size={14} className="text-emerald-500 flex-shrink-0 mt-0.5" />
+                      <div className="text-[11px] min-w-0">
+                        <span className="font-bold text-emerald-500">Hot: </span>
+                        <span className="font-medium text-[var(--lg-text-primary)]">{digest.hotTeam.name}</span>
+                        <p className="text-[var(--lg-text-muted)] mt-0.5">{digest.hotTeam.reason}</p>
+                      </div>
+                    </div>
+                  )}
+                  {digest.coldTeam && (
+                    <div className="flex items-start gap-2 px-3 py-2 rounded-lg border border-red-500/20 bg-red-500/5">
+                      <TrendingDown size={14} className="text-red-400 flex-shrink-0 mt-0.5" />
+                      <div className="text-[11px] min-w-0">
+                        <span className="font-bold text-red-400">Cold: </span>
+                        <span className="font-medium text-[var(--lg-text-primary)]">{digest.coldTeam.name}</span>
+                        <p className="text-[var(--lg-text-muted)] mt-0.5">{digest.coldTeam.reason}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Stat of the Week */}
+                {digest.statOfTheWeek && (
+                  <div className="px-3 py-2 rounded-lg border border-amber-500/20 bg-amber-500/5">
+                    <div className="text-[10px] font-bold uppercase tracking-wide text-amber-500 mb-1">Stat of the Week</div>
+                    <p className="text-[11px] text-[var(--lg-text-secondary)] leading-relaxed">{digest.statOfTheWeek}</p>
+                  </div>
+                )}
+
+                {/* Category Movers */}
+                {digest.categoryMovers?.length > 0 && (
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--lg-text-muted)] mb-2">Category Movers</div>
+                    <div className="space-y-1">
+                      {digest.categoryMovers.map((cm: any, i: number) => (
+                        <div key={i} className="flex items-start gap-2 px-3 py-1.5 text-[11px]">
+                          <span className={`font-bold flex-shrink-0 ${cm.direction === "up" ? "text-emerald-500" : "text-red-400"}`}>
+                            {cm.direction === "up" ? "↑" : "↓"} {cm.category}
+                          </span>
+                          <span className="text-[var(--lg-text-muted)]">{cm.team} — {cm.detail}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>) : (<>
+                {/* OLD FORMAT: Overview + Team Grades (backward compat for existing persisted digests) */}
+                <p className="text-sm text-[var(--lg-text-secondary)] leading-relaxed">{digest.overview}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {digest.hotTeam && (
+                    <div className="flex items-start gap-2 px-3 py-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
+                      <TrendingUp size={14} className="text-emerald-500 flex-shrink-0 mt-0.5" />
+                      <div className="text-[11px] min-w-0">
+                        <span className="font-bold text-emerald-500">Hot: </span>
+                        <span className="font-medium text-[var(--lg-text-primary)]">{digest.hotTeam.name}</span>
+                        <span className="text-[var(--lg-text-muted)]"> — {digest.hotTeam.reason}</span>
+                      </div>
+                    </div>
+                  )}
+                  {digest.coldTeam && (
+                    <div className="flex items-start gap-2 px-3 py-2 rounded-lg border border-red-500/20 bg-red-500/5">
+                      <TrendingDown size={14} className="text-red-400 flex-shrink-0 mt-0.5" />
+                      <div className="text-[11px] min-w-0">
+                        <span className="font-bold text-red-400">Cold: </span>
+                        <span className="font-medium text-[var(--lg-text-primary)]">{digest.coldTeam.name}</span>
+                        <span className="text-[var(--lg-text-muted)]"> — {digest.coldTeam.reason}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {digest.teamGrades && (
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--lg-text-muted)] mb-2">Team Grades</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                      {digest.teamGrades.map((tg: any) => (
+                        <div key={tg.teamName} className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[var(--lg-bg-card)] border border-[var(--lg-border-faint)]">
+                          <span className={`text-sm font-black tabular-nums w-7 text-center flex-shrink-0 mt-0.5 ${gradeColor(tg.grade || "")}`}>{tg.grade}</span>
+                          <div className="min-w-0">
+                            <div className="text-xs font-semibold text-[var(--lg-text-primary)]">{tg.teamName}</div>
+                            <div className="text-[10px] text-[var(--lg-text-muted)] leading-relaxed">{tg.trend}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>)}
+
+              {/* Proposed Trade (shared between old and new format) */}
               {digest.proposedTrade && (
                 <div className="rounded-xl border border-[var(--lg-accent)]/20 bg-[var(--lg-accent)]/5 p-4">
                   <div className="flex items-center gap-2 mb-2">
@@ -730,28 +887,35 @@ export default function Home() {
                   {/* Poll */}
                   {(() => {
                     const myVote = digest.voteResults?.myVote;
+                    const isPastWeek = selectedWeekKey !== currentWeekKey;
                     return (
                       <div className="flex items-center gap-3 mt-3 pt-3 border-t border-[var(--lg-accent)]/10">
-                        <span className="text-[10px] font-bold uppercase text-[var(--lg-text-muted)]">Would you make this trade?</span>
+                        <span className="text-[10px] font-bold uppercase text-[var(--lg-text-muted)]">
+                          {isPastWeek ? "Poll results:" : "Would you make this trade?"}
+                        </span>
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleVote("yes")}
-                            disabled={voting || myVote === "yes"}
+                            disabled={voting || myVote === "yes" || isPastWeek}
                             className={`px-3 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
                               myVote === "yes"
                                 ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                                : "bg-[var(--lg-bg-card)] text-[var(--lg-text-muted)] border border-[var(--lg-border-faint)] hover:border-emerald-500/30 hover:text-emerald-400"
+                                : isPastWeek
+                                  ? "bg-[var(--lg-bg-card)] text-[var(--lg-text-muted)] border border-[var(--lg-border-faint)] opacity-60 cursor-default"
+                                  : "bg-[var(--lg-bg-card)] text-[var(--lg-text-muted)] border border-[var(--lg-border-faint)] hover:border-emerald-500/30 hover:text-emerald-400"
                             }`}
                           >
                             Yes {digest.voteResults?.yes > 0 && `(${digest.voteResults.yes})`}
                           </button>
                           <button
                             onClick={() => handleVote("no")}
-                            disabled={voting || myVote === "no"}
+                            disabled={voting || myVote === "no" || isPastWeek}
                             className={`px-3 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
                               myVote === "no"
                                 ? "bg-red-500/20 text-red-400 border border-red-500/30"
-                                : "bg-[var(--lg-bg-card)] text-[var(--lg-text-muted)] border border-[var(--lg-border-faint)] hover:border-red-500/30 hover:text-red-400"
+                                : isPastWeek
+                                  ? "bg-[var(--lg-bg-card)] text-[var(--lg-text-muted)] border border-[var(--lg-border-faint)] opacity-60 cursor-default"
+                                  : "bg-[var(--lg-bg-card)] text-[var(--lg-text-muted)] border border-[var(--lg-border-faint)] hover:border-red-500/30 hover:text-red-400"
                             }`}
                           >
                             No {digest.voteResults?.no > 0 && `(${digest.voteResults.no})`}
@@ -760,6 +924,14 @@ export default function Home() {
                       </div>
                     );
                   })()}
+                </div>
+              )}
+
+              {/* Bold Prediction (new format only) */}
+              {digest.boldPrediction && (
+                <div className="px-3 py-2 rounded-lg border border-purple-500/20 bg-purple-500/5">
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-purple-400 mb-1">Bold Prediction</div>
+                  <p className="text-[11px] text-[var(--lg-text-secondary)] leading-relaxed italic">{digest.boldPrediction}</p>
                 </div>
               )}
 

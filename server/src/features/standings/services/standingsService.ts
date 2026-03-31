@@ -508,6 +508,16 @@ async function computeWithPeriodStats(
     rostersByTeam.set(r.teamId, list);
   }
 
+  // Build a set of players who are currently active on each team.
+  // For cumulative period stats (no daily breakdown), we attribute ALL period stats
+  // to the team that currently holds the player (releasedAt === null).
+  const activePlayerTeam = new Map<number, number>(); // playerId → teamId
+  for (const r of rosters) {
+    if (r.releasedAt === null) {
+      activePlayerTeam.set(r.playerId, r.teamId);
+    }
+  }
+
   return teams.map((t) => {
     let R = 0, HR = 0, RBI = 0, SB = 0, H = 0, AB = 0;
     let W = 0, S = 0, K = 0, ER = 0, IP = 0, BB_H = 0;
@@ -520,6 +530,10 @@ async function computeWithPeriodStats(
     for (const roster of teamRosters) {
       if (countedPlayers.has(roster.playerId)) continue;
       countedPlayers.add(roster.playerId);
+
+      // Skip players who were traded away — attribute their stats to their current team only
+      const currentTeam = activePlayerTeam.get(roster.playerId);
+      if (currentTeam !== undefined && currentTeam !== t.id) continue;
 
       const stats = statsMap.get(roster.player.id);
       if (!stats) continue;

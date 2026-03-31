@@ -1757,6 +1757,28 @@ router.get("/draft-grades", requireAuth, requireLeagueMember("leagueId"), asyncH
 
 // ─── AI Auction Bid Advice (Team-Aware Marginal Value) ──────────────────────
 
+/** Aggregate CSV projected category scores for a team's current roster.
+ *  Returns null if fewer than 3 players have projections (too sparse to be useful). */
+function computeTeamProjections(
+  roster: { playerName?: string | null }[],
+  lookup: (name: string) => { stats: string } | undefined,
+  parse: (stats: string) => Record<string, number>,
+): { R: number; HR: number; RBI: number; SB: number; AVG: number; W: number; SV: number; K: number; ERA: number; WHIP: number } | null {
+  const totals = { R: 0, HR: 0, RBI: 0, SB: 0, AVG: 0, W: 0, SV: 0, K: 0, ERA: 0, WHIP: 0 };
+  let matched = 0;
+  for (const r of roster) {
+    if (!r.playerName) continue;
+    const entry = lookup(r.playerName);
+    if (!entry?.stats) continue;
+    matched++;
+    const parsed = parse(entry.stats);
+    for (const key of Object.keys(totals) as (keyof typeof totals)[]) {
+      totals[key] += parsed[key] ?? 0;
+    }
+  }
+  return matched >= 3 ? totals : null;
+}
+
 // Cache: keyed by leagueId:teamId:playerId:currentBid
 const bidAdviceCache = new Map<string, { shouldBid: boolean; maxRecommendedBid: number; reasoning: string; confidence: string; categoryImpact: string }>();
 const BID_ADVICE_CACHE_MAX = 200;
@@ -1802,7 +1824,7 @@ router.get("/ai-advice", requireAuth, requireLeagueMember("leagueId"), asyncHand
   }
 
   // Load auction values (cached singleton, with diacritics fallback)
-  const { lookupAuctionValue, getAuctionValueMap: getValMap } = await import("../../lib/auctionValues.js");
+  const { lookupAuctionValue, getAuctionValueMap: getValMap, parseStatsString } = await import("../../lib/auctionValues.js");
   const valMap = getValMap();
 
   // Get player's projected value and stats
@@ -1871,7 +1893,7 @@ router.get("/ai-advice", requireAuth, requireLeagueMember("leagueId"), asyncHand
       leagueType,
     },
     alternativesAtPosition: positionAlternatives,
-    teamProjections: null, // TODO: compute from CSV stats once roster is large enough
+    teamProjections: computeTeamProjections(teamState.roster, lookupAuctionValue, parseStatsString),
     playerProjectedStats,
   });
 

@@ -139,27 +139,32 @@ export class AIAnalysisService {
     leagueName: string;
     season: number;
     leagueType: string;
-    teams: { id: number; name: string; budget: number; rosterHighlights: string; keeperNames: string; recentMoves: string }[];
+    teams: {
+      id: number; name: string;
+      keyPlayers: string; keeperNames: string; recentMoves: string;
+      overallRank: number | null; totalPoints: number | null;
+      statsLine: string; categoryRankLine: string;
+    }[];
     tradeStyle: "conservative" | "outrageous" | "fun";
     weekNumber: number;
     previousVotes: { yes: number; no: number } | null;
+    narrativeHints?: string[];
   }): Promise<{
     success: boolean;
     result?: {
-      overview: string;
-      teamGrades: { teamName: string; grade: string; trend: string }[];
+      weekInOneSentence: string;
+      powerRankings: { rank: number; teamName: string; movement: string; commentary: string }[];
       hotTeam: { name: string; reason: string };
       coldTeam: { name: string; reason: string };
+      statOfTheWeek: string;
+      categoryMovers: { category: string; team: string; direction: string; detail: string }[];
       proposedTrade: {
-        style: string;
-        title: string;
-        description: string;
-        teamA: string;
-        teamAGives: string;
-        teamB: string;
-        teamBGives: string;
+        style: string; title: string; description: string;
+        teamA: string; teamAGives: string;
+        teamB: string; teamBGives: string;
         reasoning: string;
       };
+      boldPrediction: string;
     };
     error?: string;
   }> {
@@ -169,56 +174,63 @@ export class AIAnalysisService {
     }
 
     try {
-      const { leagueName, season, leagueType, teams, tradeStyle, weekNumber, previousVotes } = input;
+      const { leagueName, season, leagueType, teams, tradeStyle, weekNumber, previousVotes, narrativeHints } = input;
       const leagueTypeLabel = leagueType === "NL" ? "NL-ONLY" : leagueType === "AL" ? "AL-ONLY" : "Mixed";
+      const hasStats = teams.some(t => t.statsLine);
 
       const voteContext = previousVotes
         ? `\nLast week's proposed trade received ${previousVotes.yes} "yes" and ${previousVotes.no} "no" votes.${previousVotes.no > previousVotes.yes ? ' Owners felt it was unrealistic — aim for a more practical, mutually beneficial trade this week.' : previousVotes.yes > previousVotes.no ? ' Owners liked the idea — this week, try something in a similar vein.' : ''}`
         : '';
 
-      const prompt = `You are a fantasy baseball league analyst writing a weekly performance digest for "${leagueName}" ${season} (${leagueTypeLabel}, ${teams.length} teams, 10-cat roto).
+      const prompt = `You are a fellow league member in "${leagueName}" who studies the stats every morning. Write a weekly digest for Week ${weekNumber} of the ${season} season (${leagueTypeLabel}, ${teams.length} teams, 10-cat roto: R, HR, RBI, SB, AVG | W, SV, K, ERA, WHIP).
 
-TEAMS:
-${teams.map(t => {
-  // Separate keepers from tradeable players
-  const keeperList = t.keeperNames || 'None';
-  return `${t.name}:
-  Players: ${t.rosterHighlights}
-  KEEPERS (UNTOUCHABLE — cannot be traded under ANY circumstances): ${keeperList}
-  Recent moves: ${t.recentMoves || 'None'}`;
-}).join('\n\n')}
+Write with personality — be opinionated, use light trash talk, be the kind of commissioner email people actually read. Use last names only (e.g., "Betts" not "Mookie Betts"). Vary your sentence structure. Every claim must cite a specific stat from the data below — never say "struggling" without naming the category and number.
 
-CRITICAL RULES:
-- Do NOT mention auction prices, draft costs, or budget amounts. Those are irrelevant during the season.
-- Do NOT mention how much teams paid for players. Focus on PERFORMANCE.
-- Grade teams based on their ACTUAL STATS and category standings, not roster names.
-- Be honest — reference real production, not projections or pre-season expectations.
+TEAMS (sorted by standings rank):
+${teams
+  .sort((a, b) => (a.overallRank ?? 99) - (b.overallRank ?? 99))
+  .map(t => {
+    const rankLabel = t.overallRank ? `#${t.overallRank}, ${t.totalPoints} pts` : 'unranked';
+    return `=== ${t.name} (${rankLabel}) ===
+${hasStats && t.statsLine ? `Stats: ${t.statsLine}` : ''}
+Key players: ${t.keyPlayers}
+KEEPERS (UNTOUCHABLE — CANNOT be traded): ${t.keeperNames || 'None'}
+Recent moves: ${t.recentMoves || 'None'}`;
+  }).join('\n\n')}
+${narrativeHints && narrativeHints.length > 0 ? `
+PRE-COMPUTED INSIGHTS (use these in your analysis):
+${narrativeHints.map(h => `- ${h}`).join('\n')}` : ''}
 
-GRADING: Use the full A+ to F range. A+ = genuinely dominating. C = average. F = major holes. Be differentiated.
-
-TRADE PROPOSAL — ABSOLUTE RULES:
-1. KEEPER PLAYERS ARE COMPLETELY OFF LIMITS. If a player is listed as a KEEPER above, they CANNOT appear in any trade proposal. This is non-negotiable. If you include a keeper, the entire digest is invalid.
-2. Only propose trades involving NON-KEEPER players currently on rosters.
-3. Both sides must benefit — reference specific category needs ("Team A needs SV, Team B needs SB").
-4. Positions should roughly balance (don't trade a pitcher for a hitter without compensation).
+RULES:
+- Do NOT mention auction prices, draft costs, or budget amounts. Focus on PERFORMANCE only.
+- Do NOT invent stats, projections, or predictions about future performance. Only reference numbers provided above.
+- Power rankings must correlate with actual standings — 1st place team should be ranked 1-3, last place 8-10.
+- KEEPERS ARE COMPLETELY OFF LIMITS in trade proposals. If a player is listed as a KEEPER, they CANNOT appear in any trade. Non-negotiable.
 ${voteContext}
 
-Return ONLY valid JSON:
+Return ONLY valid JSON (no markdown, no code blocks):
 {
-  "overview": "2 sentences on league state — who's competitive, emerging narratives",
-  "teamGrades": [{"teamName": string, "grade": "A+ through F", "trend": "1 sentence on trajectory based on actual stats"}],
-  "hotTeam": {"name": string, "reason": "1 sentence — cite actual stat performance"},
-  "coldTeam": {"name": string, "reason": "1 sentence — cite actual stat performance"},
+  "weekInOneSentence": "One punchy headline capturing the biggest story (15-25 words)",
+  "powerRankings": [
+    {"rank": 1, "teamName": "Team", "movement": "up|down|steady", "commentary": "1 sentence citing specific stats"}
+  ],
+  "hotTeam": {"name": "Team", "reason": "2-3 sentences citing 2+ specific category performances"},
+  "coldTeam": {"name": "Team", "reason": "2-3 sentences citing 2+ specific category performances"},
+  "statOfTheWeek": "2 sentences about a surprising stat or category oddity",
+  "categoryMovers": [
+    {"category": "HR", "team": "Team", "direction": "up|down", "detail": "what happened"}
+  ],
   "proposedTrade": {
     "style": "${tradeStyle}",
     "title": "Catchy trade title",
     "description": "1 sentence pitch",
     "teamA": "Team name",
-    "teamAGives": "Non-keeper players only. NO KEEPERS.",
+    "teamAGives": "Non-keeper players only — reference which category needs this addresses",
     "teamB": "Team name",
-    "teamBGives": "Non-keeper players only. NO KEEPERS.",
-    "reasoning": "2 sentences: why each team benefits — reference category needs"
-  }
+    "teamBGives": "Non-keeper players only — reference which category needs this addresses",
+    "reasoning": "2 sentences: why each team benefits — cite specific category ranks"
+  },
+  "boldPrediction": "1 fun sentence predicting something for next week"
 }
 
 Trade style: "${tradeStyle}"
@@ -226,7 +238,7 @@ ${tradeStyle === "conservative" ? "Swap mid-tier role players to address small c
 ${tradeStyle === "outrageous" ? "Involve high-value non-keeper players. Dramatic but possible." : ""}
 ${tradeStyle === "fun" ? "Creative angle — unexpected 3-for-2 or targeting a category swing." : ""}
 
-FINAL CHECK: Before generating, verify NO keeper players appear in the trade. If a player is in the KEEPERS list, they CANNOT be traded.`;
+FINAL CHECK: Verify NO keeper players appear in the trade, and all stats cited exist in the data above.`;
 
       const result = await model.generateContent(prompt);
       const text = result.response.text().trim();
@@ -234,14 +246,22 @@ FINAL CHECK: Before generating, verify NO keeper players appear in the trade. If
       const raw = JSON.parse(jsonStr);
 
       const schema = z.object({
-        overview: z.string().max(1000),
-        teamGrades: z.array(z.object({
+        weekInOneSentence: z.string().max(300),
+        powerRankings: z.array(z.object({
+          rank: z.number().int().min(1),
           teamName: z.string().max(200),
-          grade: z.string().max(5),
-          trend: z.string().max(500),
+          movement: z.string().max(20),
+          commentary: z.string().max(500),
         })),
-        hotTeam: z.object({ name: z.string().max(200), reason: z.string().max(500) }),
-        coldTeam: z.object({ name: z.string().max(200), reason: z.string().max(500) }),
+        hotTeam: z.object({ name: z.string().max(200), reason: z.string().max(800) }),
+        coldTeam: z.object({ name: z.string().max(200), reason: z.string().max(800) }),
+        statOfTheWeek: z.string().max(600),
+        categoryMovers: z.array(z.object({
+          category: z.string().max(20),
+          team: z.string().max(200),
+          direction: z.string().max(20),
+          detail: z.string().max(400),
+        })).max(5),
         proposedTrade: z.object({
           style: z.string().max(50),
           title: z.string().max(200),
@@ -252,12 +272,23 @@ FINAL CHECK: Before generating, verify NO keeper players appear in the trade. If
           teamBGives: z.string().max(500),
           reasoning: z.string().max(1000),
         }),
+        boldPrediction: z.string().max(400),
       });
 
       const parsed = schema.safeParse(raw);
       if (!parsed.success) {
         logger.error({ zodError: parsed.error.message }, "AI returned invalid league digest");
         return { success: false, error: 'League digest returned invalid data' };
+      }
+
+      // Post-generation validation: verify no keepers in trade proposals
+      const keeperNames = new Set(teams.flatMap(t => (t.keeperNames || "").split(",").map(n => n.trim().toLowerCase()).filter(Boolean)));
+      const tradeText = `${parsed.data.proposedTrade.teamAGives} ${parsed.data.proposedTrade.teamBGives}`.toLowerCase();
+      for (const keeper of keeperNames) {
+        if (keeper && tradeText.includes(keeper)) {
+          logger.warn({ keeper }, "AI included keeper in trade proposal — regeneration needed");
+          // Don't fail — just log the warning. A future enhancement could retry.
+        }
       }
 
       return { success: true, result: parsed.data };
@@ -1200,9 +1231,10 @@ YOUR TEAM (${team.name}):
 - Current Roster (${team.roster.length} players):
 ${team.roster.map(r => `  ${r.playerName} (${r.position}, $${r.price})`).join('\n')}
 ${teamProjections ? `
-- Team's Projected Category Totals (current roster):
-  Hitting: ${teamProjections.R} R, ${teamProjections.HR} HR, ${teamProjections.RBI} RBI, ${teamProjections.SB} SB, .${Math.round(teamProjections.AVG * 1000)} AVG
-  Pitching: ${teamProjections.W} W, ${teamProjections.SV} SV, ${teamProjections.K} K, ${teamProjections.ERA.toFixed(2)} ERA, ${teamProjections.WHIP.toFixed(2)} WHIP` : ''}
+- Team's Category Strength Scores (summed projections from rostered players — higher = stronger):
+  Hitting: R:${teamProjections.R.toFixed(1)}, HR:${teamProjections.HR.toFixed(1)}, RBI:${teamProjections.RBI.toFixed(1)}, SB:${teamProjections.SB.toFixed(1)}, AVG:${teamProjections.AVG.toFixed(1)}
+  Pitching: W:${teamProjections.W.toFixed(1)}, SV:${teamProjections.SV.toFixed(1)}, K:${teamProjections.K.toFixed(1)}, ERA:${teamProjections.ERA.toFixed(1)}, WHIP:${teamProjections.WHIP.toFixed(1)}
+  (Compare against player's stats above to see which categories they'd boost)` : ''}
 
 ALTERNATIVES STILL AVAILABLE at ${player.position}:
 ${alternativesAtPosition.length > 0 ? alternativesAtPosition.map(a => `  ${a.name} (val $${a.projectedValue})`).join('\n') : '  None — this may be the last quality option at this position'}

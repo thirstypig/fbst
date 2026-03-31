@@ -27,6 +27,26 @@ export function getWeekKey(date: Date = new Date()): string {
   return `${d.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
 }
 
+/** Convert ISO weekKey like "2026-W14" to the Monday Date of that week. */
+export function weekKeyToMonday(weekKey: string): Date {
+  const [yearStr, weekStr] = weekKey.split("-W");
+  const year = parseInt(yearStr);
+  const week = parseInt(weekStr);
+  // Jan 4 is always in ISO week 1
+  const jan4 = new Date(year, 0, 4);
+  const dow = jan4.getDay() || 7; // Mon=1..Sun=7
+  const monday = new Date(jan4);
+  monday.setDate(jan4.getDate() - dow + 1 + (week - 1) * 7);
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+}
+
+/** Format a weekKey as a compact label like "Mar 24". */
+export function weekKeyLabel(weekKey: string): string {
+  const monday = weekKeyToMonday(weekKey);
+  return monday.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
 export function toNum(v: unknown): number {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;

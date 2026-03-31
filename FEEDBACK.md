@@ -4,6 +4,37 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
+## Session 2026-03-31 (Session 52)
+
+### Completed
+- **Weekly Digest tabs**: Horizontal pill strip for browsing past weekly digests (Mar 23 = auction, Mar 30 = stats)
+- **Weekly Digest prompt overhaul**: New 7-section format (week headline, power rankings, hot/cold, stat of the week, category movers, trade of the week, bold prediction); real standings data wired in via `computeTeamStatsFromDb`
+- **Real-time stats columns**: Added AVG for hitters, W/SV/ERA/WHIP for pitchers; bold on scoring categories (R/HR/RBI/SB/AVG, W/SV/K/ERA/WHIP), dimmed on calc columns (AB/H/IP/ER/BB)
+- **Bid advice team projections**: Resolved the only production TODO — `computeTeamProjections()` aggregates CSV category scores for rostered players
+- **Trade ghost data fix**: `computeWithPeriodStats` now skips players whose active roster is on a different team; fixes double-counting of traded players (Riley/Fairbanks swap, Ohtani two-way)
+- **Data cleanup**: Deleted ghost TRADE_IN roster entries from reversed trade #16; fixed Trade #17 bad processedAt timestamp
+- **TeamStatsPeriod snapshot refresh**: Los Doyers saves corrected from 3→1, Skunk Dogs runs corrected from 27→24
+- **Documentation**: CLAUDE.md League Digest Rules section (no auction in future digests), `/audit-data` command, memory for trade reversal pattern
+
+### Pending / Next Steps
+- [ ] Trade reversal code path should DELETE TRADE_IN roster entries, not just release them
+- [ ] Run `/audit-data` after every trade processing (add to commissioner workflow)
+- [ ] Generate fresh W14 digest with real AI (delete current hand-written one, let prompt pipeline run)
+- [ ] CHG (change) column on Period tab needs day-over-day deltas (currently shows "—")
+- [ ] Verify all stats after next daily sync (13:00 UTC cron)
+
+### Concerns / Tech Debt
+- **Hand-written digests**: W13 and W14 were manually seeded — may have minor inaccuracies. Future digests will be AI-generated from real data.
+- **Period stats fallback path**: Only 8.3% daily stats coverage (1 of 12 days). Once more daily data syncs, the daily path (with proper date-aware attribution) will take over automatically at 80% threshold.
+- **Token waste**: Research/planning agents consumed ~400K+ tokens unnecessarily. For straightforward features, skip `/ce:plan` and go straight to coding.
+
+### Test Results
+- Server: 484 passing, 2 pre-existing failures (standings/routes.test.ts)
+- Client: TypeScript compiles clean
+- Browser: All changes verified in Playwright
+
+---
+
 ## Session 51 continued (2026-03-31) — Data Integrity Crisis, Period Stats Fix, Digest Overhaul
 
 ### CRITICAL: Data Integrity Issues Found
