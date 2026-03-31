@@ -123,17 +123,9 @@ export default function App() {
             ) : (
               <Suspense fallback={<PageLoader />}>
                 <Routes>
-                  <Route path="/" element={<Landing />} />
-                  <Route path="/guide" element={<GuidePage />} />
-                  <Route path="/guide/account" element={<GuideAccount />} />
-                  <Route path="/guide/auction" element={<GuideAuction />} />
-                  <Route path="/guide/faq" element={<GuideFaq />} />
-                  <Route path="/about" element={<About />} />
-                  <Route path="/changelog" element={<Changelog />} />
-                  <Route path="/roadmap" element={<Roadmap />} />
-                  <Route path="/status" element={<Status />} />
+                  <Route path="/" element={<Navigate to="/login" replace />} />
                   <Route path="/create-league" element={<Navigate to="/signup" replace />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
+                  <Route path="*" element={<Navigate to="/login" replace />} />
                 </Routes>
               </Suspense>
             )
