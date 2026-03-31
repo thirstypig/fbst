@@ -7,6 +7,7 @@ import {
   computeStandingsFromStats,
   computeCategoryRows,
   CATEGORY_CONFIG,
+  KEY_TO_DB_FIELD,
 } from "./services/standingsService.js";
 
 const router = Router();
@@ -128,10 +129,11 @@ router.get("/period-category-standings", requireAuth, asyncHandler(async (req, r
         (row as any).pointsDelta = row.points - prevPts;
       }
     }
-    // Add season-to-date stat value
+    // Add season-to-date stat value (use DB field name mapping: SV→S)
+    const dbField = KEY_TO_DB_FIELD[cfg.key] || cfg.key;
     for (const row of rows) {
       const sTotals = seasonTotals.get(row.teamId);
-      (row as any).seasonValue = sTotals?.[cfg.key] ?? 0;
+      (row as any).seasonValue = sTotals?.[dbField] ?? 0;
     }
     return { key: cfg.key, label: cfg.label, lowerIsBetter: cfg.lowerIsBetter, group: cfg.group, rows };
   });
