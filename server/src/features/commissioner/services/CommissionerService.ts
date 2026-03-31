@@ -964,6 +964,7 @@ export class CommissionerService {
       playerId?: number | null;
       amount?: number | null;
       pickRound?: number | null;
+      season?: number | null;
     }>,
   ) {
     // Verify all teams belong to this league
@@ -993,6 +994,7 @@ export class CommissionerService {
               playerId: item.playerId ?? undefined,
               amount: item.amount ?? undefined,
               pickRound: item.pickRound ?? undefined,
+              season: item.season ?? undefined,
             })),
           },
         } as any, // Prisma nested-create typing limitation: items.create not recognized in strict mode
@@ -1045,6 +1047,16 @@ export class CommissionerService {
             where: { id: item.recipientId },
             data: { budget: { increment: transferAmount } },
           });
+        } else if (item.assetType === "FUTURE_BUDGET") {
+          // Deferred — applied when target season transitions to DRAFT
+        } else if (item.assetType === "WAIVER_PRIORITY") {
+          // Swap waiver priority overrides
+          const senderTeam = await tx.team.findUnique({ where: { id: item.senderId }, select: { waiverPriorityOverride: true } });
+          const recipientTeam = await tx.team.findUnique({ where: { id: item.recipientId }, select: { waiverPriorityOverride: true } });
+          await tx.team.update({ where: { id: item.senderId }, data: { waiverPriorityOverride: recipientTeam?.waiverPriorityOverride ?? null } });
+          await tx.team.update({ where: { id: item.recipientId }, data: { waiverPriorityOverride: senderTeam?.waiverPriorityOverride ?? null } });
+        } else if (item.assetType === "PICK") {
+          // Draft pick — recorded in DB only for auction leagues
         }
       }
 

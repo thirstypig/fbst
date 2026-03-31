@@ -5,7 +5,7 @@ import { EmptyState } from '../../../components/ui/EmptyState';
 import PlayerExpandedRow from '../../auction/components/PlayerExpandedRow';
 import PlayerDetailModal from '../../../components/shared/PlayerDetailModal';
 import { POS_ORDER, getPrimaryPosition, getLastName } from '../../../lib/baseballUtils';
-import { NL_TEAMS, AL_TEAMS } from '../../../lib/sportConfig';
+import { NL_TEAMS, AL_TEAMS, mapPosition } from '../../../lib/sportConfig';
 import { OGBA_TEAM_NAMES } from '../../../lib/ogbaTeams';
 import PageHeader from '../../../components/ui/PageHeader';
 import { ThemedTable, ThemedThead, ThemedTr, ThemedTd } from '../../../components/ui/ThemedTable';
@@ -14,7 +14,7 @@ import { getMlbTeamAbbr } from '../../../lib/playerDisplay';
 import { useLeague } from '../../../contexts/LeagueContext';
 
 export default function Players() {
-  const { leagueId } = useLeague();
+  const { leagueId, outfieldMode } = useLeague();
   const [loading, setLoading] = useState(true);
   const [players, setPlayers] = useState<PlayerSeasonStat[]>([]);
 
@@ -46,7 +46,7 @@ export default function Players() {
       setSortDesc(!sortDesc);
     } else {
       setSortKey(key);
-      setSortDesc(!['name', 'mlb_team', 'fantasy'].includes(key));
+      setSortDesc(!['name', 'mlb_team', 'fantasy', 'pos'].includes(key));
     }
   };
 
@@ -152,7 +152,13 @@ export default function Players() {
          let valA: string | number = 0; 
          let valB: string | number = 0;
 
-         if (sortKey === 'name') {
+         if (sortKey === 'pos') {
+             const posA = mapPosition(getPrimaryPosition(a.positions || (a as any).pos), outfieldMode);
+             const posB = mapPosition(getPrimaryPosition(b.positions || (b as any).pos), outfieldMode);
+             const idxA = POS_ORDER.indexOf(posA.split('/')[0]) === -1 ? 99 : POS_ORDER.indexOf(posA.split('/')[0]);
+             const idxB = POS_ORDER.indexOf(posB.split('/')[0]) === -1 ? 99 : POS_ORDER.indexOf(posB.split('/')[0]);
+             return sortDesc ? idxB - idxA : idxA - idxB;
+         } else if (sortKey === 'name') {
              valA = getLastName(a.mlb_full_name || a.player_name);
              valB = getLastName(b.mlb_full_name || b.player_name);
              return sortDesc ? valB.toString().localeCompare(valA.toString()) : valA.toString().localeCompare(valB.toString());

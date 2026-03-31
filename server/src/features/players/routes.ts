@@ -6,6 +6,7 @@ import { prisma } from "../../db/prisma.js";
 import { getLeagueStatsSource, getTeamsForSource } from "../../lib/mlbTeams.js";
 import { mlbGetJson } from "../../lib/mlbApi.js";
 import { logger } from "../../lib/logger.js";
+import { OHTANI_MLB_ID, OHTANI_PITCHER_MLB_ID } from "../../lib/sportConfig.js";
 import { DataService } from "./services/dataService.js";
 import {
   getLastSeasonStats,
@@ -205,10 +206,12 @@ router.get("/:mlbId", requireAuth, asyncHandler(async (req, res) => {
  *   - season: number (defaults to current year)
  */
 router.get("/:mlbId/fielding", requireAuth, asyncHandler(async (req, res) => {
-  const mlbId = Number(req.params.mlbId);
-  if (!Number.isFinite(mlbId) || mlbId <= 0) {
+  const rawMlbId = Number(req.params.mlbId);
+  if (!Number.isFinite(rawMlbId) || rawMlbId <= 0) {
     return res.status(400).json({ error: "Invalid MLB ID" });
   }
+  // Resolve derived Ohtani pitcher ID → real MLB ID
+  const mlbId = rawMlbId === OHTANI_PITCHER_MLB_ID ? OHTANI_MLB_ID : rawMlbId;
 
   const season = req.query.season ? Number(req.query.season) : new Date().getFullYear();
   if (!Number.isFinite(season) || season < 2000 || season > 2100) {
@@ -248,10 +251,12 @@ router.get("/:mlbId/fielding", requireAuth, asyncHandler(async (req, res) => {
  * Cached for 30 minutes via mlbGetJson.
  */
 router.get("/:mlbId/news", requireAuth, asyncHandler(async (req, res) => {
-  const mlbId = Number(req.params.mlbId);
-  if (!Number.isFinite(mlbId) || mlbId <= 0) {
+  const rawMlbId = Number(req.params.mlbId);
+  if (!Number.isFinite(rawMlbId) || rawMlbId <= 0) {
     return res.status(400).json({ error: "Invalid MLB ID" });
   }
+  // Resolve derived Ohtani pitcher ID → real MLB ID
+  const mlbId = rawMlbId === OHTANI_PITCHER_MLB_ID ? OHTANI_MLB_ID : rawMlbId;
 
   try {
     // Fetch last 2 years of transactions to ensure we find at least 3

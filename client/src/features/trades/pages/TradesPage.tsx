@@ -23,6 +23,16 @@ import PageHeader from "../../../components/ui/PageHeader";
 import { Button } from "../../../components/ui/button";
 import { useToast } from "../../../contexts/ToastContext";
 
+/** Render a trade item's label based on asset type */
+function tradeItemLabel(i: any): string {
+  if (i.assetType === "PLAYER" && i.player) return `${i.player.posPrimary} ${i.player.name}`;
+  if (i.assetType === "BUDGET") return `$${i.amount} Waiver Budget`;
+  if (i.assetType === "FUTURE_BUDGET") return `$${i.amount} of ${i.season ?? "Future"} Draft Budget`;
+  if (i.assetType === "WAIVER_PRIORITY") return "Waiver Priority Position";
+  if (i.assetType === "PICK") return `Round ${i.pickRound ?? "?"} Draft Pick`;
+  return "Unknown asset";
+}
+
 export function TradesPage() {
   const { me } = useAuth();
   const user = me?.user;
@@ -271,10 +281,10 @@ export function TradeCard({
     try {
       const items: TradeAnalysisItem[] = trade.items.map((i) => ({
         playerId: i.player?.id,
-        playerName: i.player?.name || `$${i.amount} Budget`,
+        playerName: i.player?.name || tradeItemLabel(i),
         fromTeamId: i.senderTeamId || trade.proposingTeamId!,
         toTeamId: i.senderTeamId === trade.proposingTeamId ? trade.acceptingTeamId! : trade.proposingTeamId!,
-        type: i.assetType === "BUDGET" ? "budget" : "player",
+        type: i.assetType === "PLAYER" ? "player" : "budget",
         amount: i.amount,
       }));
       const result = await analyzeTrade(currentLeagueId, items);
@@ -327,12 +337,7 @@ export function TradeCard({
               .filter((i) => i.senderTeamId === trade.proposingTeamId)
               .map((i) => (
                  <li key={i.id} className="flex items-center space-x-2">
-                   {i.assetType === "PLAYER" && i.player && (
-                     <span>{i.player.posPrimary} {i.player.name}</span>
-                   )}
-                   {i.assetType === "BUDGET" && (
-                     <span>${i.amount} Budget</span>
-                   )}
+                   <span>{tradeItemLabel(i)}</span>
                  </li>
               ))}
           </ul>
@@ -344,12 +349,7 @@ export function TradeCard({
                .filter((i) => i.senderTeamId === trade.acceptingTeamId)
                .map((i) => (
                  <li key={i.id} className="flex items-center space-x-2">
-                   {i.assetType === "PLAYER" && i.player && (
-                     <span>{i.player.posPrimary} {i.player.name}</span>
-                   )}
-                   {i.assetType === "BUDGET" && (
-                     <span>${i.amount} Budget</span>
-                   )}
+                   <span>{tradeItemLabel(i)}</span>
                  </li>
                ))}
           </ul>
@@ -452,8 +452,7 @@ export function LeagueTradeCard({
               .filter((i: any) => i.senderTeamId === trade.proposingTeamId)
               .map((i: any) => (
                  <li key={i.id}>
-                   {i.assetType === "PLAYER" && i.player && `${i.player.posPrimary} ${i.player.name}`}
-                   {i.assetType === "BUDGET" && `$${i.amount} Budget`}
+                   {tradeItemLabel(i)}
                  </li>
               ))}
           </ul>
@@ -465,8 +464,7 @@ export function LeagueTradeCard({
                .filter((i: any) => i.senderTeamId === trade.acceptingTeamId)
                .map((i: any) => (
                  <li key={i.id}>
-                   {i.assetType === "PLAYER" && i.player && `${i.player.posPrimary} ${i.player.name}`}
-                   {i.assetType === "BUDGET" && `$${i.amount} Budget`}
+                   {tradeItemLabel(i)}
                  </li>
                ))}
           </ul>
@@ -618,8 +616,8 @@ export function CreateTradeForm({ onCancel, onSuccess }: { onCancel: () => void;
     }
 
     const items = [
-      ...myAssets.map(a => ({ senderTeamId: myTeam.id, assetType: a.assetType, playerId: a.playerId, amount: a.amount })),
-      ...partnerAssets.map(a => ({ senderTeamId: selectedPartnerId, assetType: a.assetType, playerId: a.playerId, amount: a.amount })),
+      ...myAssets.map(a => ({ senderTeamId: myTeam.id, assetType: a.assetType, playerId: a.playerId, amount: a.amount, season: a.season })),
+      ...partnerAssets.map(a => ({ senderTeamId: selectedPartnerId, assetType: a.assetType, playerId: a.playerId, amount: a.amount, season: a.season })),
     ];
     
     try {

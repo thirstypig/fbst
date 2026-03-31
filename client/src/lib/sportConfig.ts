@@ -62,6 +62,16 @@ export const AL_TEAMS = new Set(["BAL","BOS","CLE","DET","HOU","KC","LAA","MIN",
 
 /** Ohtani's MLB ID for dual-role handling. */
 export const OHTANI_MLB_ID = "660271";
+export const OHTANI_PITCHER_MLB_ID = "1660271";
+
+/**
+ * Resolves a derived MLB ID back to the real one for MLB API calls.
+ * Ohtani's pitcher record uses a fake mlbId (1660271) that doesn't exist
+ * in the MLB API — map it back to the real ID (660271).
+ */
+export function resolveRealMlbId(mlbId: string): string {
+  return mlbId === OHTANI_PITCHER_MLB_ID ? OHTANI_MLB_ID : mlbId;
+}
 
 // ─── Pitcher Detection ───
 

@@ -2,7 +2,7 @@
 import { fetchJsonApi, API_BASE } from '../../api/base';
 import { track } from '../../lib/posthog';
 
-export type TradeAssetType = "PLAYER" | "BUDGET" | "PICK";
+export type TradeAssetType = "PLAYER" | "BUDGET" | "PICK" | "FUTURE_BUDGET" | "WAIVER_PRIORITY";
 
 export interface TradeItem {
   id?: number;
@@ -12,6 +12,7 @@ export interface TradeItem {
   playerId?: number;
   amount?: number;
   pickRound?: number;
+  season?: number;
   player?: { id: number; name: string; posPrimary?: string };
   sender?: { id: number; name: string; code: string };
   recipient?: { id: number; name: string; code: string };
@@ -79,6 +80,7 @@ export async function proposeTrade(payload: {
         playerId: i.playerId,
         amount: i.amount,
         pickRound: i.pickRound,
+        season: i.season,
       })),
     };
     const result = await fetchJsonApi<TradeProposal>(`${API_BASE}/trades`, {

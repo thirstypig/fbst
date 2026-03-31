@@ -60,6 +60,24 @@ export async function transitionStatus(seasonId: number, newStatus: string) {
     // Auto-lock rules when entering DRAFT
     await commissionerService.lockRules(season.leagueId);
     logger.info({ seasonId, leagueId: season.leagueId }, "Rules auto-locked on DRAFT transition");
+
+    // Apply future budget adjustments from prior-season trades
+    const futureBudgetItems = await prisma.tradeItem.findMany({
+      where: {
+        assetType: "FUTURE_BUDGET",
+        season: season.year,
+        trade: { leagueId: season.leagueId, status: "PROCESSED" },
+      },
+    });
+    for (const item of futureBudgetItems) {
+      const amt = item.amount ?? 0;
+      if (amt > 0) {
+        await prisma.team.update({ where: { id: item.recipientId }, data: { budget: { increment: amt } } });
+        await prisma.team.update({ where: { id: item.senderId }, data: { budget: { decrement: amt } } });
+        logger.info({ senderId: item.senderId, recipientId: item.recipientId, amount: amt, season: season.year },
+          "Applied future budget trade adjustment");
+      }
+    }
   }
 
   if (newStatus === "IN_SEASON") {

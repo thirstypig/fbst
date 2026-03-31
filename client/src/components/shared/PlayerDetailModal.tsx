@@ -19,7 +19,7 @@ import {
 } from "../../api";
 import { toNum } from "../../api/base";
 import { useLeague } from "../../contexts/LeagueContext";
-import { mapPosition } from "../../lib/sportConfig";
+import { mapPosition, resolveRealMlbId } from "../../lib/sportConfig";
 import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from "../ui/ThemedTable";
 
 type Props = {
@@ -123,7 +123,8 @@ export default function PlayerDetailModal({ player, onClose, open }: Props) {
 
   const [tab, setTab] = useState<TabId>("stats");
 
-  const mlbId = useMemo(() => norm(player?.mlb_id), [player]);
+  const rawMlbId = useMemo(() => norm(player?.mlb_id), [player]);
+  const mlbId = useMemo(() => resolveRealMlbId(rawMlbId), [rawMlbId]);
   const mode = useMemo(() => (player ? deriveMode(player) : "hitting"), [player]);
 
   const [loading, setLoading] = useState(false);
@@ -152,7 +153,7 @@ export default function PlayerDetailModal({ player, onClose, open }: Props) {
     setProfileFailed(false);
     setRecentFailed(false);
     setCareerFailed(false);
-  }, [mlbId]);
+  }, [rawMlbId]);
 
   useEffect(() => {
     if (!player || !mlbId || !isVisible) return;
@@ -230,7 +231,6 @@ export default function PlayerDetailModal({ player, onClose, open }: Props) {
   const title = norm(player.player_name ?? (player as any).name ?? "Player");
   const pos = norm(player.positions ?? (player as any).pos ?? "");
   const fantasyTeam = norm((player as any).ogba_team_name ?? "");
-  const fantasyTeamCode = norm(player.ogba_team_code ?? (player as any).team ?? "");
   const mlbTeam = norm((player as any).mlbTeam ?? (player as any).mlb_team_abbr ?? player.mlb_team ?? "");
   const roleLabel = mode === "pitching" ? "Pitching" : "Hitting";
 
@@ -274,7 +274,7 @@ export default function PlayerDetailModal({ player, onClose, open }: Props) {
               {pos ? <div className="flex gap-2"><span>POS:</span> <span className="text-[var(--lg-text-primary)]">{pos}</span></div> : null}
               {fantasyTeam ? <div className="flex gap-2"><span>Team:</span> <span className="text-[var(--lg-text-primary)]">{fantasyTeam}</span></div> : null}
               {mlbTeam ? <div className="flex gap-2"><span>MLB:</span> <span className="text-[var(--lg-text-primary)]">{mlbTeam}</span></div> : null}
-              {mlbId ? <div className="flex gap-2 opacity-60"><span>ID:</span> <span>{mlbId}</span></div> : null}
+              {mlbId ? <div className="flex gap-2 opacity-60"><span>MLB ID:</span> <span>{mlbId}</span></div> : null}
             </div>
           </div>
 
@@ -412,7 +412,7 @@ export default function PlayerDetailModal({ player, onClose, open }: Props) {
               {/* Recent */}
               <div className={sectionCls}>
                 <div className={sectionHeadCls}>
-                  <div className={sectionTitleCls}>Recent Stats <span className="text-[var(--lg-accent)] opacity-40 mx-2">|</span> 7 / 14 / 21 Days + YTD</div>
+                  <div className={sectionTitleCls}>Recent Stats <span className="text-[var(--lg-accent)] opacity-40 mx-2">|</span> 7 / 14 / 21 Days &amp; YTD</div>
                 </div>
                 <div className={sectionBodyCls}>
                   {recentRows.length ? (

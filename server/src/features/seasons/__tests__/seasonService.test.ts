@@ -14,6 +14,12 @@ const mockPrisma = vi.hoisted(() => ({
   leagueRule: {
     updateMany: vi.fn(),
   },
+  tradeItem: {
+    findMany: vi.fn(),
+  },
+  team: {
+    update: vi.fn(),
+  },
 }));
 
 vi.mock("../../../db/prisma.js", () => ({ prisma: mockPrisma }));
@@ -90,6 +96,7 @@ describe("transitionStatus", () => {
       id: 1, leagueId: 1, year: 2026, status: "SETUP", periods: [],
     });
     mockPrisma.leagueRule.updateMany.mockResolvedValueOnce({ count: 5 });
+    mockPrisma.tradeItem.findMany.mockResolvedValueOnce([]); // No future budget adjustments
     mockPrisma.season.update.mockResolvedValueOnce({
       id: 1, leagueId: 1, year: 2026, status: "DRAFT", periods: [],
     });

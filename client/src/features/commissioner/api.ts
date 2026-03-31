@@ -188,10 +188,11 @@ export async function releaseRosterEntry(leagueId: number, rosterId: number): Pr
 export interface ExecuteTradeItem {
   senderId: number;
   recipientId: number;
-  assetType: "PLAYER" | "BUDGET" | "PICK";
+  assetType: "PLAYER" | "BUDGET" | "PICK" | "FUTURE_BUDGET" | "WAIVER_PRIORITY";
   playerId?: number;
   amount?: number;
   pickRound?: number;
+  season?: number;
 }
 
 export async function executeCommissionerTrade(

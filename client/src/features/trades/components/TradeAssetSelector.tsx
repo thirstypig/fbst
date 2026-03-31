@@ -6,6 +6,7 @@ type Asset = {
   assetType: TradeAssetType;
   playerId?: number;
   amount?: number;
+  season?: number;
   label: string; // Helpers for UI
 };
 
@@ -21,6 +22,9 @@ export function TradeAssetSelector({ teamId, label, onAssetsChange }: Props) {
   const [budget, setBudget] = useState(0);
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<number>>(new Set());
   const [budgetAmount, setBudgetAmount] = useState<string>("");
+  const [futureBudgetAmount, setFutureBudgetAmount] = useState<string>("");
+  const [futureBudgetSeason, setFutureBudgetSeason] = useState<number>(new Date().getFullYear() + 1);
+  const [includeWaiverPriority, setIncludeWaiverPriority] = useState(false);
 
   useEffect(() => {
     if (teamId) fetchRoster();
@@ -31,6 +35,8 @@ export function TradeAssetSelector({ teamId, label, onAssetsChange }: Props) {
     setRoster([]);
     setSelectedPlayerIds(new Set());
     setBudgetAmount("");
+    setFutureBudgetAmount("");
+    setIncludeWaiverPriority(false);
   }, [teamId]);
 
   async function fetchRoster() {
@@ -68,12 +74,31 @@ export function TradeAssetSelector({ teamId, label, onAssetsChange }: Props) {
       assets.push({
         assetType: "BUDGET",
         amount: bAmt,
-        label: `$${bAmt} FAAB`
+        label: `$${bAmt} Waiver Budget`
+      });
+    }
+
+    // Future Budget
+    const fbAmt = parseInt(futureBudgetAmount || "0", 10);
+    if (fbAmt > 0) {
+      assets.push({
+        assetType: "FUTURE_BUDGET",
+        amount: fbAmt,
+        season: futureBudgetSeason,
+        label: `$${fbAmt} of ${futureBudgetSeason} Draft Budget`
+      });
+    }
+
+    // Waiver Priority
+    if (includeWaiverPriority) {
+      assets.push({
+        assetType: "WAIVER_PRIORITY",
+        label: "Waiver Priority Position"
       });
     }
 
     onAssetsChange(assets);
-  }, [selectedPlayerIds, budgetAmount, roster]);
+  }, [selectedPlayerIds, budgetAmount, futureBudgetAmount, futureBudgetSeason, includeWaiverPriority, roster]);
 
   const togglePlayer = (pid: number) => {
     const next = new Set(selectedPlayerIds);
@@ -107,24 +132,73 @@ export function TradeAssetSelector({ teamId, label, onAssetsChange }: Props) {
         })}
       </div>
 
-      <div className="mt-auto pt-4 border-t border-[var(--lg-border-faint)]">
-        <label className="block text-xs text-[var(--lg-text-muted)] uppercase mb-1">
-           Budget (Max: ${budget})
-        </label>
-        <div className="flex items-center space-x-2">
-            <span className="text-[var(--lg-text-muted)] text-sm">$</span>
-            <input
-              type="number"
-              min="0"
-              max={budget}
-              className="bg-[var(--lg-tint-hover)] border-[var(--lg-border-subtle)] rounded px-2 py-1 text-[var(--lg-text-primary)] text-sm w-full focus:outline-none focus:border-blue-500"
-              placeholder="0"
-              value={budgetAmount}
-              onChange={e => {
-                  const val = Math.min(Number(e.target.value), budget); // simple clamp
-                  setBudgetAmount(val > 0 ? String(val) : "");
-              }}
-            />
+      <div className="mt-auto pt-4 border-t border-[var(--lg-border-faint)] space-y-4">
+        {/* Current Waiver Budget */}
+        <div>
+          <label className="block text-xs text-[var(--lg-text-muted)] uppercase mb-1">
+             Waiver Budget (Max: ${budget})
+          </label>
+          <div className="flex items-center space-x-2">
+              <span className="text-[var(--lg-text-muted)] text-sm">$</span>
+              <input
+                type="number"
+                min="0"
+                max={budget}
+                className="bg-[var(--lg-tint-hover)] border-[var(--lg-border-subtle)] rounded px-2 py-1 text-[var(--lg-text-primary)] text-sm w-full focus:outline-none focus:border-blue-500"
+                placeholder="0"
+                value={budgetAmount}
+                onChange={e => {
+                    const val = Math.min(Number(e.target.value), budget);
+                    setBudgetAmount(val > 0 ? String(val) : "");
+                }}
+              />
+          </div>
+        </div>
+
+        {/* Future Draft Dollars */}
+        <div>
+          <label className="block text-xs text-[var(--lg-text-muted)] uppercase mb-1">
+             Future Draft Dollars
+          </label>
+          <div className="flex items-center space-x-2">
+              <span className="text-[var(--lg-text-muted)] text-sm">$</span>
+              <input
+                type="number"
+                min="0"
+                max={400}
+                className="bg-[var(--lg-tint-hover)] border-[var(--lg-border-subtle)] rounded px-2 py-1 text-[var(--lg-text-primary)] text-sm w-20 focus:outline-none focus:border-blue-500"
+                placeholder="0"
+                value={futureBudgetAmount}
+                onChange={e => {
+                    const val = Math.min(Number(e.target.value), 400);
+                    setFutureBudgetAmount(val > 0 ? String(val) : "");
+                }}
+              />
+              <span className="text-[var(--lg-text-muted)] text-xs">of</span>
+              <select
+                className="bg-[var(--lg-tint-hover)] border-[var(--lg-border-subtle)] rounded px-2 py-1 text-[var(--lg-text-primary)] text-sm focus:outline-none focus:border-blue-500"
+                value={futureBudgetSeason}
+                onChange={e => setFutureBudgetSeason(Number(e.target.value))}
+              >
+                {[1, 2, 3].map(offset => {
+                  const yr = new Date().getFullYear() + offset;
+                  return <option key={yr} value={yr}>{yr}</option>;
+                })}
+              </select>
+          </div>
+        </div>
+
+        {/* Waiver Priority */}
+        <div
+          onClick={() => setIncludeWaiverPriority(!includeWaiverPriority)}
+          className={`flex items-center gap-2 p-2 rounded cursor-pointer text-sm ${
+            includeWaiverPriority
+              ? "bg-[var(--lg-accent)]/10 text-[var(--lg-accent)] border border-[var(--lg-accent)]/20"
+              : "bg-[var(--lg-tint-hover)] text-[var(--lg-text-secondary)] border border-[var(--lg-border-faint)]"
+          }`}
+        >
+          <span className="text-xs">{includeWaiverPriority ? "✓" : "○"}</span>
+          <span className="text-xs font-medium uppercase">Waiver Priority Position</span>
         </div>
       </div>
     </div>

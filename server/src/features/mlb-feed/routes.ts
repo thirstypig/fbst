@@ -453,6 +453,7 @@ router.get("/player-videos", requireAuth, requireLeagueMember("leagueId"), async
         publishedAfter,
         maxResults: "3",
         videoDuration: "short",
+        relevanceLanguage: "en",
         key: YOUTUBE_API_KEY,
       });
 

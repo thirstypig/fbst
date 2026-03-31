@@ -1,11 +1,13 @@
 import { useState, useCallback } from "react";
 import { TradeAssetSelector } from "../../trades/components/TradeAssetSelector";
 import { executeCommissionerTrade, type ExecuteTradeItem } from "../api";
+import type { TradeAssetType } from "../../trades/api";
 
 type Asset = {
-  assetType: "PLAYER" | "BUDGET" | "PICK";
+  assetType: TradeAssetType;
   playerId?: number;
   amount?: number;
+  season?: number;
   label: string;
 };
 
@@ -50,6 +52,7 @@ export default function CommissionerTradeTool({ leagueId, teams }: Props) {
           assetType: a.assetType,
           playerId: a.playerId,
           amount: a.amount,
+          season: a.season,
         });
       }
 
@@ -60,6 +63,7 @@ export default function CommissionerTradeTool({ leagueId, teams }: Props) {
           assetType: a.assetType,
           playerId: a.playerId,
           amount: a.amount,
+          season: a.season,
         });
       }
 
