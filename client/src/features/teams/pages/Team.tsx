@@ -576,6 +576,7 @@ export default function Team() {
                     <Th align="center">POS</Th>
                     <Th align="center">PLAYER</Th>
                     <Th align="center">TM</Th>
+                    <Th align="center">G</Th>
                     <Th align="center">R</Th>
                     <Th align="center">HR</Th>
                     <Th align="center">RBI</Th>
@@ -664,6 +665,9 @@ export default function Team() {
                               {tm || "—"}
                             </Td>
                             <Td align="center">
+                              {numFromAny(p, "G", "gamesPlayed", "games_played")}
+                            </Td>
+                            <Td align="center">
                               {asNum(p?.R)}
                             </Td>
                             <Td align="center">
@@ -697,6 +701,7 @@ export default function Team() {
                   )}
                   {/* Totals row */}
                   {hitters.length > 0 && (() => {
+                    const totG = hitters.reduce((s, p) => s + numFromAny(p, "G", "gamesPlayed", "games_played"), 0);
                     const totR = hitters.reduce((s, p) => s + asNum(p?.R), 0);
                     const totHR = hitters.reduce((s, p) => s + asNum(p?.HR), 0);
                     const totRBI = hitters.reduce((s, p) => s + asNum(p?.RBI), 0);
@@ -709,6 +714,7 @@ export default function Team() {
                         <Td align="center"><span className="text-[10px] font-bold text-[var(--lg-accent)]">TOT</span></Td>
                         <Td align="center"><span className="font-bold text-xs text-[var(--lg-text-heading)]">Team Totals</span></Td>
                         <Td align="center">{""}</Td>
+                        <Td align="center"><span className="font-bold">{totG}</span></Td>
                         <Td align="center"><span className="font-bold">{totR}</span></Td>
                         <Td align="center"><span className="font-bold">{totHR}</span></Td>
                         <Td align="center"><span className="font-bold">{totRBI}</span></Td>

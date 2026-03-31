@@ -14,6 +14,7 @@ import { TWO_WAY_PLAYERS } from "../../../lib/sportConfig.js";
 // --- Last-Season Stats (2025) from MLB API ---
 
 export type SeasonStatEntry = {
+  G: number;
   R: number; HR: number; RBI: number; SB: number; H: number; AB: number; AVG: number;
   W: number; SV: number; K: number; IP: number; ERA: number; WHIP: number;
 };
@@ -24,7 +25,7 @@ let lastSeasonPromise: Promise<Map<string, SeasonStatEntry>> | null = null;
 
 /** Parse hitting/pitching stats from an MLB API person object into our flat format */
 function parseSeasonStats(person: any): SeasonStatEntry {
-  const entry: SeasonStatEntry = { R: 0, HR: 0, RBI: 0, SB: 0, H: 0, AB: 0, AVG: 0, W: 0, SV: 0, K: 0, IP: 0, ERA: 0, WHIP: 0 };
+  const entry: SeasonStatEntry = { G: 0, R: 0, HR: 0, RBI: 0, SB: 0, H: 0, AB: 0, AVG: 0, W: 0, SV: 0, K: 0, IP: 0, ERA: 0, WHIP: 0 };
   if (!person.stats) return entry;
 
   for (const statGroup of person.stats) {
@@ -33,6 +34,7 @@ function parseSeasonStats(person: any): SeasonStatEntry {
     if (!split) continue;
 
     if (groupName === "hitting") {
+      entry.G = split.gamesPlayed || 0;
       entry.AB = split.atBats || 0;
       entry.H = split.hits || 0;
       entry.R = split.runs || 0;
@@ -67,6 +69,7 @@ function loadCsvFallback(): Map<string, SeasonStatEntry> {
     const mlbId = (r["mlb_id"] ?? "").trim();
     if (!mlbId) continue;
     m.set(mlbId, {
+      G: Number(r["G"]) || 0,
       R: Number(r["R"]) || 0, HR: Number(r["HR"]) || 0, RBI: Number(r["RBI"]) || 0,
       SB: Number(r["SB"]) || 0, H: Number(r["H"]) || 0, AB: Number(r["AB"]) || 0,
       AVG: Number(r["AVG"]) || 0, W: Number(r["W"]) || 0, SV: Number(r["SV"]) || 0,

@@ -356,6 +356,7 @@ dataRouter.get("/player-season-stats", requireAuth, asyncHandler(async (req, res
         ogba_team_name: roster?.teamName ?? "",
         positions: pv?.pos || p.posList || p.posPrimary || "",
         is_pitcher: isPitcher,
+        G: ss?.G ?? 0,
         AB: ss?.AB ?? 0, H: ss?.H ?? 0, R: ss?.R ?? 0, HR: ss?.HR ?? 0,
         RBI: ss?.RBI ?? 0, SB: ss?.SB ?? 0, AVG: ss?.AVG ?? 0,
         GS: 0, W: ss?.W ?? 0, SV: ss?.SV ?? 0, K: ss?.K ?? 0,

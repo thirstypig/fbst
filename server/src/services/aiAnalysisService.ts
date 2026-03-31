@@ -1065,10 +1065,11 @@ STANDINGS: ${standings.map(s => `${s.rank}. ${s.teamName} ${s.totalScore}pts`).j
 
 ${recentTransactions.length > 0 ? `RECENT MOVES: ${recentTransactions.map(t => `${t.type}: ${t.playerName}`).join(', ')}` : ''}
 
-Provide exactly 3 concise insights focused on PLAYER PERFORMANCE. Do NOT talk about auction prices or budget strategy. Focus on:
+Provide exactly 4 concise insights focused on PLAYER PERFORMANCE. Do NOT talk about auction prices or budget strategy. Focus on:
 1. **Hot/Cold Players** — Which hitters or pitchers are performing well or struggling? Name specific players and their recent production vs expectations.
 2. **Pitching Watch** — Which pitchers have been effective, which have been shaky, and who hasn't pitched yet? Mention injury status if relevant.
 3. **Roster Alert** — Any injured players, players returning from injury, underperformers to consider dropping, or waiver pickups that could help. Compare to rival teams.
+4. **Week Ahead** — Project what to expect next week. Which players are trending up or down? What category matchups look favorable? One bold prediction or hot take about this team's trajectory. Be specific — name players and stats.
 
 Each insight must name specific players. Keep details to 1-2 sentences max. Be direct and useful.
 
@@ -1080,7 +1081,7 @@ Return ONLY valid JSON (no markdown):
   "overallGrade": "A+ through F"
 }
 
-Categories: "Hot Bats", "Cold Bats", "Pitching", "Injury", "Waiver Wire", "Standings"`;
+Categories: "Hot Bats", "Cold Bats", "Pitching", "Injury", "Waiver Wire", "Standings", "Week Ahead"`;
 
 
       const result = await model.generateContent(prompt);
