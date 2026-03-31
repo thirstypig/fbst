@@ -104,8 +104,22 @@ router.get("/ai-insights", requireAuth, requireLeagueMember("leagueId"), asyncHa
 
   const roster = await prisma.roster.findMany({
     where: { teamId, releasedAt: null },
-    include: { player: { select: { name: true, posPrimary: true, mlbTeam: true } } },
+    include: { player: { select: { id: true, name: true, posPrimary: true, mlbTeam: true } } },
   });
+
+  // Fetch individual player stats for the active period (so AI has real data)
+  const activePeriod = await prisma.period.findFirst({
+    where: { leagueId, status: "active" },
+    orderBy: { startDate: "desc" },
+  });
+  let playerStatsMap = new Map<number, any>();
+  if (activePeriod) {
+    const playerIds = roster.map(r => r.player.id);
+    const periodStats = await prisma.playerStatsPeriod.findMany({
+      where: { periodId: activePeriod.id, playerId: { in: playerIds } },
+    });
+    playerStatsMap = new Map(periodStats.map(s => [s.playerId, s]));
+  }
 
   // Load projected auction values (cached singleton)
   const { lookupAuctionValue } = await import("../../lib/auctionValues.js");
@@ -185,14 +199,23 @@ router.get("/ai-insights", requireAuth, requireLeagueMember("leagueId"), asyncHa
     const { aiAnalysisService } = await import("../../services/aiAnalysisService.js");
     return aiAnalysisService.generateWeeklyInsights({
       team: { id: team.id, name: team.name, budget: team.budget },
-      roster: roster.map(r => ({
-        playerName: r.player.name,
-        position: r.player.posPrimary,
-        mlbTeam: r.player.mlbTeam || "",
-        price: r.price,
-        projectedValue: lookupAuctionValue(r.player.name)?.value ?? null,
-        projectedStats: lookupAuctionValue(r.player.name)?.stats ?? null,
-      })),
+      roster: roster.map(r => {
+        const ps = playerStatsMap.get(r.player.id);
+        const isPitcher = ["P", "SP", "RP", "CL"].includes(r.player.posPrimary.toUpperCase());
+        return {
+          playerName: r.player.name,
+          position: r.player.posPrimary,
+          mlbTeam: r.player.mlbTeam || "",
+          price: r.price,
+          projectedValue: lookupAuctionValue(r.player.name)?.value ?? null,
+          projectedStats: lookupAuctionValue(r.player.name)?.stats ?? null,
+          // Actual period stats (so AI doesn't hallucinate)
+          periodStats: ps ? (isPitcher
+            ? { W: ps.W, SV: ps.SV, K: ps.K, IP: ps.IP, ER: ps.ER, BB_H: ps.BB_H }
+            : { AB: ps.AB, H: ps.H, R: ps.R, HR: ps.HR, RBI: ps.RBI, SB: ps.SB }
+          ) : null,
+        };
+      }),
       standings,
       categoryRankings,
       recentTransactions: transactions,

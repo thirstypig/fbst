@@ -331,38 +331,13 @@ const SeasonPage: React.FC = () => {
           <div className="mt-8">
             <div className="mb-6 flex items-center justify-between px-2">
                <div>
-                  <h2 className="text-2xl font-semibold text-[var(--lg-text-heading)]">
-                    {matrixMode === "points" ? "Point Matrix" : `Stat Matrix — ${selectedStatCat}`}
-                  </h2>
+                  <h2 className="text-2xl font-semibold text-[var(--lg-text-heading)]">Point Matrix</h2>
                   <div className="mt-1 text-sm font-medium text-[var(--lg-text-secondary)]">
-                    {matrixMode === "points" ? "Roto points across all periods." : "Raw stat values across all periods."}
+                    Cumulative roto points across all periods.
                     {seasonUpdatedAt && (
                       <span className="ml-2 text-[10px] text-[var(--lg-text-muted)] opacity-60">
                         Updated {seasonUpdatedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })} at {seasonUpdatedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
                       </span>
-                    )}
-                  </div>
-                  <div className="mt-3 flex items-center gap-3 flex-wrap">
-                    <div className="lg-card p-1 flex gap-1">
-                      <Button onClick={() => setMatrixMode("points")} variant={matrixMode === "points" ? "default" : "ghost"} size="sm" className="px-4">Points</Button>
-                      <Button onClick={() => setMatrixMode("stats")} variant={matrixMode === "stats" ? "default" : "ghost"} size="sm" className="px-4">Stats</Button>
-                    </div>
-                    {matrixMode === "stats" && categoryKeys.length > 0 && (
-                      <div className="flex gap-1 flex-wrap">
-                        {categoryKeys.map(cat => (
-                          <button
-                            key={cat}
-                            onClick={() => setSelectedStatCat(cat)}
-                            className={`px-2 py-1 rounded text-[10px] font-bold transition-colors ${
-                              selectedStatCat === cat
-                                ? "bg-[var(--lg-accent)] text-white"
-                                : "bg-[var(--lg-bg-card)] text-[var(--lg-text-muted)] border border-[var(--lg-border-faint)] hover:text-[var(--lg-text-primary)]"
-                            }`}
-                          >
-                            {cat}
-                          </button>
-                        ))}
-                      </div>
                     )}
                   </div>
                </div>
@@ -417,28 +392,14 @@ const SeasonPage: React.FC = () => {
                             </div>
                           </ThemedTd>
 
-                          {periodIds.map((_pid, pIdx) => {
-                            const val = matrixMode === "stats"
-                              ? (row.periodStats?.[selectedStatCat]?.[pIdx] ?? 0)
-                              : (row.periodPoints[pIdx] ?? 0);
-                            const isRate = ["AVG", "ERA", "WHIP"].includes(selectedStatCat);
-                            const formatted = matrixMode === "stats"
-                              ? (isRate ? Number(val).toFixed(3).replace(/^0/, "") : String(Math.round(val)))
-                              : Number(val).toFixed(1).replace(/\.0$/, "");
-                            return (
-                              <ThemedTd key={pIdx} align="center">{formatted}</ThemedTd>
-                            );
-                          })}
+                          {periodIds.map((_pid, pIdx) => (
+                            <ThemedTd key={pIdx} align="center">
+                              {Number(row.periodPoints[pIdx] || 0).toFixed(1).replace(/\.0$/, "")}
+                            </ThemedTd>
+                          ))}
 
                           <ThemedTd align="center">
-                            {matrixMode === "stats" ? (() => {
-                              const vals = row.periodStats?.[selectedStatCat] ?? [];
-                              const total = vals.reduce((s, v) => s + v, 0);
-                              const isRate = ["AVG", "ERA", "WHIP"].includes(selectedStatCat);
-                              return <span className="text-sm font-semibold text-[var(--lg-accent)]">{isRate ? (total / Math.max(vals.length, 1)).toFixed(3).replace(/^0/, "") : String(Math.round(total))}</span>;
-                            })() : (
-                              <span className="text-sm font-semibold text-[var(--lg-accent)]">{row.totalPoints.toFixed(1).replace(/\.0$/, "")}</span>
-                            )}
+                            <span className="text-sm font-semibold text-[var(--lg-accent)]">{row.totalPoints.toFixed(1).replace(/\.0$/, "")}</span>
                           </ThemedTd>
                           <ThemedTd align="right" className="pr-8">
                              {row.teamCode ? (

@@ -1049,39 +1049,58 @@ Return ONLY a valid JSON object (no markdown, no code blocks) with:
       const hitters = roster.filter(r => !isPitcherPos(r.position));
       const pitchers = roster.filter(r => isPitcherPos(r.position));
 
-      const prompt = `You are a fantasy baseball analyst giving concise weekly performance updates for an ${leagueTypeLabel} 10-category roto league (R, HR, RBI, SB, AVG | W, SV, K, ERA, WHIP).
+      // Format player stats for the prompt (show actual numbers, not guesses)
+      const formatHitter = (r: any) => {
+        const ps = r.periodStats;
+        if (!ps || ps.AB === 0) return `${r.playerName} (${r.position}, ${r.mlbTeam || '?'}) — NO STATS YET (0 AB)`;
+        const avg = ps.AB > 0 ? (ps.H / ps.AB).toFixed(3).replace(/^0/, '') : '.000';
+        return `${r.playerName} (${r.position}, ${r.mlbTeam || '?'}) — ${ps.AB}AB ${ps.R}R ${ps.HR}HR ${ps.RBI}RBI ${ps.SB}SB ${avg}AVG`;
+      };
+      const formatPitcher = (r: any) => {
+        const ps = r.periodStats;
+        if (!ps || ps.IP === 0) return `${r.playerName} (${r.position}, ${r.mlbTeam || '?'}) — HAS NOT PITCHED (0 IP)`;
+        const era = ps.IP > 0 ? ((ps.ER / ps.IP) * 9).toFixed(2) : '0.00';
+        const whip = ps.IP > 0 ? ((ps.BB_H || 0) / ps.IP).toFixed(2) : '0.00';
+        return `${r.playerName} (${r.position}, ${r.mlbTeam || '?'}) — ${ps.W}W ${ps.SV}SV ${ps.K}K ${ps.IP}IP ${era}ERA ${whip}WHIP`;
+      };
+
+      const prompt = `You are a fantasy baseball analyst. Analyze this team's ACTUAL STATS below and provide performance insights.
+
+CRITICAL: ONLY reference stats shown in the data below. If a player shows "0 IP" or "HAS NOT PITCHED", do NOT say they pitched well. If a player shows "0 AB" or "NO STATS YET", do NOT comment on their hitting. Only discuss what the numbers actually show.
 
 TEAM: ${team.name}
 ${teamStanding ? `Rank: ${teamStanding.rank}/${standings.length} (${teamStanding.totalScore} roto pts)` : 'Standings not yet available'}
 
-ROSTER:
-Hitters (${hitters.length}): ${hitters.map(r => `${r.playerName} (${r.position}, ${r.mlbTeam || '?'})`).join(', ')}
-Pitchers (${pitchers.length}): ${pitchers.map(r => `${r.playerName} (${r.position}, ${r.mlbTeam || '?'})`).join(', ')}
+HITTER STATS (this period):
+${hitters.map(formatHitter).join('\n')}
 
-${categoryRankings ? `CATEGORY RANKS (out of ${standings.length}):
+PITCHER STATS (this period):
+${pitchers.map(formatPitcher).join('\n')}
+
+${categoryRankings ? `TEAM CATEGORY RANKS (out of ${standings.length} teams):
 ${categoryRankings.map(c => `  ${c.category}: #${c.rank}${c.rank <= 2 ? ' ★' : c.rank >= standings.length - 1 ? ' ⚠' : ''} (${c.value})`).join('\n')}` : ''}
 
 STANDINGS: ${standings.map(s => `${s.rank}. ${s.teamName} ${s.totalScore}pts`).join(' | ')}
 
 ${recentTransactions.length > 0 ? `RECENT MOVES: ${recentTransactions.map(t => `${t.type}: ${t.playerName}`).join(', ')}` : ''}
 
-Provide exactly 4 concise insights focused on PLAYER PERFORMANCE. Do NOT talk about auction prices or budget strategy. Focus on:
-1. **Hot/Cold Players** — Which hitters or pitchers are performing well or struggling? Name specific players and their recent production vs expectations.
-2. **Pitching Watch** — Which pitchers have been effective, which have been shaky, and who hasn't pitched yet? Mention injury status if relevant.
-3. **Roster Alert** — Any injured players, players returning from injury, underperformers to consider dropping, or waiver pickups that could help. Compare to rival teams.
-4. **Week Ahead** — Project what to expect next week. Which players are trending up or down? What category matchups look favorable? One bold prediction or hot take about this team's trajectory. Be specific — name players and stats.
+Provide exactly 4 concise insights based ONLY on the stats above:
+1. **Hot/Cold Bats** — Which hitters have good or bad stat lines? Reference their actual numbers.
+2. **Pitching** — Which pitchers have pitched and how did they do? Who has NOT pitched yet (0 IP)?
+3. **Roster Alert** — Any players with 0 AB or 0 IP who may be injured or not yet in the lineup.
+4. **Hot Take** — One bold, specific prediction about this team's next week. Reference a player's trend.
 
-Each insight must name specific players. Keep details to 1-2 sentences max. Be direct and useful.
+Keep each insight to 1-2 sentences. Be factual — cite actual stat lines from the data above.
 
-GRADING: Grade RELATIVE to the other ${standings.length} teams. Best=A+, average=C, worst=F.
+GRADING: Grade RELATIVE to the other ${standings.length} teams based on actual production. Best=A+, average=C, worst=F.
 
-Return ONLY valid JSON (no markdown):
+Return ONLY valid JSON:
 {
-  "insights": [{ "category": string, "title": string (short headline), "detail": string (1-2 punchy sentences), "priority": "high" | "medium" | "low" }],
+  "insights": [{ "category": string, "title": string, "detail": string, "priority": "high" | "medium" | "low" }],
   "overallGrade": "A+ through F"
 }
 
-Categories: "Hot Bats", "Cold Bats", "Pitching", "Injury", "Waiver Wire", "Standings", "Week Ahead"`;
+Categories: "Hot Bats", "Cold Bats", "Pitching", "Injury", "Waiver Wire", "Standings", "Hot Take"`;
 
 
       const result = await model.generateContent(prompt);
