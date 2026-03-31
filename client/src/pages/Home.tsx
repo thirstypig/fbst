@@ -7,8 +7,9 @@ import { ChevronLeft, ChevronRight, Gavel, Trophy, Users, Calendar, Sparkles, Ch
 import { joinLeague } from "../features/leagues/api";
 import { useToast } from "../contexts/ToastContext";
 import { useLeague, findMyTeam } from "../contexts/LeagueContext";
-import { gradeColor, NL_TEAMS, AL_TEAMS } from "../lib/sportConfig";
+import { gradeColor } from "../lib/sportConfig";
 import { useSeasonGating } from "../hooks/useSeasonGating";
+import type { DigestResponse, PowerRanking, CategoryMover, TeamGrade } from "./home/types";
 
 // Map MLB Trade Rumors team name tags to abbreviations for NL/AL filtering
 const TEAM_NAME_TO_ABBR: Record<string, string> = {
@@ -211,14 +212,13 @@ export default function Home() {
   const [ytPage, setYtPage] = useState(0);
   const YT_PER_PAGE = 6; // 2 rows of 3
 
+  // News feeds — shared filter + tab
+  const [newsFilter, setNewsFilter] = useState<string>('ALL'); // "ALL" | "MY_ROSTER" | team name | "FREE_AGENTS"
+  const [newsTab, setNewsTab] = useState<'rumors' | 'reddit' | 'yahoo' | 'mlb' | 'espn'>('rumors');
+
   // Trade Rumors
   const [rumors, setRumors] = useState<{ title: string; link: string; pubDate: string; categories: string[] }[]>([]);
   const [rumorsLoading, setRumorsLoading] = useState(true);
-  const [rumorsFilter, setRumorsFilter] = useState<'ALL' | 'NL' | 'AL'>('NL'); // Default NL for NL-only league
-  const [rumorsTeamFilter, setRumorsTeamFilter] = useState<string>('ALL'); // specific MLB team
-  const [rumorsRosterOnly, setRumorsRosterOnly] = useState(false); // only show news mentioning rostered players
-  const [rumorsFantasyTeam, setRumorsFantasyTeam] = useState<string>('ALL'); // default: all league news
-  const [leagueStatsSource, setLeagueStatsSource] = useState<string>("NL");
 
   // All rostered players in the league for cross-referencing with trade rumors
   const [leagueRoster, setLeagueRoster] = useState<Map<string, string>>(new Map()); // lowercase name → fantasy team name
@@ -230,15 +230,28 @@ export default function Home() {
   // Reddit baseball feed
   const [redditPosts, setRedditPosts] = useState<any[]>([]);
   const [redditLoading, setRedditLoading] = useState(true);
-  const [redditFilter, setRedditFilter] = useState<string>('ALL'); // default: all posts
 
   // Yahoo Sports MLB feed
   const [yahooArticles, setYahooArticles] = useState<any[]>([]);
   const [yahooLoading, setYahooLoading] = useState(true);
-  const [yahooFilter, setYahooFilter] = useState<string>('ALL');
+
+  // MLB.com news feed
+  const [mlbArticles, setMlbArticles] = useState<any[]>([]);
+  const [mlbLoading, setMlbLoading] = useState(true);
+
+  // ESPN MLB news feed
+  const [espnArticles, setEspnArticles] = useState<any[]>([]);
+  const [espnLoading, setEspnLoading] = useState(true);
 
   // Roster status alerts (IL, minors)
   const [rosterAlerts, setRosterAlerts] = useState<any[]>([]);
+
+  // Depth Charts
+  const [depthTeamId, setDepthTeamId] = useState(119); // Default LAD
+  const [depthChart, setDepthChart] = useState<{ position: string; label: string; players: { name: string; mlbId: number; status: string; isInjured: boolean }[] }[]>([]);
+  const [depthLoading, setDepthLoading] = useState(false);
+  const [depthPlayerCount, setDepthPlayerCount] = useState(0);
+  const [depthCachedAt, setDepthCachedAt] = useState<string | null>(null);
 
   // Derive list of fantasy teams from roster data
   const fantasyTeams = useMemo(() => {
@@ -253,8 +266,7 @@ export default function Home() {
   const [hasTeam, setHasTeam] = useState<boolean | null>(null);
 
   // League Digest
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [digest, setDigest] = useState<any | null>(null);
+  const [digest, setDigest] = useState<DigestResponse | null>(null);
   const [digestLoading, setDigestLoading] = useState(false);
   // Auto-expand on Mondays (day 1), collapsed other days
   const [digestExpanded, setDigestExpanded] = useState(() => new Date().getDay() === 1);
@@ -274,7 +286,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ leagueId: currentLeagueId, vote: v }),
       });
-      setDigest((prev: any) => prev ? { ...prev, voteResults: result } : prev);
+      setDigest(prev => prev ? { ...prev, voteResults: result } : prev);
     } catch { toast("Vote failed — please try again", "error"); } finally { setVoting(false); }
   };
 
@@ -297,17 +309,6 @@ export default function Home() {
       })
       .catch(() => { setHasTeam(null); setDash(null); });
 
-    // Also fetch league rules to get stats_source for rumors filter
-    fetchJsonApi<{ rules: Array<{ key: string; value: string }> }>(`${API_BASE}/leagues/${currentLeagueId}/rules`)
-      .then(res => {
-        const src = (res.rules || []).find(r => r.key === "stats_source");
-        if (src?.value) {
-          const mapped = src.value === "MLB" || src.value === "ALL" ? "ALL" : src.value.toUpperCase() as "NL" | "AL";
-          setLeagueStatsSource(mapped);
-          setRumorsFilter(mapped as any);
-        }
-      })
-      .catch(() => {});
   }, [user, currentLeagueId]);
 
   // Fetch scores
@@ -382,13 +383,25 @@ export default function Home() {
       .finally(() => setRedditLoading(false));
   }, [currentLeagueId]);
 
-  // Fetch Yahoo Sports MLB feed
+  // Fetch Yahoo Sports, MLB.com, ESPN feeds
   useEffect(() => {
     setYahooLoading(true);
     fetchJsonApi<{ articles: any[] }>(`${API_BASE}/mlb/yahoo-sports`)
       .then(res => setYahooArticles(res.articles || []))
       .catch(() => setYahooArticles([]))
       .finally(() => setYahooLoading(false));
+
+    setMlbLoading(true);
+    fetchJsonApi<{ articles: any[] }>(`${API_BASE}/mlb/mlb-news`)
+      .then(res => setMlbArticles(res.articles || []))
+      .catch(() => setMlbArticles([]))
+      .finally(() => setMlbLoading(false));
+
+    setEspnLoading(true);
+    fetchJsonApi<{ articles: any[] }>(`${API_BASE}/mlb/espn-news`)
+      .then(res => setEspnArticles(res.articles || []))
+      .catch(() => setEspnArticles([]))
+      .finally(() => setEspnLoading(false));
   }, []);
 
   // Fetch roster status alerts (IL, minors)
@@ -398,6 +411,20 @@ export default function Home() {
       .then(res => setRosterAlerts((res.players || []).filter((p: any) => p.isInjured || p.isMinors)))
       .catch(() => setRosterAlerts([]));
   }, [currentLeagueId]);
+
+  // Fetch depth chart when team selection changes
+  useEffect(() => {
+    if (!depthTeamId) return;
+    setDepthLoading(true);
+    fetchJsonApi<{ positions: typeof depthChart; playerCount: number; cachedAt: string }>(`${API_BASE}/mlb/depth-chart?teamId=${depthTeamId}`)
+      .then(res => {
+        setDepthChart(res.positions || []);
+        setDepthPlayerCount(res.playerCount || 0);
+        setDepthCachedAt(res.cachedAt || null);
+      })
+      .catch(() => setDepthChart([]))
+      .finally(() => setDepthLoading(false));
+  }, [depthTeamId]);
 
   // Auto-refresh scores when live games
   useEffect(() => {
@@ -426,7 +453,7 @@ export default function Home() {
     }).catch(() => {});
     // Fetch current week's digest
     setDigestLoading(true);
-    fetchJsonApi<any>(`${API_BASE}/mlb/league-digest?leagueId=${currentLeagueId}`)
+    fetchJsonApi<DigestResponse>(`${API_BASE}/mlb/league-digest?leagueId=${currentLeagueId}`)
       .then(data => { if (ok) setDigest(data); })
       .catch(() => {})
       .finally(() => { if (ok) setDigestLoading(false); });
@@ -439,7 +466,7 @@ export default function Home() {
     setSelectedWeekKey(weekKey);
     setDigest(null);
     setDigestLoading(true);
-    fetchJsonApi<any>(`${API_BASE}/mlb/league-digest?leagueId=${currentLeagueId}&weekKey=${weekKey}`)
+    fetchJsonApi<DigestResponse>(`${API_BASE}/mlb/league-digest?leagueId=${currentLeagueId}&weekKey=${weekKey}`)
       .then(data => setDigest(data))
       .catch(() => setDigest(null))
       .finally(() => setDigestLoading(false));
@@ -477,12 +504,37 @@ export default function Home() {
       {/* Header */}
       <div>
         <h1 className="text-xl md:text-2xl font-semibold text-[var(--lg-text-heading)]">
-          MLB Today
+          Dashboard
         </h1>
         <p className="text-xs text-[var(--lg-text-muted)] mt-0.5">
-          Welcome, <span className="text-[var(--lg-accent)] font-semibold">{user.name || user.email}</span>
+          {dash ? (
+            <>{dash.leagueName} · {dash.season}{dash.myTeam && <> · <span className="text-[var(--lg-accent)] font-semibold">{dash.myTeam.name}</span></>}</>
+          ) : (
+            <>Welcome, <span className="text-[var(--lg-accent)] font-semibold">{user.name || user.email}</span></>
+          )}
         </p>
       </div>
+
+      {/* Section navigation */}
+      <nav className="flex gap-2 overflow-x-auto scrollbar-hide pb-1" style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}>
+        {[
+          { href: '#stats', label: 'Stats' },
+          { href: '#digest', label: 'Digest' },
+          { href: '#scores', label: 'Scores' },
+          { href: '#news', label: 'News' },
+          { href: '#youtube', label: 'YouTube' },
+          { href: '#depth-charts', label: 'Depth Charts' },
+        ].map(link => (
+          <a
+            key={link.href}
+            href={link.href}
+            onClick={(e) => { e.preventDefault(); document.querySelector(link.href)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
+            className="flex-shrink-0 px-3 py-1 rounded-lg text-[10px] font-semibold uppercase tracking-wide text-[var(--lg-text-muted)] bg-[var(--lg-bg-card)] border border-[var(--lg-border-faint)] hover:border-[var(--lg-accent)]/30 hover:text-[var(--lg-text-primary)] transition-colors"
+          >
+            {link.label}
+          </a>
+        ))}
+      </nav>
 
       {/* Invite code banner + Create League CTA (only if no team) */}
       {hasTeam === false && (
@@ -520,6 +572,7 @@ export default function Home() {
       )}
 
       {/* Real-Time Stats Today */}
+      <div id="stats" />
       {!rosterStatsLoading && rosterStats.players.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-2">
@@ -668,6 +721,7 @@ export default function Home() {
       )}
 
       {/* Weekly League Digest */}
+      <div id="digest" />
       {digestLoading && !digest && digestWeeks.length === 0 && (
         <div className="flex items-center justify-center gap-2 py-4 text-xs text-[var(--lg-text-muted)] animate-pulse">
           <Sparkles size={14} className="text-blue-400" />
@@ -753,7 +807,7 @@ export default function Home() {
                 <div>
                   <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--lg-text-muted)] mb-2">Power Rankings</div>
                   <div className="space-y-1">
-                    {digest.powerRankings.map((pr: any) => (
+                    {digest.powerRankings.map((pr: PowerRanking) => (
                       <div key={pr.teamName} className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[var(--lg-bg-card)] border border-[var(--lg-border-faint)]">
                         <span className="text-sm font-black tabular-nums w-6 text-center flex-shrink-0 text-[var(--lg-accent)]">
                           {pr.rank}
@@ -803,11 +857,11 @@ export default function Home() {
                 )}
 
                 {/* Category Movers */}
-                {digest.categoryMovers?.length > 0 && (
+                {(digest.categoryMovers?.length ?? 0) > 0 && (
                   <div>
                     <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--lg-text-muted)] mb-2">Category Movers</div>
                     <div className="space-y-1">
-                      {digest.categoryMovers.map((cm: any, i: number) => (
+                      {digest.categoryMovers!.map((cm: CategoryMover, i: number) => (
                         <div key={i} className="flex items-start gap-2 px-3 py-1.5 text-[11px]">
                           <span className={`font-bold flex-shrink-0 ${cm.direction === "up" ? "text-emerald-500" : "text-red-400"}`}>
                             {cm.direction === "up" ? "↑" : "↓"} {cm.category}
@@ -847,7 +901,7 @@ export default function Home() {
                   <div>
                     <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--lg-text-muted)] mb-2">Team Grades</div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                      {digest.teamGrades.map((tg: any) => (
+                      {digest.teamGrades.map((tg: TeamGrade) => (
                         <div key={tg.teamName} className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[var(--lg-bg-card)] border border-[var(--lg-border-faint)]">
                           <span className={`text-sm font-black tabular-nums w-7 text-center flex-shrink-0 mt-0.5 ${gradeColor(tg.grade || "")}`}>{tg.grade}</span>
                           <div className="min-w-0">
@@ -905,7 +959,7 @@ export default function Home() {
                                   : "bg-[var(--lg-bg-card)] text-[var(--lg-text-muted)] border border-[var(--lg-border-faint)] hover:border-emerald-500/30 hover:text-emerald-400"
                             }`}
                           >
-                            Yes {digest.voteResults?.yes > 0 && `(${digest.voteResults.yes})`}
+                            Yes {(digest.voteResults?.yes ?? 0) > 0 && `(${digest.voteResults!.yes})`}
                           </button>
                           <button
                             onClick={() => handleVote("no")}
@@ -918,7 +972,7 @@ export default function Home() {
                                   : "bg-[var(--lg-bg-card)] text-[var(--lg-text-muted)] border border-[var(--lg-border-faint)] hover:border-red-500/30 hover:text-red-400"
                             }`}
                           >
-                            No {digest.voteResults?.no > 0 && `(${digest.voteResults.no})`}
+                            No {(digest.voteResults?.no ?? 0) > 0 && `(${digest.voteResults!.no})`}
                           </button>
                         </div>
                       </div>
@@ -944,210 +998,117 @@ export default function Home() {
         </div>
       )}
 
-      {/* ─── News Feeds: Trade Rumors | Reddit | Yahoo — side by side ─── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:[&>div]:h-[420px] lg:[&>div]:flex lg:[&>div]:flex-col">
-
-      {/* MLBTradeRumors.com */}
+      {/* ─── News & Social Feeds (tabbed) ─── */}
+      <div id="news" />
       <div>
-        <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--lg-text-muted)]">
-            <Sparkles size={12} className="inline -mt-0.5 mr-1 text-orange-400" />
-            MLBTradeRumors.com
-          </h2>
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Fantasy team dropdown */}
-            <select
-              value={rumorsFantasyTeam}
-              onChange={(e) => { setRumorsFantasyTeam(e.target.value); setRumorsRosterOnly(e.target.value !== 'ALL'); }}
-              className="bg-[var(--lg-tint)] border border-[var(--lg-border-subtle)] rounded px-1.5 py-0.5 text-[10px] font-semibold text-[var(--lg-text-muted)] outline-none cursor-pointer"
-            >
-              <option value="ALL">All League News</option>
-              <option value="MY_ROSTER">My Roster</option>
-              {fantasyTeams.map(t => <option key={t} value={t}>{t}</option>)}
-              <option value="FREE_AGENTS">Free Agents</option>
-            </select>
-            {/* MLB Team dropdown */}
-            <select
-              value={rumorsTeamFilter}
-              onChange={(e) => setRumorsTeamFilter(e.target.value)}
-              className="bg-[var(--lg-tint)] border border-[var(--lg-border-subtle)] rounded px-1.5 py-0.5 text-[10px] font-semibold text-[var(--lg-text-muted)] outline-none cursor-pointer"
-            >
-              <option value="ALL">All Teams</option>
-              <optgroup label="NL">
-                {Object.entries(TEAM_NAME_TO_ABBR).filter(([, abbr]) => NL_TEAMS.has(abbr)).sort(([a], [b]) => a.localeCompare(b)).map(([name]) => (
-                  <option key={name} value={name}>{name}</option>
-                ))}
-              </optgroup>
-              <optgroup label="AL">
-                {Object.entries(TEAM_NAME_TO_ABBR).filter(([, abbr]) => AL_TEAMS.has(abbr)).sort(([a], [b]) => a.localeCompare(b)).map(([name]) => (
-                  <option key={name} value={name}>{name}</option>
-                ))}
-              </optgroup>
-            </select>
-            {/* NL/AL toggle */}
-            <div className="flex bg-[var(--lg-tint)] rounded-md p-0.5 border border-[var(--lg-border-subtle)]">
-              {(['ALL', 'NL', 'AL'] as const).map(f => (
-                <button
-                  key={f}
-                  onClick={() => { setRumorsFilter(f); setRumorsTeamFilter('ALL'); }}
-                  className={`px-2.5 py-0.5 text-[10px] font-semibold uppercase rounded transition-all ${
-                    rumorsFilter === f && rumorsTeamFilter === 'ALL' ? 'bg-[var(--lg-accent)] text-white' : 'text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)]'
-                  }`}
-                >
-                  {f}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-        {rumorsLoading ? (
-          <div className="space-y-2">
-            {[1,2,3].map(i => <div key={i} className="h-8 rounded bg-[var(--lg-tint)] animate-pulse" />)}
-          </div>
-        ) : (() => {
-          // Step 1: Pre-compute roster matches for each rumor
-          const rumorsWithMatches = rumors.map(r => {
-            const matched: { name: string; fantasyTeam: string }[] = [];
-            for (const cat of r.categories) {
-              const fantasyTeam = leagueRoster.get(cat.toLowerCase());
-              if (fantasyTeam) matched.push({ name: cat, fantasyTeam });
-            }
-            return { ...r, matchedPlayers: matched };
-          });
-
-          // Step 2: Apply filters
-          let filtered = rumorsWithMatches;
-
-          // Fantasy team filter: filter by specific fantasy team's players, or all rostered, or free agents
-          if (rumorsFantasyTeam === 'FREE_AGENTS') {
-            // Show items with player tags NOT on any league roster
-            filtered = filtered.filter(r => {
-              return r.categories.some(cat => {
-                const isPlayer = !TEAM_NAME_TO_ABBR[cat] && !['Notes', 'Transactions', 'Newsstand', 'Front Office Originals', 'MLBTR Originals', 'MLBTR Polls', 'The Opener', 'Front Office Fantasy'].includes(cat);
-                return isPlayer && !leagueRoster.has(cat.toLowerCase());
-              });
-            });
-          } else if (rumorsFantasyTeam !== 'ALL' && rumorsFantasyTeam !== 'MY_ROSTER') {
-            // Filter by specific fantasy team
-            filtered = filtered.filter(r => r.matchedPlayers.some(mp => mp.fantasyTeam === rumorsFantasyTeam));
-          } else if (rumorsFantasyTeam === 'MY_ROSTER' || rumorsRosterOnly) {
-            filtered = filtered.filter(r => r.matchedPlayers.length > 0);
-          } else {
-            // Team dropdown filter: filter by specific MLB team name in categories
-            if (rumorsTeamFilter !== 'ALL') {
-              filtered = filtered.filter(r => r.categories.some(cat => cat === rumorsTeamFilter));
-            }
-          }
-
-          // NL/AL league filter (only applies when no specific team is selected and not roster-only)
-          if (!rumorsRosterOnly && rumorsTeamFilter === 'ALL' && rumorsFilter !== 'ALL') {
-            filtered = filtered.filter(r => {
-              return r.categories.some(cat => {
-                const abbr = TEAM_NAME_TO_ABBR[cat];
-                if (!abbr) return false;
-                return rumorsFilter === 'NL' ? NL_TEAMS.has(abbr) : AL_TEAMS.has(abbr);
-              }) || r.categories.length === 0;
-            });
-          }
-          return filtered.length === 0 ? (
-            <div className="text-center py-8 text-xs text-[var(--lg-text-muted)] opacity-50">
-              {rumorsRosterOnly ? "No trade rumors mentioning your league's rostered players" : `No ${rumorsTeamFilter !== 'ALL' ? rumorsTeamFilter : rumorsFilter} trade rumors available`}
-            </div>
-          ) : (
-            <div className="rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] divide-y divide-[var(--lg-border-faint)] max-h-[400px] overflow-y-auto">
-              {filtered.map((r, i) => {
-                const ago = r.pubDate ? (() => {
-                  const ms = Date.now() - new Date(r.pubDate).getTime();
-                  const hours = Math.floor(ms / 3_600_000);
-                  if (hours < 1) return "just now";
-                  if (hours < 24) return `${hours}h ago`;
-                  return `${Math.floor(hours / 24)}d ago`;
-                })() : "";
-
-                const { matchedPlayers } = r;
-
-                return (
-                  <a
-                    key={i}
-                    href={r.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`flex items-start gap-2 px-3 py-2.5 hover:bg-[var(--lg-tint-hover)] transition-colors ${
-                      matchedPlayers.length > 0 ? 'border-l-2 border-l-[var(--lg-accent)]' : ''
-                    }`}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-medium text-[var(--lg-text-primary)] leading-relaxed">{r.title}</div>
-                      <div className="flex gap-1 mt-1 flex-wrap">
-                        {/* Show rostered player matches first with accent highlight */}
-                        {matchedPlayers.map((mp, mi) => (
-                          <span key={`match-${mi}`} className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--lg-accent)]/20 text-[var(--lg-accent)] font-semibold border border-[var(--lg-accent)]/30">
-                            {mp.name} · {mp.fantasyTeam}
-                          </span>
-                        ))}
-                        {/* Show team tags */}
-                        {r.categories.filter(cat => !leagueRoster.has(cat.toLowerCase())).slice(0, 3).map((cat, ci) => (
-                          <span key={ci} className="text-[9px] px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400 font-medium">{cat}</span>
-                        ))}
-                      </div>
-                    </div>
-                    <span className="text-[10px] text-[var(--lg-text-muted)] shrink-0 mt-0.5">{ago}</span>
-                  </a>
-                );
-              })}
-            </div>
-          );
-        })()}
-      </div>
-
-      {/* Reddit */}
-      <div>
-        <div className="flex items-center justify-between mb-1 flex-wrap gap-1">
-          <h2 className="text-[9px] font-bold uppercase tracking-wide text-[var(--lg-text-muted)]">Reddit r/baseball</h2>
+        {/* Header: title + filter dropdown */}
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--lg-text-muted)]">News & Social</h2>
           <select
-            value={redditFilter}
-            onChange={(e) => setRedditFilter(e.target.value)}
-            className="bg-[var(--lg-tint)] border border-[var(--lg-border-subtle)] rounded px-1 py-0.5 text-[9px] font-semibold text-[var(--lg-text-muted)] outline-none cursor-pointer"
+            value={newsFilter}
+            onChange={(e) => setNewsFilter(e.target.value)}
+            className="bg-[var(--lg-tint)] border border-[var(--lg-border-subtle)] rounded px-2 py-1 text-[10px] font-semibold text-[var(--lg-text-muted)] outline-none cursor-pointer"
           >
             <option value="ALL">All League News</option>
+            <option value="MY_ROSTER">My Roster</option>
             {fantasyTeams.map(t => <option key={t} value={t}>{t}</option>)}
             <option value="FREE_AGENTS">Free Agents</option>
           </select>
         </div>
-          <div className="rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] divide-y divide-[var(--lg-border-faint)] flex-1 overflow-y-auto">
-            {(() => {
-              let filtered = redditPosts;
-              if (redditFilter === 'MY_ROSTER') {
-                filtered = filtered.filter((p: any) => p.matchedPlayers?.length > 0);
-              } else if (redditFilter !== 'ALL') {
-                filtered = filtered.filter((p: any) => p.matchedPlayers?.some((mp: any) => mp.fantasyTeam === redditFilter));
+
+        {/* Tab strip */}
+        <div className="flex gap-1 mb-2 overflow-x-auto scrollbar-hide" style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}>
+          {([
+            { key: 'rumors' as const, label: 'MLBTradeRumors.com' },
+            { key: 'reddit' as const, label: 'Reddit r/baseball' },
+            { key: 'mlb' as const, label: 'MLB.com' },
+            { key: 'espn' as const, label: 'ESPN' },
+            { key: 'yahoo' as const, label: 'Yahoo Sports' },
+          ]).map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setNewsTab(tab.key)}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-medium whitespace-nowrap transition-colors ${
+                newsTab === tab.key
+                  ? "bg-[var(--lg-accent)] text-white"
+                  : "bg-[var(--lg-bg-card)] text-[var(--lg-text-muted)] border border-[var(--lg-border-faint)] hover:border-[var(--lg-accent)]/30 hover:text-[var(--lg-text-primary)]"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab content */}
+        <div className="rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] divide-y divide-[var(--lg-border-faint)] max-h-[480px] overflow-y-auto">
+
+          {/* Trade Rumors tab */}
+          {newsTab === 'rumors' && (rumorsLoading ? (
+            <div className="space-y-2 p-3">{[1,2,3,4].map(i => <div key={i} className="h-8 rounded bg-[var(--lg-bg-card)] animate-pulse" />)}</div>
+          ) : (() => {
+            const rumorsWithMatches = rumors.map(r => {
+              const matched: { name: string; fantasyTeam: string }[] = [];
+              for (const cat of r.categories) {
+                const fantasyTeam = leagueRoster.get(cat.toLowerCase());
+                if (fantasyTeam) matched.push({ name: cat, fantasyTeam });
               }
-              return filtered;
-            })().map((post: any, i: number) => {
-              const ago = post.createdUtc ? (() => {
-                const ms = Date.now() - post.createdUtc * 1000;
-                const hours = Math.floor(ms / 3_600_000);
-                if (hours < 1) return "just now";
-                if (hours < 24) return `${hours}h ago`;
-                return `${Math.floor(hours / 24)}d ago`;
-              })() : "";
+              return { ...r, matchedPlayers: matched };
+            });
+            let filtered = rumorsWithMatches;
+            if (newsFilter === 'FREE_AGENTS') {
+              filtered = filtered.filter(r => r.categories.some(cat => {
+                const isPlayer = !TEAM_NAME_TO_ABBR[cat] && !['Notes', 'Transactions', 'Newsstand', 'Front Office Originals', 'MLBTR Originals', 'MLBTR Polls', 'The Opener', 'Front Office Fantasy'].includes(cat);
+                return isPlayer && !leagueRoster.has(cat.toLowerCase());
+              }));
+            } else if (newsFilter === 'MY_ROSTER') {
+              filtered = filtered.filter(r => r.matchedPlayers.length > 0);
+            } else if (newsFilter !== 'ALL') {
+              filtered = filtered.filter(r => r.matchedPlayers.some(mp => mp.fantasyTeam === newsFilter));
+            }
+            return filtered.length === 0 ? (
+              <div className="text-center py-8 text-xs text-[var(--lg-text-muted)] opacity-50">No trade rumors {newsFilter !== 'ALL' ? `for ${newsFilter}` : 'available'}</div>
+            ) : (<>{filtered.map((r, i) => {
+              const ago = r.pubDate ? (() => { const ms = Date.now() - new Date(r.pubDate).getTime(); const h = Math.floor(ms / 3_600_000); return h < 1 ? "just now" : h < 24 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`; })() : "";
               return (
-                <a
-                  key={`rd-${i}`}
-                  href={post.permalink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`flex items-start gap-2 px-3 py-2 hover:bg-[var(--lg-tint-hover)] transition-colors ${
-                    post.matchedPlayers?.length > 0 ? 'border-l-2 border-l-[var(--lg-accent)]' : ''
-                  }`}
-                >
+                <a key={i} href={r.link} target="_blank" rel="noopener noreferrer"
+                  className={`flex items-start gap-2 px-3 py-2.5 hover:bg-[var(--lg-tint-hover)] transition-colors ${r.matchedPlayers.length > 0 ? 'border-l-2 border-l-[var(--lg-accent)]' : ''}`}>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-medium text-[var(--lg-text-primary)] leading-relaxed">{r.title}</div>
+                    <div className="flex gap-1 mt-1 flex-wrap">
+                      {r.matchedPlayers.map((mp, mi) => (
+                        <span key={`m-${mi}`} className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--lg-accent)]/20 text-[var(--lg-accent)] font-semibold border border-[var(--lg-accent)]/30">{mp.name} · {mp.fantasyTeam}</span>
+                      ))}
+                      {r.categories.filter(cat => !leagueRoster.has(cat.toLowerCase())).slice(0, 3).map((cat, ci) => (
+                        <span key={ci} className="text-[9px] px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400 font-medium">{cat}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <span className="text-[10px] text-[var(--lg-text-muted)] shrink-0 mt-0.5">{ago}</span>
+                </a>
+              );
+            })}</>);
+          })())}
+
+          {/* Reddit tab */}
+          {newsTab === 'reddit' && (redditLoading ? (
+            <div className="space-y-2 p-3">{[1,2,3,4].map(i => <div key={i} className="h-8 rounded bg-[var(--lg-bg-card)] animate-pulse" />)}</div>
+          ) : (() => {
+            let filtered = redditPosts;
+            if (newsFilter === 'MY_ROSTER') filtered = filtered.filter((p: any) => p.matchedPlayers?.length > 0);
+            else if (newsFilter === 'FREE_AGENTS') filtered = filtered.filter((p: any) => !p.matchedPlayers?.length);
+            else if (newsFilter !== 'ALL') filtered = filtered.filter((p: any) => p.matchedPlayers?.some((mp: any) => mp.fantasyTeam === newsFilter));
+            return filtered.length === 0 ? (
+              <div className="text-center py-8 text-xs text-[var(--lg-text-muted)] opacity-50">No posts</div>
+            ) : (<>{filtered.map((post: any, i: number) => {
+              const ago = post.createdUtc ? (() => { const ms = Date.now() - post.createdUtc * 1000; const h = Math.floor(ms / 3_600_000); return h < 1 ? "just now" : h < 24 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`; })() : "";
+              return (
+                <a key={`rd-${i}`} href={post.permalink} target="_blank" rel="noopener noreferrer"
+                  className={`flex items-start gap-2 px-3 py-2 hover:bg-[var(--lg-tint-hover)] transition-colors ${post.matchedPlayers?.length > 0 ? 'border-l-2 border-l-[var(--lg-accent)]' : ''}`}>
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-medium text-[var(--lg-text-primary)] leading-relaxed">{post.title}</div>
                     <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                       {(post.matchedPlayers || []).map((mp: any, mi: number) => (
-                        <span key={`rmp-${mi}`} className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--lg-accent)]/20 text-[var(--lg-accent)] font-semibold border border-[var(--lg-accent)]/30">
-                          {mp.name} · {mp.fantasyTeam}
-                        </span>
+                        <span key={`rmp-${mi}`} className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--lg-accent)]/20 text-[var(--lg-accent)] font-semibold border border-[var(--lg-accent)]/30">{mp.name} · {mp.fantasyTeam}</span>
                       ))}
                       {post.flair && <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400 font-medium">{post.flair}</span>}
                       <span className="text-[9px] text-[var(--lg-text-muted)]">{post.score} pts · {post.numComments} comments</span>
@@ -1156,75 +1117,58 @@ export default function Home() {
                   <span className="text-[10px] text-[var(--lg-text-muted)] shrink-0 mt-0.5">{ago}</span>
                 </a>
               );
-            })}
-          </div>
-        </div>
+            })}</>);
+          })())}
 
-      {/* Yahoo Sports MLB */}
-      <div>
-        <div className="flex items-center justify-between mb-1 flex-wrap gap-1">
-          <h2 className="text-[9px] font-bold uppercase tracking-wide text-[var(--lg-text-muted)]">Yahoo Sports MLB</h2>
-          <select
-            value={yahooFilter}
-            onChange={(e) => setYahooFilter(e.target.value)}
-            className="bg-[var(--lg-tint)] border border-[var(--lg-border-subtle)] rounded px-1 py-0.5 text-[9px] font-semibold text-[var(--lg-text-muted)] outline-none cursor-pointer"
-          >
-            <option value="ALL">All League News</option>
-            {fantasyTeams.map(t => <option key={t} value={t}>{t}</option>)}
-            <option value="FREE_AGENTS">Free Agents</option>
-          </select>
-        </div>
-        {yahooLoading ? (
-          <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-6 rounded bg-[var(--lg-tint)] animate-pulse" />)}</div>
-        ) : (() => {
-          // Cross-reference Yahoo articles with league roster
-          const articles = yahooArticles.map(a => {
-            const lowerTitle = (a.title || "").toLowerCase();
-            const matched: { name: string; fantasyTeam: string }[] = [];
-            for (const [key, team] of leagueRoster) {
-              if (key.length >= 4 && lowerTitle.includes(key)) {
-                matched.push({ name: key, fantasyTeam: team });
+          {/* Article-based tabs: MLB.com, ESPN, Yahoo — shared renderer */}
+          {(newsTab === 'mlb' || newsTab === 'espn' || newsTab === 'yahoo') && (() => {
+            const sourceArticles = newsTab === 'mlb' ? mlbArticles : newsTab === 'espn' ? espnArticles : yahooArticles;
+            const loading = newsTab === 'mlb' ? mlbLoading : newsTab === 'espn' ? espnLoading : yahooLoading;
+            if (loading) return <div className="space-y-2 p-3">{[1,2,3,4].map(i => <div key={i} className="h-6 rounded bg-[var(--lg-bg-card)] animate-pulse" />)}</div>;
+            // Cross-reference with league roster
+            const articles = sourceArticles.map((a: any) => {
+              const lowerTitle = (a.title || "").toLowerCase();
+              const matched: { name: string; fantasyTeam: string }[] = [];
+              for (const [key, team] of leagueRoster) {
+                if (key.length >= 4 && lowerTitle.includes(key)) matched.push({ name: key, fantasyTeam: team });
               }
-            }
-            return { ...a, matchedPlayers: matched };
-          });
-          let filtered = articles;
-          if (yahooFilter !== 'ALL') {
-            filtered = filtered.filter(a => a.matchedPlayers.some((mp: any) => mp.fantasyTeam === yahooFilter));
-          }
-          return filtered.length === 0 ? (
-            <div className="text-center py-4 text-[10px] text-[var(--lg-text-muted)] opacity-50">No articles</div>
-          ) : (
-            <div className="rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] divide-y divide-[var(--lg-border-faint)] flex-1 overflow-y-auto">
-              {filtered.map((a: any, i: number) => {
-                const ago = a.pubDate ? (() => {
-                  const ms = Date.now() - new Date(a.pubDate).getTime();
-                  const hours = Math.floor(ms / 3_600_000);
-                  if (hours < 1) return "just now";
-                  if (hours < 24) return `${hours}h ago`;
-                  return `${Math.floor(hours / 24)}d ago`;
-                })() : "";
-                return (
-                  <a key={`yh-${i}`} href={a.link} target="_blank" rel="noopener noreferrer"
-                    className={`block px-2.5 py-2 hover:bg-[var(--lg-tint-hover)] transition-colors ${a.matchedPlayers?.length > 0 ? 'border-l-2 border-l-[var(--lg-accent)]' : ''}`}>
-                    <div className="text-[11px] font-medium text-[var(--lg-text-primary)] leading-snug line-clamp-2">{a.title}</div>
-                    <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-                      {(a.matchedPlayers || []).slice(0, 2).map((mp: any, mi: number) => (
-                        <span key={mi} className="text-[8px] px-1 py-0.5 rounded bg-[var(--lg-accent)]/20 text-[var(--lg-accent)] font-semibold">{mp.name}</span>
+              return { ...a, matchedPlayers: matched };
+            });
+            let filtered = articles;
+            if (newsFilter === 'MY_ROSTER') filtered = filtered.filter((a: any) => a.matchedPlayers.length > 0);
+            else if (newsFilter === 'FREE_AGENTS') filtered = filtered.filter((a: any) => a.matchedPlayers.length === 0);
+            else if (newsFilter !== 'ALL') filtered = filtered.filter((a: any) => a.matchedPlayers.some((mp: any) => mp.fantasyTeam === newsFilter));
+            return filtered.length === 0 ? (
+              <div className="text-center py-8 text-xs text-[var(--lg-text-muted)] opacity-50">No articles</div>
+            ) : (<>{filtered.map((a: any, i: number) => {
+              const ago = a.pubDate ? (() => { const ms = Date.now() - new Date(a.pubDate).getTime(); const h = Math.floor(ms / 3_600_000); return h < 1 ? "just now" : h < 24 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`; })() : "";
+              return (
+                <a key={`art-${i}`} href={a.link} target="_blank" rel="noopener noreferrer"
+                  className={`flex items-start gap-2 px-3 py-2.5 hover:bg-[var(--lg-tint-hover)] transition-colors ${a.matchedPlayers?.length > 0 ? 'border-l-2 border-l-[var(--lg-accent)]' : ''}`}>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-medium text-[var(--lg-text-primary)] leading-relaxed">{a.title}</div>
+                    <div className="flex items-center gap-1 mt-1 flex-wrap">
+                      {(a.matchedPlayers || []).slice(0, 3).map((mp: any, mi: number) => (
+                        <span key={mi} className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--lg-accent)]/20 text-[var(--lg-accent)] font-semibold border border-[var(--lg-accent)]/30">{mp.name} · {mp.fantasyTeam}</span>
                       ))}
-                      <span className="text-[9px] text-[var(--lg-text-muted)]">{ago}</span>
+                      {a.description && <span className="text-[9px] text-[var(--lg-text-muted)] line-clamp-1">{a.description}</span>}
                     </div>
-                  </a>
-                );
-              })}
-            </div>
-          );
-        })()}
-      </div>
+                  </div>
+                  <span className="text-[10px] text-[var(--lg-text-muted)] shrink-0 mt-0.5">{ago}</span>
+                </a>
+              );
+            })}</>);
+          })()}
 
-      </div>{/* end 3-column grid */}
+        </div>
+        <div className="text-[8px] text-[var(--lg-text-muted)] opacity-50 mt-1 px-1">
+          Source: {newsTab === 'rumors' ? 'mlbtraderumors.com' : newsTab === 'reddit' ? 'reddit.com/r/baseball + r/fantasybaseball' : newsTab === 'mlb' ? 'mlb.com/feeds/news/rss.xml' : newsTab === 'espn' ? 'espn.com/espn/rss/mlb/news' : 'sports.yahoo.com/mlb/rss'}
+          {' · '}Players highlighted when rostered in your league
+        </div>
+      </div>{/* end News & Social */}
 
       {/* ─── YouTube Shorts with pagination ─── */}
+      <div id="youtube" />
       {!videosLoading && playerVideos.length > 0 && (
         <div>
           <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--lg-text-muted)] mb-2">
@@ -1293,10 +1237,9 @@ export default function Home() {
         </div>
       )}
 
-      {/* Date navigator */}
-      <DateNavigator date={date} onChange={setDate} />
-
       {/* Scores */}
+      <div id="scores" />
+      <DateNavigator date={date} onChange={setDate} />
       <div>
         <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--lg-text-muted)] mb-2">
           Scores {games.some(g => g.status === 'Live') && <span className="text-emerald-400 ml-1 animate-pulse">Live</span>}
@@ -1310,6 +1253,109 @@ export default function Home() {
         ) : (
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
             {games.map(g => <GameCard key={g.gamePk} game={g} />)}
+          </div>
+        )}
+      </div>
+
+      {/* ─── Depth Charts ─── */}
+      <div id="depth-charts">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--lg-text-muted)]">Depth Charts</h2>
+          <div className="flex items-center gap-2">
+            <select
+              value={depthTeamId}
+              onChange={(e) => setDepthTeamId(Number(e.target.value))}
+              className="bg-[var(--lg-tint)] border border-[var(--lg-border-subtle)] rounded px-2 py-1 text-[10px] font-semibold text-[var(--lg-text-muted)] outline-none cursor-pointer"
+            >
+              <optgroup label="NL West">
+                <option value={119}>Los Angeles Dodgers</option>
+                <option value={135}>San Diego Padres</option>
+                <option value={137}>San Francisco Giants</option>
+                <option value={109}>Arizona Diamondbacks</option>
+                <option value={115}>Colorado Rockies</option>
+              </optgroup>
+              <optgroup label="NL East">
+                <option value={144}>Atlanta Braves</option>
+                <option value={121}>New York Mets</option>
+                <option value={143}>Philadelphia Phillies</option>
+                <option value={146}>Miami Marlins</option>
+                <option value={120}>Washington Nationals</option>
+              </optgroup>
+              <optgroup label="NL Central">
+                <option value={158}>Milwaukee Brewers</option>
+                <option value={112}>Chicago Cubs</option>
+                <option value={138}>St. Louis Cardinals</option>
+                <option value={113}>Cincinnati Reds</option>
+                <option value={134}>Pittsburgh Pirates</option>
+              </optgroup>
+              <optgroup label="AL East">
+                <option value={110}>Baltimore Orioles</option>
+                <option value={147}>New York Yankees</option>
+                <option value={139}>Tampa Bay Rays</option>
+                <option value={141}>Toronto Blue Jays</option>
+                <option value={111}>Boston Red Sox</option>
+              </optgroup>
+              <optgroup label="AL Central">
+                <option value={114}>Cleveland Guardians</option>
+                <option value={118}>Kansas City Royals</option>
+                <option value={116}>Detroit Tigers</option>
+                <option value={142}>Minnesota Twins</option>
+                <option value={145}>Chicago White Sox</option>
+              </optgroup>
+              <optgroup label="AL West">
+                <option value={117}>Houston Astros</option>
+                <option value={136}>Seattle Mariners</option>
+                <option value={140}>Texas Rangers</option>
+                <option value={108}>Los Angeles Angels</option>
+                <option value={133}>Athletics</option>
+              </optgroup>
+            </select>
+          </div>
+        </div>
+        {depthLoading ? (
+          <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-10 rounded bg-[var(--lg-tint)] animate-pulse" />)}</div>
+        ) : depthChart.length === 0 ? (
+          <div className="text-center py-8 text-xs text-[var(--lg-text-muted)] opacity-50">Select a team to view depth chart</div>
+        ) : (
+          <div className="rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] overflow-hidden">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-[9px] font-bold uppercase text-[var(--lg-text-muted)] border-b border-[var(--lg-border-faint)] bg-[var(--lg-bg-card)]/50">
+                  <th className="px-2 py-1.5 text-left w-14">POS</th>
+                  <th className="px-2 py-1.5 text-left">Starter</th>
+                  <th className="px-2 py-1.5 text-left">Backup</th>
+                  <th className="px-2 py-1.5 text-left hidden sm:table-cell">3rd</th>
+                  <th className="px-2 py-1.5 text-left hidden md:table-cell">4th</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--lg-border-faint)]">
+                {depthChart.map(pos => (
+                  <tr key={pos.position}>
+                    <td className="px-2 py-1.5">
+                      <span className="text-[10px] font-mono font-bold text-[var(--lg-accent)]">{pos.position}</span>
+                    </td>
+                    {[0, 1, 2, 3].map(idx => (
+                      <td key={idx} className={`px-2 py-1.5 ${idx >= 2 ? (idx >= 3 ? 'hidden md:table-cell' : 'hidden sm:table-cell') : ''}`}>
+                        {pos.players[idx] ? (
+                          <span className={pos.players[idx].isInjured ? 'text-red-400 line-through opacity-70' : 'text-[var(--lg-text-primary)]'}>
+                            {pos.players[idx].name}
+                            {pos.players[idx].isInjured && (
+                              <span className="ml-1 text-[8px] font-bold text-red-400 no-underline">{pos.players[idx].status.replace('Injured ', 'IL-').replace('-Day', '')}</span>
+                            )}
+                          </span>
+                        ) : (
+                          <span className="text-[var(--lg-text-muted)] opacity-30">—</span>
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="px-2 py-1.5 border-t border-[var(--lg-border-faint)] text-[8px] text-[var(--lg-text-muted)] opacity-50 flex justify-between">
+              <span>Source: MLB Stats API · {depthPlayerCount} players</span>
+              <span>{depthCachedAt && new Date(depthCachedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
+            </div>
           </div>
         )}
       </div>

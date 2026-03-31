@@ -11,18 +11,6 @@ const router = Router();
 
 // ─── Types ───
 
-/** Narrow type for AiInsight.data on league_digest rows. */
-interface DigestData {
-  votes?: Record<string, string>;
-  [key: string]: unknown;
-}
-
-/** Narrow type for League.rules JSON. */
-interface LeagueRulesPartial {
-  leagueType?: string;
-  [key: string]: unknown;
-}
-
 interface GameScore {
   gamePk: number;
   status: string;
@@ -60,6 +48,7 @@ interface MyPlayerToday {
 // ─── Helpers ───
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const WEEK_KEY_REGEX = /^\d{4}-W\d{2}$/;
 
 /** MLB "game day" date in YYYY-MM-DD format, Pacific time.
  *  Before noon PST/PDT, returns YESTERDAY's date so last night's stats remain visible.
@@ -90,6 +79,7 @@ const AL_TEAMS = new Set([
 
 router.get(
   "/scores",
+  requireAuth,
   asyncHandler(async (req, res) => {
     const date = (req.query.date as string) || todayDateStr();
     if (!DATE_REGEX.test(date)) {
@@ -146,6 +136,7 @@ router.get(
 
 router.get(
   "/transactions",
+  requireAuth,
   asyncHandler(async (req, res) => {
     const date = (req.query.date as string) || todayDateStr();
     if (!DATE_REGEX.test(date)) {
@@ -650,6 +641,137 @@ router.get("/yahoo-sports", requireAuth, asyncHandler(async (_req, res) => {
   }
 }));
 
+// ─── GET /mlb-news — MLB.com official news RSS feed ───
+
+router.get("/mlb-news", requireAuth, asyncHandler(async (_req, res) => {
+  try {
+    const response = await fetch("https://www.mlb.com/feeds/news/rss.xml", {
+      headers: { "User-Agent": "FBST/1.0 Fantasy Baseball App" },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) return res.json({ articles: [] });
+    const xml = await response.text();
+
+    const articles: { title: string; link: string; pubDate: string; description: string }[] = [];
+    const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+    let match;
+    while ((match = itemRegex.exec(xml)) !== null && articles.length < 15) {
+      const block = match[1];
+      const title = block.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/)?.[1]
+        ?? block.match(/<title>(.*?)<\/title>/)?.[1] ?? "";
+      const link = block.match(/<link>(.*?)<\/link>/)?.[1] ?? "";
+      const pubDate = block.match(/<pubDate>(.*?)<\/pubDate>/)?.[1] ?? "";
+      const desc = block.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>/)?.[1]
+        ?? block.match(/<description>(.*?)<\/description>/)?.[1] ?? "";
+      if (title && link) {
+        articles.push({
+          title: title.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;/g, "'").replace(/&quot;/g, '"'),
+          link,
+          pubDate,
+          description: desc.replace(/<[^>]*>/g, "").slice(0, 150),
+        });
+      }
+    }
+
+    res.json({ articles });
+  } catch (err) {
+    logger.warn({ error: String(err) }, "Failed to fetch MLB.com news RSS");
+    res.json({ articles: [] });
+  }
+}));
+
+// ─── GET /espn-news — ESPN MLB news RSS feed ───
+
+router.get("/espn-news", requireAuth, asyncHandler(async (_req, res) => {
+  try {
+    const response = await fetch("https://www.espn.com/espn/rss/mlb/news", {
+      headers: { "User-Agent": "FBST/1.0 Fantasy Baseball App" },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) return res.json({ articles: [] });
+    const xml = await response.text();
+
+    const articles: { title: string; link: string; pubDate: string; description: string }[] = [];
+    const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+    let match;
+    while ((match = itemRegex.exec(xml)) !== null && articles.length < 15) {
+      const block = match[1];
+      const title = block.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/)?.[1]
+        ?? block.match(/<title>(.*?)<\/title>/)?.[1] ?? "";
+      const link = block.match(/<link>(.*?)<\/link>/)?.[1] ?? "";
+      const pubDate = block.match(/<pubDate>(.*?)<\/pubDate>/)?.[1] ?? "";
+      const desc = block.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>/)?.[1]
+        ?? block.match(/<description>(.*?)<\/description>/)?.[1] ?? "";
+      if (title && link) {
+        articles.push({
+          title: title.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;/g, "'").replace(/&quot;/g, '"'),
+          link,
+          pubDate,
+          description: desc.replace(/<[^>]*>/g, "").slice(0, 150),
+        });
+      }
+    }
+
+    res.json({ articles });
+  } catch (err) {
+    logger.warn({ error: String(err) }, "Failed to fetch ESPN MLB news RSS");
+    res.json({ articles: [] });
+  }
+}));
+
+// ─── GET /depth-chart?teamId=N — MLB depth chart for a team ───
+
+router.get("/depth-chart", requireAuth, asyncHandler(async (req, res) => {
+  const teamId = Number(req.query.teamId);
+  if (!Number.isFinite(teamId) || teamId < 100 || teamId > 200) {
+    return res.status(400).json({ error: "Invalid teamId" });
+  }
+
+  const data = await mlbGetJson(
+    `https://statsapi.mlb.com/api/v1/teams/${teamId}/roster/depthChart`,
+    3600 // 1-hour cache
+  );
+
+  const roster = (data.roster || []) as Array<{
+    person: { id: number; fullName: string };
+    position: { abbreviation: string; name: string; type: string };
+    status: { code: string; description: string };
+  }>;
+
+  // Group by position, preserving depth order from the API
+  const positionOrder = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH', 'SP', 'CP', 'P'];
+  const grouped: Record<string, Array<{ name: string; mlbId: number; status: string; isInjured: boolean }>> = {};
+
+  for (const p of roster) {
+    const pos = p.position.abbreviation;
+    if (!grouped[pos]) grouped[pos] = [];
+    const statusDesc = p.status.description;
+    grouped[pos].push({
+      name: p.person.fullName,
+      mlbId: p.person.id,
+      status: statusDesc,
+      isInjured: statusDesc.includes("Injured"),
+    });
+  }
+
+  // Build ordered positions array
+  const positions = positionOrder
+    .filter(pos => grouped[pos]?.length)
+    .map(pos => ({
+      position: pos,
+      label: pos === 'SP' ? 'Starting Pitchers' : pos === 'CP' ? 'Closer' : pos === 'P' ? 'Relief Pitchers' : pos,
+      players: grouped[pos],
+    }));
+
+  res.json({
+    teamId: data.teamId,
+    positions,
+    playerCount: roster.length,
+    source: "MLB Stats API",
+    cachedAt: new Date().toISOString(),
+  });
+}));
+
 // ─── GET /roster-stats-today — Full roster with today's real-time game stats ───
 
 router.get("/roster-stats-today", requireAuth, requireLeagueMember("leagueId"), asyncHandler(async (req, res) => {
@@ -833,6 +955,7 @@ router.get(
     const rosterEntries = await prisma.roster.findMany({
       where: {
         teamId: team.id,
+        releasedAt: null,
         player: { mlbId: { not: null } },
       },
       select: {
@@ -901,14 +1024,7 @@ router.get(
 // ─── Weekly League Digest ────────────────────────────────────────────────────
 
 import { getWeekKey, weekKeyLabel } from "../../lib/utils.js";
-
-const tradeStyles = ["conservative", "outrageous", "fun"] as const;
-
-/** Ordinal suffix: 1→"st", 2→"nd", 3→"rd", else "th" */
-function ordinal(n: number): string {
-  if (n % 100 >= 11 && n % 100 <= 13) return "th";
-  return ["th", "st", "nd", "rd"][n % 10] ?? "th";
-}
+import { buildDigestContext, extractVoteResults, type DigestData } from "./services/digestService.js";
 
 // GET /api/mlb/league-digest/weeks?leagueId=N — list all persisted digest weeks
 router.get("/league-digest/weeks", requireAuth, requireLeagueMember("leagueId"), asyncHandler(async (req, res) => {
@@ -922,7 +1038,7 @@ router.get("/league-digest/weeks", requireAuth, requireLeagueMember("leagueId"),
   });
 
   const currentWeekKey = getWeekKey();
-  const weeks = rows.map(r => ({
+  const weeks: { weekKey: string; generatedAt: string | null; label: string }[] = rows.map(r => ({
     weekKey: r.weekKey,
     generatedAt: r.createdAt.toISOString(),
     label: weekKeyLabel(r.weekKey),
@@ -930,7 +1046,7 @@ router.get("/league-digest/weeks", requireAuth, requireLeagueMember("leagueId"),
 
   // Always include current week (even if not yet generated)
   if (!weeks.some(w => w.weekKey === currentWeekKey)) {
-    weeks.push({ weekKey: currentWeekKey, generatedAt: null as any, label: weekKeyLabel(currentWeekKey) });
+    weeks.push({ weekKey: currentWeekKey, generatedAt: null, label: weekKeyLabel(currentWeekKey) });
   }
 
   res.json({ weeks, currentWeekKey });
@@ -942,7 +1058,8 @@ router.get("/league-digest", requireAuth, requireLeagueMember("leagueId"), async
   if (!Number.isFinite(leagueId)) return res.status(400).json({ error: "Missing leagueId" });
 
   const currentWeekKey = getWeekKey();
-  const requestedWeekKey = typeof req.query.weekKey === "string" ? req.query.weekKey : null;
+  const raw = typeof req.query.weekKey === "string" ? req.query.weekKey : null;
+  const requestedWeekKey = raw && WEEK_KEY_REGEX.test(raw) ? raw : null;
   const weekKey = requestedWeekKey || currentWeekKey;
   const isCurrentWeek = weekKey === currentWeekKey;
 
@@ -952,7 +1069,7 @@ router.get("/league-digest", requireAuth, requireLeagueMember("leagueId"), async
   });
   if (persisted) {
     const data = (persisted.data ?? {}) as DigestData & Record<string, unknown>;
-    const voteData = extractVotes(data, req.user!.id);
+    const voteData = extractVoteResults(data, req.user!.id);
     return res.json({ ...data, generatedAt: persisted.createdAt.toISOString(), weekKey, isCurrentWeek, votes: undefined, voteResults: voteData });
   }
 
@@ -961,177 +1078,26 @@ router.get("/league-digest", requireAuth, requireLeagueMember("leagueId"), async
     return res.status(404).json({ error: "No digest found for this week" });
   }
 
-  // Build context — parallelize independent queries
-  const prevWeekKey = getWeekKey(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
-  const [league, teams, prevDigest, activePeriod] = await Promise.all([
-    prisma.league.findUnique({ where: { id: leagueId }, select: { name: true, season: true, rules: true } }),
-    prisma.team.findMany({
-      where: { leagueId },
-      include: {
-        rosters: {
-          where: { releasedAt: null },
-          include: { player: { select: { name: true, posPrimary: true } } },
-          orderBy: { price: "desc" },
-        },
-      },
-      orderBy: { name: "asc" },
-    }),
-    prisma.aiInsight.findFirst({ where: { type: "league_digest", leagueId, weekKey: prevWeekKey } }),
-    prisma.period.findFirst({ where: { leagueId, status: "ACTIVE" }, orderBy: { startDate: "desc" } }),
-  ]);
-  if (!league) return res.status(404).json({ error: "League not found" });
+  // Build context using digest service
+  const digestCtx = await buildDigestContext(leagueId, weekKey);
+  if (!digestCtx) return res.status(404).json({ error: "League not found" });
 
-  // Compute real standings if active period exists
-  const { computeTeamStatsFromDb, computeStandingsFromStats, computeCategoryRows, CATEGORY_CONFIG } =
-    await import("../standings/services/standingsService.js");
-
-  type StandingsContext = {
-    standings: { teamId: number; teamName: string; points: number; rank: number }[];
-    categoryRanks: Record<number, Record<string, { value: number; rank: number }>>;
-    teamStats: { team: { id: number; name: string }; R: number; HR: number; RBI: number; SB: number; AVG: number; W: number; S: number; ERA: number; WHIP: number; K: number }[];
-  };
-  let standingsCtx: StandingsContext | null = null;
-
-  if (activePeriod) {
-    try {
-      const teamStats = await computeTeamStatsFromDb(leagueId, activePeriod.id);
-      const standings = computeStandingsFromStats(teamStats);
-      // Build per-team category ranks
-      const categoryRanks: Record<number, Record<string, { value: number; rank: number }>> = {};
-      for (const t of teamStats) {
-        categoryRanks[t.team.id] = {};
-      }
-      for (const cfg of CATEGORY_CONFIG) {
-        const rows = computeCategoryRows(teamStats, cfg.key, cfg.lowerIsBetter);
-        for (const r of rows) {
-          if (categoryRanks[r.teamId]) {
-            categoryRanks[r.teamId][cfg.key] = { value: r.value, rank: r.rank };
-          }
-        }
-      }
-      standingsCtx = { standings, categoryRanks, teamStats: teamStats as StandingsContext["teamStats"] };
-    } catch (err) {
-      logger.warn({ error: String(err) }, "Could not compute standings for digest — proceeding without");
-    }
-  }
-
-  // Recent transactions (last 14 days) per team — depends on teams query
-  const recentRosters = await prisma.roster.findMany({
-    where: {
-      teamId: { in: teams.map(t => t.id) },
-      acquiredAt: { gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) },
-      source: { not: "import" },
-    },
-    include: { player: { select: { name: true, posPrimary: true } }, team: { select: { name: true } } },
-    orderBy: { acquiredAt: "desc" },
-  });
-  const movesByTeam = new Map<number, string[]>();
-  for (const r of recentRosters) {
-    const moves = movesByTeam.get(r.teamId) || [];
-    moves.push(`${r.source}: ${r.player.name} (${r.player.posPrimary})`);
-    movesByTeam.set(r.teamId, moves);
-  }
-
-  // Determine trade style rotation based on week number
-  const weekNum = parseInt(weekKey.split("-W")[1]) || 0;
-  const tradeStyle = tradeStyles[weekNum % 3];
-
-  // Identify keepers per team and build team data (NO auction prices)
-  const { isKeeperRoster } = await import("../../lib/sportConfig.js");
-  const teamData = teams.map(t => {
-    const keepers = t.rosters.filter(r => isKeeperRoster(r));
-    const standingsRow = standingsCtx?.standings.find(s => s.teamId === t.id);
-    const catRanks = standingsCtx?.categoryRanks[t.id];
-
-    // Build structured stats line if available
-    let statsLine = "";
-    let categoryRankLine = "";
-    if (catRanks) {
-      const hitting = ["R", "HR", "RBI", "SB", "AVG"].map(k => {
-        const c = catRanks[k];
-        if (!c) return null;
-        const val = k === "AVG" ? `.${Math.round(c.value * 1000)}` : String(Math.round(c.value));
-        return `${k}:${val}(${c.rank}${ordinal(c.rank)})`;
-      }).filter(Boolean).join(" ");
-      const pitching = ["W", "S", "K", "ERA", "WHIP"].map(k => {
-        const c = catRanks[k];
-        if (!c) return null;
-        const val = (k === "ERA" || k === "WHIP") ? c.value.toFixed(2) : String(Math.round(c.value));
-        return `${k}:${val}(${c.rank}${ordinal(c.rank)})`;
-      }).filter(Boolean).join(" ");
-      statsLine = `${hitting} | ${pitching}`;
-      categoryRankLine = Object.entries(catRanks).map(([k, v]) => `${k}:${v.rank}`).join(" ");
-    }
-
-    return {
-      id: t.id,
-      name: t.name,
-      keyPlayers: t.rosters.slice(0, 6).map(r => `${r.player.name} (${r.player.posPrimary})`).join(", "),
-      keeperNames: keepers.map(k => k.player.name).join(", "),
-      recentMoves: (movesByTeam.get(t.id) || []).slice(0, 5).join("; "),
-      overallRank: standingsRow?.rank ?? null,
-      totalPoints: standingsRow?.points ?? null,
-      statsLine,
-      categoryRankLine,
-    };
-  });
-
-  // Pre-compute narrative hints for the AI
-  const narrativeHints: string[] = [];
-  if (standingsCtx) {
-    // Find tightest category race (smallest spread between 3rd and 7th)
-    for (const cfg of CATEGORY_CONFIG) {
-      const rows = computeCategoryRows(standingsCtx.teamStats as any, cfg.key, cfg.lowerIsBetter);
-      if (rows.length >= 7) {
-        const third = rows.find(r => r.rank === 3);
-        const seventh = rows.find(r => r.rank === 7);
-        if (third && seventh) {
-          const spread = Math.abs(third.value - seventh.value);
-          if (cfg.key === "AVG" && spread < 0.010) {
-            narrativeHints.push(`Tight race in AVG: only ${(spread * 1000).toFixed(0)} points separate 3rd-7th`);
-          } else if ((cfg.key === "ERA" || cfg.key === "WHIP") && spread < 0.50) {
-            narrativeHints.push(`Tight race in ${cfg.key}: only ${spread.toFixed(2)} separates 3rd-7th`);
-          } else if (spread < 10 && cfg.key !== "AVG" && cfg.key !== "ERA" && cfg.key !== "WHIP") {
-            narrativeHints.push(`Tight race in ${cfg.key}: only ${Math.round(spread)} separates 3rd-7th`);
-          }
-        }
-      }
-    }
-  }
-
-  // Extract previous week's vote results
-  let previousVotes: { yes: number; no: number } | null = null;
-  if (prevDigest) {
-    const prevData = (prevDigest.data ?? {}) as DigestData;
-    const votes: Record<string, string> = prevData.votes || {};
-    const yes = Object.values(votes).filter(v => v === "yes").length;
-    const no = Object.values(votes).filter(v => v === "no").length;
-    if (yes + no > 0) previousVotes = { yes, no };
-  }
-
+  // Generate digest via AI
   const { aiAnalysisService } = await import("../../services/aiAnalysisService.js");
-  const result = await aiAnalysisService.generateLeagueDigest({
-    leagueName: league.name,
-    season: league.season,
-    leagueType: ((league.rules as unknown as LeagueRulesPartial)?.leagueType) ?? "NL",
-    teams: teamData,
-    tradeStyle,
-    weekNumber: weekNum,
-    previousVotes,
-    narrativeHints,
-  });
+  const result = await aiAnalysisService.generateLeagueDigest(digestCtx);
 
   if (!result.success) {
     logger.warn({ error: result.error, leagueId }, "League digest generation failed");
     return res.status(503).json({ error: "League digest is temporarily unavailable" });
   }
 
-  // Persist (use teamId=0 for league-wide insights)
+  // Persist digest
+  const firstTeamId = (await prisma.team.findFirst({ where: { leagueId }, select: { id: true } }))?.id ?? 0;
   await prisma.aiInsight.create({
     data: {
       type: "league_digest",
       leagueId,
-      teamId: teams[0]?.id ?? 0, // Use first team as anchor (league-wide)
+      teamId: firstTeamId,
       weekKey,
       data: result.result as any,
     },
@@ -1183,14 +1149,5 @@ router.post("/league-digest/vote", requireAuth, validateBody(voteSchema), requir
 
   res.json({ yes: yesCount, no: noCount, myVote: vote });
 }));
-
-// Helper: extract vote counts from digest data for a specific user
-function extractVotes(data: any, userId: number): { yes: number; no: number; myVote: string | null } {
-  const votes: Record<string, string> = data?.votes || {};
-  const yesCount = Object.values(votes).filter(v => v === "yes").length;
-  const noCount = Object.values(votes).filter(v => v === "no").length;
-  const myVote = votes[String(userId)] || null;
-  return { yes: yesCount, no: noCount, myVote };
-}
 
 export const mlbFeedRouter = router;
