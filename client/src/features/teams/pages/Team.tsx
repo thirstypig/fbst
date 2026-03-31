@@ -577,12 +577,12 @@ export default function Team() {
                     <Th align="center">PLAYER</Th>
                     <Th align="center">TM</Th>
                     <Th align="center">G</Th>
+                    <Th align="center">AB</Th>
                     <Th align="center">R</Th>
                     <Th align="center">HR</Th>
                     <Th align="center">RBI</Th>
                     <Th align="center">SB</Th>
                     <Th align="center">AVG</Th>
-                    <Th align="center">GS</Th>
                   </Tr>
                 </THead>
 
@@ -668,6 +668,9 @@ export default function Team() {
                               {numFromAny(p, "G", "gamesPlayed", "games_played")}
                             </Td>
                             <Td align="center">
+                              {asNum(p?.AB)}
+                            </Td>
+                            <Td align="center">
                               {asNum(p?.R)}
                             </Td>
                             <Td align="center">
@@ -681,9 +684,6 @@ export default function Team() {
                             </Td>
                             <Td align="center">
                               {formatAvg(p?.AVG)}
-                            </Td>
-                            <Td align="center">
-                              {gs}
                             </Td>
                           </Tr>
                           {isExpanded && (
@@ -715,12 +715,12 @@ export default function Team() {
                         <Td align="center"><span className="font-bold text-xs text-[var(--lg-text-heading)]">Team Totals</span></Td>
                         <Td align="center">{""}</Td>
                         <Td align="center"><span className="font-bold">{totG}</span></Td>
+                        <Td align="center"><span className="font-bold">{totAB}</span></Td>
                         <Td align="center"><span className="font-bold">{totR}</span></Td>
                         <Td align="center"><span className="font-bold">{totHR}</span></Td>
                         <Td align="center"><span className="font-bold">{totRBI}</span></Td>
                         <Td align="center"><span className="font-bold">{totSB}</span></Td>
                         <Td align="center"><span className="font-bold">{formatAvg(teamAvg)}</span></Td>
-                        <Td align="center">{""}</Td>
                       </tr>
                     );
                   })()}
@@ -743,7 +743,6 @@ export default function Team() {
                     <Th align="center">IP</Th>
                     <Th align="center">ERA</Th>
                     <Th align="center">WHIP</Th>
-                    <Th align="center">SO</Th>
                   </Tr>
                 </THead>
 
@@ -814,9 +813,6 @@ export default function Team() {
                             <Td align="center">
                               {asNum(p?.IP) > 0 ? asNum(p.WHIP).toFixed(2) : "—"}
                             </Td>
-                            <Td align="center">
-                              {so}
-                            </Td>
                           </Tr>
                           {isExpanded && (
                             <PlayerExpandedRow
@@ -852,7 +848,6 @@ export default function Team() {
                         <Td align="center"><span className="font-bold">{totIP > 0 ? totIP.toFixed(1) : "—"}</span></Td>
                         <Td align="center"><span className="font-bold">{totIP > 0 ? teamERA.toFixed(2) : "—"}</span></Td>
                         <Td align="center"><span className="font-bold">{totIP > 0 ? teamWHIP.toFixed(2) : "—"}</span></Td>
-                        <Td align="center">{""}</Td>
                       </tr>
                     );
                   })()}

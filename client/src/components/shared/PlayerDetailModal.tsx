@@ -409,7 +409,28 @@ export default function PlayerDetailModal({ player, onClose, open }: Props) {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-8">
-              {/* Recent */}
+              {/* Fielding — Games by Position (shown first) */}
+              {mappedFieldingRows.length > 0 && (
+                <div className={sectionCls}>
+                  <div className={sectionHeadCls}>
+                    <div className={sectionTitleCls}>{new Date().getFullYear()} Positions Played</div>
+                  </div>
+                  <div className={sectionBodyCls}>
+                    <div className="p-6">
+                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                        {mappedFieldingRows.map(f => (
+                          <div key={f.position} className="flex items-center gap-2 px-3 py-2 rounded-[var(--lg-radius-md)] bg-[var(--lg-tint)] border border-[var(--lg-border-faint)]">
+                            <span className="text-xs font-semibold text-[var(--lg-text-primary)]">{f.position}</span>
+                            <span className="text-xs text-[var(--lg-text-muted)]">{f.games}G</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Recent Stats */}
               <div className={sectionCls}>
                 <div className={sectionHeadCls}>
                   <div className={sectionTitleCls}>Recent Stats <span className="text-[var(--lg-accent)] opacity-40 mx-2">|</span> 7 / 14 / 21 Days &amp; YTD</div>
@@ -446,27 +467,6 @@ export default function PlayerDetailModal({ player, onClose, open }: Props) {
                   )}
                 </div>
               </div>
-
-              {/* Fielding — Games by Position */}
-              {mappedFieldingRows.length > 0 && (
-                <div className={sectionCls}>
-                  <div className={sectionHeadCls}>
-                    <div className={sectionTitleCls}>{new Date().getFullYear()} Positions Played</div>
-                  </div>
-                  <div className={sectionBodyCls}>
-                    <div className="p-6">
-                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
-                        {mappedFieldingRows.map(f => (
-                          <div key={f.position} className="flex items-center gap-2 px-3 py-2 rounded-[var(--lg-radius-md)] bg-[var(--lg-tint)] border border-[var(--lg-border-faint)]">
-                            <span className="text-xs font-semibold text-[var(--lg-text-primary)]">{f.position}</span>
-                            <span className="text-xs text-[var(--lg-text-muted)]">{f.games}G</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
