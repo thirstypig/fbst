@@ -82,8 +82,8 @@ router.post("/", requireAuth, validateBody(createPeriodSchema), asyncHandler(asy
   const period = await prisma.period.create({
     data: {
       name,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
+      startDate: new Date(startDate + "T12:00:00Z"),
+      endDate: new Date(endDate + "T12:00:00Z"),
       status,
       leagueId,
       seasonId,
@@ -115,16 +115,16 @@ router.patch("/:id", requireAuth, validateBody(updatePeriodSchema), asyncHandler
   }
 
   // Validate date ordering if both dates provided (or one date + existing)
-  const effectiveStart = req.body.startDate ? new Date(req.body.startDate) : period.startDate;
-  const effectiveEnd = req.body.endDate ? new Date(req.body.endDate) : period.endDate;
+  const effectiveStart = req.body.startDate ? new Date(req.body.startDate + "T12:00:00Z") : period.startDate;
+  const effectiveEnd = req.body.endDate ? new Date(req.body.endDate + "T12:00:00Z") : period.endDate;
   if (effectiveEnd <= effectiveStart) {
     return res.status(400).json({ error: "End date must be after start date" });
   }
 
   const updateData: any = {};
   if (req.body.name) updateData.name = req.body.name;
-  if (req.body.startDate) updateData.startDate = new Date(req.body.startDate);
-  if (req.body.endDate) updateData.endDate = new Date(req.body.endDate);
+  if (req.body.startDate) updateData.startDate = new Date(req.body.startDate + "T12:00:00Z");
+  if (req.body.endDate) updateData.endDate = new Date(req.body.endDate + "T12:00:00Z");
   if (req.body.status) updateData.status = req.body.status;
 
   const updated = await prisma.period.update({

@@ -281,7 +281,7 @@ export default function SeasonManager({ leagueId, draftMode }: Props) {
               <h4 className="text-sm font-semibold text-[var(--lg-text-heading)]">
                 Periods ({currentSeason.periods.length})
               </h4>
-              {(currentSeason.status === "SETUP" || currentSeason.status === "DRAFT") && (
+              {(currentSeason.status !== "COMPLETED") && (
                 <button
                   onClick={() => setShowPeriodForm(!showPeriodForm)}
                   className="text-xs text-[var(--lg-accent)] hover:underline"
@@ -403,7 +403,7 @@ export default function SeasonManager({ leagueId, draftMode }: Props) {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          {p.status === "pending" && (
+                          {p.status !== "completed" && (
                             <button
                               onClick={() => startEditPeriod(p)}
                               className="text-xs text-[var(--lg-accent)] hover:underline opacity-0 group-hover:opacity-100 transition-opacity"
