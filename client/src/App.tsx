@@ -123,7 +123,13 @@ export default function App() {
             ) : (
               <Suspense fallback={<PageLoader />}>
                 <Routes>
-                  <Route path="/" element={<Navigate to="/login" replace />} />
+                  {/* Root path: if URL has auth hash (#access_token=...), render nothing
+                      so Supabase JS can process the OAuth callback. Otherwise redirect to login. */}
+                  <Route path="/" element={
+                    window.location.hash.includes("access_token")
+                      ? <PageLoader />
+                      : <Navigate to="/login" replace />
+                  } />
                   <Route path="/create-league" element={<Navigate to="/signup" replace />} />
                   <Route path="*" element={<Navigate to="/login" replace />} />
                 </Routes>
