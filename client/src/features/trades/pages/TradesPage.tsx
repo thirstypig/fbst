@@ -622,6 +622,7 @@ export function CreateTradeForm({ onCancel, onSuccess }: { onCancel: () => void;
     
     try {
        await proposeTrade({
+         leagueId: currentLeagueId!,
          proposingTeamId: myTeam.id,
          acceptingTeamId: selectedPartnerId,
          items,
