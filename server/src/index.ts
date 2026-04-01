@@ -2,7 +2,9 @@ import crypto from "crypto";
 import dotenv from "dotenv";
 import path from "path";
 
-// Explicitly load .env from the server root
+// Load .env.local first (local overrides), then .env (defaults)
+// .env.local takes priority — dotenv does not overwrite already-set vars
+dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
 import { prisma } from "./db/prisma.js";
