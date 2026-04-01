@@ -571,6 +571,139 @@ export default function Home() {
         </div>
       )}
 
+      {/* ─── Daily Headlines ─── */}
+      {!rosterStatsLoading && rosterStats.players.length > 0 && (() => {
+        // Score each player by impact
+        const scored = rosterStats.players
+          .filter((p: any) => p.gameToday && (p.hitting || p.pitching))
+          .map((p: any) => {
+            const h = p.hitting || {};
+            const pt = p.pitching || {};
+            // Hitter score: HR*4 + RBI*2 + R*2 + SB*3 + H*1
+            const hitScore = (h.HR || 0) * 4 + (h.RBI || 0) * 2 + (h.R || 0) * 2 + (h.SB || 0) * 3 + (h.H || 0);
+            // Pitcher score: W*5 + SV*5 + K*1 + (IP >= 5 && ER <= 2 ? 5 : 0)
+            const pitchScore = (pt.W || 0) * 5 + (pt.SV || 0) * 5 + (pt.K || 0) + ((pt.IP || 0) >= 5 && (pt.ER || 0) <= 2 ? 5 : 0);
+            return { ...p, score: hitScore + pitchScore };
+          })
+          .sort((a: any, b: any) => b.score - a.score);
+
+        const top2 = scored.slice(0, 2);
+
+        // Generate headline text for a player
+        const headline = (p: any) => {
+          const h = p.hitting || {};
+          const pt = p.pitching || {};
+          if (p.isPitcher && pt.IP) {
+            const parts: string[] = [];
+            if (pt.W) parts.push(`${pt.W}W`);
+            if (pt.SV) parts.push(`${pt.SV}SV`);
+            if (pt.K) parts.push(`${pt.K}K`);
+            parts.push(`${pt.IP}IP`);
+            if (pt.ER !== undefined) parts.push(`${pt.ER}ER`);
+            return parts.join(", ");
+          }
+          const parts: string[] = [];
+          if (h.AB) parts.push(`${h.H || 0}-for-${h.AB}`);
+          if (h.HR) parts.push(`${h.HR} HR`);
+          if (h.RBI) parts.push(`${h.RBI} RBI`);
+          if (h.R) parts.push(`${h.R} R`);
+          if (h.SB) parts.push(`${h.SB} SB`);
+          return parts.join(", ") || "In lineup";
+        };
+
+        // Fun captions for top performers
+        const hitterCaptions = [
+          "Crushed it.",
+          "Built different.",
+          "Statement game.",
+          "On a tear.",
+          "That's my guy.",
+          "Carrying the squad.",
+          "League notice incoming.",
+          "Fantasy gold.",
+        ];
+        const pitcherCaptions = [
+          "Dealing.",
+          "Unhittable today.",
+          "Ace things.",
+          "Locked in.",
+          "Filthy stuff.",
+          "Mound dominance.",
+        ];
+
+        // Wild card box content (rotates daily)
+        const wildCards = [
+          () => {
+            // League standings tease
+            const teamName = rosterStats.teamName;
+            return { title: "League Pulse", text: `${teamName} — early season vibes. Check the Season tab for standings.`, emoji: "📊" };
+          },
+          () => {
+            // Random opponent callout
+            const opponents = rosterStats.players.filter((p: any) => p.gameToday && p.opponent).map((p: any) => p.opponent);
+            const opp = opponents[0];
+            return opp
+              ? { title: "Matchup Watch", text: `Your guys face ${opp} today. Keep an eye on the scoreboard.`, emoji: "👀" }
+              : { title: "Off Day?", text: "Light schedule today. Good time to scout the waiver wire.", emoji: "🔍" };
+          },
+          () => ({ title: "Waiver Wire", text: "Check the Players page for trending free agents. Someone's breakout is your pickup.", emoji: "🎯" }),
+          () => ({ title: "Hot Take", text: "It's early, but the standings don't lie. Every category point matters in roto.", emoji: "🔥" }),
+          () => ({ title: "Pro Tip", text: "Streaming pitchers on favorable matchups is free real estate. Check the schedule.", emoji: "💡" }),
+          () => ({ title: "Trash Talk", text: "Reminder: the other owners are watching your moves. Make them sweat.", emoji: "😤" }),
+        ];
+        const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+        const wildCard = wildCards[dayOfYear % wildCards.length]();
+        const captionIdx = dayOfYear % hitterCaptions.length;
+
+        const mlbHeadshot = (mlbId: number) =>
+          `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_213,q_auto:best/v1/people/${mlbId}/headshot/67/current`;
+
+        if (top2.length === 0) return null;
+
+        return (
+          <div className="mb-6">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--lg-text-muted)] mb-2">
+              <Sparkles size={12} className="inline -mt-0.5 mr-1 text-yellow-400" />
+              Daily Headlines · {rosterStats.teamName}
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {top2.map((p: any, i: number) => {
+                const caption = p.isPitcher
+                  ? pitcherCaptions[(captionIdx + i) % pitcherCaptions.length]
+                  : hitterCaptions[(captionIdx + i) % hitterCaptions.length];
+                return (
+                  <div key={i} className="rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] p-3 flex items-center gap-3 group hover:border-[var(--lg-accent)]/30 transition-colors">
+                    <img
+                      src={mlbHeadshot(p.mlbId)}
+                      alt={p.playerName}
+                      className="w-12 h-12 rounded-full object-cover flex-shrink-0 bg-[var(--lg-bg-card)] border border-[var(--lg-border-faint)]"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-bold text-[var(--lg-text-primary)] truncate">{p.playerName}</div>
+                      <div className="text-[10px] text-[var(--lg-text-muted)]">{p.position} · {p.mlbTeam} vs {p.opponent}</div>
+                      <div className="text-[11px] font-semibold text-[var(--lg-accent)] mt-0.5">{headline(p)}</div>
+                      <div className="text-[9px] text-[var(--lg-text-muted)] italic mt-0.5 opacity-70">{caption}</div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Wild card box */}
+              <div className="rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] p-3 flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-amber-500/20 to-orange-500/20 text-2xl">
+                  {wildCard.emoji}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-bold text-[var(--lg-text-primary)]">{wildCard.title}</div>
+                  <div className="text-[11px] text-[var(--lg-text-secondary)] mt-0.5 leading-relaxed">{wildCard.text}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Real-Time Stats Today */}
       <div id="stats" />
       {!rosterStatsLoading && rosterStats.players.length > 0 && (
