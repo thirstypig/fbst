@@ -276,6 +276,10 @@ model Team {
   // AI Insights
   aiInsights AiInsight[]
 
+  // Watchlist + Trading Block
+  watchlist     Watchlist[]
+  tradingBlock  TradingBlock[]
+
   // Snake Draft + H2H Matchups
   draftPicks    DraftPick[]
   matchupsAsA   Matchup[]   @relation("matchupTeamA")
@@ -312,6 +316,8 @@ model Player {
   dailyStats       PlayerStatsDaily[]
   playerValues     PlayerValue[]
   draftPicks       DraftPick[]
+  watchlistEntries Watchlist[]
+  tradingBlockEntries TradingBlock[]
 
   @@index([name])
 }
@@ -911,4 +917,39 @@ model PlayerValue {
   @@unique([leagueId, playerName])
   @@index([leagueId])
   @@index([playerId])
+}
+
+// ======================
+//  Watchlist — private player tracking per team
+// ======================
+model Watchlist {
+  id        Int      @id @default(autoincrement())
+  teamId    Int
+  playerId  Int
+  note      String?  @db.VarChar(200)
+  tags      String[] @default([])     // "trade-target", "add-drop", "monitor"
+  createdAt DateTime @default(now())
+
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, playerId])
+  @@index([teamId])
+}
+
+// ======================
+//  Trading Block — public "available for trade" per team
+// ======================
+model TradingBlock {
+  id        Int      @id @default(autoincrement())
+  teamId    Int
+  playerId  Int
+  askingFor String?  @db.VarChar(200)  // "Need SP", "Looking for SB"
+  createdAt DateTime @default(now())
+
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, playerId])
+  @@index([teamId])
 }

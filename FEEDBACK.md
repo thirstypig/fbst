@@ -4,6 +4,53 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
+## Session 2026-04-01 (Session 54) — Multi-Sport Vision, Watchlist & Trading Block, AI Transparency, Daily Headlines
+
+### Completed
+- **CPLAN rewrite**: Football-first pivot — 5-phase plan targeting Aug 2026 launch, all architecture decisions documented
+- **Multi-sport plan**: Deepened by 8 research agents (NFL APIs, Stripe, sport abstraction, security, performance, deployment, learnings)
+- **Business strategist brainstorm**: `/ce:business` agent design with 3 pillars (revenue, competitive intel, trends)
+- **Watchlist feature**: Prisma model + CRUD API (4 endpoints) + client API types — private per-team player tracking with notes/tags
+- **Trading Block feature**: Prisma model + CRUD API (5 endpoints) + client API types — public league-wide "available for trade" board
+- **AI Insights page redesign**: Removed Generate button, added "How It Works" expandable transparency on every card (When It Runs, What the AI Does, Data It Sees, Model)
+- **ESPN RSS fix**: All 4 RSS parsers now handle CDATA-wrapped `<link>` tags (was silently returning homepage URL)
+- **Season page**: Team names are clickable links to team detail
+- **Players page**: Position badge + player name on same line (compact rows)
+- **Weekly team insights**: Week tabs always visible (matches league digest pattern); generated W13 (Opening Day) + refreshed W14 (Week of 3/30) for Los Doyers
+- **Daily Headlines widget**: 3-panel widget on Dashboard — top 2 performers with MLB headshots + wild card box (rotates daily)
+- **Waiver priority fix**: Correct inverse standings order, real points from season data, removed "No Owner", added "YOU" badge, fixed league ID bug (was querying league 1 instead of 20)
+- **Skunk Dogs Ohtani fix**: Corrected keeper price $20→$15 in auction state, budget -$5→$5
+- **CI fix**: `KEY_TO_DB_FIELD` added to standings test mock — CI should be green
+- **13-finding code review**: TypeScript, Security, Architecture, Simplicity, Learnings agents — synthesized to P1/P2/P3
+- **Local dev DB**: Full schema push (37 tables) + seed script (4 users, 4 teams, 42 players)
+- **Watchlist plan**: docs/plans/2026-03-31-feat-watchlist-plan.md
+- **Trading Block plan**: docs/plans/2026-04-01-feat-trading-block-and-waiver-position-fix-plan.md
+- **Compound doc**: Period date timezone shift solution
+
+### Pending / Next Steps
+- [ ] **Watchlist UI**: Activity page tab, star toggle on Players page, PlayerDetailModal integration
+- [ ] **Trading Block UI**: Activity page tab, team page badges, "Propose Trade" pre-fill
+- [ ] **Daily Headlines styling**: Old-school newspaper style, punchier 5-10 word headlines, action images/videos from YouTube
+- [ ] **Position+name inline**: Apply to AddDropTab (only remaining stacked layout)
+- [ ] **Mobile table optimization**: Hide non-essential columns (G, AB, SB, Fantasy Team) on mobile, add overflow-x-auto to Auction Values
+- [ ] **Waiver position in trades**: Simplify back to single toggle (matches server reality)
+- [ ] **Yahoo gap features**: Player game logs (CRITICAL), email notifications, league chat, IL slots
+- [ ] **P1/P2 code review fixes**: Waiver round field disconnect, commissioner date parsing, dead budget state
+- [ ] **Local DB testing**: Run trades/waivers with test accounts on fbst_dev
+- [ ] **Deploy to production**: Push to Railway + Cloudflare cache purge
+
+### Concerns / Tech Debt
+- Client tests failing (jsdom "document is not defined") — pre-existing vitest config issue, not new
+- Home.tsx still ~1,500+ lines — Phase 3B extraction still needed
+- 4 RSS endpoint handlers duplicate XML parsing logic — extract shared `parseRssFeed()` helper
+
+### Test Results
+- Server: 486 passing, 7 skipped (35 test files)
+- Client: TypeScript compiles clean (both client + server)
+- CI: Previous runs were failing; standings mock fix should make them green
+
+---
+
 ## Session 2026-03-31 (Session 53) — Code Review Remediation, Dashboard Overhaul, Depth Charts, Trade UI, Local DB
 
 ### Completed
