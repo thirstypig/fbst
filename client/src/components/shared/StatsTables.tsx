@@ -196,10 +196,10 @@ export const PeriodSummaryTable: React.FC<PeriodSummaryTableProps> = ({
       </h2>
       <div className="lg-card p-0 overflow-hidden bg-transparent">
         <div className="overflow-x-auto">
-      <ThemedTable bare density="compact" zebra>
+      <ThemedTable bare density="compact" zebra aria-label={`Period ${periodId} standings`}>
         <ThemedThead>
           <ThemedTr>
-            <ThemedTh>Team</ThemedTh>
+            <ThemedTh frozen>Team</ThemedTh>
             {/* GP hidden — not meaningful for roto standings */}
             {categories.map((cat) => (
               <ThemedTh key={cat} align="center">{cat}</ThemedTh>
@@ -220,7 +220,7 @@ export const PeriodSummaryTable: React.FC<PeriodSummaryTableProps> = ({
 
             return (
               <ThemedTr key={row.teamId} className="group hover:bg-[var(--lg-tint)] transition-colors">
-                <ThemedTd>
+                <ThemedTd frozen>
                   <Link
                     to={`/teams/${row.teamId}`}
                     className="font-semibold text-[var(--lg-text-primary)] text-[11px] hover:text-[var(--lg-accent)] transition-colors tracking-tight"
@@ -286,10 +286,10 @@ export const CategoryPeriodTable: React.FC<CategoryPeriodTableProps> = ({
       </h3>
       <div className="lg-card p-0 overflow-hidden bg-transparent">
         <div className="overflow-x-auto">
-      <ThemedTable bare density="compact" zebra>
+      <ThemedTable bare density="compact" zebra aria-label={`${label} standings for period ${periodId}`}>
         <ThemedThead>
           <ThemedTr>
-            <ThemedTh>Team</ThemedTh>
+            <ThemedTh frozen>Team</ThemedTh>
             <ThemedTh align="center" title="Period-to-date cumulative stat">Period to Date</ThemedTh>
             <ThemedTh align="center" title="Season-to-date cumulative">Season to Date</ThemedTh>
             {viewMode === "points" && <ThemedTh align="center">Points</ThemedTh>}
@@ -299,7 +299,7 @@ export const CategoryPeriodTable: React.FC<CategoryPeriodTableProps> = ({
         <tbody className="divide-y divide-[var(--lg-divide)]">
           {sortedRows.map((row, idx) => (
             <ThemedTr key={row.teamId} className="group hover:bg-[var(--lg-tint)] transition-colors">
-              <ThemedTd>
+              <ThemedTd frozen>
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-bold text-[var(--lg-text-muted)] opacity-40 w-4">{idx + 1}</span>
                   <Link
@@ -362,10 +362,10 @@ export const SeasonTable: React.FC<SeasonTableProps> = ({
       </h2>
       <div className="lg-card p-0 overflow-hidden bg-transparent">
         <div className="overflow-x-auto">
-          <ThemedTable bare density="compact" zebra>
+          <ThemedTable bare density="compact" zebra aria-label="Season standings by period">
             <ThemedThead>
               <ThemedTr>
-                <ThemedTh>Team</ThemedTh>
+                <ThemedTh frozen>Team</ThemedTh>
                 {periods.map((p) => (
                   <ThemedTh key={p.periodId} align="center" title={p.meetingDate}>
                     {p.label}
@@ -377,7 +377,7 @@ export const SeasonTable: React.FC<SeasonTableProps> = ({
             <tbody className="divide-y divide-[var(--lg-divide)]">
               {sortedRows.map((row) => (
                 <ThemedTr key={row.teamId} className="hover:bg-[var(--lg-tint)] transition-colors duration-150">
-                  <ThemedTd>
+                  <ThemedTd frozen>
                     <Link
                       to={`/teams/${row.teamId}`}
                       className="font-semibold text-[var(--lg-text-primary)] text-[11px] hover:text-[var(--lg-accent)] transition-colors tracking-tight"
@@ -389,7 +389,6 @@ export const SeasonTable: React.FC<SeasonTableProps> = ({
                     <ThemedTd
                       key={p.periodId}
                       align="center"
-                      className="px-4 py-5"
                     >
                       {formatNumber(row.periodPoints[p.periodId] ?? 0, 1)}
                     </ThemedTd>
@@ -426,17 +425,17 @@ export const TeamSeasonSummaryTable: React.FC<TeamSeasonSummaryProps> = ({
       </h3>
       <div className="lg-card p-0 overflow-hidden bg-transparent">
         <div className="overflow-x-auto">
-          <ThemedTable bare density="compact" zebra>
+          <ThemedTable bare density="compact" zebra aria-label={`Season summary for ${summary.teamName}`}>
             <ThemedThead>
               <ThemedTr>
-                <ThemedTh>Period</ThemedTh>
+                <ThemedTh frozen>Period</ThemedTh>
                 <ThemedTh align="center">Score</ThemedTh>
               </ThemedTr>
             </ThemedThead>
             <tbody className="divide-y divide-[var(--lg-divide)]">
               {periods.map((p) => (
                 <ThemedTr key={p.periodId} className="hover:bg-[var(--lg-tint)] transition-colors">
-                  <ThemedTd>
+                  <ThemedTd frozen>
                     {p.label}
                   </ThemedTd>
                   <ThemedTd align="center">
@@ -445,7 +444,7 @@ export const TeamSeasonSummaryTable: React.FC<TeamSeasonSummaryProps> = ({
                 </ThemedTr>
               ))}
               <ThemedTr className="bg-[var(--lg-tint)]">
-                <ThemedTd>
+                <ThemedTd frozen>
                   Season Total
                 </ThemedTd>
                 <ThemedTd align="center">
@@ -492,10 +491,10 @@ export const TeamPeriodHittersTable: React.FC<TeamPeriodHittersProps> = ({
       </h3>
       <div className="lg-card p-0 overflow-hidden bg-transparent">
         <div className="overflow-x-auto">
-          <ThemedTable bare density="compact" zebra>
+          <ThemedTable bare density="compact" zebra aria-label={`Hitter stats for period ${periodId}`}>
             <ThemedThead>
               <ThemedTr>
-                <ThemedTh>Player</ThemedTh>
+                <ThemedTh frozen>Player</ThemedTh>
                 <ThemedTh>TM</ThemedTh>
                 <ThemedTh>POS</ThemedTh>
                 <ThemedTh align="center">R</ThemedTh>
@@ -510,7 +509,7 @@ export const TeamPeriodHittersTable: React.FC<TeamPeriodHittersProps> = ({
             <tbody className="divide-y divide-[var(--lg-divide)]">
               {hitters.map((h) => (
                 <ThemedTr key={h.playerId} className="hover:bg-[var(--lg-tint)] transition-colors">
-                  <ThemedTd>{h.playerName}</ThemedTd>
+                  <ThemedTd frozen>{h.playerName}</ThemedTd>
                   <ThemedTd>{h.mlbTeam}</ThemedTd>
                   <ThemedTd>
                     <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/20">
@@ -527,7 +526,7 @@ export const TeamPeriodHittersTable: React.FC<TeamPeriodHittersProps> = ({
                 </ThemedTr>
               ))}
               <ThemedTr className="bg-[var(--lg-tint)]">
-                <ThemedTd colSpan={3}>Batting Totals</ThemedTd>
+                <ThemedTd frozen colSpan={3}>Batting Totals</ThemedTd>
                 <ThemedTd align="center">{totals.runs}</ThemedTd>
                 <ThemedTd align="center">{totals.hr}</ThemedTd>
                 <ThemedTd align="center">{totals.rbi}</ThemedTd>
@@ -577,10 +576,10 @@ export const TeamPeriodPitchersTable: React.FC<TeamPeriodPitchersProps> = ({
       </h3>
       <div className="lg-card p-0 overflow-hidden bg-transparent">
         <div className="overflow-x-auto">
-          <ThemedTable bare density="compact" zebra>
+          <ThemedTable bare density="compact" zebra aria-label={`Pitcher stats for period ${periodId}`}>
             <ThemedThead>
               <ThemedTr>
-                <ThemedTh>Player</ThemedTh>
+                <ThemedTh frozen>Player</ThemedTh>
                 <ThemedTh>TM</ThemedTh>
                 <ThemedTh>ROLE</ThemedTh>
                 <ThemedTh align="center">W</ThemedTh>
@@ -595,7 +594,7 @@ export const TeamPeriodPitchersTable: React.FC<TeamPeriodPitchersProps> = ({
             <tbody className="divide-y divide-[var(--lg-divide)]">
               {pitchers.map((p) => (
                 <ThemedTr key={p.playerId} className="hover:bg-[var(--lg-tint)] transition-colors">
-                  <ThemedTd>{p.playerName}</ThemedTd>
+                  <ThemedTd frozen>{p.playerName}</ThemedTd>
                   <ThemedTd>{p.mlbTeam}</ThemedTd>
                   <ThemedTd>
                     <Badge variant="outline" className="bg-purple-500/10 text-purple-400 border-purple-500/20">
@@ -612,7 +611,7 @@ export const TeamPeriodPitchersTable: React.FC<TeamPeriodPitchersProps> = ({
                 </ThemedTr>
               ))}
               <ThemedTr className="bg-[var(--lg-tint)]">
-                <ThemedTd colSpan={3}>Pitching Totals</ThemedTd>
+                <ThemedTd frozen colSpan={3}>Pitching Totals</ThemedTd>
                 <ThemedTd align="center">{totals.w}</ThemedTd>
                 <ThemedTd align="center">{totals.sv}</ThemedTd>
                 <ThemedTd align="center">{totals.k}</ThemedTd>

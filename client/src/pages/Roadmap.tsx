@@ -33,7 +33,7 @@ import {
 
 /* ── Data ────────────────────────────────────────────────────────── */
 
-const LAST_UPDATED = "April 1, 2026 (Session 55)";
+const LAST_UPDATED = "April 2, 2026 (Session 56)";
 
 // ─── Product Roadmap ───
 
@@ -152,6 +152,30 @@ const productRoadmap: RoadmapPhase[] = [
         effort: "Large",
         status: "done",
         tags: ["home", "ux", "data", "feature"],
+      },
+      {
+        title: "ADA Table Compliance + Frozen Columns (Session 56)",
+        description: "WCAG AA on all tables: scope, aria-label, aria-sort, caption. Frozen first column on mobile (sticky left-0 with opaque bg). Shared PlayerFilterBar extracted from Players + AddDropTab (~180 LOC deduped).",
+        icon: Shield,
+        effort: "Medium",
+        status: "done",
+        tags: ["a11y", "ux", "tables", "mobile"],
+      },
+      {
+        title: "Watchlist & Trading Block UI (Session 56)",
+        description: "Private per-team Watchlist (notes, tags) + public league-wide Trading Block ('asking for' field). WatchlistPanel + TradingBlockPanel on Team page. /trading-block page with sidebar link.",
+        icon: Users,
+        effort: "Medium",
+        status: "done",
+        tags: ["feature", "trades", "ux"],
+      },
+      {
+        title: "Service Worker Cache Fix (Session 56)",
+        description: "Production SW (v2) was cached with max-age=1y immutable — browsers never re-fetched the v3 fix. Dedicated /sw.js route with no-cache headers. updateViaCache='none' on registration.",
+        icon: Shield,
+        effort: "Small",
+        status: "done",
+        tags: ["infrastructure", "fix"],
       },
       {
         title: "Home Page Redesign (Session 49)",

@@ -64,7 +64,7 @@ fbst/
 
 The codebase is organized by **domain feature modules**. Each feature encapsulates its own routes, services, pages, components, and API client in a self-contained directory.
 
-### Current Feature Modules (19)
+### Current Feature Modules (21)
 
 | Module | Server | Client | Description |
 |--------|--------|--------|-------------|
@@ -87,6 +87,8 @@ The codebase is organized by **domain feature modules**. Each feature encapsulat
 | `periods` | routes | 1 page (Season) | Season/period standings with toggle |
 | `mlb-feed` | routes, digestService | — | Live MLB scores, transactions, my-players-today, weekly league digest, depth charts, news feeds (MLB.com, ESPN, Yahoo, Reddit, Trade Rumors) |
 | `ai` | — | 3 pages | AI Insights hub, Draft Report (`/draft-report`), league digest on Home page |
+| `watchlist` | routes | 1 component, api | Private per-team player watchlist (notes, tags) |
+| `trading-block` | routes | 1 page, 1 component, api | Public league-wide trading block ("asking for" field) |
 
 ### Feature Module Pattern
 ```

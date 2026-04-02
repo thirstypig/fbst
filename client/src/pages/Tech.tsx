@@ -32,18 +32,18 @@ import MermaidDiagram from "../components/MermaidDiagram";
 /* ── Data ────────────────────────────────────────────────────────── */
 
 const stats = [
-  { label: "Total Lines of Code", value: "68,778+", icon: FileCode },
-  { label: "Client (React/TS)", value: "35,299", icon: Monitor },
-  { label: "Server (Node/TS)", value: "33,479", icon: Server },
-  { label: "Test Coverage", value: "9,800+ lines", icon: TestTube },
-  { label: "Database Models", value: "30", icon: Database },
-  { label: "API Endpoints", value: "121", icon: Plug },
-  { label: "Feature Modules", value: "19", icon: Layers },
-  { label: "Git Commits", value: "348+", icon: GitCommit },
-  { label: "Tests Passing", value: "680", icon: TestTube },
-  { label: "DB Schema Lines", value: "723", icon: Braces },
+  { label: "Total Lines of Code", value: "70,200+", icon: FileCode },
+  { label: "Client (React/TS)", value: "36,100", icon: Monitor },
+  { label: "Server (Node/TS)", value: "34,100", icon: Server },
+  { label: "Test Coverage", value: "10,000+ lines", icon: TestTube },
+  { label: "Database Models", value: "32", icon: Database },
+  { label: "API Endpoints", value: "130", icon: Plug },
+  { label: "Feature Modules", value: "21", icon: Layers },
+  { label: "Git Commits", value: "360+", icon: GitCommit },
+  { label: "Tests Passing", value: "730", icon: TestTube },
+  { label: "DB Schema Lines", value: "960", icon: Braces },
   { label: "DB Migrations", value: "10", icon: Database },
-  { label: "Est. Tokens Used", value: "~80M+", icon: Bot },
+  { label: "Est. Tokens Used", value: "~85M+", icon: Bot },
 ];
 
 const techStack = [
@@ -565,6 +565,11 @@ const buildJournal = [
     date: "Mar 2026",
     title: "Sessions 40–44: Phase 1 Polish & Foundation — Sidebar, Mobile Nav, Code Splitting, League Creation",
     detail: "Complete Phase 1 SaaS readiness overhaul across 5 sessions. Sidebar extracted to Sidebar.tsx (505→188 LOC AppShell), reorganized into 5 sections: Core, AI (new, default open), League, Manage, Product (renamed from Dev). Mobile bottom tab nav (BottomNav.tsx) with 5 tabs, 56px height + env(safe-area-inset-bottom), touch targets ≥44px. React.lazy code splitting on 25 routes + dynamic Mermaid import removes ~250KB from initial bundle. Shared EmptyState component with discriminated union actions deployed on 8 pages. Self-service league creation via POST /api/leagues (reuses CommissionerService, per-user limit 5, Zod validation). Draft Report $0 surplus bug fixed — stale cached report + diacritics-stripped name matching (lookupAuctionValue with NFD normalization, 147→159 player matches). Security hardening: trade budget validation, atomic vote with FOR UPDATE, 4 capped caches, 128-bit invite codes. 12 code review findings resolved. Accessibility: skip-nav link, dual aria-label, viewport-fit=cover. 5-phase CPLAN-saas-vision.md created with sneaker-model branding. 680 tests passing.",
+  },
+  {
+    date: "Apr 2026",
+    title: "Session 56: ADA Compliance, Frozen Columns, Watchlist & Trading Block, SW Cache Fix",
+    detail: "WCAG AA table compliance across all 8+ table instances: scope='col' on all <th>, aria-label on every ThemedTable, aria-sort='none' on unsorted columns, caption support, focus ring upgrade to --lg-accent. Frozen first column on mobile: 'frozen' prop on ThemedTh/ThemedTd (sticky left-0, opaque bg, separator line, z-index hierarchy). New --lg-table-sticky-col-bg design token (light + dark). Shared PlayerFilterBar component extracted from Players.tsx + AddDropTab.tsx (~180 LOC deduped) with ToggleGroup sub-component. Watchlist & Trading Block UI: WatchlistPanel (private per-team, add/remove, inline notes, tag toggles) + TradingBlockPanel (public league-wide, 'asking for' field, grouped by team). /trading-block page + route + sidebar link. Root cause found for production YouTube/image failures: Express was serving sw.js with max-age=1y immutable — browsers permanently cached the broken v2 SW that intercepted external requests. Fixed with dedicated /sw.js route (no-cache headers) + updateViaCache='none' on registration. Solution doc: overflow-hidden-blocks-child-horizontal-scroll.md. 730 tests passing.",
   },
 ];
 

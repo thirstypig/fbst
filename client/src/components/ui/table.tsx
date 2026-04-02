@@ -106,11 +106,12 @@ TableRow.displayName = "TableRow"
 const TableHead = React.forwardRef<
   HTMLTableCellElement,
   React.ThHTMLAttributes<HTMLTableCellElement>
->(({ className, ...props }, ref) => {
+>(({ className, scope = "col", ...props }, ref) => {
   const density = useTableDensity();
   return (
     <th
       ref={ref}
+      scope={scope}
       className={cn(headStyles[density], className)}
       {...props}
     />

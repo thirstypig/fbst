@@ -37,8 +37,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 );
 
 // Register service worker for PWA installability
+// updateViaCache: 'none' forces the browser to bypass HTTP cache when checking for SW updates
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
+    navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" }).catch(() => {});
   });
 }

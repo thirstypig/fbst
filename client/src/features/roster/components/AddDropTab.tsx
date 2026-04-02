@@ -6,6 +6,7 @@ import { OGBA_TEAM_NAMES } from '../../../lib/ogbaTeams';
 import { getMlbTeamAbbr } from '../../../lib/playerDisplay';
 import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from "../../../components/ui/ThemedTable";
 import { SortableHeader } from '../../../components/ui/SortableHeader';
+import { PlayerFilterBar } from '../../../components/shared/PlayerFilterBar';
 import PlayerDetailModal from '../../../components/shared/PlayerDetailModal';
 import PlayerExpandedRow from '../../auction/components/PlayerExpandedRow';
 import { useLeague } from '../../../contexts/LeagueContext';
@@ -64,11 +65,11 @@ export default function AddDropTab({ players, myTeamRoster, onClaim, onDrop }: A
     }, [players]);
 
     const uniqueFantasyTeams = useMemo(() => {
-        const codes = new Set(players.map(p => p.ogba_team_code).filter(Boolean));
+        const codes = new Set(players.map(p => p.ogba_team_code).filter((c): c is string => !!c));
         return ['ALL', ...Array.from(codes).sort()];
     }, [players]);
 
-    const uniquePositions = POS_ORDER;
+    // POS_ORDER used by filter bar internally
 
     // Filtered + sorted players
     const filteredPlayers = useMemo(() => {
@@ -165,105 +166,35 @@ export default function AddDropTab({ players, myTeamRoster, onClaim, onDrop }: A
         <div className="space-y-0">
             {/* Filters Header */}
             <div className="p-4">
-                <div className="flex flex-wrap items-center gap-3 md:gap-6">
-                    {/* Type Toggle */}
-                    <div className="flex bg-[var(--lg-tint)] rounded-[var(--lg-radius-lg)] p-1 border border-[var(--lg-border-subtle)]">
-                        <button
-                            onClick={() => setViewGroup('hitters')}
-                            className={`px-6 py-2 text-xs font-bold uppercase tracking-wide rounded-[var(--lg-radius-md)] transition-all ${viewGroup === 'hitters' ? 'bg-[var(--lg-accent)] text-white shadow-xl shadow-blue-500/20 scale-[1.02]' : 'text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] hover:bg-[var(--lg-tint)]'}`}
-                        >
-                            Hitters
-                        </button>
-                        <button
-                            onClick={() => setViewGroup('pitchers')}
-                            className={`px-6 py-2 text-xs font-bold uppercase tracking-wide rounded-[var(--lg-radius-md)] transition-all ${viewGroup === 'pitchers' ? 'bg-[var(--lg-accent)] text-white shadow-xl shadow-blue-500/20 scale-[1.02]' : 'text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] hover:bg-[var(--lg-tint)]'}`}
-                        >
-                            Pitchers
-                        </button>
-                    </div>
-
-                    {/* League Filter Toggle */}
-                    <div className="flex bg-[var(--lg-tint)] rounded-[var(--lg-radius-lg)] p-1 border border-[var(--lg-border-subtle)]">
-                        {(['ALL', 'AL', 'NL'] as const).map(lg => (
-                            <button
-                                key={lg}
-                                onClick={() => setFilterLeague(lg)}
-                                className={`px-4 py-2 text-xs font-bold uppercase tracking-wide rounded-[var(--lg-radius-md)] transition-all ${filterLeague === lg ? 'bg-[var(--lg-accent)] text-white shadow-xl shadow-blue-500/20 scale-[1.02]' : 'text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] hover:bg-[var(--lg-tint)]'}`}
-                            >
-                                {lg}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Search */}
-                    <div className="relative group flex-1 min-w-[240px]">
-                        <input
-                            type="text"
-                            placeholder="Search players..."
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
-                            className="lg-input pr-10"
-                        />
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-sm opacity-30 group-focus-within:opacity-100 transition-opacity">&#x1F50D;</div>
-                    </div>
-
-                    {/* Filter Dropdowns */}
-                    <div className="grid grid-cols-2 md:flex gap-2 md:gap-4">
-                        <select
-                            value={viewMode}
-                            onChange={e => setViewMode(e.target.value as 'all' | 'remaining')}
-                            className="lg-input w-auto min-w-[140px] font-medium text-xs py-2.5"
-                        >
-                            <option value="all">All Players</option>
-                            <option value="remaining">Available</option>
-                        </select>
-
-                        <select
-                            value={statsMode}
-                            onChange={e => setStatsMode(e.target.value)}
-                            className="lg-input w-auto min-w-[140px] font-medium text-xs py-2.5"
-                        >
-                            <option value="season">Season</option>
-                            {periods.map(p => (
-                                <option key={p} value={`period-${p}`}>Period {p}</option>
-                            ))}
-                        </select>
-
-                        <select
-                            value={filterTeam}
-                            onChange={e => setFilterTeam(e.target.value)}
-                            className="lg-input w-auto min-w-[140px] font-medium text-xs py-2.5"
-                        >
-                            <option value="ALL">All MLB Teams</option>
-                            {uniqueMLBTeams.filter(t => t !== 'ALL').map(t => <option key={t} value={t}>{t}</option>)}
-                        </select>
-
-                        <select
-                            value={filterFantasyTeam}
-                            onChange={e => setFilterFantasyTeam(e.target.value)}
-                            className="lg-input w-auto min-w-[140px] font-medium text-xs py-2.5"
-                        >
-                            <option value="ALL">All Fantasy Teams</option>
-                            {uniqueFantasyTeams.filter(t => t !== 'ALL').map(t => <option key={t} value={t as string}>{OGBA_TEAM_NAMES[t as string] || t}</option>)}
-                        </select>
-
-                        <select
-                            value={filterPos}
-                            onChange={e => setFilterPos(e.target.value)}
-                            className="lg-input w-auto min-w-[140px] font-medium text-xs py-2.5"
-                        >
-                            <option value="ALL">All Positions</option>
-                            {uniquePositions.map(p => <option key={p} value={p}>{p}</option>)}
-                        </select>
-                    </div>
-                </div>
+                <PlayerFilterBar
+                  viewGroup={viewGroup}
+                  onViewGroupChange={setViewGroup}
+                  filterLeague={filterLeague}
+                  onFilterLeagueChange={setFilterLeague}
+                  searchQuery={search}
+                  onSearchChange={setSearch}
+                  viewMode={viewMode}
+                  onViewModeChange={setViewMode}
+                  statsMode={statsMode}
+                  onStatsModeChange={setStatsMode}
+                  periods={periods.map(p => ({ id: p, label: `Period ${p}` }))}
+                  filterTeam={filterTeam}
+                  onFilterTeamChange={setFilterTeam}
+                  uniqueMLBTeams={uniqueMLBTeams}
+                  filterFantasyTeam={filterFantasyTeam}
+                  onFilterFantasyTeamChange={setFilterFantasyTeam}
+                  uniqueFantasyTeams={uniqueFantasyTeams}
+                  filterPos={filterPos}
+                  onFilterPosChange={setFilterPos}
+                  showLeagueGroups={false}
+                />
             </div>
 
             {/* Results Table */}
-                <ThemedTable bare>
+                <ThemedTable bare aria-label="Add/Drop player list">
                     <ThemedThead sticky>
                         <ThemedTr>
-                            <SortableHeader sortKey="name" activeSortKey={sortKey} sortDesc={sortDesc} onSort={handleSort} className="pl-2">Name</SortableHeader>
+                            <SortableHeader sortKey="name" activeSortKey={sortKey} sortDesc={sortDesc} onSort={handleSort} frozen className="pl-2 min-w-[140px]">Name</SortableHeader>
                             <SortableHeader sortKey="mlb_team" activeSortKey={sortKey} sortDesc={sortDesc} onSort={handleSort} align="center" className="w-16">MLB</SortableHeader>
 
                             {viewGroup === 'hitters' ? (
@@ -303,7 +234,7 @@ export default function AddDropTab({ players, myTeamRoster, onClaim, onDrop }: A
                                         className={`group cursor-pointer transition-colors duration-300 ${isExpanded ? 'bg-[var(--lg-accent)]/10' : 'hover:bg-[var(--lg-tint)]'}`}
                                         onClick={() => toggleExpand(p.row_id ?? '')}
                                     >
-                                        <ThemedTd className="pl-2">
+                                        <ThemedTd frozen className="pl-2 min-w-[140px]">
                                             <div className="flex items-center gap-1.5">
                                                 <span className={`px-1 py-px rounded text-[8px] font-bold uppercase tracking-wide flex-shrink-0 ${p.is_pitcher ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
                                                     {pos}

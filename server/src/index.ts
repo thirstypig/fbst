@@ -259,14 +259,29 @@ async function main() {
   // If running from root: ./client/dist
   const clientDistPath = path.resolve(process.cwd(), '../client/dist');
   
+  // Service worker must NEVER be long-cached — browsers need to detect updates
+  const serveSWNocache = (basePath: string) => {
+    const swPath = path.join(basePath, 'sw.js');
+    if (fs.existsSync(swPath)) {
+      app.get('/sw.js', (_req, res) => {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.sendFile(swPath);
+      });
+    }
+  };
+
   if (fs.existsSync(clientDistPath)) {
     logger.info({ path: clientDistPath }, "Serving static frontend assets");
+    serveSWNocache(clientDistPath);
     app.use(express.static(clientDistPath, { maxAge: '1y', immutable: true, index: false }));
   } else {
     // try alternative (repo root)
     const altPath = path.resolve(process.cwd(), 'client/dist');
     if (fs.existsSync(altPath)) {
         logger.info({ path: altPath }, "Serving static frontend assets (alt path)");
+        serveSWNocache(altPath);
         app.use(express.static(altPath, { maxAge: '1y', immutable: true, index: false }));
     } else {
        logger.warn({ checked: [clientDistPath, altPath] }, "⚠️ Frontend build not found. API mode only.");
