@@ -9,6 +9,8 @@ import { useLeague } from "../../../contexts/LeagueContext";
 import { getTradeBlock } from "../api";
 
 import { getOgbaTeamName } from "../../../lib/ogbaTeams";
+import WatchlistPanel from "../../watchlist/components/WatchlistPanel";
+import TradingBlockPanel from "../../trading-block/components/TradingBlockPanel";
 import { isPitcher, normalizePosition, formatAvg, getMlbTeamAbbr, sortByPosition } from "../../../lib/playerDisplay";
 import { mapPosition, positionToSlots } from "../../../lib/sportConfig";
 import { fetchJsonApi, API_BASE } from "../../../api/base";
@@ -855,6 +857,34 @@ export default function Team() {
               </Table>
             </TableCard>
           </section>
+        )}
+
+        {/* Watchlist & Trading Block (own team only during IN_SEASON) */}
+        {dbTeamId && seasonStatus === "IN_SEASON" && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-10">
+            <div className="lg-card p-4">
+              <WatchlistPanel
+                teamId={dbTeamId}
+                availablePlayers={players.filter(p => !p.ogba_team_code && !p.team).map(p => ({
+                  id: (p as any)._dbPlayerId ?? (p as any).id ?? 0,
+                  name: p.mlb_full_name || p.player_name || "",
+                  posPrimary: (p.positions || (p.is_pitcher ? "P" : "UT")).toString().split(/[/,]/)[0] || "UT",
+                  mlbTeam: (p.mlb_team || p.mlbTeam || null) as string | null,
+                }))}
+              />
+            </div>
+            <div className="lg-card p-4">
+              <TradingBlockPanel
+                teamId={dbTeamId}
+                rosterPlayers={players.filter(p => p.ogba_team_code || p.team).map(p => ({
+                  id: (p as any)._dbPlayerId ?? (p as any).id ?? 0,
+                  name: p.mlb_full_name || p.player_name || "",
+                  posPrimary: (p.positions || (p.is_pitcher ? "P" : "UT")).toString().split(/[/,]/)[0] || "UT",
+                  mlbTeam: (p.mlb_team || p.mlbTeam || null) as string | null,
+                }))}
+              />
+            </div>
+          </div>
         )}
 
         {selected ? <PlayerDetailModal player={selected} onClose={() => setSelected(null)} /> : null}

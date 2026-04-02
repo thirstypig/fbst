@@ -30,6 +30,32 @@ interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: "0.48.0",
+    date: "Apr 2, 2026",
+    session: "Session 56",
+    title: "ADA Compliance, Frozen Columns, Filter Consolidation, Watchlist & Trading Block UI, SW Cache Fix",
+    highlights: [
+      "WCAG AA table compliance: scope, aria-label, aria-sort, caption support across all 8+ table instances",
+      "Frozen first column on mobile: player/team names stay pinned while scrolling stat columns horizontally",
+      "Shared PlayerFilterBar component: eliminated ~180 lines of duplicate filter JSX between Players and Add/Drop",
+      "Watchlist & Trading Block UI: private per-team watchlist (notes, tags) + public league-wide trading block with 'asking for' field",
+      "Service Worker cache fix: production was serving stale SW (v2) due to immutable cache headers — now sw.js served with no-cache",
+    ],
+    changes: [
+      { type: "feat", description: "ADA: scope='col' default on all <th>, aria-label on all ThemedTable instances, aria-sort='none' on unsorted SortableHeader columns, caption prop" },
+      { type: "feat", description: "Frozen first column: 'frozen' prop on ThemedTh/ThemedTd — sticky left-0 with opaque bg + separator. New --lg-table-sticky-col-bg design token (light + dark)" },
+      { type: "refactor", description: "Shared PlayerFilterBar: extracted from Players.tsx + AddDropTab.tsx with ToggleGroup sub-component, aria-label on all controls" },
+      { type: "feat", description: "WatchlistPanel: private per-team, add/remove players, inline note editing, tag toggles (trade-target, add-drop, monitor)" },
+      { type: "feat", description: "TradingBlockPanel: public league-wide with 'asking for' field, grouped by team in league view. Integrated into Team page during IN_SEASON" },
+      { type: "feat", description: "/trading-block page + route + sidebar link (gated on canTrade)" },
+      { type: "fix", description: "Production SW (v2→v4): sw.js was cached with max-age=1y immutable — browsers never re-fetched the fixed version. Added dedicated /sw.js route with no-cache headers" },
+      { type: "fix", description: "SW registration: added updateViaCache='none' to bypass HTTP cache when checking for updates" },
+      { type: "fix", description: "Focus ring on SortableHeader: upgraded from --lg-tint (invisible in dark) to --lg-accent for WCAG AA visibility" },
+      { type: "refactor", description: "Removed stale px-4 py-5 padding override on SeasonTable period cells" },
+      { type: "docs", description: "Solution doc: overflow-hidden-blocks-child-horizontal-scroll.md" },
+    ],
+  },
+  {
     version: "0.47.0",
     date: "Apr 1, 2026",
     session: "Session 55",

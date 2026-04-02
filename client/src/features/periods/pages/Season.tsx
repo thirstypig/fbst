@@ -335,11 +335,11 @@ const SeasonPage: React.FC = () => {
                </div>
             </div>
 
-            <ThemedTable>
+            <ThemedTable aria-label="Season standings matrix">
                 <ThemedThead>
                   <tr>
                     <ThemedTh align="center" className="w-16">#</ThemedTh>
-                    <SortableHeader sortKey="team" activeSortKey={matrixSortKey} sortDesc={matrixSortDesc} onSort={handleMatrixSort}>Team</SortableHeader>
+                    <SortableHeader sortKey="team" activeSortKey={matrixSortKey} sortDesc={matrixSortDesc} onSort={handleMatrixSort} frozen className="min-w-[120px]">Team</SortableHeader>
 
                     {periodIds.map((pid, idx) => (
                       <SortableHeader key={pid} sortKey={`p_${idx}`} activeSortKey={matrixSortKey} sortDesc={matrixSortDesc} onSort={handleMatrixSort} align="center" className="min-w-[80px]">
@@ -375,7 +375,7 @@ const SeasonPage: React.FC = () => {
                           onClick={() => toggleTeamExpand(row.teamId)}
                         >
                           <ThemedTd align="center">{idx + 1}</ThemedTd>
-                          <ThemedTd>
+                          <ThemedTd frozen>
                             <div className="flex items-center gap-2">
                               <svg className={`w-3 h-3 text-[var(--lg-text-muted)] transition-transform ${expandedTeamId === row.teamId ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

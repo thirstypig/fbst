@@ -4,6 +4,31 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
+## Session 2026-04-02 (Session 56) — ADA Compliance, Frozen Columns, Filter Consolidation, Watchlist & Trading Block, SW Cache Fix
+
+### Completed
+- **ADA table compliance**: scope="col" on all `<th>`, aria-label on all ThemedTable instances, aria-sort="none" on unsorted SortableHeaders, caption prop, focus ring upgrade to --lg-accent
+- **Frozen first column**: `frozen` prop on ThemedTh/ThemedTd with sticky left-0, opaque bg, separator line. New `--lg-table-sticky-col-bg` token (light + dark). Applied to Players, AddDropTab, StatsTables (6 tables), Season matrix
+- **Shared PlayerFilterBar**: Extracted from Players.tsx + AddDropTab.tsx — ~180 LOC deduped. Includes ToggleGroup, aria-label on all controls
+- **Watchlist UI**: WatchlistPanel — private per-team, add/remove players, inline note editing, tag toggles (trade-target, add-drop, monitor)
+- **Trading Block UI**: TradingBlockPanel — public league-wide with "asking for" field, grouped by team in league view. /trading-block page + route + sidebar link
+- **SW cache fix**: Root cause — Express serving sw.js with max-age=1y immutable, so browsers NEVER re-fetched the v3 fix. Dedicated /sw.js route with no-cache headers + updateViaCache='none' on registration. Bumped v3→v4
+- **Solution doc**: overflow-hidden-blocks-child-horizontal-scroll.md
+
+### Pending / Next Steps
+- **Deploy to Railway** — push this session's changes to fix production YouTube/images
+- **Purge Cloudflare cache** for sw.js after deploy (if applicable)
+- **Standardize player/team name patterns** — extract shared components (deferred from this session)
+- **Notification system** — email/in-app for trades, waivers, commissioner announcements
+- YouTube on production — should be fixed after SW cache fix deploy
+
+### Test Results
+- Server: 493 passing
+- Client: 182 passing, 5 pre-existing failures (StatsTables, TradesPage, ActivityPage)
+- TypeScript: clean (both client and server)
+
+---
+
 ## Session 2026-04-02 (Session 55 cont.) — Mobile Scroll Fix, Font Consistency, Service Worker Fix, UX Audit
 
 ### Completed

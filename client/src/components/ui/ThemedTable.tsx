@@ -10,6 +10,12 @@ import {
   type TableDensity,
 } from './table';
 
+/* ── Frozen-column styles ─────────────────────────────────────────────── */
+const frozenThClass =
+  'sticky left-0 z-20 bg-[var(--lg-table-header-sticky-bg)] after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-[var(--lg-border-subtle)]';
+const frozenTdClass =
+  'sticky left-0 z-[5] bg-[var(--lg-table-sticky-col-bg)] after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-[var(--lg-border-subtle)]';
+
 interface ThemedTableProps {
   children: React.ReactNode;
   className?: string;
@@ -19,6 +25,10 @@ interface ThemedTableProps {
   density?: TableDensity;
   /** Apply zebra striping (alternating row backgrounds) */
   zebra?: boolean;
+  /** Accessible label describing the table contents */
+  'aria-label'?: string;
+  /** Visible caption rendered below the table */
+  caption?: string;
 }
 
 /**
@@ -27,12 +37,21 @@ interface ThemedTableProps {
  * Set `density` for fine-grained control: "compact" | "default" | "comfortable".
  * Set `zebra={true}` for alternating row backgrounds.
  */
-export function ThemedTable({ children, className = '', bare = false, density = "compact", zebra = false }: ThemedTableProps) {
+export function ThemedTable({ children, className = '', bare = false, density = "compact", zebra = false, caption, ...rest }: ThemedTableProps) {
   const zebraClass = zebra ? "lg-table" : "";
+  const ariaLabel = rest['aria-label'];
 
   const tableEl = (
-    <table className={cn("w-full min-w-[600px] caption-bottom text-sm", zebraClass, bare ? className : "")}>
+    <table
+      className={cn("w-full min-w-[600px] caption-bottom text-sm", zebraClass, bare ? className : "")}
+      aria-label={ariaLabel}
+    >
       {children}
+      {caption && (
+        <caption className="mt-2 text-[10px] text-[var(--lg-text-muted)] text-left px-1">
+          {caption}
+        </caption>
+      )}
     </table>
   );
 
@@ -77,18 +96,23 @@ interface ThemedThProps {
   align?: 'left' | 'center' | 'right';
   onClick?: () => void;
   title?: string;
+  /** Freeze this header cell to the left edge on horizontal scroll */
+  frozen?: boolean;
+  scope?: 'col' | 'row';
 }
 
-export function ThemedTh({ children, className = '', align = 'left', onClick, title }: ThemedThProps) {
+export function ThemedTh({ children, className = '', align = 'left', onClick, title, frozen = false, scope }: ThemedThProps) {
   const alignClass = { left: 'text-left', center: 'text-center', right: 'text-right' }[align];
 
   return (
     <TableHead
       onClick={onClick}
       title={title}
+      scope={scope}
       className={cn(
         alignClass,
         onClick && 'cursor-pointer hover:text-[var(--lg-accent)]',
+        frozen && frozenThClass,
         className
       )}
     >
@@ -120,13 +144,15 @@ interface ThemedTdProps {
   className?: string;
   align?: 'left' | 'center' | 'right';
   colSpan?: number;
+  /** Freeze this cell to the left edge on horizontal scroll */
+  frozen?: boolean;
 }
 
-export function ThemedTd({ children, className = '', align = 'left', colSpan }: ThemedTdProps) {
+export function ThemedTd({ children, className = '', align = 'left', colSpan, frozen = false }: ThemedTdProps) {
   const alignClass = { left: 'text-left', center: 'text-center', right: 'text-right' }[align];
 
   return (
-    <TableCell colSpan={colSpan} className={cn(alignClass, className)}>
+    <TableCell colSpan={colSpan} className={cn(alignClass, frozen && frozenTdClass, className)}>
       {children}
     </TableCell>
   );

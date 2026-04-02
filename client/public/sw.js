@@ -1,5 +1,5 @@
 // Service Worker — minimal, network-first with cache fallback
-const CACHE_NAME = 'tfl-v3';
+const CACHE_NAME = 'tfl-v4';
 const SHELL_URLS = ['/'];
 
 // Install: cache the app shell

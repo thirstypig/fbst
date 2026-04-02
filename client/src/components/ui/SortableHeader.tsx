@@ -3,6 +3,9 @@ import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TableHead } from "./table";
 
+const frozenThClass =
+  'sticky left-0 z-20 bg-[var(--lg-table-header-sticky-bg)] after:absolute after:right-0 after:top-0 after:bottom-0 after:w-px after:bg-[var(--lg-border-subtle)]';
+
 interface SortableHeaderProps<K extends string = string> {
   /** Column key used for sort comparison */
   sortKey: K;
@@ -20,6 +23,8 @@ interface SortableHeaderProps<K extends string = string> {
   className?: string;
   /** Title/tooltip text */
   title?: string;
+  /** Freeze this header cell to the left edge on horizontal scroll */
+  frozen?: boolean;
 }
 
 /**
@@ -27,7 +32,7 @@ interface SortableHeaderProps<K extends string = string> {
  *
  * Uses a <button> inside <th> per WAI-ARIA APG sortable table pattern.
  * Keyboard support (Enter/Space) is provided natively by the button element.
- * aria-sort is set only on the active column; omitted on unsorted columns.
+ * aria-sort is set on all columns: "ascending"/"descending" on active, "none" on others.
  */
 export function SortableHeader<K extends string = string>({
   sortKey,
@@ -38,6 +43,7 @@ export function SortableHeader<K extends string = string>({
   align = "left",
   className,
   title,
+  frozen = false,
 }: SortableHeaderProps<K>) {
   const isActive = activeSortKey === sortKey;
   const alignClass = { left: "text-left", center: "text-center", right: "text-right" }[align];
@@ -46,8 +52,8 @@ export function SortableHeader<K extends string = string>({
 
   return (
     <TableHead
-      className={cn(alignClass, className)}
-      {...(isActive ? { "aria-sort": sortDesc ? "descending" : "ascending" } : {})}
+      className={cn(alignClass, frozen && frozenThClass, className)}
+      aria-sort={isActive ? (sortDesc ? "descending" : "ascending") : "none"}
     >
       <button
         type="button"
@@ -56,7 +62,7 @@ export function SortableHeader<K extends string = string>({
         className={cn(
           "inline-flex items-center gap-1 cursor-pointer select-none",
           "hover:text-[var(--lg-accent)] transition-colors",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lg-tint)] focus-visible:rounded-sm",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lg-accent)] focus-visible:rounded-sm",
           isActive && "text-[var(--lg-accent)]",
         )}
       >

@@ -108,6 +108,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         { to: "/draft", label: "Draft", show: true, disabled: !(gating.canAuction || gating.canViewAuctionResults), disabledTip: "Available during draft" },
         { to: "/matchup", label: "Matchup", show: gating.isH2H },
         { to: "/activity", label: "Activity", show: true },
+        { to: "/trading-block", label: "Trading Block", show: gating.canTrade },
       ],
     },
     {
