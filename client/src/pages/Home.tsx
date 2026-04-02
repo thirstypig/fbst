@@ -762,6 +762,28 @@ export default function Home() {
                   { title: "Trade Desk", text: "Buy low on cold starters. Sell high on one-week wonders. This is the way." },
                   { title: "The Gut Check", text: "Trust your draft. You picked these guys for a reason. Don't blow it up in April." },
                   { title: "Press Box Notes", text: "Check the depth charts. One injury away from opportunity is closer than you think." },
+                  { title: "Dugout Wisdom", text: "The best fantasy managers aren't the smartest — they're the most disciplined." },
+                  { title: "The Contrarian", text: "Everyone's chasing the hot hand. The real value is in the guy nobody's talking about." },
+                  { title: "Stat Geek Corner", text: "BABIP regresses to the mean. That .380 hitter with a .420 BABIP? He's coming back to earth." },
+                  { title: "The Closer's Mentality", text: "Championships aren't won in April. But they can absolutely be lost in April." },
+                  { title: "Front Office Memo", text: "Your bench isn't dead weight — it's insurance. The injury gods are undefeated." },
+                  { title: "Diamond Cuts", text: "A stolen base is worth more than you think. Speed doesn't slump." },
+                  { title: "The Bullpen Report", text: "Saves are volatile. The closer today might be the setup man tomorrow. Stay nimble." },
+                  { title: "Scouting the Wire", text: "The waiver wire is a goldmine disguised as a junk drawer. Dig deeper." },
+                  { title: "The Owner's Box", text: "Fantasy baseball is a marathon, not a sprint. Pace yourself — and your emotions." },
+                  { title: "Overheard in the Clubhouse", text: "That trade you're overthinking? Your gut knew the answer five minutes ago." },
+                  { title: "The Sabermetric Take", text: "Don't bench a guy because of one bad week. Sample size is everything." },
+                  { title: "Late Night Lineup Card", text: "West Coast games start late but they finish with stats. Don't sleep on the late slate." },
+                  { title: "The Rivalry Report", text: "Nothing motivates a trade like seeing your rival pick up the guy you were eyeing." },
+                  { title: "Manager's Journal", text: "Write down why you made each move. Future you will thank present you." },
+                  { title: "The Platoon Advantage", text: "Lefty-righty splits are real. Check the matchup before you bench someone." },
+                  { title: "Prospect Watch", text: "The next big thing is already on someone's minor league roster. Are you paying attention?" },
+                  { title: "The Injury Report", text: "Day-to-day means nothing. 10-day IL means something. 60-day IL means drop him." },
+                  { title: "Roto Math", text: "In roto, going from 7th to 5th in one category is worth the same as 3rd to 1st. Chase the easy gains." },
+                  { title: "Bench Coach Bulletin", text: "Your worst starter is someone else's best waiver pickup. Know when to cut bait." },
+                  { title: "The Midnight Trade", text: "The best trades happen when both sides think they won. Find the mutual win." },
+                  { title: "Batting Practice", text: "Spring training stats mean nothing. April stats mean almost nothing. May is when it starts to count." },
+                  { title: "The Closer", text: "Season-long leagues are won by the owners who never stop grinding. Keep showing up." },
                 ];
                 const dailyCol = columns[dayOfYear % columns.length];
 
@@ -911,18 +933,18 @@ export default function Home() {
               if (hitters.length === 0) return null;
               return (
                 <div className="rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] overflow-x-auto">
-                  <table className="w-full text-xs">
+                  <table className="w-full text-[11px]">
                     <thead>
-                      <tr className="text-[9px] font-bold uppercase text-[var(--lg-text-muted)] border-b border-[var(--lg-border-faint)] bg-[var(--lg-bg-card)]/50">
-                        <th className="px-1.5 py-1 text-left w-7">POS</th>
-                        <th className="px-1 py-1 text-left">HITTER</th>
-                        <th className="px-1 py-1 text-center w-6 opacity-50">AB</th>
-                        <th className="px-1 py-1 text-center w-5 opacity-50">H</th>
-                        <th className="px-1 py-1 text-center w-5 font-black">R</th>
-                        <th className="px-1 py-1 text-center w-5 font-black">HR</th>
-                        <th className="px-1 py-1 text-center w-6 font-black">RBI</th>
-                        <th className="px-1 py-1 text-center w-5 font-black">SB</th>
-                        <th className="px-1 py-1 text-center w-8 font-black">AVG</th>
+                      <tr className="text-[8px] font-bold uppercase text-[var(--lg-text-muted)] border-b border-[var(--lg-border-faint)] bg-[var(--lg-bg-card)]/50">
+                        <th className="px-1 py-0.5 text-left w-6">POS</th>
+                        <th className="px-1 py-0.5 text-left">HITTER</th>
+                        <th className="px-1 py-0.5 text-center w-5 opacity-50">AB</th>
+                        <th className="px-1 py-0.5 text-center w-4 opacity-50">H</th>
+                        <th className="px-1 py-0.5 text-center w-4 font-black">R</th>
+                        <th className="px-1 py-0.5 text-center w-4 font-black">HR</th>
+                        <th className="px-1 py-0.5 text-center w-5 font-black">RBI</th>
+                        <th className="px-1 py-0.5 text-center w-4 font-black">SB</th>
+                        <th className="px-1 py-0.5 text-center w-7 font-black">AVG</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--lg-border-faint)]">
@@ -933,19 +955,19 @@ export default function Home() {
                         const dim = 'text-[var(--lg-text-muted)] opacity-30';
                         return (
                           <tr key={`h-${idx}`} className={isLive ? 'bg-emerald-500/5' : ''}>
-                            <td className="px-1.5 py-1"><span className="text-[9px] font-mono font-semibold text-[var(--lg-accent)]">{p.position}</span></td>
-                            <td className="px-1 py-1 truncate max-w-[120px]">
+                            <td className="px-1 py-px"><span className="text-[8px] font-mono font-semibold text-[var(--lg-accent)]">{p.position}</span></td>
+                            <td className="px-1 py-px truncate max-w-[110px]">
                               <span className="font-medium text-[var(--lg-text-primary)]">{p.playerName}</span>
-                              {!p.gameToday && <span className="ml-1 text-[8px] text-[var(--lg-text-muted)] opacity-50">off</span>}
-                              {isLive && <span className="ml-1 text-[8px] text-emerald-400 animate-pulse font-bold">LIVE</span>}
+                              {!p.gameToday && <span className="ml-1 text-[7px] text-[var(--lg-text-muted)] opacity-50">off</span>}
+                              {isLive && <span className="ml-1 text-[7px] text-emerald-400 animate-pulse font-bold">LIVE</span>}
                             </td>
-                            <td className={`px-1 py-1 text-center tabular-nums opacity-60 ${hasStats ? '' : dim}`}>{h?.AB ?? '—'}</td>
-                            <td className={`px-1 py-1 text-center tabular-nums opacity-60 ${h?.H > 0 ? 'text-emerald-400' : hasStats ? '' : dim}`}>{h?.H ?? '—'}</td>
-                            <td className={`px-1 py-1 text-center tabular-nums ${h?.R > 0 ? 'text-blue-400 font-bold' : hasStats ? '' : dim}`}>{h?.R ?? '—'}</td>
-                            <td className={`px-1 py-1 text-center tabular-nums ${h?.HR > 0 ? 'text-amber-400 font-bold' : hasStats ? '' : dim}`}>{h?.HR ?? '—'}</td>
-                            <td className={`px-1 py-1 text-center tabular-nums ${h?.RBI > 0 ? 'text-purple-400 font-bold' : hasStats ? '' : dim}`}>{h?.RBI ?? '—'}</td>
-                            <td className={`px-1 py-1 text-center tabular-nums ${h?.SB > 0 ? 'text-cyan-400 font-bold' : hasStats ? '' : dim}`}>{h?.SB ?? '—'}</td>
-                            <td className={`px-1 py-1 text-center tabular-nums font-bold ${hasStats && h?.AB > 0 ? '' : dim}`}>{hasStats && h?.AB > 0 ? (h.H / h.AB).toFixed(3).replace('0.', '.') : '—'}</td>
+                            <td className={`px-1 py-px text-center tabular-nums opacity-60 ${hasStats ? '' : dim}`}>{h?.AB ?? '—'}</td>
+                            <td className={`px-1 py-px text-center tabular-nums opacity-60 ${h?.H > 0 ? 'text-emerald-400' : hasStats ? '' : dim}`}>{h?.H ?? '—'}</td>
+                            <td className={`px-1 py-px text-center tabular-nums ${h?.R > 0 ? 'text-blue-400 font-bold' : hasStats ? '' : dim}`}>{h?.R ?? '—'}</td>
+                            <td className={`px-1 py-px text-center tabular-nums ${h?.HR > 0 ? 'text-amber-400 font-bold' : hasStats ? '' : dim}`}>{h?.HR ?? '—'}</td>
+                            <td className={`px-1 py-px text-center tabular-nums ${h?.RBI > 0 ? 'text-purple-400 font-bold' : hasStats ? '' : dim}`}>{h?.RBI ?? '—'}</td>
+                            <td className={`px-1 py-px text-center tabular-nums ${h?.SB > 0 ? 'text-cyan-400 font-bold' : hasStats ? '' : dim}`}>{h?.SB ?? '—'}</td>
+                            <td className={`px-1 py-px text-center tabular-nums font-bold ${hasStats && h?.AB > 0 ? '' : dim}`}>{hasStats && h?.AB > 0 ? (h.H / h.AB).toFixed(3).replace('0.', '.') : '—'}</td>
                           </tr>
                         );
                       })}
@@ -961,20 +983,20 @@ export default function Home() {
               if (pitchers.length === 0) return null;
               return (
                 <div className="rounded-xl border border-[var(--lg-border-subtle)] bg-[var(--lg-tint)] overflow-hidden">
-                  <table className="w-full text-xs">
+                  <table className="w-full text-[11px]">
                     <thead>
-                      <tr className="text-[9px] font-bold uppercase text-[var(--lg-text-muted)] border-b border-[var(--lg-border-faint)] bg-[var(--lg-bg-card)]/50">
-                        <th className="px-1.5 py-1 text-left w-7">POS</th>
-                        <th className="px-1 py-1 text-left">PITCHER</th>
-                        <th className="px-1 py-1 text-center w-6 opacity-50">IP</th>
-                        <th className="px-1 py-1 text-center w-5 opacity-50">H</th>
-                        <th className="px-1 py-1 text-center w-5 opacity-50">ER</th>
-                        <th className="px-1 py-1 text-center w-5 font-black">K</th>
-                        <th className="px-1 py-1 text-center w-5 opacity-50">BB</th>
-                        <th className="px-1 py-1 text-center w-5 font-black">W</th>
-                        <th className="px-1 py-1 text-center w-5 font-black">SV</th>
-                        <th className="px-1 py-1 text-center w-8 font-black">ERA</th>
-                        <th className="px-1 py-1 text-center w-8 font-black">WHIP</th>
+                      <tr className="text-[8px] font-bold uppercase text-[var(--lg-text-muted)] border-b border-[var(--lg-border-faint)] bg-[var(--lg-bg-card)]/50">
+                        <th className="px-1 py-0.5 text-left w-6">POS</th>
+                        <th className="px-1 py-0.5 text-left">PITCHER</th>
+                        <th className="px-1 py-0.5 text-center w-5 opacity-50">IP</th>
+                        <th className="px-1 py-0.5 text-center w-4 opacity-50">H</th>
+                        <th className="px-1 py-0.5 text-center w-4 opacity-50">ER</th>
+                        <th className="px-1 py-0.5 text-center w-4 font-black">K</th>
+                        <th className="px-1 py-0.5 text-center w-4 opacity-50">BB</th>
+                        <th className="px-1 py-0.5 text-center w-4 font-black">W</th>
+                        <th className="px-1 py-0.5 text-center w-4 font-black">SV</th>
+                        <th className="px-1 py-0.5 text-center w-7 font-black">ERA</th>
+                        <th className="px-1 py-0.5 text-center w-8 font-black">WHIP</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--lg-border-faint)]">
@@ -988,21 +1010,21 @@ export default function Home() {
                         const whip = hasStats && ip > 0 ? (((s.BB ?? 0) + (s.H ?? 0)) / ip).toFixed(2) : '—';
                         return (
                           <tr key={`p-${idx}`} className={isLive ? 'bg-emerald-500/5' : ''}>
-                            <td className="px-1.5 py-1"><span className="text-[9px] font-mono font-semibold text-[var(--lg-accent)]">P</span></td>
-                            <td className="px-1 py-1 truncate max-w-[120px]">
+                            <td className="px-1 py-px"><span className="text-[8px] font-mono font-semibold text-[var(--lg-accent)]">P</span></td>
+                            <td className="px-1 py-px truncate max-w-[110px]">
                               <span className="font-medium text-[var(--lg-text-primary)]">{p.playerName}</span>
-                              {!p.gameToday && <span className="ml-1 text-[8px] text-[var(--lg-text-muted)] opacity-50">off</span>}
-                              {isLive && <span className="ml-1 text-[8px] text-emerald-400 animate-pulse font-bold">LIVE</span>}
+                              {!p.gameToday && <span className="ml-1 text-[7px] text-[var(--lg-text-muted)] opacity-50">off</span>}
+                              {isLive && <span className="ml-1 text-[7px] text-emerald-400 animate-pulse font-bold">LIVE</span>}
                             </td>
-                            <td className={`px-1 py-1 text-center tabular-nums opacity-60 ${hasStats ? '' : dim}`}>{s?.IP ?? '—'}</td>
-                            <td className={`px-1 py-1 text-center tabular-nums opacity-60 ${hasStats ? '' : dim}`}>{s?.H ?? '—'}</td>
-                            <td className={`px-1 py-1 text-center tabular-nums opacity-60 ${s?.ER > 0 ? 'text-red-400' : hasStats ? '' : dim}`}>{s?.ER ?? '—'}</td>
-                            <td className={`px-1 py-1 text-center tabular-nums ${s?.K > 0 ? 'text-emerald-400 font-bold' : hasStats ? '' : dim}`}>{s?.K ?? '—'}</td>
-                            <td className={`px-1 py-1 text-center tabular-nums opacity-60 ${hasStats ? '' : dim}`}>{s?.BB ?? '—'}</td>
-                            <td className={`px-1 py-1 text-center tabular-nums ${s?.W > 0 ? 'text-emerald-400 font-bold' : hasStats ? '' : dim}`}>{hasStats ? (s.W ?? 0) : '—'}</td>
-                            <td className={`px-1 py-1 text-center tabular-nums ${s?.SV > 0 ? 'text-amber-400 font-bold' : hasStats ? '' : dim}`}>{hasStats ? (s.SV ?? 0) : '—'}</td>
-                            <td className={`px-1 py-1 text-center tabular-nums font-bold ${hasStats && ip > 0 ? '' : dim}`}>{era}</td>
-                            <td className={`px-1 py-1 text-center tabular-nums font-bold ${hasStats && ip > 0 ? '' : dim}`}>{whip}</td>
+                            <td className={`px-1 py-px text-center tabular-nums opacity-60 ${hasStats ? '' : dim}`}>{s?.IP ?? '—'}</td>
+                            <td className={`px-1 py-px text-center tabular-nums opacity-60 ${hasStats ? '' : dim}`}>{s?.H ?? '—'}</td>
+                            <td className={`px-1 py-px text-center tabular-nums opacity-60 ${s?.ER > 0 ? 'text-red-400' : hasStats ? '' : dim}`}>{s?.ER ?? '—'}</td>
+                            <td className={`px-1 py-px text-center tabular-nums ${s?.K > 0 ? 'text-emerald-400 font-bold' : hasStats ? '' : dim}`}>{s?.K ?? '—'}</td>
+                            <td className={`px-1 py-px text-center tabular-nums opacity-60 ${hasStats ? '' : dim}`}>{s?.BB ?? '—'}</td>
+                            <td className={`px-1 py-px text-center tabular-nums ${s?.W > 0 ? 'text-emerald-400 font-bold' : hasStats ? '' : dim}`}>{hasStats ? (s.W ?? 0) : '—'}</td>
+                            <td className={`px-1 py-px text-center tabular-nums ${s?.SV > 0 ? 'text-amber-400 font-bold' : hasStats ? '' : dim}`}>{hasStats ? (s.SV ?? 0) : '—'}</td>
+                            <td className={`px-1 py-px text-center tabular-nums font-bold ${hasStats && ip > 0 ? '' : dim}`}>{era}</td>
+                            <td className={`px-1 py-px text-center tabular-nums font-bold ${hasStats && ip > 0 ? '' : dim}`}>{whip}</td>
                           </tr>
                         );
                       })}
