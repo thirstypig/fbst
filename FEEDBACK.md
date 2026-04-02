@@ -4,6 +4,29 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
+## Session 2026-04-02 (Session 55 cont.) — Mobile Scroll Fix, Font Consistency, Service Worker Fix, UX Audit
+
+### Completed
+- **Service worker fix**: SW was intercepting all external URLs (MLB images, YouTube, Google Fonts, PostHog) and returning 503 Offline. Fixed by skipping non-same-origin requests. Bumped cache to tfl-v3.
+- **CSP fix**: Added `img.mlbstatic.com` and `*.mlb.com` to `img-src` directive for MLB highlight thumbnails
+- **YouTube logging**: Added error logging for YouTube API non-OK responses and embeddability check results
+- **Mobile scroll fix**: Players page table now horizontally scrollable on mobile. Fixed `overflow-x-hidden` → `overflow-x-clip` on AppShell, added `max-w-[100vw]` + `overflow-x-auto` on Players, `min-w-[600px]` on all ThemedTable tables
+- **Font consistency**: Season + Period tab team names standardized to `text-[11px] text-primary` (was `text-sm text-accent` on Season, `text-heading` on Period)
+- **UX audit report**: Comprehensive analysis of UI/UX paths, ADA compliance gaps, filter patterns, typography hierarchy, glassmorphism assessment, technology evaluation
+
+### Pending / Next Steps
+- **P1: Filter consolidation** — Collapse 2-3 row filter bars to 1 row + mobile bottom sheet (Players, Add/Drop, Auction)
+- **P1: Frozen first column** on mobile stat tables
+- **P2: ADA compliance** — add scope, caption, aria-label to all tables
+- **P2: Standardize player/team name patterns** into shared components
+- YouTube videos on production — check Railway logs after deploy for API error details
+
+### Test Results
+- TypeScript: clean (both client and server)
+- No uncommitted changes
+
+---
+
 ## Session 2026-04-01 (Session 55) — Daily Diamond, Table Standardization, Design Consistency
 
 ### Completed
