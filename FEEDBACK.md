@@ -4,27 +4,30 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
-## Session 2026-04-01 (Session 55) — Daily Diamond Newspaper Redesign, Highlight Thumbnails, Solution Docs
+## Session 2026-04-01 (Session 55) — Daily Diamond, Table Standardization, Design Consistency
 
 ### Completed
-- **Daily Diamond redesign**: Complete newspaper-style overhaul of Daily Headlines widget on Dashboard
+- **Daily Diamond redesign**: Complete newspaper-style overhaul of Daily Headlines widget
   - Serif masthead ("The Daily Diamond · Los Doyers Edition") with date
-  - Hero card: top performer with MLB highlight thumbnail (real game-day action photo from `/game/{gamePk}/content` API), gradient overlay, punchy generated headline
-  - Sidebar stories: other performers with headshots + creative headlines
-  - On Deck section: upcoming/live roster players (excludes FINAL games), shows opponent + game time
-  - Pulse bar: live/done/upcoming game counts with colored dots
-  - Rotating daily editorial column (8 options: Commissioner's Corner, Scout's Notebook, Trade Desk, etc.)
-  - Fully responsive: 2/3 + 1/3 grid on desktop, stacks on mobile, no empty space
-- **Fun headline generator**: 60+ unique headline templates organized by stat bracket (multi-HR, HR+RBI, steals, quality starts, saves, etc.) with deterministic per-player rotation (no duplicates within same day)
-- **MLB highlight thumbnails on backend**: Added to `roster-stats-today` endpoint — fetches `/game/{gamePk}/content` API in parallel (5-min cache), maps player IDs to 640px game-day thumbnails, falls back to headshots
-- **League-wide headlines endpoint**: `GET /api/mlb/league-headlines` — top performer per fantasy team (backend complete, frontend uses team-only view)
-- **Solution doc**: `docs/solutions/logic-errors/waiver-priority-league-and-sort-fix.md` — documented the leagueId default bug pattern via /ce:compound
+  - Hero card with real MLB highlight thumbnails from game content API
+  - On Deck (upcoming/live only), Pulse bar, 30 rotating daily editorial columns
+  - 60+ unique headline templates with deterministic per-player rotation
+  - Fully responsive: 2/3 + 1/3 grid on desktop, stacks on mobile
+- **Table design standardization**: All tables now use compact density from centralized `table.tsx`
+  - `table.tsx`: compact = `py-px text-[11px]`, default = `py-0.5 text-xs`, comfortable = `py-1 text-[13px]`
+  - `ThemedTable.tsx` + `TableCard.tsx` default → compact
+  - Removed 40+ per-cell padding overrides (`px-8 py-5`, `py-3`, `py-4`) across StatsTables, Players, AddDropTab
+  - Period tab team names: `text-lg` → `text-[11px]` to match Season tab
+  - Players page: fantasy team pill badges → plain text; position badges `text-[8px]`; names `text-[11px]`
+  - AddDropTab: player name/position pattern unified with Players page; Add/Drop buttons `px-2 py-px text-[9px]`
+- **MLB highlight thumbnails**: Added to `roster-stats-today` endpoint (parallel content API fetch, 5-min cache)
+- **League-wide headlines endpoint**: `GET /api/mlb/league-headlines` (backend complete)
+- **Solution doc**: `docs/solutions/logic-errors/waiver-priority-league-and-sort-fix.md`
 
 ### Pending / Next Steps
 - YouTube videos not playing on production (works on localhost)
 - Top 100 prospects sync (syncAllPlayers only does 40-man rosters)
 - Watchlist + Trading Block UI (backend from Session 54)
-- Daily Headlines newspaper redesign (current: needs more punchy styling per user feedback)
 
 ### Test Results
 - Server: 486 passing (7 skipped)

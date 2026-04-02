@@ -40,7 +40,7 @@ export function Table({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <table className={["min-w-full text-sm", className ?? ""].join(" ")}>{children}</table>;
+  return <table className={["min-w-full text-xs", className ?? ""].join(" ")}>{children}</table>;
 }
 
 export function THead({
@@ -104,7 +104,7 @@ export function Th({
     <th
       style={w ? { width: w } : undefined}
       className={[
-        "px-6 py-5 text-xs font-semibold uppercase tracking-wide text-[var(--lg-text-muted)]",
+        "px-1.5 py-1 text-[9px] font-bold uppercase tracking-wide text-[var(--lg-text-muted)]",
         alignCls(align),
         className ?? "",
       ].join(" ")}
@@ -126,7 +126,7 @@ export function Td({
   return (
     <td
       className={[
-        "px-6 py-4 align-middle text-[var(--lg-text-primary)] text-sm tabular-nums",
+        "px-1.5 py-0.5 align-middle text-[var(--lg-text-primary)] text-xs tabular-nums",
         alignCls(align),
         className ?? "",
       ].join(" ")}

@@ -304,7 +304,7 @@ export default function Players() {
        {/* Results Table */}
        <div className="flex-1 overflow-auto max-w-6xl mx-auto px-4 pb-8 md:px-6 md:pb-12 custom-scrollbar">
            <div className="lg-card p-0 bg-transparent animate-in fade-in slide-in-from-bottom-6 duration-700">
-                   <ThemedTable bare density="default" zebra>
+                   <ThemedTable bare density="compact" zebra>
                        <ThemedThead sticky>
                             <ThemedTr>
                                 <SortableHeader sortKey="name" activeSortKey={sortKey} sortDesc={sortDesc} onSort={handleSort} className="pl-8 py-3">Name</SortableHeader>
@@ -345,12 +345,12 @@ export default function Players() {
                                            className={`group cursor-pointer transition-colors duration-300 ${isExpanded ? 'bg-[var(--lg-accent)]/10' : 'hover:bg-[var(--lg-tint)]'}`}
                                            onClick={() => toggleExpand(p.row_id ?? '')}
                         >
-                                            <ThemedTd className="pl-8 py-2.5">
-                                                <div className="flex items-center gap-2">
-                                                    <span className={`px-1.5 py-0.5 rounded-[var(--lg-radius-sm)] text-[10px] font-bold uppercase tracking-wide flex-shrink-0 ${p.is_pitcher ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
+                                            <ThemedTd className="pl-2">
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className={`px-1 py-px rounded text-[8px] font-bold uppercase tracking-wide flex-shrink-0 ${p.is_pitcher ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
                                                         {pos}
                                                     </span>
-                                                    <span className="font-bold text-[var(--lg-text-primary)] text-sm tracking-tight group-hover:text-[var(--lg-accent)] transition-colors leading-tight truncate">
+                                                    <span className="font-semibold text-[var(--lg-text-primary)] text-[11px] tracking-tight group-hover:text-[var(--lg-accent)] transition-colors leading-tight truncate">
                                                         {p.mlb_full_name || p.player_name}
                                                     </span>
                                                 </div>
@@ -380,15 +380,15 @@ export default function Players() {
                                                 </>
                                            )}
         
-                                           <ThemedTd align="center" className="pr-8 py-5">
+                                           <ThemedTd align="center">
                                                {isTaken ? (
-                                                   <div className="inline-flex items-center px-4 py-1.5 rounded-[var(--lg-radius-xl)] bg-[var(--lg-accent)]/10 border border-[var(--lg-accent)]/20 text-[var(--lg-accent)] text-xs font-bold uppercase tracking-wider shadow-lg shadow-blue-500/5">
+                                                   <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--lg-accent)]">
                                                        {teamLabel}
-                                                   </div>
+                                                   </span>
                                                ) : (
-                                                   <div className="text-xs font-medium uppercase text-[var(--lg-text-muted)] opacity-20 group-hover:opacity-40 transition-opacity">
+                                                   <span className="text-[10px] font-medium uppercase text-[var(--lg-text-muted)] opacity-20 group-hover:opacity-40 transition-opacity">
                                                        Available
-                                                   </div>
+                                                   </span>
                                                )}
                                            </ThemedTd>
                                        </ThemedTr>

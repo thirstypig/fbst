@@ -263,7 +263,7 @@ export default function AddDropTab({ players, myTeamRoster, onClaim, onDrop }: A
                 <ThemedTable bare>
                     <ThemedThead sticky>
                         <ThemedTr>
-                            <SortableHeader sortKey="name" activeSortKey={sortKey} sortDesc={sortDesc} onSort={handleSort} className="pl-8 py-3">Name</SortableHeader>
+                            <SortableHeader sortKey="name" activeSortKey={sortKey} sortDesc={sortDesc} onSort={handleSort} className="pl-2">Name</SortableHeader>
                             <SortableHeader sortKey="mlb_team" activeSortKey={sortKey} sortDesc={sortDesc} onSort={handleSort} align="center" className="w-16">MLB</SortableHeader>
 
                             {viewGroup === 'hitters' ? (
@@ -303,21 +303,19 @@ export default function AddDropTab({ players, myTeamRoster, onClaim, onDrop }: A
                                         className={`group cursor-pointer transition-colors duration-300 ${isExpanded ? 'bg-[var(--lg-accent)]/10' : 'hover:bg-[var(--lg-tint)]'}`}
                                         onClick={() => toggleExpand(p.row_id ?? '')}
                                     >
-                                        <ThemedTd className="pl-8 py-3">
-                                            <div className="flex flex-col">
-                                                <span className="font-bold text-[var(--lg-text-primary)] text-base tracking-tight group-hover:text-[var(--lg-accent)] transition-colors leading-tight">
+                                        <ThemedTd className="pl-2">
+                                            <div className="flex items-center gap-1.5">
+                                                <span className={`px-1 py-px rounded text-[8px] font-bold uppercase tracking-wide flex-shrink-0 ${p.is_pitcher ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
+                                                    {pos}
+                                                </span>
+                                                <span className="font-semibold text-[var(--lg-text-primary)] text-[11px] tracking-tight group-hover:text-[var(--lg-accent)] transition-colors leading-tight truncate">
                                                     {p.mlb_full_name || p.player_name}
                                                 </span>
-                                                <div className="flex items-center gap-3 mt-1.5">
-                                                    <span className={`px-1.5 py-0.5 rounded-[var(--lg-radius-sm)] text-xs font-bold uppercase tracking-wide ${p.is_pitcher ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
-                                                        {pos}
+                                                {isTaken && (
+                                                    <span className="text-[9px] font-medium text-[var(--lg-text-muted)] opacity-50 ml-1">
+                                                        {teamLabel}
                                                     </span>
-                                                    {isTaken && (
-                                                        <span className="text-xs font-medium text-[var(--lg-text-muted)] opacity-60">
-                                                            {teamLabel}
-                                                        </span>
-                                                    )}
-                                                </div>
+                                                )}
                                             </div>
                                         </ThemedTd>
 
@@ -345,12 +343,12 @@ export default function AddDropTab({ players, myTeamRoster, onClaim, onDrop }: A
                                             </>
                                         )}
 
-                                        <ThemedTd align="center" className="pr-8 py-5">
-                                            <div className="flex items-center justify-center gap-2" onClick={e => e.stopPropagation()}>
+                                        <ThemedTd align="center">
+                                            <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
                                                 {!isTaken && (
                                                     <button
                                                         onClick={() => onClaim(p)}
-                                                        className="px-4 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-medium uppercase transition-all"
+                                                        className="px-2 py-px bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded text-[9px] font-bold uppercase transition-all"
                                                     >
                                                         Add
                                                     </button>
@@ -358,7 +356,7 @@ export default function AddDropTab({ players, myTeamRoster, onClaim, onDrop }: A
                                                 {isTaken && onDrop && (
                                                     <button
                                                         onClick={() => onDrop(p)}
-                                                        className="px-4 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl text-xs font-medium uppercase transition-all"
+                                                        className="px-2 py-px bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded text-[9px] font-bold uppercase transition-all"
                                                     >
                                                         Drop
                                                     </button>

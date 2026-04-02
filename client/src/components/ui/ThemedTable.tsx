@@ -27,7 +27,7 @@ interface ThemedTableProps {
  * Set `density` for fine-grained control: "compact" | "default" | "comfortable".
  * Set `zebra={true}` for alternating row backgrounds.
  */
-export function ThemedTable({ children, className = '', bare = false, density = "comfortable", zebra = false }: ThemedTableProps) {
+export function ThemedTable({ children, className = '', bare = false, density = "compact", zebra = false }: ThemedTableProps) {
   const zebraClass = zebra ? "lg-table" : "";
 
   const tableEl = (
