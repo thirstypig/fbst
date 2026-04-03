@@ -10,6 +10,7 @@ import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { requireSeasonStatus } from "../../middleware/seasonGuard.js";
 import { logger } from "../../lib/logger.js";
 import { nextDayEffective } from "../../lib/utils.js";
+import { sendTradeProposedEmail, sendTradeProcessedEmail, sendTradeVetoedEmail, getTeamOwnerEmails } from "../../lib/emailService.js";
 
 /**
  * Auto-generate AI analysis after a trade is processed.
@@ -193,6 +194,26 @@ router.post("/", requireAuth, validateBody(tradeProposalSchema), requireSeasonSt
     metadata: { leagueId, proposerTeamId, itemCount: trade.items.length },
   });
 
+  // Fire-and-forget: notify counterparty team owners
+  {
+    const counterpartyIds: number[] = [...new Set<number>(items.map((i: any) => Number(i.recipientId)).filter((id: number) => id !== proposerTeamId))];
+    const pTeam = await prisma.team.findUnique({ where: { id: proposerTeamId }, select: { name: true } });
+    const lg = await prisma.league.findUnique({ where: { id: leagueId }, select: { name: true } });
+    for (const tid of counterpartyIds) {
+      getTeamOwnerEmails(tid).then(owners => {
+        for (const owner of owners) {
+          if (owner.userId === req.user!.id) continue;
+          sendTradeProposedEmail({
+            to: owner.email, recipientName: owner.name,
+            proposerTeamName: pTeam?.name ?? "A team",
+            leagueName: lg?.name ?? "", playersSummary: `${trade.items.length} assets involved`,
+            leagueId,
+          }).catch(() => {});
+        }
+      }).catch(() => {});
+    }
+  }
+
   res.json(trade);
 }));
 
@@ -305,6 +326,22 @@ router.post("/:id/veto", requireAuth, asyncHandler(async (req, res) => {
     resourceId: id,
     metadata: { leagueId: trade.leagueId },
   });
+
+  // Fire-and-forget: notify all trade parties of veto
+  const vetoItems = await prisma.tradeItem.findMany({ where: { tradeId: id } });
+  const vetoTeamIds = [...new Set(vetoItems.flatMap(i => [i.senderId, i.recipientId]))];
+  const vetoLeague = await prisma.league.findUnique({ where: { id: trade.leagueId }, select: { name: true } });
+  for (const tid of vetoTeamIds) {
+    getTeamOwnerEmails(tid).then(owners => {
+      for (const owner of owners) {
+        if (owner.userId === req.user!.id) continue;
+        sendTradeVetoedEmail({
+          to: owner.email, recipientName: owner.name,
+          leagueName: vetoLeague?.name ?? "", leagueId: trade.leagueId,
+        }).catch(() => {});
+      }
+    }).catch(() => {});
+  }
 
   res.json(updated);
 }));
@@ -473,6 +510,22 @@ router.post("/:id/process", requireAuth, asyncHandler(async (req, res) => {
   generateTradeAnalysis(id, trade.leagueId).catch(err =>
     logger.warn({ error: String(err), tradeId: id }, "Post-trade AI analysis failed (non-blocking)")
   );
+
+  // Fire-and-forget: notify all trade parties
+  const tradeTeamIds = [...new Set(trade.items.flatMap((i: any) => [i.senderId, i.recipientId]))];
+  const tradeLeague = await prisma.league.findUnique({ where: { id: trade.leagueId }, select: { name: true } });
+  for (const tid of tradeTeamIds) {
+    getTeamOwnerEmails(tid).then(owners => {
+      for (const owner of owners) {
+        if (owner.userId === req.user!.id) continue;
+        sendTradeProcessedEmail({
+          to: owner.email, recipientName: owner.name,
+          summary: `Trade #${id} executed — ${trade.items.length} assets moved`,
+          leagueName: tradeLeague?.name ?? "", leagueId: trade.leagueId,
+        }).catch(() => {});
+      }
+    }).catch(() => {});
+  }
 
   res.json({ success: true });
 }));

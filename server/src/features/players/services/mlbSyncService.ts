@@ -536,7 +536,7 @@ export async function syncAAARosters(season: number): Promise<{
         if (!existing.mlbTeam || existing.mlbTeam === "FA") {
           await prisma.player.update({
             where: { id: existing.id },
-            data: { name, mlbTeam: parentAbbr, posPrimary: posAbbr },
+            data: { name, mlbTeam: parentAbbr },  // Don't overwrite posPrimary — may have enriched position from 40-man
           });
           existing.mlbTeam = parentAbbr;
           updated++;

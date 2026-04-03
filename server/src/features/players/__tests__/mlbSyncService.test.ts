@@ -542,7 +542,7 @@ describe("syncAAARosters", () => {
     expect(result.created).toBe(0);
     expect(mockPrisma.player.update).toHaveBeenCalledWith({
       where: { id: 10 },
-      data: { name: "Konnor Griffin", mlbTeam: "PIT", posPrimary: "SS" },
+      data: { name: "Konnor Griffin", mlbTeam: "PIT" },  // posPrimary no longer overwritten on update
     });
   });
 

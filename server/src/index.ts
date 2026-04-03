@@ -45,7 +45,7 @@ import { attachUser } from "./middleware/auth.js";
 import { supabaseAdmin } from "./lib/supabase.js";
 import { logger } from './lib/logger.js';
 import cron from 'node-cron';
-import { syncAllPlayers } from './features/players/services/mlbSyncService.js';
+import { syncAllPlayers, syncAAARosters } from './features/players/services/mlbSyncService.js';
 import { attachAuctionWs } from './features/auction/services/auctionWsService.js';
 import { syncAllActivePeriods, syncDailyStats } from './features/players/services/mlbStatsSyncService.js';
 
@@ -250,6 +250,20 @@ async function main() {
     }
   });
   logger.info({}, "Scheduled daily per-day stats sync at 13:30 UTC (~6:30 AM PT)");
+
+  // Weekly AAA prospects sync: Monday 14:00 UTC (~7 AM PT)
+  // 2hrs after daily MLB sync to avoid Player table write conflicts
+  cron.schedule('0 14 * * 1', async () => {
+    const season = new Date().getFullYear();
+    logger.info({ season }, "Starting weekly AAA prospects sync");
+    try {
+      const result = await syncAAARosters(season);
+      logger.info(result, "AAA prospects sync complete");
+    } catch (err) {
+      logger.error({ error: String(err) }, "AAA prospects sync failed");
+    }
+  });
+  logger.info({}, "Scheduled weekly AAA prospects sync (Monday 14:00 UTC)");
 
   // --- 1. Static Assets (Frontend) ---
   // Resolve path to client/dist relative to this file (server/src/index.ts -> server/src -> server -> root -> client/dist)
