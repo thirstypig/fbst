@@ -66,6 +66,24 @@ export async function getLeagueMemberEmails(leagueId: number): Promise<{ email: 
   return members.map(m => ({ email: m.user.email, name: m.user.name ?? "", userId: m.user.id }));
 }
 
+/* ── Notify team owners helper (fire-and-forget) ─────────────────── */
+
+export async function notifyTeamOwners(
+  teamIds: number[],
+  excludeUserId: number,
+  sendFn: (owner: { email: string; name: string }) => Promise<void>,
+): Promise<void> {
+  for (const tid of teamIds) {
+    try {
+      const owners = await getTeamOwnerEmails(tid);
+      for (const owner of owners) {
+        if (owner.userId === excludeUserId) continue;
+        await sendFn(owner);
+      }
+    } catch { /* fire-and-forget */ }
+  }
+}
+
 /* ── Send helper (fire-and-forget, never throws) ──────────────────── */
 
 async function sendEmail(to: string, subject: string, html: string, tag: string): Promise<void> {
@@ -95,7 +113,7 @@ export async function sendInviteEmail(opts: {
   const { to, leagueName, role, inviterName } = opts;
   await sendEmail(
     to,
-    `You're invited to ${leagueName}`,
+    sanitizeSubject(`You're invited to ${leagueName}`),
     emailWrapper(`
       <h2 style="margin: 0 0 16px; font-size: 20px;">You've been invited to ${escapeHtml(leagueName)}</h2>
       <p style="margin: 0 0 12px; font-size: 15px; color: #444; line-height: 1.5;">
@@ -129,7 +147,7 @@ export async function sendTradeProposedEmail(opts: {
   const { to, recipientName, proposerTeamName, leagueName, playersSummary, leagueId } = opts;
   await sendEmail(
     to,
-    `Trade proposal from ${proposerTeamName}`,
+    sanitizeSubject(`Trade proposal from ${proposerTeamName}`),
     emailWrapper(`
       <h2 style="margin: 0 0 16px; font-size: 20px;">New Trade Proposal</h2>
       <p style="margin: 0 0 12px; font-size: 15px; color: #444; line-height: 1.5;">
@@ -160,7 +178,7 @@ export async function sendTradeProcessedEmail(opts: {
   const { to, recipientName, summary, leagueName, leagueId } = opts;
   await sendEmail(
     to,
-    `Trade executed in ${leagueName}`,
+    sanitizeSubject(`Trade executed in ${leagueName}`),
     emailWrapper(`
       <h2 style="margin: 0 0 16px; font-size: 20px;">Trade Executed</h2>
       <p style="margin: 0 0 12px; font-size: 15px; color: #444; line-height: 1.5;">
@@ -187,7 +205,7 @@ export async function sendTradeVetoedEmail(opts: {
   const { to, recipientName, leagueName, leagueId } = opts;
   await sendEmail(
     to,
-    `Trade vetoed in ${leagueName}`,
+    sanitizeSubject(`Trade vetoed in ${leagueName}`),
     emailWrapper(`
       <h2 style="margin: 0 0 16px; font-size: 20px;">Trade Vetoed</h2>
       <p style="margin: 0 0 12px; font-size: 15px; color: #444; line-height: 1.5;">
@@ -213,9 +231,9 @@ export async function sendWaiverResultEmail(opts: {
   leagueId: number;
 }) {
   const { to, recipientName, playerName, position, success, bidAmount, leagueName, leagueId } = opts;
-  const subject = success
+  const subject = sanitizeSubject(success
     ? `You won ${playerName} on waivers!`
-    : `Waiver bid for ${playerName} failed`;
+    : `Waiver bid for ${playerName} failed`);
   const body = success
     ? `<p style="margin: 0 0 12px; font-size: 15px; color: #166534; line-height: 1.5;">
         Congratulations! You won <strong>${escapeHtml(playerName)}</strong> (${escapeHtml(position)}) for <strong>$${bidAmount}</strong> in <strong>${escapeHtml(leagueName)}</strong>.
@@ -255,6 +273,10 @@ export async function sendBatchEmails(
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function sanitizeSubject(s: string): string {
+  return s.replace(/[\r\n]/g, "").slice(0, 200);
 }
 
 function article(role: string): string {

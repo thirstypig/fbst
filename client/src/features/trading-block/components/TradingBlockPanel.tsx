@@ -6,13 +6,8 @@ import { ThemedTable, ThemedThead, ThemedTh, ThemedTr, ThemedTd } from "../../..
 import { Button } from "../../../components/ui/button";
 import { useLeague } from "../../../contexts/LeagueContext";
 import PlayerDetailModal from "../../../components/shared/PlayerDetailModal";
-
-const displayPos = (pos: string | undefined | null): string => {
-  if (!pos) return "—";
-  const p = pos.toUpperCase();
-  if (p === "TWP") return "DH/P";
-  return p;
-};
+import { displayPos } from "../../../lib/playerDisplay";
+import type { PlayerSeasonStat } from "../../../api/types";
 
 interface TradingBlockPanelProps {
   /** If provided, shows only this team's block with edit controls */
@@ -57,8 +52,8 @@ export default function TradingBlockPanel({ teamId, leagueWide = false, rosterPl
         // Non-owner viewing a team page — don't fetch (owner-only endpoint)
         setItems([]);
       }
-    } catch (e: any) {
-      setError(e.message || "Failed to load trading block");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to load trading block");
     } finally {
       setLoading(false);
     }
@@ -75,8 +70,8 @@ export default function TradingBlockPanel({ teamId, leagueWide = false, rosterPl
       setShowAdd(false);
       setAddPlayerId(null);
       setAddAskingFor("");
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "An unexpected error occurred");
     } finally {
       setAdding(false);
     }
@@ -87,8 +82,8 @@ export default function TradingBlockPanel({ teamId, leagueWide = false, rosterPl
     try {
       await removeFromTradingBlock(playerId, effectiveTeamId);
       setItems((prev) => prev.filter((i) => i.player.id !== playerId));
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "An unexpected error occurred");
     }
   };
 
@@ -97,8 +92,8 @@ export default function TradingBlockPanel({ teamId, leagueWide = false, rosterPl
       await updateTradingBlockItem(item.id, { askingFor: editAskingFor || undefined });
       setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, askingFor: editAskingFor || null } : i)));
       setEditingId(null);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "An unexpected error occurred");
     }
   };
 
@@ -311,7 +306,7 @@ export default function TradingBlockPanel({ teamId, leagueWide = false, rosterPl
       )}
       {selectedMlbId && (
         <PlayerDetailModal
-          player={{ mlb_id: String(selectedMlbId), mlbId: selectedMlbId } as any}
+          player={{ mlb_id: String(selectedMlbId) } as PlayerSeasonStat}
           onClose={() => setSelectedMlbId(null)}
         />
       )}

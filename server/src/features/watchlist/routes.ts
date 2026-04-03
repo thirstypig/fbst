@@ -4,6 +4,7 @@ import { prisma } from "../../db/prisma.js";
 import { requireAuth, isTeamOwner } from "../../middleware/auth.js";
 import { validateBody } from "../../middleware/validate.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
+import { requireSeasonStatus } from "../../middleware/seasonGuard.js";
 import { logger } from "../../lib/logger.js";
 
 const router = Router();
@@ -66,6 +67,7 @@ router.post(
   "/",
   requireAuth,
   validateBody(addSchema),
+  requireSeasonStatus(["IN_SEASON"], "body.teamId"),
   asyncHandler(async (req, res) => {
     const { teamId, playerId, note, tags } = req.body as z.infer<typeof addSchema>;
 

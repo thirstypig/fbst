@@ -4,6 +4,7 @@ import { prisma } from "../../db/prisma.js";
 import { requireAuth, requireLeagueMember, isTeamOwner } from "../../middleware/auth.js";
 import { validateBody } from "../../middleware/validate.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
+import { requireSeasonStatus } from "../../middleware/seasonGuard.js";
 import { logger } from "../../lib/logger.js";
 
 /* ── Zod schemas ─────────────────────────────────────────────── */
@@ -101,7 +102,15 @@ router.get(
       orderBy: { createdAt: "desc" },
     });
 
-    return res.json({ items: entries });
+    // Enrich with team info for client TradingBlockItem shape
+    const team = await prisma.team.findUnique({ where: { id: teamId }, select: { name: true, code: true } });
+    const items = entries.map((e) => ({
+      ...e,
+      teamName: team?.name ?? "",
+      teamCode: team?.code ?? "",
+    }));
+
+    return res.json({ items });
   }),
 );
 
@@ -114,6 +123,7 @@ router.post(
   "/",
   requireAuth,
   validateBody(addSchema),
+  requireSeasonStatus(["IN_SEASON"], "body.teamId"),
   asyncHandler(async (req, res) => {
     const { teamId, playerId, askingFor } = req.body as z.infer<typeof addSchema>;
 
@@ -186,7 +196,9 @@ router.patch(
       },
     });
 
-    return res.json(updated);
+    // Enrich with team info for client TradingBlockItem shape
+    const team = await prisma.team.findUnique({ where: { id: existing.teamId }, select: { name: true, code: true } });
+    return res.json({ ...updated, teamName: team?.name ?? "", teamCode: team?.code ?? "" });
   }),
 );
 

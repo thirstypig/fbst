@@ -6,16 +6,10 @@ import { Button } from "../../../components/ui/button";
 import { fetchJsonApi, API_BASE } from "../../../api/base";
 import { useLeague } from "../../../contexts/LeagueContext";
 import PlayerDetailModal from "../../../components/shared/PlayerDetailModal";
+import { displayPos } from "../../../lib/playerDisplay";
+import type { PlayerSeasonStat } from "../../../api/types";
 
 const TAG_OPTIONS = ["trade-target", "add-drop", "monitor"] as const;
-
-/** Normalize TWP (two-way player) to DH/P for display */
-const displayPos = (pos: string | undefined | null): string => {
-  if (!pos) return "—";
-  const p = pos.toUpperCase();
-  if (p === "TWP") return "DH/P";
-  return p;
-};
 
 interface WatchlistPanelProps {
   teamId: number;
@@ -55,8 +49,8 @@ export default function WatchlistPanel({ teamId }: WatchlistPanelProps) {
       setLoading(true);
       const res = await getWatchlist(teamId);
       setItems(res.items ?? []);
-    } catch (e: any) {
-      setError(e.message || "Failed to load watchlist");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to load watchlist");
     } finally {
       setLoading(false);
     }
@@ -95,8 +89,8 @@ export default function WatchlistPanel({ teamId }: WatchlistPanelProps) {
       setAddPlayerName("");
       setAddNote("");
       setAddTags([]);
-          } catch (e: any) {
-      setError(e.message);
+          } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "An unexpected error occurred");
     } finally {
       setAdding(false);
     }
@@ -107,8 +101,8 @@ export default function WatchlistPanel({ teamId }: WatchlistPanelProps) {
       setError(null);
       await removeFromWatchlist(playerId, teamId);
       setItems((prev) => prev.filter((i) => i.playerId !== playerId));
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "An unexpected error occurred");
     }
   };
 
@@ -118,8 +112,8 @@ export default function WatchlistPanel({ teamId }: WatchlistPanelProps) {
       await updateWatchlistItem(item.id, { note: editNote || undefined });
       setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, note: editNote || null } : i)));
       setEditingId(null);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "An unexpected error occurred");
     }
   };
 
@@ -129,8 +123,8 @@ export default function WatchlistPanel({ teamId }: WatchlistPanelProps) {
       setError(null);
       await updateWatchlistItem(item.id, { tags: newTags });
       setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, tags: newTags } : i)));
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "An unexpected error occurred");
     }
   };
 
@@ -337,7 +331,7 @@ export default function WatchlistPanel({ teamId }: WatchlistPanelProps) {
       )}
       {selectedMlbId && (
         <PlayerDetailModal
-          player={{ mlb_id: String(selectedMlbId), mlbId: selectedMlbId } as any}
+          player={{ mlb_id: String(selectedMlbId) } as PlayerSeasonStat}
           onClose={() => setSelectedMlbId(null)}
         />
       )}

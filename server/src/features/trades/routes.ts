@@ -10,7 +10,7 @@ import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { requireSeasonStatus } from "../../middleware/seasonGuard.js";
 import { logger } from "../../lib/logger.js";
 import { nextDayEffective } from "../../lib/utils.js";
-import { sendTradeProposedEmail, sendTradeProcessedEmail, sendTradeVetoedEmail, getTeamOwnerEmails } from "../../lib/emailService.js";
+import { sendTradeProposedEmail, sendTradeProcessedEmail, sendTradeVetoedEmail, notifyTeamOwners } from "../../lib/emailService.js";
 
 /**
  * Auto-generate AI analysis after a trade is processed.
@@ -199,19 +199,14 @@ router.post("/", requireAuth, validateBody(tradeProposalSchema), requireSeasonSt
     const counterpartyIds: number[] = [...new Set<number>(items.map((i: any) => Number(i.recipientId)).filter((id: number) => id !== proposerTeamId))];
     const pTeam = await prisma.team.findUnique({ where: { id: proposerTeamId }, select: { name: true } });
     const lg = await prisma.league.findUnique({ where: { id: leagueId }, select: { name: true } });
-    for (const tid of counterpartyIds) {
-      getTeamOwnerEmails(tid).then(owners => {
-        for (const owner of owners) {
-          if (owner.userId === req.user!.id) continue;
-          sendTradeProposedEmail({
-            to: owner.email, recipientName: owner.name,
-            proposerTeamName: pTeam?.name ?? "A team",
-            leagueName: lg?.name ?? "", playersSummary: `${trade.items.length} assets involved`,
-            leagueId,
-          }).catch(() => {});
-        }
-      }).catch(() => {});
-    }
+    notifyTeamOwners(counterpartyIds, req.user!.id, (owner) =>
+      sendTradeProposedEmail({
+        to: owner.email, recipientName: owner.name,
+        proposerTeamName: pTeam?.name ?? "A team",
+        leagueName: lg?.name ?? "", playersSummary: `${trade.items.length} assets involved`,
+        leagueId,
+      }),
+    ).catch(err => logger.warn({ err }, "Email notification failed"));
   }
 
   res.json(trade);
@@ -331,17 +326,12 @@ router.post("/:id/veto", requireAuth, asyncHandler(async (req, res) => {
   const vetoItems = await prisma.tradeItem.findMany({ where: { tradeId: id } });
   const vetoTeamIds = [...new Set(vetoItems.flatMap(i => [i.senderId, i.recipientId]))];
   const vetoLeague = await prisma.league.findUnique({ where: { id: trade.leagueId }, select: { name: true } });
-  for (const tid of vetoTeamIds) {
-    getTeamOwnerEmails(tid).then(owners => {
-      for (const owner of owners) {
-        if (owner.userId === req.user!.id) continue;
-        sendTradeVetoedEmail({
-          to: owner.email, recipientName: owner.name,
-          leagueName: vetoLeague?.name ?? "", leagueId: trade.leagueId,
-        }).catch(() => {});
-      }
-    }).catch(() => {});
-  }
+  notifyTeamOwners(vetoTeamIds, req.user!.id, (owner) =>
+    sendTradeVetoedEmail({
+      to: owner.email, recipientName: owner.name,
+      leagueName: vetoLeague?.name ?? "", leagueId: trade.leagueId,
+    }),
+  ).catch(err => logger.warn({ err }, "Email notification failed"));
 
   res.json(updated);
 }));
@@ -514,18 +504,13 @@ router.post("/:id/process", requireAuth, asyncHandler(async (req, res) => {
   // Fire-and-forget: notify all trade parties
   const tradeTeamIds = [...new Set(trade.items.flatMap((i: any) => [i.senderId, i.recipientId]))];
   const tradeLeague = await prisma.league.findUnique({ where: { id: trade.leagueId }, select: { name: true } });
-  for (const tid of tradeTeamIds) {
-    getTeamOwnerEmails(tid).then(owners => {
-      for (const owner of owners) {
-        if (owner.userId === req.user!.id) continue;
-        sendTradeProcessedEmail({
-          to: owner.email, recipientName: owner.name,
-          summary: `Trade #${id} executed — ${trade.items.length} assets moved`,
-          leagueName: tradeLeague?.name ?? "", leagueId: trade.leagueId,
-        }).catch(() => {});
-      }
-    }).catch(() => {});
-  }
+  notifyTeamOwners(tradeTeamIds, req.user!.id, (owner) =>
+    sendTradeProcessedEmail({
+      to: owner.email, recipientName: owner.name,
+      summary: `Trade #${id} executed — ${trade.items.length} assets moved`,
+      leagueName: tradeLeague?.name ?? "", leagueId: trade.leagueId,
+    }),
+  ).catch(err => logger.warn({ err }, "Email notification failed"));
 
   res.json({ success: true });
 }));

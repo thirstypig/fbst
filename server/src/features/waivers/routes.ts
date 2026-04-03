@@ -12,7 +12,7 @@ import { requireSeasonStatus } from "../../middleware/seasonGuard.js";
 import { assertPlayerAvailable, assertRosterLimit } from "../../lib/rosterGuard.js";
 import { computeTeamStatsFromDb, computeStandingsFromStats } from "../standings/services/standingsService.js";
 import { nextDayEffective } from "../../lib/utils.js";
-import { sendWaiverResultEmail, getTeamOwnerEmails } from "../../lib/emailService.js";
+import { sendWaiverResultEmail, notifyTeamOwners } from "../../lib/emailService.js";
 
 /**
  * Auto-generate AI analysis after a waiver claim is processed.
@@ -356,18 +356,14 @@ router.post("/process/:leagueId", requireAuth, requireCommissionerOrAdmin("leagu
   });
   for (const claim of allProcessedClaims) {
     const isSuccess = claim.status === "SUCCESS";
-    getTeamOwnerEmails(claim.teamId).then(async owners => {
-      for (const owner of owners) {
-        if (owner.userId === req.user!.id) continue;
-        await sendWaiverResultEmail({
-          to: owner.email, recipientName: owner.name,
-          playerName: claim.player?.name ?? "Unknown", position: claim.player?.posPrimary ?? "",
-          success: isSuccess, bidAmount: Number(claim.bidAmount),
-          leagueName: waiverLeague?.name ?? "", leagueId,
-        });
-        await new Promise(r => setTimeout(r, 100)); // rate limit
-      }
-    }).catch(() => {});
+    notifyTeamOwners([claim.teamId], req.user!.id, (owner) =>
+      sendWaiverResultEmail({
+        to: owner.email, recipientName: owner.name,
+        playerName: claim.player?.name ?? "Unknown", position: claim.player?.posPrimary ?? "",
+        success: isSuccess, bidAmount: Number(claim.bidAmount),
+        leagueName: waiverLeague?.name ?? "", leagueId,
+      }),
+    ).catch(err => logger.warn({ err }, "Email notification failed"));
   }
 
   res.json({ success: true, logs });
