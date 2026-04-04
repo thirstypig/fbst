@@ -13,3 +13,4 @@ export * from '../features/keeper-prep/api';
 export * from '../features/commissioner/api';
 export * from '../features/seasons/api';
 export * from '../features/waivers/api';
+export * from '../features/periods/api';

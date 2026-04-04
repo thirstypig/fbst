@@ -1,9 +1,11 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../../db/prisma.js";
-import { requireAuth } from "../../middleware/auth.js";
+import { requireAuth, requireLeagueMember } from "../../middleware/auth.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
 import { validateBody } from "../../middleware/validate.js";
+import { computePeriodAwards } from "../../services/periodAwardsService.js";
+import { logger } from "../../lib/logger.js";
 
 const router = Router();
 
@@ -162,6 +164,66 @@ router.delete("/:id", requireAuth, asyncHandler(async (req, res) => {
 
   await prisma.period.delete({ where: { id: periodId } });
   res.json({ success: true });
+}));
+
+// GET /api/periods/:periodId/awards?leagueId=N — period awards
+router.get("/:periodId/awards", requireAuth, requireLeagueMember("leagueId"), asyncHandler(async (req, res) => {
+  const periodId = Number(req.params.periodId);
+  const leagueId = Number(req.query.leagueId);
+
+  if (!Number.isFinite(periodId)) {
+    return res.status(400).json({ error: "Invalid period ID" });
+  }
+
+  // Check cache in AiInsight table
+  const cacheKey = `P${periodId}`;
+  const cached = await prisma.aiInsight.findFirst({
+    where: {
+      type: "period_awards",
+      leagueId,
+      weekKey: cacheKey,
+    },
+    select: { data: true, createdAt: true },
+  });
+
+  if (cached) {
+    return res.json({ data: cached.data, cachedAt: cached.createdAt });
+  }
+
+  // Compute fresh
+  try {
+    const awards = await computePeriodAwards(leagueId, periodId);
+
+    // Persist for caching — use first team as FK anchor (AiInsight requires a teamId FK)
+    const anchorTeam = await prisma.team.findFirst({ where: { leagueId }, select: { id: true } });
+    if (anchorTeam) {
+      await prisma.aiInsight.upsert({
+        where: {
+          type_leagueId_teamId_weekKey: {
+            type: "period_awards",
+            leagueId,
+            teamId: anchorTeam.id,
+            weekKey: cacheKey,
+          },
+        },
+        create: {
+          type: "period_awards",
+          leagueId,
+          teamId: anchorTeam.id,
+          weekKey: cacheKey,
+          data: awards as any,
+        },
+        update: {
+          data: awards as any,
+        },
+      });
+    }
+
+    res.json({ data: awards });
+  } catch (err) {
+    logger.error({ leagueId, periodId, error: String(err) }, "Failed to compute period awards");
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 }));
 
 export const periodsRouter = router;

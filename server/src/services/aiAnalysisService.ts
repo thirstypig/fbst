@@ -828,11 +828,11 @@ IMPORTANT: Return ONLY a valid JSON array, no markdown, no code blocks. Example 
 
   async analyzeTrade(
     tradeItems: { playerId?: number; playerName: string; fromTeamId: number; toTeamId: number; type: "player" | "budget"; amount?: number }[],
-    teams: { id: number; name: string; budget: number; roster: { playerName: string; position: string; price: number }[] }[],
+    teams: { id: number; name: string; budget: number; roster: { playerName: string; position: string; price: number; isKeeper?: boolean }[] }[],
     leagueId: number,
   ): Promise<{
     success: boolean;
-    result?: { fairness: string; winner: string; analysis: string; recommendation: string };
+    result?: { fairness: string; winner: string; analysis: string; recommendation: string; categoryImpact?: string | null; keeperNote?: string | null; positionNote?: string | null };
     error?: string;
   }> {
     const model = await this.getModel();
@@ -849,17 +849,42 @@ IMPORTANT: Return ONLY a valid JSON array, no markdown, no code blocks. Example 
         if (item.type === "budget") {
           return `$${item.amount} Waiver Budget from ${from?.name ?? 'Unknown'} to ${to?.name ?? 'Unknown'}`;
         }
-        return `${item.playerName} from ${from?.name ?? 'Unknown'} to ${to?.name ?? 'Unknown'}`;
+        // Check if the traded player is a keeper
+        const fromRoster = from?.roster ?? [];
+        const isKeeper = fromRoster.find(r => r.playerName === item.playerName)?.isKeeper;
+        const keeperTag = isKeeper ? " [KEEPER]" : "";
+        return `${item.playerName}${keeperTag} from ${from?.name ?? 'Unknown'} to ${to?.name ?? 'Unknown'}`;
       });
 
-      const teamSummaries = teams.map(t => ({
-        name: t.name,
-        budget: t.budget,
-        rosterSize: t.roster.length,
-        roster: t.roster.map(r => `${r.playerName} (${r.position}, $${r.price})`).join(', '),
-      }));
+      // Build position distribution for each team
+      const teamSummaries = teams.map(t => {
+        const positionCounts: Record<string, number> = {};
+        t.roster.forEach(r => {
+          const pos = r.position || "UT";
+          positionCounts[pos] = (positionCounts[pos] || 0) + 1;
+        });
+        const keeperPlayers = t.roster.filter(r => r.isKeeper).map(r => r.playerName);
+        return {
+          name: t.name,
+          budget: t.budget,
+          rosterSize: t.roster.length,
+          positionBreakdown: positionCounts,
+          keeperPlayers: keeperPlayers.length > 0 ? keeperPlayers : undefined,
+          roster: t.roster.map(r => `${r.playerName} (${r.position}, $${r.price}${r.isKeeper ? ', KEEPER' : ''})`).join(', '),
+        };
+      });
 
-      const prompt = `You are a fantasy baseball trade analyst. Analyze this trade proposal.
+      // Detect keepers involved in trade
+      const keeperItems = tradeItems.filter(item => {
+        const from = teamMap.get(item.fromTeamId);
+        return from?.roster.find(r => r.playerName === item.playerName)?.isKeeper;
+      });
+
+      const keeperWarning = keeperItems.length > 0
+        ? `\n\nIMPORTANT KEEPER WARNING: ${keeperItems.map(k => k.playerName).join(', ')} ${keeperItems.length === 1 ? 'is a keeper player' : 'are keeper players'}. Trading keepers has long-term implications — note this prominently in your analysis.`
+        : '';
+
+      const prompt = `You are a fantasy baseball trade analyst for a head-to-head category league. Analyze this PRE-TRADE proposal and advise the proposer whether to proceed.
 
 League ID: ${leagueId}
 
@@ -868,11 +893,21 @@ ${itemDescriptions.map((d, i) => `${i + 1}. ${d}`).join('\n')}
 
 Teams Involved:
 ${JSON.stringify(teamSummaries, null, 2)}
+${keeperWarning}
 
-Analyze the trade and return ONLY a valid JSON object (no markdown, no code blocks) with these fields:
+Consider these factors:
+1. FAIRNESS: Is the trade balanced in player value?
+2. CATEGORY IMPACT: How does this trade shift each team's category strengths/weaknesses (HR, RBI, AVG, SB, R for hitters; W, K, ERA, WHIP, SV for pitchers)?
+3. POSITION SCARCITY: Does the receiving team need this position? Does the sending team have depth?
+4. KEEPER IMPLICATIONS: Are any keeper-eligible players being traded? What's the long-term cost?
+
+Return ONLY a valid JSON object (no markdown, no code blocks) with these fields:
 - "fairness": one of "fair", "slightly_unfair", or "unfair"
 - "winner": name of the team that benefits more (or "even" if fair)
 - "analysis": 2-3 sentences analyzing the trade impact on both teams
+- "categoryImpact": 1-2 sentences on how this shifts category strengths for each team
+- "keeperNote": 1 sentence on keeper implications (or null if no keepers involved)
+- "positionNote": 1 sentence on position fit/scarcity for each side (or null if not relevant)
 - "recommendation": 1 sentence recommendation (approve, reject, or suggest modifications)`;
 
       const result = await model.generateContent(prompt);
@@ -884,6 +919,9 @@ Analyze the trade and return ONLY a valid JSON object (no markdown, no code bloc
         fairness: z.enum(["fair", "slightly_unfair", "unfair"]),
         winner: z.string().max(200),
         analysis: z.string().max(2000),
+        categoryImpact: z.string().max(1000).nullable().optional(),
+        keeperNote: z.string().max(500).nullable().optional(),
+        positionNote: z.string().max(500).nullable().optional(),
         recommendation: z.string().max(500),
       });
 

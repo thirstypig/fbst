@@ -27,7 +27,7 @@ export interface TradeProposal {
   status: "PROPOSED" | "ACCEPTED" | "REJECTED" | "PROCESSED" | "PENDING" | "CANCELLED" | "VETOED";
   items: TradeItem[];
   createdAt: string;
-  aiAnalysis?: { fairness: string; winner: string; analysis: string; recommendation: string } | null;
+  aiAnalysis?: TradeAnalysisResult | null;
   proposer?: { id: number; name: string; code: string; ownerUserId?: number };
   // Compat fields used by TradesPage (mapped from proposer/items)
   proposingTeamId?: number;
@@ -147,6 +147,9 @@ export interface TradeAnalysisResult {
   fairness: string;
   winner: string;
   analysis: string;
+  categoryImpact?: string | null;
+  keeperNote?: string | null;
+  positionNote?: string | null;
   recommendation: string;
 }
 

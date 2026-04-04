@@ -540,7 +540,7 @@ router.post("/analyze", requireAuth, validateBody(tradeAnalyzeSchema), requireLe
   const cached = tradeAnalysisCache.get(cacheKey);
   if (cached) return res.json(cached);
 
-  // Fetch involved teams with rosters
+  // Fetch involved teams with rosters (include source for keeper detection)
   const involvedTeamIds = [...new Set<number>(items.flatMap((i: any) => [i.fromTeamId, i.toTeamId]))];
   const teams = await prisma.team.findMany({
     where: { id: { in: involvedTeamIds }, leagueId },
@@ -564,6 +564,7 @@ router.post("/analyze", requireAuth, validateBody(tradeAnalyzeSchema), requireLe
       playerName: r.player.name,
       position: r.player.posPrimary,
       price: r.price,
+      isKeeper: r.source?.toLowerCase().includes("keeper") || r.source === "prior_season",
     })),
   }));
 

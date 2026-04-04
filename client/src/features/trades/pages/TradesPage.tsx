@@ -16,6 +16,7 @@ import {
 import { useAuth } from "../../../auth/AuthProvider";
 import { useLeague, findMyTeam } from "../../../contexts/LeagueContext";
 import { TradeAssetSelector } from "../components/TradeAssetSelector";
+import { TradeAnalysisModal } from "../components/TradeAnalysisModal";
 import TeamRosterView from "../../teams/components/TeamRosterView";
 import { Eye, Plus, Sparkles, Loader2, ArrowLeftRight } from "lucide-react";
 import { EmptyState } from "../../../components/ui/EmptyState";
@@ -248,6 +249,15 @@ function TradeAiAnalysis({ result }: { result: TradeAnalysisResult }) {
         )}
       </div>
       <p className="text-xs text-[var(--lg-text-secondary)] leading-relaxed">{result.analysis}</p>
+      {result.categoryImpact && (
+        <p className="text-xs text-[var(--lg-text-secondary)] leading-relaxed"><span className="font-semibold text-[var(--lg-text-muted)]">Categories:</span> {result.categoryImpact}</p>
+      )}
+      {result.keeperNote && (
+        <p className="text-xs text-amber-400 leading-relaxed"><span className="font-semibold">Keeper:</span> {result.keeperNote}</p>
+      )}
+      {result.positionNote && (
+        <p className="text-xs text-[var(--lg-text-secondary)] leading-relaxed"><span className="font-semibold text-[var(--lg-text-muted)]">Position:</span> {result.positionNote}</p>
+      )}
       <p className="text-[10px] text-[var(--lg-text-muted)] italic">{result.recommendation}</p>
     </div>
   );
@@ -577,6 +587,7 @@ export function CreateTradeForm({ onCancel, onSuccess }: { onCancel: () => void;
   const [selectedPartnerId, setSelectedPartnerId] = useState<number | null>(null);
   const [myTeam, setMyTeam] = useState<any>(null);
   const [partners, setPartners] = useState<any[]>([]);
+  const [showAnalysis, setShowAnalysis] = useState(false);
 
   const { toast } = useToast();
   const [myAssets, setMyAssets] = useState<any[]>([]);
@@ -601,6 +612,46 @@ export function CreateTradeForm({ onCancel, onSuccess }: { onCancel: () => void;
     })();
   }, [user, currentLeagueId]);
 
+  const hasAssets = myAssets.length > 0 || partnerAssets.length > 0;
+
+  /** Build the analysis items from current selections */
+  const buildAnalysisItems = (): TradeAnalysisItem[] => {
+    if (!myTeam || !selectedPartnerId) return [];
+    return [
+      ...myAssets.map(a => ({
+        playerId: a.playerId,
+        playerName: a.label || (a.assetType === "BUDGET" ? `$${a.amount} Waiver Budget` : "Unknown"),
+        fromTeamId: myTeam.id,
+        toTeamId: selectedPartnerId!,
+        type: (a.assetType === "PLAYER" ? "player" : "budget") as "player" | "budget",
+        amount: a.amount,
+      })),
+      ...partnerAssets.map(a => ({
+        playerId: a.playerId,
+        playerName: a.label || (a.assetType === "BUDGET" ? `$${a.amount} Waiver Budget` : "Unknown"),
+        fromTeamId: selectedPartnerId!,
+        toTeamId: myTeam.id,
+        type: (a.assetType === "PLAYER" ? "player" : "budget") as "player" | "budget",
+        amount: a.amount,
+      })),
+    ];
+  };
+
+  const handleAnalyze = () => {
+    if (!hasAssets) {
+      toast("Please select at least one item to trade before analyzing.", "warning");
+      return;
+    }
+    setShowAnalysis(true);
+  };
+
+  const handleAnalysisClose = async (action?: "propose") => {
+    setShowAnalysis(false);
+    if (action === "propose") {
+      await handlePropose();
+    }
+  };
+
   const handlePropose = async () => {
     if (!myTeam || !selectedPartnerId) return;
     if (myAssets.length === 0 && partnerAssets.length === 0) {
@@ -619,7 +670,7 @@ export function CreateTradeForm({ onCancel, onSuccess }: { onCancel: () => void;
       ...myAssets.map(a => ({ senderTeamId: myTeam.id, assetType: a.assetType, playerId: a.playerId, amount: a.amount, season: a.season })),
       ...partnerAssets.map(a => ({ senderTeamId: selectedPartnerId, assetType: a.assetType, playerId: a.playerId, amount: a.amount, season: a.season })),
     ];
-    
+
     try {
        await proposeTrade({
          leagueId: currentLeagueId!,
@@ -656,15 +707,15 @@ export function CreateTradeForm({ onCancel, onSuccess }: { onCancel: () => void;
 
       {selectedPartnerId && (
         <div className="grid grid-cols-2 gap-4 mb-6">
-          <TradeAssetSelector 
-            teamId={myTeam.id} 
-            label="You Give" 
-            onAssetsChange={setMyAssets} 
+          <TradeAssetSelector
+            teamId={myTeam.id}
+            label="You Give"
+            onAssetsChange={setMyAssets}
           />
-          <TradeAssetSelector 
-            teamId={selectedPartnerId} 
-            label="You Get (From Partner)" 
-            onAssetsChange={setPartnerAssets} 
+          <TradeAssetSelector
+            teamId={selectedPartnerId}
+            label="You Get (From Partner)"
+            onAssetsChange={setPartnerAssets}
           />
         </div>
       )}
@@ -672,13 +723,30 @@ export function CreateTradeForm({ onCancel, onSuccess }: { onCancel: () => void;
       <div className="flex justify-end space-x-2 pt-4 border-t border-[var(--lg-border-subtle)]">
         <button onClick={onCancel} className="px-4 py-2 text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)]">Cancel</button>
         <button
+           onClick={handleAnalyze}
+           disabled={!selectedPartnerId || !hasAssets}
+           className="px-4 py-2 bg-[var(--lg-tint)] hover:bg-[var(--lg-tint-hover)] border border-[var(--lg-border-subtle)] text-[var(--lg-accent)] rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2 transition-colors"
+        >
+          <Sparkles size={16} />
+          Analyze Trade
+        </button>
+        <button
            onClick={handlePropose}
-           disabled={!selectedPartnerId || (myAssets.length === 0 && partnerAssets.length === 0)}
+           disabled={!selectedPartnerId || !hasAssets}
            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Propose Trade
         </button>
       </div>
+
+      {/* AI Trade Analysis Modal */}
+      {showAnalysis && currentLeagueId && (
+        <TradeAnalysisModal
+          leagueId={currentLeagueId}
+          items={buildAnalysisItems()}
+          onClose={handleAnalysisClose}
+        />
+      )}
     </div>
   );
 }
