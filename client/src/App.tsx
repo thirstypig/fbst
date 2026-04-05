@@ -45,6 +45,7 @@ const TradingBlockPage = React.lazy(() => import("./features/trading-block/pages
 const BoardPage = React.lazy(() => import("./features/board/pages/BoardPage"));
 const Pricing = React.lazy(() => import("./pages/Pricing"));
 const Concepts = React.lazy(() => import("./pages/Concepts"));
+const ProductBoard = React.lazy(() => import("./pages/ProductBoard"));
 
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useAuth } from "./auth/AuthProvider";
@@ -147,6 +148,7 @@ export default function App() {
                     <Route path="/about" element={<About />} />
                     <Route path="/pricing" element={<Pricing />} />
                     <Route path="/concepts" element={<Concepts />} />
+                    <Route path="/community" element={<ProductBoard />} />
                     <Route path="/ai" element={<AIHub />} />
                     <Route path="/draft-report" element={<DraftReportPage />} />
                     <Route path="*" element={<Navigate to="/" replace />} />

@@ -10,7 +10,7 @@ import { logger } from "../../lib/logger.js";
 
 const createCardSchema = z.object({
   leagueId: z.number().int().positive(),
-  column: z.enum(["commissioner", "trade_block", "banter"]),
+  column: z.enum(["commissioner", "banter"]),
   title: z.string().min(1).max(200),
   body: z.string().max(2000).optional(),
   type: z.enum(["user", "system", "trade", "waiver", "stat_alert", "award", "poll"]).default("user"),
@@ -62,51 +62,113 @@ router.get(
     const limit = Math.min(Number(req.query.limit) || 50, 100);
     const offset = Number(req.query.offset) || 0;
 
-    const where: any = {
-      leagueId,
-      deletedAt: null,
-    };
+    // For trade_block column, query TradingBlock table directly (auto-synced)
+    const wantTradeBlock = !column || column === "trade_block";
+    const wantBoardCards = !column || column !== "trade_block";
 
-    if (column) where.column = column;
-    if (periodId) where.periodId = periodId;
+    let boardItems: any[] = [];
+    let boardTotal = 0;
 
-    // Filter out expired cards
-    where.OR = [
-      { expiresAt: null },
-      { expiresAt: { gt: new Date() } },
-    ];
+    if (wantBoardCards) {
+      const where: any = {
+        leagueId,
+        deletedAt: null,
+      };
 
-    const [cards, total] = await Promise.all([
-      prisma.boardCard.findMany({
-        where,
-        include: {
-          user: { select: { id: true, name: true, avatarUrl: true } },
-          replies: {
-            include: {
-              user: { select: { id: true, name: true, avatarUrl: true } },
+      // Exclude trade_block from BoardCard queries — they come from TradingBlock table
+      if (column) {
+        where.column = column;
+      } else {
+        where.column = { not: "trade_block" };
+      }
+      if (periodId) where.periodId = periodId;
+
+      // Filter out expired cards
+      where.OR = [
+        { expiresAt: null },
+        { expiresAt: { gt: new Date() } },
+      ];
+
+      const [cards, total] = await Promise.all([
+        prisma.boardCard.findMany({
+          where,
+          include: {
+            user: { select: { id: true, name: true, avatarUrl: true } },
+            replies: {
+              include: {
+                user: { select: { id: true, name: true, avatarUrl: true } },
+              },
+              orderBy: { createdAt: "asc" },
             },
-            orderBy: { createdAt: "asc" },
           },
+          orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
+          take: limit,
+          skip: offset,
+        }),
+        prisma.boardCard.count({ where }),
+      ]);
+
+      // Get current user's votes for these cards
+      const cardIds = cards.map((c) => c.id);
+      const userVotes = cardIds.length > 0
+        ? await prisma.boardVote.findMany({
+            where: { cardId: { in: cardIds }, userId: req.user!.id },
+          })
+        : [];
+      const voteMap = new Map(userVotes.map((v) => [v.cardId, v.vote]));
+
+      boardItems = cards.map((c) => ({
+        ...c,
+        myVote: voteMap.get(c.id) ?? null,
+        replyCount: c.replies.length,
+      }));
+      boardTotal = total;
+    }
+
+    // Build trade_block cards from TradingBlock table
+    let tradeBlockCards: any[] = [];
+    if (wantTradeBlock) {
+      const tradingBlockEntries = await prisma.tradingBlock.findMany({
+        where: { team: { leagueId } },
+        include: {
+          player: { select: { id: true, name: true, posPrimary: true, mlbTeam: true, mlbId: true } },
+          team: { select: { id: true, name: true, code: true, ownerUserId: true } },
         },
-        orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
-        take: limit,
-        skip: offset,
-      }),
-      prisma.boardCard.count({ where }),
-    ]);
+        orderBy: { createdAt: "desc" },
+      });
 
-    // Get current user's votes for these cards
-    const cardIds = cards.map((c) => c.id);
-    const userVotes = await prisma.boardVote.findMany({
-      where: { cardId: { in: cardIds }, userId: req.user!.id },
-    });
-    const voteMap = new Map(userVotes.map((v) => [v.cardId, v.vote]));
+      tradeBlockCards = tradingBlockEntries.map((e) => ({
+        id: -e.id, // negative ID to distinguish from real BoardCard IDs
+        leagueId,
+        userId: e.team.ownerUserId,
+        column: "trade_block",
+        title: e.player.name,
+        body: e.askingFor || "",
+        type: "trade_block",
+        metadata: {
+          playerId: e.player.id,
+          mlbId: e.player.mlbId,
+          posPrimary: e.player.posPrimary,
+          mlbTeam: e.player.mlbTeam,
+          teamName: e.team.name,
+          teamCode: e.team.code,
+        },
+        pinned: false,
+        periodId: null,
+        expiresAt: null,
+        thumbsUp: 0,
+        thumbsDown: 0,
+        createdAt: e.createdAt,
+        deletedAt: null,
+        user: null, // system-generated from trading block
+        replies: [],
+        myVote: null,
+        replyCount: 0,
+      }));
+    }
 
-    const items = cards.map((c) => ({
-      ...c,
-      myVote: voteMap.get(c.id) ?? null,
-      replyCount: c.replies.length,
-    }));
+    const items = [...boardItems, ...tradeBlockCards];
+    const total = boardTotal + tradeBlockCards.length;
 
     return res.json({ items, total, limit, offset });
   }),

@@ -23,6 +23,7 @@ import {
   type BoardCard,
 } from "../api";
 import { useAuth } from "../../../auth/AuthProvider";
+import PlayerDetailModal from "../../../components/shared/PlayerDetailModal";
 
 /* -- Column config -------------------------------------------------------- */
 
@@ -414,6 +415,7 @@ function CardComponent({
   onReply,
   onDelete,
   onSelect,
+  onOpenPlayer,
   currentUserId,
   isCommissioner,
   expandedId,
@@ -424,6 +426,7 @@ function CardComponent({
   onReply: (cardId: number, body: string) => Promise<void>;
   onDelete: (cardId: number) => void;
   onSelect: (card: BoardCard) => void;
+  onOpenPlayer: (playerId: number) => void;
   currentUserId: number;
   isCommissioner: boolean;
   expandedId: number | null;
@@ -435,6 +438,11 @@ function CardComponent({
   const isMobileExpanded = expandedId === card.id;
 
   const handleCardClick = () => {
+    // Trade block cards open the PlayerDetailModal
+    if (isTradeBlock && card.metadata?.playerId) {
+      onOpenPlayer(card.metadata.playerId);
+      return;
+    }
     // Desktop: open slide-over panel via onSelect
     // Mobile: toggle inline expand
     if (window.innerWidth >= 768) {
@@ -463,12 +471,22 @@ function CardComponent({
               Commissioner
             </span>
           )}
-          {isTradeBlock && (
+          {isTradeBlock && card.metadata?.posPrimary && (
             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-              Trade Block
+              {card.metadata.posPrimary}
             </span>
           )}
-          {card.user?.name && (
+          {isTradeBlock && card.metadata?.mlbTeam && (
+            <span className="text-[10px] font-medium text-[var(--lg-text-muted)]">
+              {card.metadata.mlbTeam}
+            </span>
+          )}
+          {isTradeBlock && card.metadata?.teamName && (
+            <span className="text-[10px] text-[var(--lg-text-muted)]">
+              {card.metadata.teamName}
+            </span>
+          )}
+          {!isTradeBlock && card.user?.name && (
             <span className="text-[10px] text-[var(--lg-text-muted)]">
               {card.user.name}
             </span>
@@ -479,7 +497,7 @@ function CardComponent({
             <Clock className="w-3 h-3" />
             {formatRelativeTime(card.createdAt)}
           </span>
-          {canDelete && (
+          {canDelete && !isTradeBlock && (
             <button
               onClick={(e) => { e.stopPropagation(); onDelete(card.id); }}
               className="p-1 rounded text-[var(--lg-text-muted)] hover:text-red-500 transition-colors"
@@ -513,28 +531,35 @@ function CardComponent({
       )}
 
       {/* Footer: reactions + reply count */}
-      <div className="flex items-center justify-between mt-2">
-        <ReactionBar
-          thumbsUp={card.thumbsUp}
-          thumbsDown={card.thumbsDown}
-          myVote={card.myVote}
-          onVote={(vote) => onVote(card.id, vote)}
-          disabled={isCommissionerCard}
-        />
-        <button
-          onClick={(e) => { e.stopPropagation(); handleCardClick(); }}
-          className="flex items-center gap-1 text-[10px] text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] transition-colors"
-        >
-          <MessageSquare className="w-3 h-3" />
-          {card.replies.length > 0 ? card.replies.length : ""}
-          <span className="hidden sm:inline">
-            {card.replies.length === 1 ? "reply" : card.replies.length > 0 ? "replies" : "Reply"}
-          </span>
-        </button>
-      </div>
+      {!isTradeBlock && (
+        <div className="flex items-center justify-between mt-2">
+          <ReactionBar
+            thumbsUp={card.thumbsUp}
+            thumbsDown={card.thumbsDown}
+            myVote={card.myVote}
+            onVote={(vote) => onVote(card.id, vote)}
+            disabled={isCommissionerCard}
+          />
+          <button
+            onClick={(e) => { e.stopPropagation(); handleCardClick(); }}
+            className="flex items-center gap-1 text-[10px] text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] transition-colors"
+          >
+            <MessageSquare className="w-3 h-3" />
+            {card.replies.length > 0 ? card.replies.length : ""}
+            <span className="hidden sm:inline">
+              {card.replies.length === 1 ? "reply" : card.replies.length > 0 ? "replies" : "Reply"}
+            </span>
+          </button>
+        </div>
+      )}
+      {isTradeBlock && (
+        <div className="mt-2 text-[10px] text-[var(--lg-text-muted)] italic">
+          Click to view player details
+        </div>
+      )}
 
       {/* Mobile inline expand */}
-      {isMobileExpanded && (
+      {!isTradeBlock && isMobileExpanded && (
         <div className="md:hidden">
           <InlineReplySection card={card} onReply={onReply} />
         </div>
@@ -561,9 +586,9 @@ function NewCardForm({
   const [column, setColumn] = useState<ColumnId>(defaultColumn ?? "banter");
   const [submitting, setSubmitting] = useState(false);
 
-  // Determine available columns
+  // Determine available columns — trade_block is auto-synced, not manually postable
   const availableColumns = COLUMNS.filter(
-    (c) => c.id !== "commissioner" || isCommissioner
+    (c) => c.id !== "trade_block" && (c.id !== "commissioner" || isCommissioner)
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -581,15 +606,11 @@ function NewCardForm({
   };
 
   // Dynamic placeholders based on column
-  const titlePlaceholder = column === "trade_block"
-    ? "Player name (e.g., Kyle Tucker)"
-    : column === "commissioner"
+  const titlePlaceholder = column === "commissioner"
     ? "Announcement title..."
     : "Title...";
 
-  const bodyPlaceholder = column === "trade_block"
-    ? "What are you looking for in return?"
-    : column === "commissioner"
+  const bodyPlaceholder = column === "commissioner"
     ? "Announcement details..."
     : "Share a hot take, trash talk, or strategy tip...";
 
@@ -735,6 +756,7 @@ export default function LeagueBoard({ leagueId }: { leagueId: number }) {
   const [selectedCard, setSelectedCard] = useState<BoardCard | null>(null);
   const [mobileExpandedId, setMobileExpandedId] = useState<number | null>(null);
   const [showDesktopForm, setShowDesktopForm] = useState(false);
+  const [playerModalCard, setPlayerModalCard] = useState<BoardCard | null>(null);
 
   const loadCards = useCallback(async () => {
     if (!leagueId) return;
@@ -819,6 +841,14 @@ export default function LeagueBoard({ leagueId }: { leagueId: number }) {
     [selectedCard]
   );
 
+  const handleOpenPlayer = useCallback((playerId: number) => {
+    // Find the trade block card with this playerId to get full metadata
+    const card = cards.find(
+      (c) => c.column === "trade_block" && c.metadata?.playerId === playerId
+    );
+    if (card) setPlayerModalCard(card);
+  }, [cards]);
+
   const cardsByColumn = (col: ColumnId) => cards.filter((c) => c.column === col);
 
   if (loading) {
@@ -858,6 +888,12 @@ export default function LeagueBoard({ leagueId }: { leagueId: number }) {
           })}
         </div>
 
+        {activeTab === "trade_block" && (
+          <p className="text-[10px] text-[var(--lg-text-muted)] text-center mt-1 mb-2 italic">
+            Auto-synced from team rosters
+          </p>
+        )}
+
         <div className="space-y-3 mt-2">
           {cardsByColumn(activeTab).map((card) => (
             <CardComponent
@@ -867,6 +903,7 @@ export default function LeagueBoard({ leagueId }: { leagueId: number }) {
               onReply={handleReply}
               onDelete={handleDelete}
               onSelect={setSelectedCard}
+              onOpenPlayer={handleOpenPlayer}
               currentUserId={currentUserId}
               isCommissioner={isCommissioner}
               expandedId={mobileExpandedId}
@@ -928,7 +965,14 @@ export default function LeagueBoard({ leagueId }: { leagueId: number }) {
                 {/* Column header */}
                 <div className={`flex items-center gap-2 px-1 pb-2 border-b-2 ${col.accentBorder}`}>
                   <Icon className={`w-4 h-4 ${col.accent}`} />
-                  <span className={`text-xs font-semibold ${col.accent}`}>{col.label}</span>
+                  <div className="flex flex-col">
+                    <span className={`text-xs font-semibold ${col.accent}`}>{col.label}</span>
+                    {col.id === "trade_block" && (
+                      <span className="text-[9px] text-[var(--lg-text-muted)] leading-tight">
+                        auto-synced from team rosters
+                      </span>
+                    )}
+                  </div>
                   <span className="text-[10px] text-[var(--lg-text-muted)] ml-auto">
                     {colCards.length}
                   </span>
@@ -943,6 +987,7 @@ export default function LeagueBoard({ leagueId }: { leagueId: number }) {
                     onReply={handleReply}
                     onDelete={handleDelete}
                     onSelect={setSelectedCard}
+                    onOpenPlayer={handleOpenPlayer}
                     currentUserId={currentUserId}
                     isCommissioner={isCommissioner}
                     expandedId={mobileExpandedId}
@@ -974,6 +1019,20 @@ export default function LeagueBoard({ leagueId }: { leagueId: number }) {
             isCommissioner={isCommissioner}
           />
         </div>
+      )}
+
+      {/* Player detail modal for trade block cards */}
+      {playerModalCard && (
+        <PlayerDetailModal
+          player={{
+            mlb_id: String(playerModalCard.metadata?.mlbId ?? ""),
+            player_name: playerModalCard.title,
+            posPrimary: playerModalCard.metadata?.posPrimary,
+            mlbTeam: playerModalCard.metadata?.mlbTeam,
+          } as any}
+          onClose={() => setPlayerModalCard(null)}
+          open={true}
+        />
       )}
     </div>
   );

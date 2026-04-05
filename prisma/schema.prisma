@@ -127,6 +127,8 @@ model User {
   auditLogs              AuditLog[]
   boardCards             BoardCard[]
   boardReplies           BoardCardReply[]
+  productBoardCards      ProductBoardCard[]  @relation("ProductBoardCards")
+  productBoardReplies    ProductBoardReply[] @relation("ProductBoardReplies")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1006,4 +1008,41 @@ model BoardVote {
   vote     String // "up" or "down"
 
   @@unique([cardId, userId])
+}
+
+// ======================
+//  Product Board — platform-wide community board (not league-scoped)
+// ======================
+
+model ProductBoardCard {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  channel    String    // "announcements", "marketplace", "general"
+  title      String
+  body       String?   @db.Text
+  type       String    // "announcement", "league_listing", "free_agent", "discussion"
+  metadata   Json?     // for listings: { sport, format, buyIn, spotsOpen }
+  thumbsUp   Int       @default(0)
+  thumbsDown Int       @default(0)
+  createdAt  DateTime  @default(now())
+  deletedAt  DateTime?
+
+  user    User                @relation("ProductBoardCards", fields: [userId], references: [id])
+  replies ProductBoardReply[]
+
+  @@index([channel])
+  @@index([createdAt])
+}
+
+model ProductBoardReply {
+  id        Int      @id @default(autoincrement())
+  cardId    Int
+  userId    Int
+  body      String
+  createdAt DateTime @default(now())
+
+  card ProductBoardCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user User             @relation("ProductBoardReplies", fields: [userId], references: [id])
+
+  @@index([cardId])
 }
