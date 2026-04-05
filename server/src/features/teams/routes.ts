@@ -513,5 +513,58 @@ router.post("/:teamId/trade-block", requireAuth, validateBody(tradeBlockSchema),
   res.json({ playerIds: validPlayerIds });
 }));
 
+// POST /api/teams/ai-insights/generate-all?leagueId=X
+// Admin endpoint: batch-generate weekly insights for ALL teams in a league
+router.post("/ai-insights/generate-all", requireAuth, asyncHandler(async (req, res) => {
+  if (!(req.user as any)?.isAdmin) {
+    return res.status(403).json({ error: "Admin only" });
+  }
+
+  const leagueId = Number(req.query.leagueId || req.body?.leagueId);
+  if (!Number.isFinite(leagueId)) {
+    return res.status(400).json({ error: "Missing leagueId" });
+  }
+
+  const teams = await prisma.team.findMany({
+    where: { leagueId },
+    select: { id: true, name: true },
+  });
+
+  const weekKey = getWeekKey();
+  const results: { teamId: number; teamName: string; status: string }[] = [];
+
+  for (const team of teams) {
+    // Check if already generated this week
+    const existing = await prisma.aiInsight.findUnique({
+      where: { type_leagueId_teamId_weekKey: { type: "weekly", leagueId, teamId: team.id, weekKey } },
+    });
+
+    if (existing) {
+      results.push({ teamId: team.id, teamName: team.name, status: "already_exists" });
+      continue;
+    }
+
+    // Trigger generation by calling the same endpoint internally
+    try {
+      // Use a direct fetch to the insights endpoint to reuse the existing generation logic
+      const url = `http://localhost:${process.env.PORT || 4010}/api/teams/ai-insights?leagueId=${leagueId}&teamId=${team.id}`;
+      const token = req.headers.authorization;
+      const resp = await fetch(url, { headers: { Authorization: token || "" } });
+      if (resp.ok) {
+        results.push({ teamId: team.id, teamName: team.name, status: "generated" });
+      } else {
+        results.push({ teamId: team.id, teamName: team.name, status: `error_${resp.status}` });
+      }
+    } catch (err: unknown) {
+      results.push({ teamId: team.id, teamName: team.name, status: "error" });
+    }
+
+    // Rate limit: 2 seconds between AI calls to avoid overwhelming the LLM
+    await new Promise(r => setTimeout(r, 2000));
+  }
+
+  res.json({ weekKey, results });
+}));
+
 export const teamsRouter = router;
 export default teamsRouter;
