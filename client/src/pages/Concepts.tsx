@@ -70,8 +70,8 @@ export default function Concepts() {
           </Link>
         </div>
         <p className="text-xs text-[var(--lg-text-muted)] mb-5 max-w-2xl">
-          A card-based async communication board for your league. Commissioner announcements,
-          auto-generated activity, trade block, and banter — all in one place.
+          A 3-column async board for your league: Commissioner announcements, Trade Block,
+          and Banter. Click any card to open a threaded conversation with replies.
         </p>
 
         <LeagueBoard leagueId={leagueId} />

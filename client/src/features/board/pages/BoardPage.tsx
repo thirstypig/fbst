@@ -9,7 +9,7 @@ export default function BoardPage() {
     <div className="max-w-7xl mx-auto px-4 py-6 md:px-6 md:py-10">
       <PageHeader
         title="League Board"
-        subtitle="Cards, discussions, and league activity"
+        subtitle="Commissioner announcements, trade block, and league banter"
       />
       <LeagueBoard leagueId={leagueId} />
     </div>

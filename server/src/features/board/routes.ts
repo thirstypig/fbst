@@ -10,7 +10,7 @@ import { logger } from "../../lib/logger.js";
 
 const createCardSchema = z.object({
   leagueId: z.number().int().positive(),
-  column: z.enum(["pinned", "activity", "trade_block", "banter"]),
+  column: z.enum(["commissioner", "trade_block", "banter"]),
   title: z.string().min(1).max(200),
   body: z.string().max(2000).optional(),
   type: z.enum(["user", "system", "trade", "waiver", "stat_alert", "award", "poll"]).default("user"),
@@ -124,11 +124,11 @@ router.post(
   asyncHandler(async (req, res) => {
     const data = req.body as z.infer<typeof createCardSchema>;
 
-    // Only commissioners can post to "pinned" column
-    if (data.column === "pinned") {
-      const canPin = await isCommissionerOrAdmin(req.user!.id, data.leagueId, req.user!.isAdmin);
-      if (!canPin) {
-        return res.status(403).json({ error: "Only commissioners can post to the Pinned column" });
+    // Only commissioners can post to "commissioner" column
+    if (data.column === "commissioner") {
+      const canPost = await isCommissionerOrAdmin(req.user!.id, data.leagueId, req.user!.isAdmin);
+      if (!canPost) {
+        return res.status(403).json({ error: "Only commissioners can post to the Commissioner column" });
       }
     }
 
@@ -280,7 +280,6 @@ router.patch(
       where: { id: cardId },
       data: {
         pinned: !card.pinned,
-        column: !card.pinned ? "pinned" : "banter", // Move to/from pinned column
       },
     });
 
