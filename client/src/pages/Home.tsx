@@ -12,6 +12,7 @@ import { useSeasonGating } from "../hooks/useSeasonGating";
 import { formatLocalDate, formatLocalTime, formatEventTime, safeParseDate } from "../lib/timeUtils";
 import type { DigestResponse, PowerRanking, CategoryMover, TeamGrade } from "./home/types";
 import PeriodAwardsCard from "../features/periods/components/PeriodAwardsCard";
+import DeadlineWarnings from "../components/shared/DeadlineWarnings";
 
 // Map MLB Trade Rumors team name tags to abbreviations for NL/AL filtering
 const TEAM_NAME_TO_ABBR: Record<string, string> = {
@@ -572,6 +573,9 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* ─── Deadline Warnings ─── */}
+      <DeadlineWarnings />
 
       {/* ─── The Daily Diamond (Your Team's Newspaper) ─── */}
       {!rosterStatsLoading && rosterStats.players.length > 0 && (() => {
