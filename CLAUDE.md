@@ -22,7 +22,7 @@ Fantasy baseball league management tool. Client/server monorepo organized by **f
 ### Shared
 - TypeScript across both client and server
 - Vitest (unit + integration tests)
-- 25 feature modules mirrored client/server
+- 26 feature modules mirrored client/server
 
 ### Infrastructure
 - PostgreSQL (Supabase)
@@ -64,7 +64,7 @@ fbst/
 
 The codebase is organized by **domain feature modules**. Each feature encapsulates its own routes, services, pages, components, and API client in a self-contained directory.
 
-### Current Feature Modules (25)
+### Current Feature Modules (26)
 
 | Module | Server | Client | Description |
 |--------|--------|--------|-------------|
@@ -95,6 +95,7 @@ The codebase is organized by **domain feature modules**. Each feature encapsulat
 | `notifications` | routes | 1 component, api | Push notifications: web-push VAPID, PushSubscription, NotificationPreference, per-type settings |
 | `draft` | routes, WebSocket | 1 page, 3 components, api | Snake draft: DraftBoard grid, auto-pick, pause/resume, On the Clock indicator |
 | `matchups` | routes | — | H2H matchup generation: round-robin scheduling, ScoringEngine (Roto/H2H/Points) |
+| `profiles` | routes | 1 page, api | User profiles: bio, favorite team, experience, preferred formats, payment handles |
 
 ### Feature Module Pattern
 ```
@@ -213,7 +214,7 @@ When adding cross-feature imports, document them here to maintain visibility.
 ## Database
 - Schema at `prisma/schema.prisma`
 - Never run migrations without explicit confirmation
-- Key models: Franchise, FranchiseMembership, User, League, LeagueMembership, LeagueInvite, Team, Player, Roster, Period, TeamStatsPeriod, TeamStatsSeason, Trade, WaiverClaim, AuctionLot, AuctionBid, AuctionSession, AiInsight, TransactionEvent, HistoricalSeason, HistoricalStanding, HistoricalPlayerStat, ChatMessage, PushSubscription, NotificationPreference, Matchup
+- Key models: Franchise, FranchiseMembership, User, UserProfile, League, LeagueMembership, LeagueInvite, Team, Player, Roster, Period, TeamStatsPeriod, TeamStatsSeason, Trade, WaiverClaim, AuctionLot, AuctionBid, AuctionSession, AiInsight, TransactionEvent, HistoricalSeason, HistoricalStanding, HistoricalPlayerStat, ChatMessage, PushSubscription, NotificationPreference, Matchup
 - `AiInsight` — persisted AI-generated analyses (type: "weekly" for team insights, "league_digest" for home page digest; deduped by weekKey)
 - `Trade.aiAnalysis` — JSON, auto-generated post-trade analysis (fire-and-forget on processing)
 - `WaiverClaim.aiAnalysis` — JSON, auto-generated post-waiver analysis (fire-and-forget on processing)
@@ -296,7 +297,7 @@ server/src/__tests__/integration/
 - **DB tests**: Use a test database with Prisma migrations for integration tests (future)
 - **CI**: Run `npm run test` in CI pipeline before deploy
 
-### Current Test Coverage (493 server + 187 client + 50 MCP = 730 tests, 25 feature modules)
+### Current Test Coverage (493 server + 187 client + 50 MCP = 730 tests, 26 feature modules)
 
 **Server (493 tests):**
 - `server/src/lib/__tests__/utils.test.ts` — 36 tests (toNum, toBool, norm, normCode, parseCsv, splitCsvLine, chunk, parseIntParam)

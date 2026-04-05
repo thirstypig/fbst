@@ -32,15 +32,15 @@ import MermaidDiagram from "../components/MermaidDiagram";
 /* ── Data ────────────────────────────────────────────────────────── */
 
 const stats = [
-  { label: "Total Lines of Code", value: "82,800+", icon: FileCode },
-  { label: "Client (React/TS)", value: "43,500", icon: Monitor },
-  { label: "Server (Node/TS)", value: "39,300", icon: Server },
+  { label: "Total Lines of Code", value: "84,400+", icon: FileCode },
+  { label: "Client (React/TS)", value: "44,500", icon: Monitor },
+  { label: "Server (Node/TS)", value: "39,900", icon: Server },
   { label: "MCP Server", value: "1,370", icon: Server },
   { label: "Test Coverage", value: "12,900+ lines", icon: TestTube },
-  { label: "Database Models", value: "48", icon: Database },
-  { label: "API Route Handlers", value: "222", icon: Plug },
-  { label: "Feature Modules", value: "25", icon: Layers },
-  { label: "Git Commits", value: "460+", icon: GitCommit },
+  { label: "Database Models", value: "49", icon: Database },
+  { label: "API Route Handlers", value: "228", icon: Plug },
+  { label: "Feature Modules", value: "26", icon: Layers },
+  { label: "Git Commits", value: "462+", icon: GitCommit },
   { label: "Tests Passing", value: "730", icon: TestTube },
   { label: "DB Schema Lines", value: "1,131", icon: Braces },
   { label: "DB Migrations", value: "15", icon: Database },
@@ -69,7 +69,7 @@ const techStack = [
     items: [
       { name: "Node.js + Express", desc: "REST API server" },
       { name: "TypeScript (ESM)", desc: "Strict mode, ES modules" },
-      { name: "Prisma ORM", desc: "Type-safe database access with 48 models" },
+      { name: "Prisma ORM", desc: "Type-safe database access with 49 models" },
       { name: "Zod", desc: "Runtime request validation" },
       { name: "Helmet", desc: "Security headers" },
       { name: "express-rate-limit", desc: "API rate limiting" },
@@ -152,6 +152,7 @@ const featureModules = [
   { name: "notifications", desc: "Push notifications: web-push VAPID, PushSubscription, per-type preferences" },
   { name: "draft", desc: "Snake draft: DraftBoard grid, WebSocket /ws/draft, auto-pick, On the Clock" },
   { name: "matchups", desc: "H2H matchup generation: round-robin scheduling, category scoring, Points scoring" },
+  { name: "profiles", desc: "User profiles: bio, favorite team, experience, preferred formats, payment handles" },
 ];
 
 const erdDiagrams: { label: string; chart: string }[] = [
@@ -672,7 +673,7 @@ const costComparison = {
     "Excel/CSV import, 20+ year archive system",
     "Full design system: light/dark mode, ADA compliant tables, frozen columns",
     "Sport-agnostic engine foundation (SportConfig interface, baseball.ts extracted)",
-    "57 development sessions, 456+ commits",
+    "57 development sessions, 462+ commits",
   ],
 };
 
@@ -1062,7 +1063,7 @@ function CostEstimate() {
                 {c.aiCost.totalRange}
               </div>
               <div className="text-xs text-[var(--lg-text-muted)] mb-3">
-                {c.aiCost.tokens} tokens &middot; 56 sessions &middot; 6 months
+                {c.aiCost.tokens} tokens &middot; 57 sessions &middot; 6 months
               </div>
               <div className="text-[10px] text-[var(--lg-text-secondary)] leading-relaxed">
                 {c.aiCost.note}
@@ -1139,7 +1140,7 @@ function DatabaseERD() {
         Database Schema
       </h2>
       <p className="text-sm text-[var(--lg-text-secondary)] mb-4">
-        30 models across 5 domains — PostgreSQL via Prisma ORM with 723 lines of schema.
+        49 models across 5 domains — PostgreSQL via Prisma ORM with 1,131 lines of schema.
         Click a section to view its entity-relationship diagram.
       </p>
       <div className="space-y-2">
@@ -1198,10 +1199,10 @@ export default function Tech() {
         <p className="mt-2 text-sm text-[var(--lg-text-secondary)]">
           A look at what it took to build The Fantastic Leagues — the tools, the process,
           the decisions, and the numbers. Built from November 2025 to present across
-          56 sessions, 78,400+ lines of TypeScript, and an estimated 95 million+ AI tokens.
+          57 sessions, 84,400+ lines of TypeScript, and an estimated 100 million+ AI tokens.
         </p>
         <p className="mt-1 text-xs text-[var(--lg-text-muted)]">
-          Last updated: March 20, 2026
+          Last updated: April 5, 2026
         </p>
       </div>
 
@@ -1238,8 +1239,8 @@ export default function Tech() {
           How This Was Built: The AI Development Workflow
         </h2>
         <p className="text-sm text-[var(--lg-text-secondary)] mb-4">
-          Building a 57K-line full-stack app through conversational AI requires structure.
-          Here's the system that made it work across 56 sessions.
+          Building an 84K-line full-stack app through conversational AI requires structure.
+          Here's the system that made it work across 57 sessions.
         </p>
         <div className="space-y-3">
           {workflowSteps.map((step) => (
@@ -1458,7 +1459,7 @@ export default function Tech() {
 
       {/* Footer note */}
       <p className="text-xs text-[var(--lg-text-muted)] text-center pb-4">
-        Built with Claude Code — estimated 95M+ tokens across 56 sessions |{" "}
+        Built with Claude Code — estimated 100M+ tokens across 57 sessions |{" "}
         <Link to="/roadmap" className="text-[var(--lg-accent)] hover:underline">
           Roadmap
         </Link>

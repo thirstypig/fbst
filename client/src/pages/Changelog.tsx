@@ -64,6 +64,9 @@ const changelog: ChangelogEntry[] = [
       { type: "feat", description: "In-App League Chat: WebSocket /ws/chat, ChatPanel (slide-over desktop, full-screen mobile), unread badges, system messages on trade/waiver events" },
       { type: "feat", description: "Conditional Waiver Claims: ONLY_IF_UNAVAILABLE / ONLY_IF_AVAILABLE / PAIR_WITH conditions with evaluateCondition() in processing" },
       { type: "feat", description: "Sport Engine Phase 2: League.sport wired through API → LeagueContext → standings computation + auction config" },
+      { type: "feat", description: "Rule Lock Tiers: isRuleLocked() with season-phase enforcement. 10 waiver config fields. Commissioner UI with padlock icons on locked settings" },
+      { type: "feat", description: "User Profiles: ProfilePage (/profile, /profile/:userId), bio, favorite team, experience, preferred formats, payment handles (league-members-only)" },
+      { type: "feat", description: "League Invites + Public Leagues: /join/:inviteCode, visibility (PRIVATE/PUBLIC/OPEN), Community Board with real public league listings" },
     ],
   },
   {

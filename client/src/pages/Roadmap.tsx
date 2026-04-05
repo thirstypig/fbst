@@ -361,6 +361,9 @@ const completedFeatures: CompletedGroup[] = [
       { title: "In-App League Chat", description: "WebSocket chat with ChatPanel (slide-over desktop, full-screen mobile). Unread badges. System messages on trades/waivers.", session: "57" },
       { title: "Conditional Waiver Claims", description: "ONLY_IF_UNAVAILABLE / ONLY_IF_AVAILABLE / PAIR_WITH conditions. evaluateCondition() in processing. FAILED_CONDITION status.", session: "57" },
       { title: "Sport Engine Phase 2", description: "League.sport wired through API → LeagueContext → standings + auction. Foundation for football + basketball.", session: "57" },
+      { title: "Rule Lock Tiers", description: "Season-phase rule enforcement. 10 waiver config fields. Padlock icons on locked commissioner settings.", session: "57" },
+      { title: "User Profiles", description: "Public profiles with bio, experience, preferred formats, payment handles. Edit mode + public view.", session: "57" },
+      { title: "League Invites + Public Leagues", description: "/join/:inviteCode page, PRIVATE/PUBLIC/OPEN visibility, Community Board with real listings.", session: "57" },
     ],
   },
   {

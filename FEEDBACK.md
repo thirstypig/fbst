@@ -30,6 +30,9 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 - **In-App League Chat**: ChatMessage model, WebSocket at /ws/chat, ChatPanel (slide-over desktop, full-screen mobile), unread badges, system messages on trade/waiver processing
 - **Conditional Waiver Claims**: conditionType/conditionPlayerId fields, ONLY_IF_UNAVAILABLE/ONLY_IF_AVAILABLE/PAIR_WITH, evaluateCondition() in processing, FAILED_CONDITION status
 - **Sport Engine Phase 2**: League.sport wired through API → LeagueContext → standings, auction stores sport in config
+- **Rule Lock Tiers**: ruleLock.ts with NEVER/SEASON_START/DRAFT_START/ANYTIME tiers. 10 waiver config fields. Commissioner UI with padlock icons on locked fields
+- **User Profiles**: UserProfile model, /api/profiles routes, ProfilePage with edit mode + public view, payment handles (league-members-only)
+- **League Invites + Public Leagues**: /join/:inviteCode landing page, visibility (PRIVATE/PUBLIC/OPEN), maxTeams, Community Board with real public league listings
 
 ### Pending / Next Steps
 - Run `npx prisma migrate dev` for BoardCard + ProductBoardCard + ChatMessage + PushSubscription + NotificationPreference + Matchup tables
