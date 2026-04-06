@@ -11,6 +11,7 @@ import {
   type ProfileResponse,
   type UserProfileData,
 } from "../api";
+import { NotificationSettings } from "../../notifications";
 
 const MLB_TEAMS = [
   "AZ", "ATL", "BAL", "BOS", "CHC", "CWS", "CIN", "CLE", "COL", "DET",
@@ -397,6 +398,12 @@ export default function ProfilePage() {
           <Button onClick={handleSave} disabled={saving} variant="default" className="px-8">
             {saving ? "Saving..." : "Save Profile"}
           </Button>
+        </div>
+
+        {/* Notification Settings */}
+        <div className="mt-10 pt-8 border-t border-[var(--lg-border-subtle)]">
+          <h2 className="text-lg font-semibold text-[var(--lg-text-heading)] mb-4">Push Notifications</h2>
+          <NotificationSettings />
         </div>
       </div>
     </div>
