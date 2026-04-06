@@ -158,7 +158,7 @@ export class AIAnalysisService {
       coldTeam: { name: string; reason: string };
       statOfTheWeek: string;
       categoryMovers: { category: string; team: string; direction: string; detail: string }[];
-      proposedTrade: {
+      proposedTrade?: {
         style: string; title: string; description: string;
         teamA: string; teamAGives: string;
         teamB: string; teamBGives: string;
@@ -182,63 +182,52 @@ export class AIAnalysisService {
         ? `\nLast week's proposed trade received ${previousVotes.yes} "yes" and ${previousVotes.no} "no" votes.${previousVotes.no > previousVotes.yes ? ' Owners felt it was unrealistic — aim for a more practical, mutually beneficial trade this week.' : previousVotes.yes > previousVotes.no ? ' Owners liked the idea — this week, try something in a similar vein.' : ''}`
         : '';
 
-      const prompt = `You are a fellow league member in "${leagueName}" who studies the stats every morning. Write a weekly digest for Week ${weekNumber} of the ${season} season (${leagueTypeLabel}, ${teams.length} teams, 10-cat roto: R, HR, RBI, SB, AVG | W, SV, K, ERA, WHIP).
+      const prompt = `You are a stat-obsessed league member in "${leagueName}" writing the weekly digest after Week ${weekNumber} of the ${season} season (${teams.length} teams, 10-cat roto: R, HR, RBI, SB, AVG | W, SV, K, ERA, WHIP).
 
-Write with personality — be opinionated, use light trash talk, be the kind of commissioner email people actually read. Use last names only (e.g., "Betts" not "Mookie Betts"). Vary your sentence structure. Every claim must cite a specific stat from the data below — never say "struggling" without naming the category and number.
+Write with personality — be opinionated, use trash talk, be specific. Use last names only ("Betts" not "Mookie Betts"). Do NOT use position labels (no "OF", "SP", "TWP" — just names). EVERY claim must cite a specific number from the data below.
 
-TEAMS (sorted by standings rank):
+TEAMS (sorted by current standings):
 ${teams
   .sort((a, b) => (a.overallRank ?? 99) - (b.overallRank ?? 99))
   .map(t => {
     const rankLabel = t.overallRank ? `#${t.overallRank}, ${t.totalPoints} pts` : 'unranked';
     return `=== ${t.name} (${rankLabel}) ===
-${hasStats && t.statsLine ? `Stats: ${t.statsLine}` : ''}
+${hasStats && t.statsLine ? `Current stats: ${t.statsLine}` : ''}
 Key players: ${t.keyPlayers}
-KEEPERS (UNTOUCHABLE — CANNOT be traded): ${t.keeperNames || 'None'}
 Recent moves: ${t.recentMoves || 'None'}`;
   }).join('\n\n')}
 ${narrativeHints && narrativeHints.length > 0 ? `
-PRE-COMPUTED INSIGHTS (use these in your analysis):
+INSIGHTS FROM THE DATA:
 ${narrativeHints.map(h => `- ${h}`).join('\n')}` : ''}
 
-RULES:
-- Do NOT mention auction prices, draft costs, or budget amounts. Focus on PERFORMANCE only.
-- Do NOT invent stats, projections, or predictions about future performance. Only reference numbers provided above.
-- Power rankings must correlate with actual standings — 1st place team should be ranked 1-3, last place 8-10.
-- KEEPERS ARE COMPLETELY OFF LIMITS in trade proposals. If a player is listed as a KEEPER, they CANNOT appear in any trade. Non-negotiable.
-${voteContext}
+CRITICAL RULES:
+1. EVERY statement must include specific numbers. Never say "crushing it" — say "hit 5 HR this week, moving from 6th to 3rd in the category."
+2. Power rankings MUST reflect actual standings. #1 in standings = #1 in power rankings unless there is a compelling stat-based reason to adjust by 1-2 spots.
+3. Power ranking commentary must reference THIS WEEK's performance — what happened in the last 7 days, not general season trends. Cite specific stat lines from the data above.
+4. Hot/Cold team reasons must cite at least 3 specific numbers (e.g., "hit .350 with 4 HR and 12 RBI this week").
+5. Category movers must show the exact stat AND rank movement (e.g., "jumped from 6th to 3rd in HR with 8 this week").
+6. Stat of the week must reference exact numbers, not vague claims.
+7. Do NOT mention auction prices, draft costs, budgets, or league type (everyone knows).
+8. Do NOT invent stats or project future performance. Only reference numbers from the data above.
+9. Do NOT use position abbreviations — just player last names.
+10. Bold prediction should be fun but grounded in a real trend from the data.
 
 Return ONLY valid JSON (no markdown, no code blocks):
 {
-  "weekInOneSentence": "One punchy headline capturing the biggest story (15-25 words)",
+  "weekInOneSentence": "One punchy headline about the biggest story THIS WEEK (15-25 words, must include a number)",
   "powerRankings": [
-    {"rank": 1, "teamName": "Team", "movement": "up|down|steady", "commentary": "1 sentence citing specific stats"}
+    {"rank": 1, "teamName": "Team", "movement": "up|down|steady", "commentary": "1-2 sentences about THIS WEEK's performance. Must cite 2+ specific stats from the data (e.g., 'Led the league in HR (8) and RBI (22) this week')."}
   ],
-  "hotTeam": {"name": "Team", "reason": "2-3 sentences citing 2+ specific category performances"},
-  "coldTeam": {"name": "Team", "reason": "2-3 sentences citing 2+ specific category performances"},
-  "statOfTheWeek": "2 sentences about a surprising stat or category oddity",
+  "hotTeam": {"name": "Team", "reason": "2-3 sentences citing 3+ specific numbers from this week's stats. What categories did they dominate and by how much?"},
+  "coldTeam": {"name": "Team", "reason": "2-3 sentences citing 3+ specific numbers. What categories are they losing ground in? Cite rank drops."},
+  "statOfTheWeek": "2 sentences about a surprising stat — must include exact numbers and a comparison (e.g., 'Team X's 15 SB are more than the next two teams combined')",
   "categoryMovers": [
-    {"category": "HR", "team": "Team", "direction": "up|down", "detail": "what happened"}
+    {"category": "HR", "team": "Team", "direction": "up|down", "detail": "Exact stat + rank change (e.g., 'Added 8 HR this week, jumping from 6th to 3rd')"}
   ],
-  "proposedTrade": {
-    "style": "${tradeStyle}",
-    "title": "Catchy trade title",
-    "description": "1 sentence pitch",
-    "teamA": "Team name",
-    "teamAGives": "Non-keeper players only — reference which category needs this addresses",
-    "teamB": "Team name",
-    "teamBGives": "Non-keeper players only — reference which category needs this addresses",
-    "reasoning": "2 sentences: why each team benefits — cite specific category ranks"
-  },
-  "boldPrediction": "1 fun sentence predicting something for next week"
+  "boldPrediction": "1 fun sentence predicting something for next week, grounded in a real trend from the data"
 }
 
-Trade style: "${tradeStyle}"
-${tradeStyle === "conservative" ? "Swap mid-tier role players to address small category needs." : ""}
-${tradeStyle === "outrageous" ? "Involve high-value non-keeper players. Dramatic but possible." : ""}
-${tradeStyle === "fun" ? "Creative angle — unexpected 3-for-2 or targeting a category swing." : ""}
-
-FINAL CHECK: Verify NO keeper players appear in the trade, and all stats cited exist in the data above.`;
+FINAL CHECK: Every sentence in your response must contain at least one specific number from the data above. If you can't back a claim with data, remove it.`;
 
       const result = await model.generateContent(prompt);
       const text = result.response.text().trim();
@@ -262,6 +251,7 @@ FINAL CHECK: Verify NO keeper players appear in the trade, and all stats cited e
           direction: z.string().max(20),
           detail: z.string().max(400),
         })).max(5),
+        // proposedTrade removed per user feedback — keep old digests intact
         proposedTrade: z.object({
           style: z.string().max(50),
           title: z.string().max(200),
@@ -271,7 +261,7 @@ FINAL CHECK: Verify NO keeper players appear in the trade, and all stats cited e
           teamB: z.string().max(200),
           teamBGives: z.string().max(500),
           reasoning: z.string().max(1000),
-        }),
+        }).optional(),
         boldPrediction: z.string().max(400),
       });
 
@@ -279,16 +269,6 @@ FINAL CHECK: Verify NO keeper players appear in the trade, and all stats cited e
       if (!parsed.success) {
         logger.error({ zodError: parsed.error.message }, "AI returned invalid league digest");
         return { success: false, error: 'League digest returned invalid data' };
-      }
-
-      // Post-generation validation: verify no keepers in trade proposals
-      const keeperNames = new Set(teams.flatMap(t => (t.keeperNames || "").split(",").map(n => n.trim().toLowerCase()).filter(Boolean)));
-      const tradeText = `${parsed.data.proposedTrade.teamAGives} ${parsed.data.proposedTrade.teamBGives}`.toLowerCase();
-      for (const keeper of keeperNames) {
-        if (keeper && tradeText.includes(keeper)) {
-          logger.warn({ keeper }, "AI included keeper in trade proposal — regeneration needed");
-          // Don't fail — just log the warning. A future enhancement could retry.
-        }
       }
 
       return { success: true, result: parsed.data };
