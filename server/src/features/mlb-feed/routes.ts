@@ -1059,7 +1059,7 @@ router.get(
 // ─── Weekly League Digest ────────────────────────────────────────────────────
 
 import { getWeekKey, weekKeyLabel } from "../../lib/utils.js";
-import { buildDigestContext, extractVoteResults, type DigestData } from "./services/digestService.js";
+import { buildDigestContext, extractVoteResults, isDigestReady, type DigestData } from "./services/digestService.js";
 
 // GET /api/mlb/league-digest/weeks?leagueId=N — list all persisted digest weeks
 router.get("/league-digest/weeks", requireAuth, requireLeagueMember("leagueId"), asyncHandler(async (req, res) => {
@@ -1111,6 +1111,21 @@ router.get("/league-digest", requireAuth, requireLeagueMember("leagueId"), async
   // For past weeks, never auto-generate — return 404
   if (!isCurrentWeek) {
     return res.status(404).json({ error: "No digest found for this week" });
+  }
+
+  // Don't generate new digest until Sunday games are complete (Monday 3 AM PT)
+  if (!isDigestReady()) {
+    // Return previous week's digest as fallback
+    const prevWeekKey = getWeekKey(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+    const prevDigest = await prisma.aiInsight.findFirst({
+      where: { type: "league_digest", leagueId, weekKey: prevWeekKey },
+    });
+    if (prevDigest) {
+      const data = (prevDigest.data ?? {}) as DigestData & Record<string, unknown>;
+      const voteData = extractVoteResults(data, req.user!.id);
+      return res.json({ ...data, generatedAt: prevDigest.createdAt.toISOString(), weekKey: prevWeekKey, isCurrentWeek: false, votes: undefined, voteResults: voteData });
+    }
+    return res.status(404).json({ error: "Digest not available yet — Sunday games still in progress" });
   }
 
   // Build context using digest service

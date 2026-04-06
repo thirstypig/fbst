@@ -5,6 +5,7 @@
 import { prisma } from "../../../db/prisma.js";
 import { logger } from "../../../lib/logger.js";
 import { getWeekKey } from "../../../lib/utils.js";
+import { mlbGetJson, fetchMlbTeamsMap } from "../../../lib/mlbApi.js";
 
 // ─── Types ───
 
@@ -31,6 +32,10 @@ export interface DigestTeamData {
   totalPoints: number | null;
   statsLine: string;
   categoryRankLine: string;
+  injuredPlayers: string;
+  minorsPlayers: string;
+  previousRank: number | null;
+  rankChange: number | null;
 }
 
 /** Full context needed to generate a digest. */
@@ -75,6 +80,112 @@ export function extractVoteResults(data: unknown, userId: number): VoteResults {
   return { yes, no, myVote };
 }
 
+// ─── Timing ───
+
+/**
+ * Check if it's safe to generate a new weekly digest.
+ * Don't generate until after the last Sunday MLB game completes.
+ * Last MLB game on Sunday typically ends by 11 PM ET = 8 PM PT.
+ * Safe window: Monday 3 AM PT (10:00 UTC).
+ */
+export function isDigestReady(): boolean {
+  const now = new Date();
+  const day = now.getUTCDay(); // 0 = Sunday
+  const hour = now.getUTCHours();
+
+  // If it's Sunday, don't generate yet
+  if (day === 0) return false;
+  // If it's early Monday (before 10:00 UTC = 3 AM PT), don't generate
+  if (day === 1 && hour < 10) return false;
+
+  return true;
+}
+
+// ─── Injury/IL Status Helpers ───
+
+/** Fetch MLB roster status for all players across the given fantasy teams. */
+async function fetchInjuryStatusForLeague(
+  teams: Array<{
+    id: number;
+    rosters: Array<{
+      player: { name: string; mlbId: number | null; mlbTeam: string | null; posPrimary: string };
+    }>;
+  }>
+): Promise<{
+  injuredByTeam: Map<number, string[]>;
+  minorsByTeam: Map<number, string[]>;
+}> {
+  const injuredByTeam = new Map<number, string[]>();
+  const minorsByTeam = new Map<number, string[]>();
+
+  try {
+    // Collect all unique MLB teams from rosters
+    const mlbTeamAbbrs = new Set<string>();
+    for (const t of teams) {
+      for (const r of t.rosters) {
+        if (r.player.mlbTeam) mlbTeamAbbrs.add(r.player.mlbTeam);
+      }
+    }
+
+    // Build abbr → MLB team ID lookup
+    const teamsMap = await fetchMlbTeamsMap();
+    const teamIdMap: Record<string, number> = {};
+    for (const [id, abbr] of Object.entries(teamsMap)) {
+      teamIdMap[abbr as string] = Number(id);
+    }
+
+    // Fetch MLB roster status for each team (cached 6 hours)
+    const mlbStatusMap = new Map<number, { status: string; position: string }>();
+    for (const teamAbbr of mlbTeamAbbrs) {
+      const mlbTeamId = teamIdMap[teamAbbr];
+      if (!mlbTeamId) continue;
+
+      try {
+        const data = await mlbGetJson(
+          `https://statsapi.mlb.com/api/v1/teams/${mlbTeamId}/roster?rosterType=fullSeason`,
+          21600 // 6-hour cache
+        );
+        for (const entry of (data as { roster?: Array<{ person?: { id?: number }; status?: { description?: string }; position?: { abbreviation?: string } }> }).roster || []) {
+          const mlbId = entry.person?.id;
+          const status = entry.status?.description || "Unknown";
+          const pos = entry.position?.abbreviation || "";
+          if (mlbId) mlbStatusMap.set(mlbId, { status, position: pos });
+        }
+      } catch (err) {
+        logger.warn({ error: String(err), teamAbbr }, "Digest: failed to fetch MLB roster status");
+      }
+    }
+
+    // Cross-reference with fantasy rosters
+    for (const t of teams) {
+      const injured: string[] = [];
+      const minors: string[] = [];
+      for (const r of t.rosters) {
+        if (!r.player.mlbId) continue;
+        const mlbStatus = mlbStatusMap.get(r.player.mlbId);
+        if (!mlbStatus) continue;
+
+        const statusDesc = mlbStatus.status;
+        if (statusDesc.includes("Injured")) {
+          // Extract IL type from status (e.g., "10-Day Injured List" → "IL-10")
+          const ilMatch = statusDesc.match(/(\d+)-Day/);
+          const ilLabel = ilMatch ? `IL-${ilMatch[1]}` : "IL";
+          injured.push(`${r.player.name} (${ilLabel})`);
+        } else if (statusDesc.includes("Minor") || statusDesc === "Reassigned") {
+          // Minors — label as AAA/AA/etc. if available, else just "Minors"
+          minors.push(`${r.player.name} (Minors)`);
+        }
+      }
+      if (injured.length > 0) injuredByTeam.set(t.id, injured);
+      if (minors.length > 0) minorsByTeam.set(t.id, minors);
+    }
+  } catch (err) {
+    logger.warn({ error: String(err) }, "Digest: injury status fetch failed — proceeding without");
+  }
+
+  return { injuredByTeam, minorsByTeam };
+}
+
 // ─── Main Context Builder ───
 
 /**
@@ -92,7 +203,7 @@ export async function buildDigestContext(leagueId: number, weekKey: string): Pro
       include: {
         rosters: {
           where: { releasedAt: null },
-          include: { player: { select: { name: true, posPrimary: true } } },
+          include: { player: { select: { name: true, posPrimary: true, mlbId: true, mlbTeam: true } } },
           orderBy: { price: "desc" },
         },
       },
@@ -153,6 +264,24 @@ export async function buildDigestContext(leagueId: number, weekKey: string): Pro
     movesByTeam.set(r.teamId, moves);
   }
 
+  // Fetch injury/IL/minors status for all rostered players
+  const { injuredByTeam, minorsByTeam } = await fetchInjuryStatusForLeague(teams);
+
+  // Extract previous week's power rankings for rank movement
+  const prevRankByTeamName = new Map<string, number>();
+  if (prevDigest) {
+    const prevData = (prevDigest.data ?? {}) as DigestData;
+    const prevPowerRankings = prevData.powerRankings as
+      Array<{ rank: number; teamName: string }> | undefined;
+    if (Array.isArray(prevPowerRankings)) {
+      for (const pr of prevPowerRankings) {
+        if (pr.teamName && typeof pr.rank === "number") {
+          prevRankByTeamName.set(pr.teamName, pr.rank);
+        }
+      }
+    }
+  }
+
   // Determine trade style rotation based on week number
   const weekNum = parseInt(weekKey.split("-W")[1]) || 0;
   const tradeStyle = TRADE_STYLES[weekNum % 3];
@@ -183,16 +312,29 @@ export async function buildDigestContext(leagueId: number, weekKey: string): Pro
       categoryRankLine = Object.entries(catRanks).map(([k, v]) => `${k}:${v.rank}`).join(" ");
     }
 
+    // Injury/IL and minors data
+    const injured = injuredByTeam.get(t.id) || [];
+    const minors = minorsByTeam.get(t.id) || [];
+
+    // Week-over-week rank movement
+    const currentRank = standingsRow?.rank ?? null;
+    const prevRank = prevRankByTeamName.get(t.name) ?? null;
+    const rankChange = (currentRank !== null && prevRank !== null) ? prevRank - currentRank : null;
+
     return {
       id: t.id,
       name: t.name,
       keyPlayers: t.rosters.slice(0, 6).map(r => `${r.player.name} (${r.player.posPrimary})`).join(", "),
       keeperNames: keepers.map(k => k.player.name).join(", "),
       recentMoves: (movesByTeam.get(t.id) || []).slice(0, 5).join("; "),
-      overallRank: standingsRow?.rank ?? null,
+      overallRank: currentRank,
       totalPoints: standingsRow?.points ?? null,
       statsLine,
       categoryRankLine,
+      injuredPlayers: injured.join(", "),
+      minorsPlayers: minors.join(", "),
+      previousRank: prevRank,
+      rankChange,
     };
   });
 

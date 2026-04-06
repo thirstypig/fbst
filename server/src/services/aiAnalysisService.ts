@@ -144,6 +144,8 @@ export class AIAnalysisService {
       keyPlayers: string; keeperNames: string; recentMoves: string;
       overallRank: number | null; totalPoints: number | null;
       statsLine: string; categoryRankLine: string;
+      injuredPlayers: string; minorsPlayers: string;
+      previousRank: number | null; rankChange: number | null;
     }[];
     tradeStyle: "conservative" | "outrageous" | "fun";
     weekNumber: number;
@@ -191,10 +193,18 @@ ${teams
   .sort((a, b) => (a.overallRank ?? 99) - (b.overallRank ?? 99))
   .map(t => {
     const rankLabel = t.overallRank ? `#${t.overallRank}, ${t.totalPoints} pts` : 'unranked';
+    const movementLabel = t.rankChange !== null && t.previousRank !== null
+      ? t.rankChange > 0 ? `Last week: #${t.previousRank} (moved up ${t.rankChange} spots)`
+        : t.rankChange < 0 ? `Last week: #${t.previousRank} (moved down ${Math.abs(t.rankChange)} spots)`
+        : `Last week: #${t.previousRank} (steady)`
+      : '';
     return `=== ${t.name} (${rankLabel}) ===
 ${hasStats && t.statsLine ? `Current stats: ${t.statsLine}` : ''}
+${movementLabel ? movementLabel : ''}
 Key players: ${t.keyPlayers}
-Recent moves: ${t.recentMoves || 'None'}`;
+Injured/IL: ${t.injuredPlayers || 'None'}
+In Minors: ${t.minorsPlayers || 'None'}
+Recent moves: ${t.recentMoves || 'None'}`.replace(/\n\n/g, '\n');
   }).join('\n\n')}
 ${narrativeHints && narrativeHints.length > 0 ? `
 INSIGHTS FROM THE DATA:
@@ -211,6 +221,9 @@ CRITICAL RULES:
 8. Do NOT invent stats or project future performance. Only reference numbers from the data above.
 9. Do NOT use position abbreviations — just player last names.
 10. Bold prediction should be fun but grounded in a real trend from the data.
+11. Note injured/IL players that are affecting team performance. If a key player is on the IL, mention the impact on the team's category production.
+12. Note players in the minors who are not contributing — dead roster spots matter in roto.
+13. Power ranking "movement" field must reflect actual rank change from last week's standings data, not a guess. Cite which categories drove the rank change.
 
 Return ONLY valid JSON (no markdown, no code blocks):
 {
