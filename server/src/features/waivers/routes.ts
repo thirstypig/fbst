@@ -15,6 +15,11 @@ import { nextDayEffective } from "../../lib/utils.js";
 import { sendWaiverResultEmail, notifyTeamOwners, getTeamOwnerEmails } from "../../lib/emailService.js";
 import { sendPushToUser } from "../../lib/pushService.js";
 
+/** Typed error for advisory lock conflicts — prevents fragile string matching. */
+class LockConflictError extends Error {
+  constructor() { super("Lock conflict"); this.name = "LockConflictError"; }
+}
+
 /**
  * Auto-generate AI analysis after a waiver claim is processed.
  * Persists the analysis on the WaiverClaim record via proper AIAnalysisService method.
@@ -314,7 +319,7 @@ router.post("/process/:leagueId", requireAuth, requireCommissionerOrAdmin("leagu
       SELECT pg_try_advisory_xact_lock(hashtext(${'waiver_process_' + leagueId}))
     `;
     if (!lockResult[0]?.pg_try_advisory_xact_lock) {
-      throw new Error("Waiver processing already in progress for this league");
+      throw new LockConflictError();
     }
 
     for (const claim of claims) {
@@ -425,9 +430,9 @@ router.post("/process/:leagueId", requireAuth, requireCommissionerOrAdmin("leagu
       });
     }
   }, { timeout: 30_000 }).catch(err => {
-    if (err instanceof Error && err.message.includes("already in progress")) {
+    if (err instanceof LockConflictError) {
       res.status(409).json({ error: "Waiver processing already in progress for this league" });
-      return "LOCK_CONFLICT";
+      return;
     }
     throw err;
   });

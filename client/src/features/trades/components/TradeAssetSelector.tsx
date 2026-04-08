@@ -104,7 +104,7 @@ export function TradeAssetSelector({ teamId, label, onAssetsChange }: Props) {
 
     // Waiver Position (per round)
     for (const round of [...waiverRounds].sort()) {
-      const roundLabel = round === 1 ? "1st" : round === 2 ? "2nd" : `${round}rd`;
+      const roundLabel = round === 1 ? "1st" : round === 2 ? "2nd" : round === 3 ? "3rd" : `${round}th`;
       assets.push({
         assetType: "WAIVER_PRIORITY",
         round,
@@ -113,6 +113,7 @@ export function TradeAssetSelector({ teamId, label, onAssetsChange }: Props) {
     }
 
     onAssetsChange(assets);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- onAssetsChange is stable from parent (not re-created per render)
   }, [selectedPlayerIds, futureBudgetAmount, futureBudgetSeason, budgetAmount, pickRound, pickSeason, waiverRounds, roster]);
 
   const togglePlayer = (pid: number) => {
@@ -121,6 +122,8 @@ export function TradeAssetSelector({ teamId, label, onAssetsChange }: Props) {
     else next.add(pid);
     setSelectedPlayerIds(next);
   };
+
+  const inputCls = "bg-[var(--lg-tint-hover)] border-[var(--lg-border-subtle)] rounded px-2 py-1 text-[var(--lg-text-primary)] text-sm focus:outline-none focus:border-blue-500";
 
   if (loading) return <div className="p-4 bg-[var(--lg-tint)] rounded">Loading roster...</div>;
 
@@ -158,7 +161,7 @@ export function TradeAssetSelector({ teamId, label, onAssetsChange }: Props) {
               type="number"
               min="0"
               max={budget}
-              className="bg-[var(--lg-tint-hover)] border-[var(--lg-border-subtle)] rounded px-2 py-1 text-[var(--lg-text-primary)] text-sm w-20 focus:outline-none focus:border-blue-500"
+              className={`${inputCls} w-20`}
               placeholder="0"
               value={budgetAmount}
               onChange={e => {
@@ -181,7 +184,7 @@ export function TradeAssetSelector({ teamId, label, onAssetsChange }: Props) {
               type="number"
               min="0"
               max="20"
-              className="bg-[var(--lg-tint-hover)] border-[var(--lg-border-subtle)] rounded px-2 py-1 text-[var(--lg-text-primary)] text-sm w-16 focus:outline-none focus:border-blue-500"
+              className={`${inputCls} w-16`}
               placeholder="#"
               value={pickRound}
               onChange={e => {
@@ -190,7 +193,7 @@ export function TradeAssetSelector({ teamId, label, onAssetsChange }: Props) {
               }}
             />
             <select
-              className="bg-[var(--lg-tint-hover)] border-[var(--lg-border-subtle)] rounded px-2 py-1 text-[var(--lg-text-primary)] text-sm focus:outline-none focus:border-blue-500"
+              className={inputCls}
               value={pickSeason}
               onChange={e => setPickSeason(Number(e.target.value))}
             >
@@ -213,7 +216,7 @@ export function TradeAssetSelector({ teamId, label, onAssetsChange }: Props) {
                 type="number"
                 min="0"
                 max={400}
-                className="bg-[var(--lg-tint-hover)] border-[var(--lg-border-subtle)] rounded px-2 py-1 text-[var(--lg-text-primary)] text-sm w-20 focus:outline-none focus:border-blue-500"
+                className={`${inputCls} w-20`}
                 placeholder="0"
                 value={futureBudgetAmount}
                 onChange={e => {
@@ -223,7 +226,7 @@ export function TradeAssetSelector({ teamId, label, onAssetsChange }: Props) {
               />
               <span className="text-[var(--lg-text-muted)] text-xs">of</span>
               <select
-                className="bg-[var(--lg-tint-hover)] border-[var(--lg-border-subtle)] rounded px-2 py-1 text-[var(--lg-text-primary)] text-sm focus:outline-none focus:border-blue-500"
+                className={inputCls}
                 value={futureBudgetSeason}
                 onChange={e => setFutureBudgetSeason(Number(e.target.value))}
               >

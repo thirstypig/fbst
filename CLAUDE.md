@@ -160,6 +160,7 @@ Some features import from other features' services or components.
 - `trades/pages/TradesPage` imports `teams/components/TeamRosterView`
 - `auction/pages/AuctionValues` imports `components/shared/PlayerDetailModal`
 - `teams/pages/Team` imports `components/shared/PlayerDetailModal`
+- `components/shared/PlayerDetailModal` imports `hooks/usePlayerNews` (RSS feed aggregation for news section)
 - `archive/pages/ArchivePage` imports `players/components/EditPlayerNameModal`, `teams/components/EditTeamNameModal`, `admin/components/ArchiveAdminPanel`, `components/shared/StatsTables`
 - `periods/pages/Season` imports `components/shared/StatsTables`
 - `commissioner/components/CommissionerTradeTool` imports `trades/components/TradeAssetSelector`

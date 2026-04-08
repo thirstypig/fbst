@@ -502,6 +502,7 @@ model TeamStatsPeriod {
   @@unique([teamId, periodId])
 }
 
+/// @deprecated Use TeamStatsPeriod aggregation instead. Table left in DB for backward compat; no code reads this.
 model TeamStatsSeason {
   id     Int @id @default(autoincrement())
   teamId Int @unique

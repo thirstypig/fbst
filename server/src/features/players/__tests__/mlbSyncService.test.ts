@@ -21,7 +21,7 @@ vi.mock("../../../lib/mlbApi.js", () => ({
 
 import { prisma } from "../../../db/prisma.js";
 import { mlbGetJson } from "../../../lib/mlbApi.js";
-import { syncAllPlayers, fetchAllTeams, syncNLPlayers, fetchNLTeams, syncPositionEligibility, syncAAARosters, fetchAAATeams } from "../services/mlbSyncService.js";
+import { syncAllPlayers, fetchAllTeams, syncPositionEligibility, syncAAARosters, fetchAAATeams } from "../services/mlbSyncService.js";
 
 const mockPrisma = prisma as any;
 const mockMlbGetJson = mlbGetJson as any;
@@ -45,23 +45,6 @@ describe("fetchAllTeams", () => {
     const teams = await fetchAllTeams(2026);
     expect(teams).toHaveLength(3);
     expect(mockMlbGetJson).toHaveBeenCalledWith(expect.stringContaining("sportId=1&season=2026"));
-  });
-});
-
-// ── fetchNLTeams ─────────────────────────────────────────────────
-
-describe("fetchNLTeams", () => {
-  it("filters to NL teams only", async () => {
-    mockMlbGetJson.mockResolvedValue({
-      teams: [
-        { id: 108, name: "Los Angeles Angels", abbreviation: "LAA", league: { id: 103 } },
-        { id: 119, name: "Los Angeles Dodgers", abbreviation: "LAD", league: { id: 104 } },
-      ],
-    });
-
-    const teams = await fetchNLTeams(2026);
-    expect(teams).toHaveLength(1);
-    expect(teams[0].abbreviation).toBe("LAD");
   });
 });
 

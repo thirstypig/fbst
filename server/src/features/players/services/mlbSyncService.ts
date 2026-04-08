@@ -40,20 +40,6 @@ function resolvePosition(mlbId: number, posAbbr: string): string {
 }
 
 /**
- * Fetch all NL teams from MLB Stats API.
- */
-export async function fetchNLTeams(season: number): Promise<MlbTeam[]> {
-  const url = `${MLB_BASE}/teams?sportId=1&season=${season}`;
-  const data = await mlbGetJson(url);
-  const teams: MlbTeam[] = data.teams || [];
-
-  // NL league ID is 104
-  return teams.filter(
-    (t) => t.league?.id === 104 || t.league?.name === "National League"
-  );
-}
-
-/**
  * Fetch a single team's 40-man roster from MLB Stats API.
  */
 async function fetchTeamRoster(
@@ -90,78 +76,15 @@ function buildPosList(mlbId: number, posAbbr: string): string {
 }
 
 /**
- * Sync all NL rosters into the Player table.
- * Upserts by mlbId — creates new players, updates existing ones.
+ * Guard: only overwrite posList if it hasn't been enriched by syncPositionEligibility.
+ * Returns true if posList should be updated (it's empty, matches old primary, or matches new position).
  */
-export async function syncNLPlayers(season: number): Promise<{
-  created: number;
-  updated: number;
-  teams: number;
-}> {
-  const nlTeams = await fetchNLTeams(season);
-  logger.info({ count: nlTeams.length, season }, "Fetched NL teams");
-
-  const playerLookup = await buildPlayerLookup();
-  let created = 0;
-  let updated = 0;
-
-  for (const team of nlTeams) {
-    const abbr = team.abbreviation;
-
-    let roster: MlbRosterPerson[];
-    try {
-      roster = await fetchTeamRoster(team.id, season);
-    } catch (err) {
-      logger.error(
-        { teamId: team.id, team: abbr, error: String(err) },
-        "Failed to fetch roster"
-      );
-      continue;
-    }
-
-    logger.info(
-      { team: abbr, playerCount: roster.length },
-      "Processing team roster"
-    );
-
-    for (const entry of roster) {
-      const mlbId = entry.person.id;
-      const name = entry.person.fullName;
-      const rawPos = entry.position.abbreviation || "UT";
-      const posAbbr = resolvePosition(mlbId, rawPos);
-      const posList = buildPosList(mlbId, posAbbr);
-
-      const existing = playerLookup.get(mlbId);
-
-      if (existing) {
-        // Preserve enriched posList from syncPositionEligibility — only overwrite
-        // if the existing posList is just the old primary (not enriched by fielding stats)
-        const existingPosList = existing.posList || '';
-        const shouldUpdatePosList = !existingPosList || existingPosList === existing.posPrimary || existingPosList === posAbbr;
-        await prisma.player.update({
-          where: { id: existing.id },
-          data: { name, mlbTeam: abbr, posPrimary: posAbbr, ...(shouldUpdatePosList ? { posList } : {}) },
-        });
-        updated++;
-      } else {
-        const created_ = await prisma.player.create({
-          data: { mlbId, name, mlbTeam: abbr, posPrimary: posAbbr, posList },
-        });
-        playerLookup.set(mlbId, { id: created_.id, mlbTeam: abbr, posPrimary: posAbbr, posList });
-        created++;
-      }
-    }
-
-    // Small delay between teams to be polite to MLB API
-    await new Promise((r) => setTimeout(r, 200));
-  }
-
-  logger.info(
-    { created, updated, teams: nlTeams.length },
-    "NL player sync complete"
-  );
-
-  return { created, updated, teams: nlTeams.length };
+function shouldOverwritePosList(
+  existing: { posList: string | null; posPrimary: string | null },
+  newPos: string,
+): boolean {
+  const current = existing.posList || "";
+  return !current || current === existing.posPrimary || current === newPos;
 }
 
 /**
@@ -235,13 +158,10 @@ export async function syncAllPlayers(season: number): Promise<{
           );
         }
 
-        // Preserve enriched posList from syncPositionEligibility — only overwrite
-        // if the existing posList is just the old primary (not enriched by fielding stats)
-        const existingPosList = existing.posList || '';
-        const shouldUpdatePosList = !existingPosList || existingPosList === existing.posPrimary || existingPosList === posAbbr;
+        // Preserve enriched posList from syncPositionEligibility
         await prisma.player.update({
           where: { id: existing.id },
-          data: { name, mlbTeam: abbr, posPrimary: posAbbr, ...(shouldUpdatePosList ? { posList } : {}) },
+          data: { name, mlbTeam: abbr, posPrimary: posAbbr, ...(shouldOverwritePosList(existing, posAbbr) ? { posList } : {}) },
         });
         existing.mlbTeam = abbr; // Update lookup for subsequent teams
         updated++;
@@ -582,7 +502,7 @@ interface MlbPersonInfo {
   currentTeam?: { id: number; abbreviation?: string };
 }
 
-export async function enrichStalePlayers(season: number): Promise<{
+export async function enrichStalePlayers(_season: number): Promise<{
   enriched: number;
   notFound: number;
   skipped: number;
@@ -645,10 +565,7 @@ export async function enrichStalePlayers(season: number): Promise<{
       if (needsTeam && teamAbbr) updates.mlbTeam = teamAbbr;
       if (needsPos && posAbbr) {
         updates.posPrimary = posAbbr;
-        // Replicate the shouldUpdatePosList guard from syncAllPlayers
-        const existingPosList = player.posList || "";
-        const shouldUpdatePosList = !existingPosList || existingPosList === player.posPrimary || existingPosList === posAbbr;
-        if (shouldUpdatePosList) {
+        if (shouldOverwritePosList(player, posAbbr)) {
           updates.posList = buildPosList(player.mlbId!, posAbbr);
         }
       }

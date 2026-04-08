@@ -4,6 +4,10 @@
  */
 import { logger } from "../../../lib/logger.js";
 
+// ─── In-memory cache for RSS feeds (5-minute TTL) ───
+const FEED_CACHE_TTL = 5 * 60 * 1000;
+const feedCache = new Map<string, { articles: RssArticle[]; expiresAt: number }>();
+
 export interface RssArticle {
   title: string;
   link: string;
@@ -30,6 +34,10 @@ export async function fetchRssFeed(
 ): Promise<RssArticle[]> {
   const { maxItems = 15, sourceName = url } = options;
 
+  // Check in-memory cache first (5-minute TTL)
+  const cached = feedCache.get(url);
+  if (cached && cached.expiresAt > Date.now()) return cached.articles;
+
   try {
     const response = await fetch(url, {
       headers: { "User-Agent": "FBST/1.0 Fantasy Baseball App" },
@@ -42,7 +50,9 @@ export async function fetchRssFeed(
       logger.warn({ source: sourceName, size: xml.length }, "RSS feed too large, skipping");
       return [];
     }
-    return parseRssXml(xml, maxItems);
+    const articles = parseRssXml(xml, maxItems);
+    feedCache.set(url, { articles, expiresAt: Date.now() + FEED_CACHE_TTL });
+    return articles;
   } catch (err) {
     logger.warn({ error: String(err), source: sourceName }, "Failed to fetch RSS feed");
     return [];
@@ -66,7 +76,7 @@ export function parseRssXml(xml: string, maxItems = 15): RssArticle[] {
     const rawDesc = extractField(block, "description");
 
     // Validate link URL — must start with https:// to prevent javascript: injection
-    const link = rawLink.startsWith("https://") || rawLink.startsWith("http://") ? rawLink : "";
+    const link = rawLink.startsWith("https://") ? rawLink : "";
 
     if (title && link) {
       // Extract categories (Trade Rumors uses these for player/team tags)
@@ -90,8 +100,21 @@ export function parseRssXml(xml: string, maxItems = 15): RssArticle[] {
   return articles;
 }
 
+// Pre-compiled regex cache to avoid re-compiling per field per item (4 fields x 15 items = 60 compilations)
+const fieldRegexCache = new Map<string, { cdata: RegExp; plain: RegExp }>();
+function getFieldRegex(field: string) {
+  let cached = fieldRegexCache.get(field);
+  if (!cached) {
+    cached = {
+      cdata: new RegExp(`<${field}><!\\[CDATA\\[(.*?)\\]\\]></${field}>`),
+      plain: new RegExp(`<${field}>(.*?)</${field}>`),
+    };
+    fieldRegexCache.set(field, cached);
+  }
+  return cached;
+}
+
 function extractField(block: string, field: string): string {
-  const cdataPattern = new RegExp(`<${field}><!\\[CDATA\\[(.*?)\\]\\]></${field}>`);
-  const plainPattern = new RegExp(`<${field}>(.*?)</${field}>`);
-  return block.match(cdataPattern)?.[1] ?? block.match(plainPattern)?.[1] ?? "";
+  const { cdata, plain } = getFieldRegex(field);
+  return block.match(cdata)?.[1] ?? block.match(plain)?.[1] ?? "";
 }

@@ -37,7 +37,13 @@ async function generateTradeAnalysis(tradeId: number, leagueId: number): Promise
 
   const itemDescriptions = trade.items.map(item => {
     if (item.assetType === "BUDGET") {
-      return `$${item.amount} FAAB from ${item.sender.name} to ${item.recipient.name}`;
+      return `$${item.amount} Waiver Budget from ${item.sender.name} to ${item.recipient.name}`;
+    } else if (item.assetType === "FUTURE_BUDGET") {
+      return `$${item.amount} of ${item.season} Draft Budget from ${item.sender.name} to ${item.recipient.name}`;
+    } else if (item.assetType === "PICK") {
+      return `Round ${item.pickRound} Draft Pick (${item.season}) from ${item.sender.name} to ${item.recipient.name}`;
+    } else if (item.assetType === "WAIVER_PRIORITY") {
+      return `Waiver Priority from ${item.sender.name} to ${item.recipient.name}`;
     }
     return `${item.player?.name ?? "Unknown"} (${item.player?.posPrimary ?? "?"}) from ${item.sender.name} to ${item.recipient.name}`;
   });

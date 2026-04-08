@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
-import { fetchJsonApi } from "../api/base";
-
-const API_BASE = import.meta.env.VITE_API_URL || "/api";
+import { fetchJsonApi, API_BASE } from "../api/base";
 
 export interface PlayerNewsItem {
   source: "Trade Rumors" | "Reddit" | "ESPN" | "MLB.com" | "Yahoo";
