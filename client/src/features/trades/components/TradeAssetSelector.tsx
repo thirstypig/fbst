@@ -24,7 +24,7 @@ export function TradeAssetSelector({ teamId, label, onAssetsChange }: Props) {
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<number>>(new Set());
   const [futureBudgetAmount, setFutureBudgetAmount] = useState<string>("");
   const [futureBudgetSeason, setFutureBudgetSeason] = useState<number>(new Date().getFullYear() + 1);
-  const [waiverRounds, setWaiverRounds] = useState<Set<number>>(new Set());
+  const [includeWaiverPriority, setIncludeWaiverPriority] = useState(false);
   const [pickRound, setPickRound] = useState<string>("");
   const [pickSeason, setPickSeason] = useState<number>(new Date().getFullYear() + 1);
   const [budgetAmount, setBudgetAmount] = useState<string>("");
@@ -38,7 +38,9 @@ export function TradeAssetSelector({ teamId, label, onAssetsChange }: Props) {
     setRoster([]);
     setSelectedPlayerIds(new Set());
     setFutureBudgetAmount("");
-    setWaiverRounds(new Set());
+    setIncludeWaiverPriority(false);
+    setBudgetAmount("");
+    setPickRound("");
   }, [teamId]);
 
   async function fetchRoster() {
@@ -102,19 +104,17 @@ export function TradeAssetSelector({ teamId, label, onAssetsChange }: Props) {
       });
     }
 
-    // Waiver Position (per round)
-    for (const round of [...waiverRounds].sort()) {
-      const roundLabel = round === 1 ? "1st" : round === 2 ? "2nd" : round === 3 ? "3rd" : `${round}th`;
+    // Waiver Priority (single toggle — FAAB system uses priority position, not rounds)
+    if (includeWaiverPriority) {
       assets.push({
         assetType: "WAIVER_PRIORITY",
-        round,
-        label: `${roundLabel} Round Waiver Position`
+        label: "Waiver Priority Position"
       });
     }
 
     onAssetsChange(assets);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- onAssetsChange is stable from parent (not re-created per render)
-  }, [selectedPlayerIds, futureBudgetAmount, futureBudgetSeason, budgetAmount, pickRound, pickSeason, waiverRounds, roster]);
+  }, [selectedPlayerIds, futureBudgetAmount, futureBudgetSeason, budgetAmount, pickRound, pickSeason, includeWaiverPriority, roster]);
 
   const togglePlayer = (pid: number) => {
     const next = new Set(selectedPlayerIds);
@@ -238,33 +238,19 @@ export function TradeAssetSelector({ teamId, label, onAssetsChange }: Props) {
           </div>
         </div>
 
-        {/* Waiver Position (by round) */}
+        {/* Waiver Priority (single toggle — FAAB system swaps priority positions) */}
         <div>
-          <label className="block text-xs text-[var(--lg-text-muted)] uppercase mb-1">Waiver Position</label>
-          <div className="flex gap-2">
-            {[1, 2, 3].map(round => {
-              const isSelected = waiverRounds.has(round);
-              const roundLabel = round === 1 ? "1st Round" : round === 2 ? "2nd Round" : "3rd Round";
-              return (
-                <div
-                  key={round}
-                  onClick={() => {
-                    const next = new Set(waiverRounds);
-                    if (next.has(round)) next.delete(round);
-                    else next.add(round);
-                    setWaiverRounds(next);
-                  }}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded cursor-pointer text-xs font-medium ${
-                    isSelected
-                      ? "bg-[var(--lg-accent)]/10 text-[var(--lg-accent)] border border-[var(--lg-accent)]/20"
-                      : "bg-[var(--lg-tint-hover)] text-[var(--lg-text-secondary)] border border-[var(--lg-border-faint)]"
-                  }`}
-                >
-                  <span>{isSelected ? "✓" : "○"}</span>
-                  <span>{roundLabel}</span>
-                </div>
-              );
-            })}
+          <label className="block text-xs text-[var(--lg-text-muted)] uppercase mb-1">Waiver Priority</label>
+          <div
+            onClick={() => setIncludeWaiverPriority(!includeWaiverPriority)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded cursor-pointer text-xs font-medium ${
+              includeWaiverPriority
+                ? "bg-[var(--lg-accent)]/10 text-[var(--lg-accent)] border border-[var(--lg-accent)]/20"
+                : "bg-[var(--lg-tint-hover)] text-[var(--lg-text-secondary)] border border-[var(--lg-border-faint)]"
+            }`}
+          >
+            <span>{includeWaiverPriority ? "✓" : "○"}</span>
+            <span>Include Waiver Priority Swap</span>
           </div>
         </div>
       </div>

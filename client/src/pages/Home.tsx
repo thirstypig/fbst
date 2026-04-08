@@ -1867,6 +1867,14 @@ export default function Home() {
                 allowFullScreen
               />
             </div>
+            <a
+              href={`https://www.youtube.com/watch?v=${activeVideo.videoId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block text-center text-xs text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)] mt-2 underline underline-offset-2"
+            >
+              Video not playing? Watch on YouTube
+            </a>
             <div className="mt-2 text-sm text-white/80 font-medium line-clamp-2">{activeVideo.title}</div>
           </div>
         </div>
