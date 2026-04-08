@@ -34,7 +34,7 @@ import {
 
 /* ── Data ────────────────────────────────────────────────────────── */
 
-const LAST_UPDATED = "April 5, 2026 (Session 57)";
+const LAST_UPDATED = "April 7, 2026 (Session 59)";
 
 // ─── Product Roadmap ───
 

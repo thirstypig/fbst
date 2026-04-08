@@ -30,6 +30,32 @@ interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: "0.52.0",
+    date: "Apr 7, 2026",
+    session: "Session 59",
+    title: "AI Grading Fix, Minors Report, Ohtani Stats Isolation, Roster Alert Cards",
+    highlights: [
+      "AI weekly insights now grade teams based on actual roto standings — 1st place teams can never receive an F grade",
+      "Minors Report: new amber accordion on Home and Team pages showing players optioned to the minors",
+      "Ohtani two-way stats properly isolated — pitching stats only on pitcher record, hitting only on hitter record",
+      "Roster alerts redesigned as horizontal cards with headshots, IL headline featured in Daily Diamond",
+    ],
+    changes: [
+      { type: "fix", description: "AI standings data uses TeamStatsPeriod (real data) instead of empty TeamStatsSeason — grades now correlate with actual roto standings" },
+      { type: "fix", description: "Deterministic AI grading: 1st-2nd place = A range, 7th-8th = D range. LLM explains within constrained range" },
+      { type: "fix", description: "Ohtani hitter pitching stats zeroed after mirror — prevents W double-counting across DLC + Skunk Dogs" },
+      { type: "fix", description: "POSITION_OVERRIDES map prevents daily sync from overwriting DH position back to TWP" },
+      { type: "fix", description: "Team page pitching totals ERA/WHIP now computed correctly via IP-weighted reverse calculation" },
+      { type: "fix", description: "teamService period query filtered by leagueId — was finding wrong period from another league" },
+      { type: "fix", description: "Weekly insights: weekOverride on generate-all endpoint, cache key includes weekKey, stale state reset on team change" },
+      { type: "feat", description: "Minors Report: amber accordion on Home + Team pages. Shared RosterAlertAccordion component + useRosterStatus hook" },
+      { type: "feat", description: "Roster alerts: horizontal card grid with player headshots — 4-across desktop, stacked mobile" },
+      { type: "feat", description: "IL headline: new IL placements featured as Daily Diamond hero with Injury Alert label" },
+      { type: "feat", description: "Data integrity audit script: 10 checks including ERA/WHIP math, IP format, TWP position, period coverage" },
+      { type: "refactor", description: "Season page: removed roster expansion on team click — team name navigates to team page directly" },
+    ],
+  },
+  {
     version: "0.50.0",
     date: "Apr 5, 2026",
     session: "Session 57",

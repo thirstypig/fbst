@@ -110,7 +110,7 @@ const techStack = [
       { name: "React Testing Library", desc: "Component testing" },
       { name: "Supertest", desc: "HTTP-level route testing" },
       { name: "ESLint", desc: "Code linting with TypeScript rules" },
-      { name: "730 tests", desc: "493 server + 187 client + 50 MCP tests passing" },
+      { name: "730 tests", desc: "473 server + 187 client + 50 MCP tests passing" },
     ],
   },
   {
@@ -580,6 +580,11 @@ const buildJournal = [
     date: "Apr 2026",
     title: "Session 56: Watchlist & Trading Block, Email Notifications, 7-Agent Review, 17 Commits",
     detail: "Massive session: 17 commits, 2,000+ LOC added. Built Watchlist (private per-team: player search across 2,277 players, notes, tags, PlayerDetailModal) and Trading Block (public league-wide: 'asking for' field, grouped by team, /trading-block page + sidebar). 17-bug QA audit found and fixed auth gaps, null safety, API contract mismatches, and empty search results. Email notification system via Resend: trade proposed/processed/vetoed + waiver results with HTML templates, notifyTeamOwners helper, sanitizeSubject security, List-Unsubscribe header. Weekly AAA prospects sync cron (Monday 14:00 UTC) with position overwrite bug fix. ADA table compliance (scope, aria-label, aria-sort, caption). Frozen first column on mobile (sticky left-0 with opaque bg). Shared PlayerFilterBar (~180 LOC deduped), PlayerNameCell, TeamNameLink components. SW cache fix: Express was serving sw.js with max-age=1y immutable — dedicated /sw.js route with no-cache headers. 7-agent code review (TypeScript, Security, Performance, Architecture, Simplicity, Agent-Native, Learnings) found 18 findings — all 8 P2s resolved. 5 pre-existing client test failures fixed. 486 server + 187 client = 673 tests, 0 failures. 2 solution docs written.",
+  },
+  {
+    date: "Apr 2026",
+    title: "Session 59: 18 Fixes — AI Grading, Ohtani Stats Isolation, Minors Report, Roster Alert Cards",
+    detail: "Deepened plan with 10 review agents uncovered critical issues: TWO_WAY_PLAYERS map cannot be re-populated (gates 6+ code paths), TeamStatsSeason had all zeros (AI received random standings), insights cache key missing weekKey (backfill silently failed). Fixes: mirrorTwoWayPitcherStats now zeroes hitter pitching stats (prevents W double-counting), POSITION_OVERRIDES map for daily sync, AI insights use TeamStatsPeriod with computeStandingsFromStats for real roto points, deterministic grade anchoring (1st place cannot get F). New features: Minors Report amber accordion on Home + Team pages with shared RosterAlertAccordion component and useRosterStatus hook, roster alerts as horizontal headshot cards (4-across desktop), IL headline in Daily Diamond when player placed on IL today, audit script with 10 integrity checks. Season page roster expansion removed — team name navigates directly.",
   },
   {
     date: "Apr 2026",
