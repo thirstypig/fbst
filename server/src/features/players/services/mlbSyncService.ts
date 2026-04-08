@@ -594,7 +594,6 @@ export async function enrichStalePlayers(season: number): Promise<{
       OR: [
         { mlbTeam: null },
         { mlbTeam: "" },
-        { mlbTeam: "FA" },
         { posPrimary: "" },
       ],
     },

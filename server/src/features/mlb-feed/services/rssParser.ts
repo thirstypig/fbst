@@ -37,6 +37,11 @@ export async function fetchRssFeed(
     });
     if (!response.ok) return [];
     const xml = await response.text();
+    // Guard against abnormally large payloads that could slow regex parsing
+    if (xml.length > 2_000_000) {
+      logger.warn({ source: sourceName, size: xml.length }, "RSS feed too large, skipping");
+      return [];
+    }
     return parseRssXml(xml, maxItems);
   } catch (err) {
     logger.warn({ error: String(err), source: sourceName }, "Failed to fetch RSS feed");

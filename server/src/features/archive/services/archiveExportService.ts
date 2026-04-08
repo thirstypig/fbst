@@ -56,13 +56,17 @@ export class ArchiveExportService {
           select: { teamId: true, R: true, HR: true, RBI: true, SB: true, AVG: true, W: true, S: true, K: true, ERA: true, WHIP: true, gamesPlayed: true },
         });
 
-        // Aggregate counting stats per team across all periods
-        const aggMap = new Map<number, { R: number; HR: number; RBI: number; SB: number; W: number; S: number; K: number; AVG: number; ERA: number; WHIP: number; gamesPlayed: number; count: number }>();
+        // Aggregate counting stats per team across all periods; weight rate stats by gamesPlayed
+        const aggMap = new Map<number, { R: number; HR: number; RBI: number; SB: number; W: number; S: number; K: number; avgWeighted: number; eraWeighted: number; whipWeighted: number; gamesPlayed: number }>();
         for (const stat of periodStatsList) {
-          const agg = aggMap.get(stat.teamId) || { R: 0, HR: 0, RBI: 0, SB: 0, W: 0, S: 0, K: 0, AVG: 0, ERA: 0, WHIP: 0, gamesPlayed: 0, count: 0 };
+          const agg = aggMap.get(stat.teamId) || { R: 0, HR: 0, RBI: 0, SB: 0, W: 0, S: 0, K: 0, avgWeighted: 0, eraWeighted: 0, whipWeighted: 0, gamesPlayed: 0 };
           agg.R += stat.R; agg.HR += stat.HR; agg.RBI += stat.RBI; agg.SB += stat.SB;
           agg.W += stat.W; agg.S += stat.S; agg.K += stat.K; agg.gamesPlayed += stat.gamesPlayed;
-          agg.AVG += stat.AVG; agg.ERA += stat.ERA; agg.WHIP += stat.WHIP; agg.count++;
+          // Weight rate stats by games played (can't average averages)
+          const gp = stat.gamesPlayed || 1;
+          agg.avgWeighted += stat.AVG * gp;
+          agg.eraWeighted += stat.ERA * gp;
+          agg.whipWeighted += stat.WHIP * gp;
           aggMap.set(stat.teamId, agg);
         }
 
@@ -77,7 +81,7 @@ export class ArchiveExportService {
           const [tId, agg] = sortedTeams[i];
           const team = teamMap.get(tId);
           if (!team) continue;
-          const avgDivisor = agg.count || 1;
+          const totalGP = agg.gamesPlayed || 1;
           await prisma.historicalStanding.create({
             data: {
               seasonId: historicalSeason.id,
@@ -86,10 +90,10 @@ export class ArchiveExportService {
               totalScore: agg.R + agg.HR + agg.RBI + agg.SB + agg.W + agg.S + agg.K,
               finalRank: i + 1,
               R_score: agg.R, HR_score: agg.HR, RBI_score: agg.RBI, SB_score: agg.SB,
-              AVG_score: Math.round((agg.AVG / avgDivisor) * 1000),
+              AVG_score: Math.round((agg.avgWeighted / totalGP) * 1000),
               W_score: agg.W, SV_score: agg.S, K_score: agg.K,
-              ERA_score: agg.ERA / avgDivisor,
-              WHIP_score: agg.WHIP / avgDivisor,
+              ERA_score: agg.eraWeighted / totalGP,
+              WHIP_score: agg.whipWeighted / totalGP,
             }
           });
         }
@@ -98,8 +102,9 @@ export class ArchiveExportService {
         log(`No periods found — skipped standings migration.`);
       }
 
-      // 4. Migrate Periods
+      // 4. Migrate Periods (scoped to this league)
       const periods = await prisma.period.findMany({
+        where: { season: { leagueId } },
         orderBy: { startDate: 'asc' }
       });
 

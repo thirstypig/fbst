@@ -651,6 +651,11 @@ router.post("/:id/reverse", requireAuth, asyncHandler(async (req, res) => {
         });
       } else if (item.assetType === "BUDGET") {
         const amount = item.amount || 0;
+        // Verify recipient has sufficient budget to return before reversing
+        const recipientTeam = await tx.team.findUnique({ where: { id: item.recipientId }, select: { budget: true } });
+        if (!recipientTeam || recipientTeam.budget < amount) {
+          throw new Error(`Cannot reverse: recipient has insufficient budget ($${recipientTeam?.budget ?? 0}, needs $${amount})`);
+        }
         // Reverse: take from recipient, give to sender
         await tx.team.update({ where: { id: item.recipientId }, data: { budget: { decrement: amount } } });
         await tx.team.update({ where: { id: item.senderId }, data: { budget: { increment: amount } } });
