@@ -59,14 +59,19 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Render deploy
+      - name: Trigger Railway deploy
         run: |
-          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
-            echo "⚠️ RENDER_DEPLOY_HOOK_URL not set — skipping deploy"
-            echo "Set this secret in GitHub repo settings to enable auto-deploy"
+          if [ -n "$RAILWAY_DEPLOY_HOOK_URL" ]; then
+            curl -s -X POST "$RAILWAY_DEPLOY_HOOK_URL"
+            echo "✅ Deploy triggered on Railway"
+          elif [ -n "$RENDER_DEPLOY_HOOK_URL" ]; then
+            curl -s -X POST "$RENDER_DEPLOY_HOOK_URL"
+            echo "✅ Deploy triggered on Render (legacy)"
+          else
+            echo "⚠️ No deploy hook URL set — skipping deploy"
+            echo "Set RAILWAY_DEPLOY_HOOK_URL in GitHub repo secrets to enable auto-deploy"
             exit 0
           fi
-          curl -s -X POST "$RENDER_DEPLOY_HOOK_URL"
-          echo "Deploy triggered on Render"
         env:
+          RAILWAY_DEPLOY_HOOK_URL: ${{ secrets.RAILWAY_DEPLOY_HOOK_URL }}
           RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
