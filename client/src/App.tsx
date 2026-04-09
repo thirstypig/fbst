@@ -41,6 +41,7 @@ const AIHub = React.lazy(() => import("./features/ai/pages/AIHub"));
 const DraftReportPage = React.lazy(() => import("./features/ai/pages/DraftReportPage"));
 const CreateLeague = React.lazy(() => import("./features/leagues/pages/CreateLeague"));
 const JoinLeague = React.lazy(() => import("./features/leagues/pages/JoinLeague"));
+const DiscoverLeagues = React.lazy(() => import("./features/leagues/pages/DiscoverLeagues"));
 const Draft = React.lazy(() => import("./features/draft/pages/Draft"));
 const MatchupPage = React.lazy(() => import("./features/matchups/pages/Matchup"));
 const TradingBlockPage = React.lazy(() => import("./features/trading-block/pages/TradingBlockPage"));
@@ -101,11 +102,12 @@ export default function App() {
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
-        {/* Auth routes outside of AppShell */}
+        {/* Public routes outside of AppShell (no auth required) */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/discover" element={<Suspense fallback={<PageLoader />}><DiscoverLeagues /></Suspense>} />
 
         {/* Protected routes inside AppShell */}
         <Route
