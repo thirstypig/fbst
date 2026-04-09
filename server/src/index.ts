@@ -291,6 +291,8 @@ async function main() {
     if (fs.existsSync(swPath)) {
       app.get('/sw.js', (_req, res) => {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('CDN-Cache-Control', 'no-store'); // Cloudflare-specific: never cache at edge
+        res.setHeader('Cloudflare-CDN-Cache-Control', 'no-store'); // Cloudflare alt header
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
         res.sendFile(swPath);
