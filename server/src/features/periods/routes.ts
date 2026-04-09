@@ -28,13 +28,11 @@ const updatePeriodSchema = z.object({
 });
 
 // GET /api/periods?leagueId=N — list periods for a league's current season
-router.get("/", requireAuth, asyncHandler(async (req, res) => {
-  const leagueId = req.query.leagueId ? Number(req.query.leagueId) : null;
+router.get("/", requireAuth, requireLeagueMember("leagueId"), asyncHandler(async (req, res) => {
+  const leagueId = Number(req.query.leagueId);
+  if (!Number.isFinite(leagueId)) return res.status(400).json({ error: "Missing leagueId" });
 
-  const where: any = {};
-  if (leagueId && Number.isFinite(leagueId)) {
-    where.leagueId = leagueId;
-  }
+  const where = { leagueId };
 
   const periods = await prisma.period.findMany({
     where,

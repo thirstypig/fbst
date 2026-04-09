@@ -15,7 +15,7 @@ const router = Router();
 
 // --- Period standings: /api/standings/period/current ---
 
-router.get("/period/current", requireAuth, asyncHandler(async (req, res) => {
+router.get("/period/current", requireAuth, requireLeagueMember("leagueId"), asyncHandler(async (req, res) => {
   const leagueId = req.query.leagueId ? Number(req.query.leagueId) : null;
   if (!leagueId) return res.status(400).json({ error: "Missing leagueId" });
 
@@ -43,7 +43,7 @@ router.get("/period/current", requireAuth, asyncHandler(async (req, res) => {
 
 // --- Period category standings: /api/period-category-standings ---
 
-router.get("/period-category-standings", requireAuth, asyncHandler(async (req, res) => {
+router.get("/period-category-standings", requireAuth, requireLeagueMember("leagueId"), asyncHandler(async (req, res) => {
   const leagueId = req.query.leagueId ? Number(req.query.leagueId) : null;
   if (!leagueId) return res.status(400).json({ error: "Missing leagueId" });
 

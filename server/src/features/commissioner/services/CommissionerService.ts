@@ -60,10 +60,27 @@ export class CommissionerService {
         franchiseId = franchise.id;
       }
     } else {
-      // Check if franchise with this name exists, otherwise create
+      // Always create a new franchise for self-service creation to prevent
+      // privilege escalation via name collision (User B's league under User A's org)
+      let franchiseName = name;
       const existing = await prisma.franchise.findUnique({ where: { name } });
       if (existing) {
-        franchiseId = existing.id;
+        // If the creator owns the existing franchise, reuse it (same org, new season)
+        const creatorMembership = creatorUserId
+          ? await prisma.franchiseMembership.findFirst({
+              where: { franchiseId: existing.id, userId: creatorUserId },
+            })
+          : null;
+        if (creatorMembership) {
+          franchiseId = existing.id;
+        } else {
+          // Different user — create new franchise with disambiguated name
+          franchiseName = `${name} (${new Date().getFullYear()}-${Date.now().toString(36).slice(-4)})`;
+          const franchise = await prisma.franchise.create({
+            data: { name: franchiseName, isPublic },
+          });
+          franchiseId = franchise.id;
+        }
       } else {
         const franchise = await prisma.franchise.create({
           data: { name, isPublic },

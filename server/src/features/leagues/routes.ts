@@ -446,6 +446,16 @@ router.post("/", requireAuth, validateBody(createLeagueSchema), asyncHandler(asy
     return res.status(429).json({ error: "Maximum 5 leagues per user" });
   }
 
+  // Verify copyFromLeagueId authorization — must be commissioner of source league
+  if (req.body.copyFromLeagueId) {
+    const sourceMembership = await prisma.leagueMembership.findUnique({
+      where: { leagueId_userId: { leagueId: req.body.copyFromLeagueId, userId } },
+    });
+    if (!sourceMembership || sourceMembership.role !== "COMMISSIONER") {
+      return res.status(403).json({ error: "You must be commissioner of the source league to copy it" });
+    }
+  }
+
   const { CommissionerService } = await import("../commissioner/services/CommissionerService.js");
   const commissionerService = new CommissionerService();
 

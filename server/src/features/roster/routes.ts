@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../../db/prisma.js';
-import { requireAuth, isTeamOwner } from '../../middleware/auth.js';
+import { requireAuth, requireLeagueMember, isTeamOwner } from '../../middleware/auth.js';
 import { validateBody } from '../../middleware/validate.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
 import { logger } from '../../lib/logger.js';
@@ -75,10 +75,21 @@ router.delete('/api/roster/:id', requireAuth, asyncHandler(async (req, res) => {
   res.json({ success: true });
 }));
 
-// Get roster for a team (optionally filtered by year)
+// Get roster for a team (optionally filtered by year) — requires league membership
 router.get('/api/roster/:teamCode', requireAuth, asyncHandler(async (req, res) => {
   const { teamCode } = req.params;
   const year = req.query.year ? parseInt(req.query.year as string) : undefined;
+
+  // Verify the team belongs to a league the user is in (or user is admin)
+  if (!req.user!.isAdmin) {
+    const team = await prisma.team.findFirst({ where: { code: teamCode } });
+    if (!team) return res.status(404).json({ error: "Team not found" });
+    const membership = await prisma.leagueMembership.findUnique({
+      where: { leagueId_userId: { leagueId: team.leagueId, userId: req.user!.id } },
+    });
+    if (!membership) return res.status(403).json({ error: "Not a member of this team's league" });
+  }
+
   const roster = await prisma.rosterEntry.findMany({
     where: { teamCode, ...(year ? { year } : {}) },
     orderBy: { playerName: 'asc' },
@@ -86,11 +97,17 @@ router.get('/api/roster/:teamCode', requireAuth, asyncHandler(async (req, res) =
   res.json({ roster });
 }));
 
-// Get all rosters for a year
-router.get('/api/roster/year/:year', requireAuth, asyncHandler(async (req, res) => {
+// Get all rosters for a year — requires league membership via leagueId query param
+router.get('/api/roster/year/:year', requireAuth, requireLeagueMember("leagueId"), asyncHandler(async (req, res) => {
   const year = parseInt(req.params.year);
+  const leagueId = Number(req.query.leagueId);
+
+  // Only return rosters for teams in the user's league
+  const teams = await prisma.team.findMany({ where: { leagueId }, select: { code: true } });
+  const teamCodes = teams.map(t => t.code).filter((c): c is string => c !== null);
+
   const roster = await prisma.rosterEntry.findMany({
-    where: { year },
+    where: { year, teamCode: { in: teamCodes } },
     orderBy: [{ teamCode: 'asc' }, { playerName: 'asc' }],
   });
   res.json({ roster });
