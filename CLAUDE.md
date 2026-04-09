@@ -190,7 +190,6 @@ When adding cross-feature imports, document them here to maintain visibility.
 - `client/src/components/shared/RosterAlertAccordion.tsx` — shared IL/Minors accordion (used by Home, Team pages); red for IL, amber for Minors
 - `client/src/hooks/useRosterStatus.ts` — shared hook for roster status (IL + minors players) with proper TypeScript interface
 - `client/src/hooks/usePlayerNews.ts` — shared hook for player news via `GET /api/mlb/player-news` (server-side RSS aggregation)
-- `client/src/hooks/useFetchOnMount.ts` — reusable fetch-on-mount hook with stale-closure guard
 - `server/src/features/mlb-feed/services/rssParser.ts` — shared RSS XML parser with link URL validation, 5-min TTL cache
 - `server/src/features/mlb-feed/digestRoutes.ts` — digest + headlines sub-router (extracted from routes.ts)
 - `client/src/components/shared/StatsTables.tsx` — shared stats tables (used by standings, archive, periods)

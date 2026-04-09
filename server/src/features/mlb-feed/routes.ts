@@ -7,6 +7,7 @@ import { mlbGetJson, fetchMlbTeamsMap } from "../../lib/mlbApi.js";
 import { prisma } from "../../db/prisma.js";
 import { logger } from "../../lib/logger.js";
 import { POS_ORDER } from "../../lib/sportConfig.js";
+import { mlbGameDayDate } from "../../lib/utils.js";
 import { fetchRssFeed } from "./services/rssParser.js";
 
 const router = Router();
@@ -50,21 +51,9 @@ interface MyPlayerToday {
 // ─── Helpers ───
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-const WEEK_KEY_REGEX = /^\d{4}-W\d{2}$/;
 
-/** MLB "game day" date in YYYY-MM-DD format, Pacific time.
- *  Before noon PST/PDT, returns YESTERDAY's date so last night's stats remain visible.
- *  After noon, returns today's date for upcoming/live games. */
-function todayDateStr(): string {
-  const now = new Date();
-  const pacificHour = Number(now.toLocaleString("en-US", { timeZone: "America/Los_Angeles", hour: "numeric", hour12: false }));
-  if (pacificHour < 12) {
-    // Before noon PST — show yesterday's games (last night's stats)
-    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    return yesterday.toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
-  }
-  return now.toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
-}
+
+// todayDateStr → mlbGameDayDate (imported from lib/utils.js)
 
 // NL/AL team sets for transaction filtering
 const NL_TEAMS = new Set([
@@ -83,7 +72,7 @@ router.get(
   "/scores",
   requireAuth,
   asyncHandler(async (req, res) => {
-    const date = (req.query.date as string) || todayDateStr();
+    const date = (req.query.date as string) || mlbGameDayDate();
     if (!DATE_REGEX.test(date)) {
       return res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD." });
     }
@@ -140,7 +129,7 @@ router.get(
   "/transactions",
   requireAuth,
   asyncHandler(async (req, res) => {
-    const date = (req.query.date as string) || todayDateStr();
+    const date = (req.query.date as string) || mlbGameDayDate();
     if (!DATE_REGEX.test(date)) {
       return res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD." });
     }
@@ -205,7 +194,7 @@ router.get("/trade-rumors", requireAuth, asyncHandler(async (_req, res) => {
 router.get("/player-news", requireAuth, asyncHandler(async (req, res) => {
   const playerName = typeof req.query.playerName === "string" ? req.query.playerName.trim() : "";
   if (!playerName || playerName.length < 2) {
-    return res.json({ articles: [] });
+    return res.status(400).json({ error: "playerName must be at least 2 characters" });
   }
 
   const fullName = playerName.toLowerCase();
@@ -844,7 +833,7 @@ router.get("/roster-stats-today", requireAuth, requireLeagueMember("leagueId"), 
   if (!Number.isFinite(leagueId)) return res.status(400).json({ error: "Invalid leagueId" });
 
   const userId = req.user!.id;
-  const today = todayDateStr();
+  const today = mlbGameDayDate();
 
   // Find user's team
   const team = await prisma.team.findFirst({
@@ -1059,7 +1048,7 @@ router.get(
     }
 
     // Get today's schedule (reuses cached data from scores endpoint)
-    const today = todayDateStr();
+    const today = mlbGameDayDate();
     const scheduleUrl = `https://statsapi.mlb.com/api/v1/schedule?date=${today}&sportId=1&hydrate=linescore`;
     const scheduleData = await mlbGetJson(scheduleUrl, 60);
 

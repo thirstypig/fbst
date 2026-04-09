@@ -241,9 +241,10 @@ export function TradeAssetSelector({ teamId, label, onAssetsChange }: Props) {
         {/* Waiver Priority (single toggle — FAAB system swaps priority positions) */}
         <div>
           <label className="block text-xs text-[var(--lg-text-muted)] uppercase mb-1">Waiver Priority</label>
-          <div
+          <button
+            type="button"
             onClick={() => setIncludeWaiverPriority(!includeWaiverPriority)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded cursor-pointer text-xs font-medium ${
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium ${
               includeWaiverPriority
                 ? "bg-[var(--lg-accent)]/10 text-[var(--lg-accent)] border border-[var(--lg-accent)]/20"
                 : "bg-[var(--lg-tint-hover)] text-[var(--lg-text-secondary)] border border-[var(--lg-border-faint)]"
@@ -251,7 +252,7 @@ export function TradeAssetSelector({ teamId, label, onAssetsChange }: Props) {
           >
             <span>{includeWaiverPriority ? "✓" : "○"}</span>
             <span>Include Waiver Priority Swap</span>
-          </div>
+          </button>
         </div>
       </div>
     </div>

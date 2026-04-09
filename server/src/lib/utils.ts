@@ -150,3 +150,17 @@ export function parseIntParam(v: unknown): number | null {
   const n = Number(s);
   return Number.isInteger(n) ? n : null;
 }
+
+
+/** MLB "game day" date in YYYY-MM-DD format, Pacific time.
+ *  Before noon PT, returns yesterday (last night's stats).
+ *  After noon, returns today (upcoming/live games). */
+export function mlbGameDayDate(): string {
+  const now = new Date();
+  const pacificHour = Number(now.toLocaleString("en-US", { timeZone: "America/Los_Angeles", hour: "numeric", hour12: false }));
+  if (pacificHour < 12) {
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    return yesterday.toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
+  }
+  return now.toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
+}
