@@ -17,6 +17,7 @@ export function findMyTeam<T extends TeamLike>(teams: T[], userId: number): T | 
 interface LeagueContextType {
   leagueId: number;
   setLeagueId: (id: number) => void;
+  refreshLeagues: () => void;
   leagues: LeagueListItem[];
   sport: string;
   outfieldMode: string;
@@ -66,15 +67,20 @@ export function LeagueProvider({ children }: { children: React.ReactNode }) {
     }
   }, [leagues, leagueId]);
 
+  const refreshLeagues = useCallback(() => {
+    if (!user) return;
+    getLeagues()
+      .then((resp) => setLeagues(resp.leagues ?? []))
+      .catch(() => setLeagues([]));
+  }, [user]);
+
   useEffect(() => {
     if (user) {
-      getLeagues()
-        .then((resp) => setLeagues(resp.leagues ?? []))
-        .catch(() => setLeagues([]));
+      refreshLeagues();
     } else {
       setLeagues([]);
     }
-  }, [user]);
+  }, [user, refreshLeagues]);
 
   // Fetch league detail (outfieldMode + myTeamId) — single request, atomic derivation
   useEffect(() => {
@@ -135,10 +141,10 @@ export function LeagueProvider({ children }: { children: React.ReactNode }) {
   );
 
   const contextValue = useMemo(() => ({
-    leagueId, setLeagueId, leagues, sport, outfieldMode, scoringFormat, draftMode,
+    leagueId, setLeagueId, refreshLeagues, leagues, sport, outfieldMode, scoringFormat, draftMode,
     currentLeagueName, currentSeason, currentFranchiseId,
     leagueSeasons, seasonStatus, myTeamId,
-  }), [leagueId, setLeagueId, leagues, sport, outfieldMode, scoringFormat, draftMode,
+  }), [leagueId, setLeagueId, refreshLeagues, leagues, sport, outfieldMode, scoringFormat, draftMode,
        currentLeagueName, currentSeason, currentFranchiseId,
        leagueSeasons, seasonStatus, myTeamId]);
 

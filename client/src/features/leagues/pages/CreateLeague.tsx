@@ -4,11 +4,13 @@ import { Trophy, Copy, Check } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import PageHeader from "../../../components/ui/PageHeader";
 import { useToast } from "../../../contexts/ToastContext";
+import { useLeague } from "../../../contexts/LeagueContext";
 import { createLeague, type CreateLeagueInput } from "../api";
 
 export default function CreateLeague() {
   const nav = useNavigate();
   const { toast } = useToast();
+  const { refreshLeagues } = useLeague();
 
   const [form, setForm] = useState<CreateLeagueInput & { scoringFormat: string }>({
     name: "",
@@ -29,6 +31,7 @@ export default function CreateLeague() {
     try {
       const res = await createLeague(form);
       setResult({ leagueId: res.league.id, inviteCode: res.inviteCode });
+      refreshLeagues(); // Update sidebar dropdown immediately
       toast("League created!", "success");
     } catch (err) {
       toast((err as Error)?.message || "Failed to create league", "error");

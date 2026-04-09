@@ -184,8 +184,8 @@ export default function Sidebar({
           </div>
         </div>
 
-        {/* Season Switcher — Commissioner / Admin only */}
-        {sidebarOpen && canAccessCommissioner && leagues && leagues.length > 1 && (
+        {/* League / Season Switcher — visible to all users with 2+ leagues */}
+        {sidebarOpen && leagues && leagues.length > 1 && (
           <div className="mb-4">
             <select
               value={leagueId ?? ""}

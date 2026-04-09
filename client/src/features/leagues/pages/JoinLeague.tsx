@@ -4,11 +4,13 @@ import { useToast } from "../../../contexts/ToastContext";
 import PageHeader from "../../../components/ui/PageHeader";
 import { Button } from "../../../components/ui/button";
 import { getJoinInfo, joinLeague, type JoinInfoLeague } from "../api";
+import { useLeague } from "../../../contexts/LeagueContext";
 
 export default function JoinLeague() {
   const { inviteCode } = useParams<{ inviteCode: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { refreshLeagues } = useLeague();
 
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
@@ -40,6 +42,7 @@ export default function JoinLeague() {
     setJoining(true);
     try {
       const resp = await joinLeague(inviteCode);
+      refreshLeagues(); // Update sidebar dropdown immediately
       toast(`Joined ${resp.league.name}!`, "success");
       navigate("/");
     } catch (err: unknown) {
