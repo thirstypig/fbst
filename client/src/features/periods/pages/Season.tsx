@@ -2,6 +2,14 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSeasonStandings, getPeriodCategoryStandings } from "../../../api";
 import { toNum, fmtAvg4, fmtWhip, fmt2 } from "../../../api/base";
+
+function fmtCatVal(stat: string, val: unknown): string {
+  if (typeof val !== "number") return String(val ?? "");
+  if (stat === "AVG") return fmtAvg4(val);
+  if (stat === "WHIP") return fmtWhip(val);
+  if (stat === "ERA") return fmt2(val);
+  return String(val);
+}
 import { OGBA_TEAM_NAMES } from "../../../lib/ogbaTeams";
 import { useTheme } from "../../../contexts/ThemeContext";
 import { useLeague } from "../../../contexts/LeagueContext";
@@ -448,10 +456,10 @@ const SeasonPage: React.FC = () => {
                               <div key={cat.stat} className="text-center">
                                 <div className="text-[var(--lg-text-muted)] font-bold">{cat.stat}</div>
                                 <div className={`font-semibold ${cat.winner === "A" ? "text-emerald-400" : cat.winner === "B" ? "text-red-400" : "text-[var(--lg-text-muted)]"}`}>
-                                  {typeof cat.teamAVal === "number" && cat.stat === "AVG" ? fmtAvg4(cat.teamAVal) : typeof cat.teamAVal === "number" && cat.stat === "WHIP" ? fmtWhip(cat.teamAVal) : typeof cat.teamAVal === "number" && cat.stat === "ERA" ? fmt2(cat.teamAVal) : cat.teamAVal}
+                                  {fmtCatVal(cat.stat, cat.teamAVal)}
                                 </div>
                                 <div className={`font-semibold ${cat.winner === "B" ? "text-emerald-400" : cat.winner === "A" ? "text-red-400" : "text-[var(--lg-text-muted)]"}`}>
-                                  {typeof cat.teamBVal === "number" && cat.stat === "AVG" ? fmtAvg4(cat.teamBVal) : typeof cat.teamBVal === "number" && cat.stat === "WHIP" ? fmtWhip(cat.teamBVal) : typeof cat.teamBVal === "number" && cat.stat === "ERA" ? fmt2(cat.teamBVal) : cat.teamBVal}
+                                  {fmtCatVal(cat.stat, cat.teamBVal)}
                                 </div>
                               </div>
                             ))}

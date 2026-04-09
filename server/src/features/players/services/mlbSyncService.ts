@@ -511,12 +511,7 @@ export async function syncAAARosters(season: number): Promise<{
  * Uses the MLB people?personIds= batch endpoint to fill in current team and position.
  * Preserves enriched posList from syncPositionEligibility (same guard as syncAllPlayers).
  */
-interface MlbPersonInfo {
-  id: number;
-  fullName: string;
-  primaryPosition?: { abbreviation: string; type: string };
-  currentTeam?: { id: number; abbreviation?: string };
-}
+// MlbPerson merged into MlbPerson (lines 42-57) — same interface, MlbPerson is the superset
 
 export async function enrichStalePlayers(_season: number): Promise<{
   enriched: number;
@@ -546,12 +541,12 @@ export async function enrichStalePlayers(_season: number): Promise<{
   // Batch lookup via MLB people endpoint
   const mlbIds = stalePlayers.filter(p => p.mlbId).map(p => p.mlbId!);
   const batches = chunk(mlbIds.map(String), 50);
-  const mlbDataMap = new Map<number, MlbPersonInfo>();
+  const mlbDataMap = new Map<number, MlbPerson>();
 
   for (const batch of batches) {
     try {
       const url = `${MLB_BASE}/people?personIds=${batch.join(",")}&hydrate=currentTeam`;
-      const data = await mlbGetJson<{ people?: MlbPersonInfo[] }>(url, 86400);
+      const data = await mlbGetJson<{ people?: MlbPerson[] }>(url, 86400);
       for (const p of data.people || []) {
         mlbDataMap.set(p.id, p);
       }

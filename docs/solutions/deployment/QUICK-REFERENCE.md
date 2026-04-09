@@ -47,6 +47,12 @@ curl -I https://thefantasticleagues.com/api/health | grep -i "cache-control"
 # 4. Open browser and check console for CSP violations
 # DevTools → Console → Search "Refused" or "CSP"
 # Expected: 0 violations
+
+# 5. Service worker cache headers (Session 60 — Cloudflare bypass)
+curl -sI https://app.thefantasticleagues.com/sw.js | grep -i "cache-control\|cdn-cache"
+# Expected: cache-control: no-cache, no-store, must-revalidate
+# Expected: cdn-cache-control: no-store
+# NOT: max-age=31536000, immutable (stale Cloudflare edge cache)
 ```
 
 ## The Four Critical Issues (and How to Spot Them)
