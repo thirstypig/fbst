@@ -338,6 +338,7 @@ async function main() {
      }
 
      if (fs.existsSync(index)) {
+        res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.sendFile(index);
      } else {
         res.status(404).send("FBST UI not built or found.");
