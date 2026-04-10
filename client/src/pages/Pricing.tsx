@@ -101,18 +101,6 @@ const faqs = [
 export default function Pricing() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 md:px-6 md:py-12">
-      {/* Coming Soon Banner */}
-      <div className="mb-8 rounded-xl border border-amber-500/30 bg-amber-500/5 px-6 py-4 text-center">
-        <div className="flex items-center justify-center gap-2 mb-1">
-          <Zap className="w-4 h-4 text-amber-400" />
-          <span className="text-sm font-bold uppercase tracking-wider text-amber-400">Coming Soon</span>
-          <Zap className="w-4 h-4 text-amber-400" />
-        </div>
-        <p className="text-sm text-[var(--lg-text-secondary)]">
-          We're in early access. The 2026 season is <strong className="text-[var(--lg-accent)]">completely free</strong> for all features while we build out the platform. Paid tiers launch in 2027.
-        </p>
-      </div>
-
       {/* Header */}
       <div className="text-center mb-12">
         <h1 className="text-3xl md:text-4xl font-bold text-[var(--lg-text-heading)] mb-3">
@@ -121,6 +109,10 @@ export default function Pricing() {
         <p className="text-[var(--lg-text-secondary)] text-lg max-w-2xl mx-auto">
           Pay per season, not per month. The 2026 baseball season is <strong className="text-[var(--lg-accent)]">100% free</strong> for everyone.
         </p>
+        <div className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-amber-500/10 border border-amber-500/20">
+          <span className="text-amber-400 text-sm font-semibold">Coming Soon</span>
+          <span className="text-[var(--lg-text-muted)] text-sm">— Paid tiers launching after the 2026 season. Everything is free during our beta.</span>
+        </div>
       </div>
 
       {/* Pricing Cards */}
