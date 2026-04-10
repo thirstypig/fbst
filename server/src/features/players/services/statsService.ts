@@ -16,7 +16,7 @@ import { TWO_WAY_PLAYERS } from "../../../lib/sportConfig.js";
 export type SeasonStatEntry = {
   G: number;
   R: number; HR: number; RBI: number; SB: number; H: number; AB: number; AVG: number;
-  W: number; SV: number; K: number; IP: number; ERA: number; WHIP: number;
+  W: number; SV: number; K: number; IP: number; ER: number; BB_H: number; ERA: number; WHIP: number;
 };
 
 const LAST_SEASON = 2025;
@@ -25,7 +25,7 @@ let lastSeasonPromise: Promise<Map<string, SeasonStatEntry>> | null = null;
 
 /** Parse hitting/pitching stats from an MLB API person object into our flat format */
 function parseSeasonStats(person: any): SeasonStatEntry {
-  const entry: SeasonStatEntry = { G: 0, R: 0, HR: 0, RBI: 0, SB: 0, H: 0, AB: 0, AVG: 0, W: 0, SV: 0, K: 0, IP: 0, ERA: 0, WHIP: 0 };
+  const entry: SeasonStatEntry = { G: 0, R: 0, HR: 0, RBI: 0, SB: 0, H: 0, AB: 0, AVG: 0, W: 0, SV: 0, K: 0, IP: 0, ER: 0, BB_H: 0, ERA: 0, WHIP: 0 };
   if (!person.stats) return entry;
 
   for (const statGroup of person.stats) {
@@ -50,6 +50,8 @@ function parseSeasonStats(person: any): SeasonStatEntry {
       const er = split.earnedRuns || 0;
       const bbH = (split.baseOnBalls || 0) + (split.hitsAllowed ?? split.hits ?? 0);
       entry.IP = ip;
+      entry.ER = er;
+      entry.BB_H = bbH;
       entry.ERA = ip > 0 ? (er / ip) * 9 : 0;
       entry.WHIP = ip > 0 ? bbH / ip : 0;
     }
@@ -73,7 +75,8 @@ function loadCsvFallback(): Map<string, SeasonStatEntry> {
       R: Number(r["R"]) || 0, HR: Number(r["HR"]) || 0, RBI: Number(r["RBI"]) || 0,
       SB: Number(r["SB"]) || 0, H: Number(r["H"]) || 0, AB: Number(r["AB"]) || 0,
       AVG: Number(r["AVG"]) || 0, W: Number(r["W"]) || 0, SV: Number(r["SV"]) || 0,
-      K: Number(r["K"]) || 0, IP: Number(r["IP"]) || 0, ERA: Number(r["ERA"]) || 0, WHIP: Number(r["WHIP"]) || 0,
+      K: Number(r["K"]) || 0, IP: Number(r["IP"]) || 0, ER: Number(r["ER"]) || 0, BB_H: Number(r["BB_H"]) || 0,
+      ERA: Number(r["ERA"]) || 0, WHIP: Number(r["WHIP"]) || 0,
     });
   }
   return m;
@@ -282,7 +285,7 @@ export function expandTwoWayPlayers<T extends { mlb_id: string; is_pitcher: bool
 export function splitTwoWayStats<T extends {
   mlb_id: string; is_pitcher: boolean; player_name: string;
   AB: number; H: number; R: number; HR: number; RBI: number; SB: number; AVG: number;
-  W: number; SV: number; K: number; ERA: number; WHIP: number;
+  W: number; SV: number; K: number; IP: number; ER: number; BB_H: number; ERA: number; WHIP: number;
   dollar_value?: number; value?: number;
 }>(
   stats: T[],
@@ -302,7 +305,7 @@ export function splitTwoWayStats<T extends {
         }
       }
     } else {
-      s.W = 0; s.SV = 0; s.K = 0; s.ERA = 0; s.WHIP = 0;
+      s.W = 0; s.SV = 0; s.K = 0; s.IP = 0; s.ER = 0; s.BB_H = 0; s.ERA = 0; s.WHIP = 0;
     }
   }
   return stats;

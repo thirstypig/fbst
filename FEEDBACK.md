@@ -4,6 +4,39 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
+## Session 2026-04-10 (Session 61) — Code Review, Blog Launch, Admin Tasks, Login Redesign
+
+### Completed
+- Code review (7 agents) of league detail rollback — 2 todos created, all resolved
+- Fixed dead click handler on Discover league cards (removed cursor-pointer, CTA text)
+- ER and BB+H columns on Team pitchers — was showing "—", fixed by adding raw stats to SeasonStatEntry and API response
+- Fixed splitTwoWayStats to zero ER/BB_H/IP on Ohtani hitter row
+- Removed PeriodAwardsCard from Dashboard + deleted orphaned component
+- Split-screen login page — marketing panel (left), login form (right), mobile-responsive
+- Footer links on Login + Signup pages (Discover, Pricing, About, thefantasticleagues.com)
+- Added rel="noopener noreferrer" to all external links
+- Removed unused useNavigate import from DiscoverLeagues
+- Marketing site: pricing updated to seasonal ($0/$29/$49), nav cleaned up, email signup section
+- Marketing site: blog infrastructure (Astro content collections, 5 posts written, SEO-optimized template)
+- Blog design system researched (Stripe/Linear/Vercel patterns) and implemented
+- Admin Tasks page — milestone-based task board at /admin (Product Roadmap tab)
+- FanGraphs daily audit — CLEAN (all 10 categories, 8 teams, perfect parity)
+
+### Pending / Next Steps
+- Deploy marketing site to GitHub Pages
+- Apply blog formatting to posts 2-5 (same TL;DR/short-paragraph treatment as post 1)
+- GitHub Action for Monday blog auto-deploys
+- Todo 090: orphaned public.ts slug endpoint cleanup
+- Email subscribe backend (POST /api/auth/subscribe)
+- Stripe setup (tracked in Admin Tasks)
+
+### Test Results
+- Server: TypeScript compiles clean
+- Client: 1 pre-existing TS error (title prop on Th component from prior commit)
+- FanGraphs audit: perfect parity
+
+---
+
 ## Session 2026-04-08 (Session 60) — 19-Item Backlog Blitz (Plan + Execute)
 
 ### Completed

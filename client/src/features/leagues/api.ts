@@ -126,7 +126,6 @@ export interface PublicLeagueListItem {
   entryFee: number | null;
   entryFeeNote: string | null;
   commissioner: string | null;
-  publicSlug: string | null;
 }
 
 export async function getPublicLeagues(): Promise<{ leagues: PublicLeagueListItem[] }> {
