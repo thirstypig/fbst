@@ -166,14 +166,30 @@ export default function Signup() {
 
         <div className="mt-8 text-center">
           <p className="text-sm font-medium text-[var(--lg-text-muted)] opacity-60 flex items-center justify-center gap-2">
-            Already have an account? 
-            <Link 
+            Already have an account?
+            <Link
               to="/login"
               className="font-bold text-[var(--lg-accent)] hover:text-[var(--lg-accent-hover)] transition-colors"
             >
               Log In
             </Link>
           </p>
+        </div>
+
+        <div className="mt-10 pt-6 border-t border-[var(--lg-border-faint)] text-center space-y-3">
+          <div className="flex items-center justify-center gap-4 text-xs text-[var(--lg-text-muted)] opacity-60">
+            <Link to="/discover" className="hover:text-[var(--lg-text-primary)] transition-colors">Discover Leagues</Link>
+            <span>·</span>
+            <Link to="/pricing" className="hover:text-[var(--lg-text-primary)] transition-colors">Pricing</Link>
+            <span>·</span>
+            <a href="https://www.thefantasticleagues.com" rel="noopener noreferrer" className="hover:text-[var(--lg-text-primary)] transition-colors">About</a>
+          </div>
+          <a
+            href="https://www.thefantasticleagues.com" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs text-[var(--lg-text-muted)] opacity-40 hover:opacity-70 transition-opacity"
+          >
+            ← thefantasticleagues.com
+          </a>
         </div>
       </div>
     </div>

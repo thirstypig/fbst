@@ -1,0 +1,266 @@
+{
+  "milestones": [
+    {
+      "id": "mvp",
+      "title": "MVP — Accept First External League",
+      "description": "Everything needed before a non-OGBA league can use the platform.",
+      "tasks": [
+        {
+          "id": "stripe-setup",
+          "title": "Set up Stripe account + API keys",
+          "status": "not_started",
+          "owner": "jimmy",
+          "instructions": [
+            "Go to https://dashboard.stripe.com/register and create an account",
+            "Verify business details (sole proprietor is fine for now)",
+            "Go to Developers → API Keys",
+            "Copy the Publishable Key and Secret Key",
+            "Add to .env: STRIPE_PUBLISHABLE_KEY=pk_live_xxx and STRIPE_SECRET_KEY=sk_live_xxx",
+            "Also set up a webhook endpoint at /api/stripe/webhook",
+            "Create two Products in Stripe Dashboard: 'Pro ($29/season)' and 'Commissioner ($49/season)'"
+          ]
+        },
+        {
+          "id": "stripe-checkout",
+          "title": "Build Stripe Checkout integration",
+          "status": "not_started",
+          "owner": "dev",
+          "instructions": [
+            "Install stripe package: npm install stripe",
+            "Create server/src/features/billing/routes.ts with checkout session endpoint",
+            "POST /api/billing/checkout — creates a Stripe Checkout session",
+            "POST /api/stripe/webhook — handles checkout.session.completed, subscription events",
+            "Store subscription status on User model (add isPro, subscriptionId fields)",
+            "Gate Pro features behind subscription check middleware"
+          ]
+        },
+        {
+          "id": "commissioner-roster-import",
+          "title": "Commissioner self-serve roster import (CSV upload UI)",
+          "status": "not_started",
+          "owner": "dev",
+          "instructions": [
+            "Add CSV upload UI to Commissioner page (file input + column mapping preview)",
+            "Accept Yahoo/ESPN/Fantrax CSV formats (auto-detect by column headers)",
+            "Show preview table before confirming import",
+            "Reuse existing auctionImport service on the backend",
+            "Add 'Download Template' button with example CSV"
+          ]
+        },
+        {
+          "id": "onboarding-wizard",
+          "title": "New league onboarding wizard (3-step)",
+          "status": "not_started",
+          "owner": "dev",
+          "instructions": [
+            "Step 1: Create league (name, format, draft type) — already exists at /create-league",
+            "Step 2: Invite members (show invite code + email invite form)",
+            "Step 3: Import rosters OR start draft",
+            "Add progress indicator (1 of 3, 2 of 3, etc.)",
+            "Show 'Setup Checklist' on commissioner page until all steps complete"
+          ]
+        },
+        {
+          "id": "email-signup-backend",
+          "title": "Email signup backend (Notify Me form)",
+          "status": "not_started",
+          "owner": "dev",
+          "instructions": [
+            "Create POST /api/auth/subscribe endpoint",
+            "Store email in a new EmailSubscriber table (or use Resend audience)",
+            "Validate email format, prevent duplicates",
+            "Send welcome email via Resend",
+            "Wire up the marketing site form to this endpoint"
+          ]
+        },
+        {
+          "id": "landing-page-polish",
+          "title": "Marketing site final polish",
+          "status": "in_progress",
+          "owner": "jimmy",
+          "instructions": [
+            "Review all 5 blog posts — apply formatting to posts 2-5",
+            "Deploy marketing site to GitHub Pages",
+            "Set up Monday blog deploy GitHub Action",
+            "Verify pricing section matches $0/$29/$49 seasonal model",
+            "Test email signup form end-to-end"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mid-season",
+      "title": "Mid-Season Leagues — Accept Leagues Already In Progress",
+      "description": "Allow commissioners to bring their league over mid-season with existing rosters and standings.",
+      "tasks": [
+        {
+          "id": "mid-season-import",
+          "title": "Mid-season roster import workflow",
+          "status": "not_started",
+          "owner": "dev",
+          "instructions": [
+            "Allow commissioner to upload current rosters (CSV with player, team, salary)",
+            "Auto-match players to MLB IDs via fuzzy name matching",
+            "Set acquiredAt to season start date for all imported rosters",
+            "Create Period records for completed scoring periods",
+            "Mark imported rosters with source='IMPORT' for tracking"
+          ]
+        },
+        {
+          "id": "stats-backfill",
+          "title": "Historical stats backfill for current period",
+          "status": "not_started",
+          "owner": "dev",
+          "instructions": [
+            "After roster import, trigger stats sync for all rostered players",
+            "Backfill PlayerStatsPeriod from season start to current date",
+            "Compute TeamStatsPeriod from player stats",
+            "Verify standings match FanGraphs/source platform"
+          ]
+        },
+        {
+          "id": "season-phase-override",
+          "title": "Skip SETUP → straight to IN_SEASON",
+          "status": "not_started",
+          "owner": "dev",
+          "instructions": [
+            "Add 'Import Existing League' option that skips SETUP and DRAFT phases",
+            "Set season status directly to IN_SEASON after roster import",
+            "Ensure all IN_SEASON features activate (trades, waivers, stats sync)"
+          ]
+        },
+        {
+          "id": "csv-auto-detect",
+          "title": "Yahoo/ESPN/Fantrax CSV format auto-detection",
+          "status": "not_started",
+          "owner": "dev",
+          "instructions": [
+            "Detect platform by CSV column headers (Yahoo: 'Player', ESPN: 'PLAYER', Fantrax: 'Player Name')",
+            "Map columns automatically to our format",
+            "Show preview with auto-detected mappings, allow manual override",
+            "Support keeper designation column if present"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "growth",
+      "title": "Growth — Scale Beyond OGBA",
+      "description": "Features needed to support multiple leagues and grow the user base.",
+      "tasks": [
+        {
+          "id": "multi-league-dashboard",
+          "title": "Multi-league dashboard (league switcher)",
+          "status": "done",
+          "owner": "dev",
+          "instructions": [
+            "League switcher dropdown in sidebar — DONE",
+            "Shows all leagues user is a member of — DONE"
+          ]
+        },
+        {
+          "id": "public-league-directory",
+          "title": "Public league directory with detail pages",
+          "status": "not_started",
+          "owner": "dev",
+          "instructions": [
+            "Rebuild /discover/:slug detail page (was removed as premature)",
+            "Add server-side slug lookup endpoint",
+            "Show league details, team list, join CTA",
+            "Gate join behind authentication"
+          ]
+        },
+        {
+          "id": "referral-tracking",
+          "title": "Referral / invite tracking",
+          "status": "not_started",
+          "owner": "dev",
+          "instructions": [
+            "Track which invite code or referral link brought each user",
+            "Dashboard showing conversion funnel: invite sent → signed up → joined league",
+            "Commissioner can see who hasn't accepted their invite yet"
+          ]
+        },
+        {
+          "id": "commissioner-analytics",
+          "title": "Commissioner analytics dashboard",
+          "status": "not_started",
+          "owner": "dev",
+          "instructions": [
+            "League engagement metrics: logins per week, roster moves, trades proposed",
+            "Inactive manager alerts (no login in 7+ days)",
+            "Season health score (are all managers active?)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "monetization",
+      "title": "Monetization — Charge Money",
+      "description": "Revenue infrastructure. Don't rush this — get the product right first.",
+      "tasks": [
+        {
+          "id": "stripe-subscriptions",
+          "title": "Stripe subscription management",
+          "status": "not_started",
+          "owner": "dev",
+          "instructions": [
+            "Handle subscription lifecycle: create, renew, cancel, pause",
+            "Webhook handlers for invoice.paid, invoice.payment_failed, customer.subscription.deleted",
+            "Grace period for failed payments (7 days before feature lockout)",
+            "Store subscription status on User model"
+          ]
+        },
+        {
+          "id": "pro-feature-gating",
+          "title": "Pro feature gating",
+          "status": "not_started",
+          "owner": "dev",
+          "instructions": [
+            "Create requirePro middleware for server routes",
+            "Gate AI features (draft report, weekly insights, trade analysis) behind Pro",
+            "Show upgrade prompts on gated features for free users",
+            "Keep all other features free (drafts, standings, trades, waivers)"
+          ]
+        },
+        {
+          "id": "commissioner-tier",
+          "title": "Commissioner tier features",
+          "status": "not_started",
+          "owner": "dev",
+          "instructions": [
+            "League health dashboard (commissioner-only)",
+            "Custom scoring rule builder",
+            "Archive import (currently free — move to Commissioner tier)",
+            "Priority support badge"
+          ]
+        },
+        {
+          "id": "billing-portal",
+          "title": "Billing portal + invoices",
+          "status": "not_started",
+          "owner": "dev",
+          "instructions": [
+            "Stripe Customer Portal link for managing subscription",
+            "Invoice history page",
+            "Update payment method flow",
+            "Cancel/downgrade flow with feedback survey"
+          ]
+        },
+        {
+          "id": "founding-member-deal",
+          "title": "Founding member lifetime deal ($99)",
+          "status": "not_started",
+          "owner": "dev",
+          "instructions": [
+            "Create one-time payment product in Stripe ($99)",
+            "Limited to first 100 users",
+            "Grants permanent Pro access (no recurring charges)",
+            "Show counter: 'X of 100 remaining'",
+            "Announce via email list and blog post"
+          ]
+        }
+      ]
+    }
+  ]
+}

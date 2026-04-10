@@ -1,12 +1,14 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../../auth/AuthProvider";
 import PageHeader from "../../../components/ui/PageHeader";
 import AdminLeagueTools from "../components/AdminLeagueTools";
+import AdminTasks from "./AdminTasks";
 import { ArrowRight, Map, Wrench, GitCommit, Activity, BarChart3 } from "lucide-react";
 
 export default function Admin() {
   const { user } = useAuth();
+  const [tab, setTab] = useState<"leagues" | "tasks">("tasks");
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 md:px-6 md:py-10">
@@ -49,11 +51,30 @@ export default function Admin() {
          </Link>
        </div>
 
+       {/* Tabs */}
+       <div className="mt-6 flex gap-1 border-b border-[var(--lg-border-faint)]">
+         {(["tasks", "leagues"] as const).map(t => (
+           <button
+             key={t}
+             onClick={() => setTab(t)}
+             className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+               tab === t
+                 ? "bg-[var(--lg-tint)] text-[var(--lg-text-heading)] border border-[var(--lg-border-subtle)] border-b-transparent -mb-px"
+                 : "text-[var(--lg-text-muted)] hover:text-[var(--lg-text-primary)]"
+             }`}
+           >
+             {t === "tasks" ? "Product Roadmap" : "League Tools"}
+           </button>
+         ))}
+       </div>
+
        <div className="mt-6">
         {!user?.isAdmin ? (
           <div className="lg-card p-16 text-center text-sm text-[var(--lg-text-muted)]">
             Admin access required.
           </div>
+        ) : tab === "tasks" ? (
+          <AdminTasks />
         ) : (
           <AdminLeagueTools />
         )}

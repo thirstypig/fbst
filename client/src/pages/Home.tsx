@@ -11,7 +11,6 @@ import { gradeColor } from "../lib/sportConfig";
 import { useSeasonGating } from "../hooks/useSeasonGating";
 import { formatLocalDate, formatLocalTime, formatEventTime, safeParseDate } from "../lib/timeUtils";
 import type { DigestResponse, PowerRanking, CategoryMover, TeamGrade } from "./home/types";
-import PeriodAwardsCard from "../features/periods/components/PeriodAwardsCard";
 import DeadlineWarnings from "../components/shared/DeadlineWarnings";
 import RosterAlertAccordion from "../components/shared/RosterAlertAccordion";
 
@@ -1461,11 +1460,6 @@ export default function Home() {
             </div>
           )}
         </div>
-      )}
-
-      {/* ─── Period Awards ─── */}
-      {currentLeagueId && (gating.seasonStatus === "IN_SEASON" || gating.seasonStatus === "COMPLETED") && (
-        <PeriodAwardsCard leagueId={currentLeagueId} />
       )}
 
       {/* ─── News & Social Feeds (tabbed) ─── */}

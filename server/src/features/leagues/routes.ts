@@ -518,7 +518,6 @@ router.get("/leagues/public", asyncHandler(async (_req, res) => {
       description: true,
       entryFee: true,
       entryFeeNote: true,
-      publicSlug: true,
       teams: { select: { id: true } },
       memberships: {
         where: { role: "COMMISSIONER" },
@@ -542,7 +541,6 @@ router.get("/leagues/public", asyncHandler(async (_req, res) => {
     description: l.description,
     entryFee: l.entryFee,
     entryFeeNote: l.entryFeeNote,
-    publicSlug: l.publicSlug,
     commissioner: l.memberships[0]?.user?.name ?? null,
   }));
 
