@@ -32,10 +32,10 @@ function createAnthropicModel(apiKey: string): AIModel {
         },
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
-          max_tokens: 4096,
+          max_tokens: 8192,
           messages: [{ role: 'user', content: prompt }],
         }),
-        signal: AbortSignal.timeout(30_000),
+        signal: AbortSignal.timeout(90_000),
       });
       if (!res.ok) {
         const body = await res.text();
@@ -104,8 +104,8 @@ export class AIAnalysisService {
           return {
             async generateContent(prompt: string) {
               try {
-                // Wrap Gemini call with 60-second timeout (Gemini SDK has no built-in timeout)
-                const timeoutMs = 60_000;
+                // Wrap Gemini call with 90-second timeout (Gemini SDK has no built-in timeout)
+                const timeoutMs = 90_000;
                 const result = await Promise.race([
                   geminiModel.generateContent(prompt),
                   new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`Gemini timeout after ${timeoutMs}ms`)), timeoutMs)),

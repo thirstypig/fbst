@@ -1585,21 +1585,21 @@ router.get("/draft-report", requireAuth, requireLeagueMember("leagueId"), asyncH
 
   // Once the season is IN_SEASON or COMPLETED, the draft report is locked —
   // always serve from cache, never regenerate (auction data is historical at this point).
+  // Exception: admins can force-regenerate with ?force=true to fix stale data.
   const season = await prisma.season.findFirst({
     where: { leagueId, status: { in: ["IN_SEASON", "COMPLETED"] } },
     select: { status: true },
   });
   const isSeasonLocked = !!season;
+  const forceRegenerate = req.query.force === "true";
+  const isAdmin = !!req.user?.isAdmin;
 
-  if (isSeasonLocked && session?.state && (session.state as any).draftReport) {
-    return res.json((session.state as any).draftReport);
-  }
-  if (isSeasonLocked && !(session?.state as any)?.draftReport) {
+  if (isSeasonLocked && !(forceRegenerate && isAdmin)) {
+    if (session?.state && (session.state as any).draftReport) {
+      return res.json((session.state as any).draftReport);
+    }
     return res.status(400).json({ error: "Draft report was not generated before the season started" });
   }
-
-  // During DRAFT phase, allow regeneration with force=true
-  const forceRegenerate = req.query.force === "true";
   if (!forceRegenerate && session?.state && (session.state as any).draftReport) {
     return res.json((session.state as any).draftReport);
   }
