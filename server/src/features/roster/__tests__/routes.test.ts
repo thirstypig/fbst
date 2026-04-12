@@ -6,7 +6,8 @@ import type { NextFunction } from "express";
 vi.mock("../../../db/prisma.js", () => ({
   prisma: {
     rosterEntry: { create: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), delete: vi.fn() },
-    team: { findFirst: vi.fn() },
+    team: { findFirst: vi.fn(), findMany: vi.fn().mockResolvedValue([]) },
+    leagueMembership: { findUnique: vi.fn().mockResolvedValue({ role: "OWNER" }) },
   },
 }));
 vi.mock("../../../lib/logger.js", () => ({
@@ -15,6 +16,10 @@ vi.mock("../../../lib/logger.js", () => ({
 vi.mock("../../../lib/auditLog.js", () => ({ writeAuditLog: vi.fn() }));
 vi.mock("../../../middleware/auth.js", () => ({
   requireAuth: vi.fn((_req: unknown, _res: unknown, next: () => void) => next()),
+  requireAdmin: vi.fn((_req: unknown, _res: unknown, next: () => void) => next()),
+  requireLeagueMember: vi.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()),
+  requireCommissionerOrAdmin: vi.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()),
+  requireTeamOwner: vi.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()),
   isTeamOwner: vi.fn(),
 }));
 vi.mock("../../../middleware/validate.js", () => ({

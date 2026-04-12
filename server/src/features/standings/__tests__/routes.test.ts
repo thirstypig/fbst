@@ -7,6 +7,7 @@ vi.mock("../../../db/prisma.js", () => ({
   prisma: {
     period: { findFirst: vi.fn(), findMany: vi.fn().mockResolvedValue([]), findUnique: vi.fn().mockResolvedValue({ id: 1, startDate: new Date("2026-03-24"), endDate: new Date("2026-04-06") }) },
     team: { findMany: vi.fn() },
+    league: { findUnique: vi.fn().mockResolvedValue({ scoringFormat: "ROTO" }) },
     leagueRule: { findMany: vi.fn() },
     teamStatsPeriod: { findMany: vi.fn().mockResolvedValue([]), upsert: vi.fn().mockResolvedValue({}) },
     $transaction: vi.fn().mockResolvedValue([]),

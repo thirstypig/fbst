@@ -10,9 +10,9 @@ import {
 } from "../baseballUtils";
 
 describe("POS_ORDER", () => {
-  it("has 10 positions in canonical order", () => {
+  it("has 12 positions in canonical order", () => {
     expect(POS_ORDER).toEqual([
-      "C", "1B", "2B", "3B", "SS", "MI", "CM", "OF", "P", "DH",
+      "C", "1B", "2B", "3B", "SS", "MI", "CM", "OF", "SP", "RP", "P", "DH",
     ]);
   });
 });
@@ -23,8 +23,10 @@ describe("POS_SCORE", () => {
     expect(POS_SCORE["1B"]).toBe(1);
     expect(POS_SCORE["MI"]).toBe(5);
     expect(POS_SCORE["CM"]).toBe(6);
-    expect(POS_SCORE["P"]).toBe(8);
-    expect(POS_SCORE["DH"]).toBe(9);
+    expect(POS_SCORE["SP"]).toBe(8);
+    expect(POS_SCORE["RP"]).toBe(9);
+    expect(POS_SCORE["P"]).toBe(10);
+    expect(POS_SCORE["DH"]).toBe(11);
   });
 
   it("C sorts before SS", () => {

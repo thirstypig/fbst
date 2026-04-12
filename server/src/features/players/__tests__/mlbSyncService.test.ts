@@ -217,7 +217,9 @@ describe("syncPositionEligibility", () => {
       stats: [{
         group: { displayName: "fielding" },
         splits: p.positions.map((pos) => ({
-          stat: { position: { abbreviation: pos.pos }, games: pos.games },
+          // Real MLB API puts `position` at the split level (alongside `stat`)
+          position: { abbreviation: pos.pos },
+          stat: { position: { abbreviation: pos.pos }, games: pos.games, gamesPlayed: pos.games },
         })),
       }],
     })),
@@ -347,9 +349,9 @@ describe("syncPositionEligibility", () => {
         stats: [{
           group: { displayName: "fielding" },
           splits: [
-            { stat: { position: { abbreviation: "1B" }, games: 40 } },
-            { stat: { position: { abbreviation: "LF" }, games: 15 } },
-            { stat: { position: { abbreviation: "LF" }, games: 10 } },
+            { position: { abbreviation: "1B" }, stat: { position: { abbreviation: "1B" }, games: 40 } },
+            { position: { abbreviation: "LF" }, stat: { position: { abbreviation: "LF" }, games: 15 } },
+            { position: { abbreviation: "LF" }, stat: { position: { abbreviation: "LF" }, games: 10 } },
           ],
         }],
       }],

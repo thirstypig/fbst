@@ -15,6 +15,10 @@ vi.mock("../../../lib/logger.js", () => ({
 }));
 vi.mock("../../../middleware/auth.js", () => ({
   requireAuth: vi.fn((_req: unknown, _res: unknown, next: () => void) => next()),
+  requireAdmin: vi.fn((_req: unknown, _res: unknown, next: () => void) => next()),
+  requireLeagueMember: vi.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()),
+  requireCommissionerOrAdmin: vi.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()),
+  requireTeamOwner: vi.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()),
 }));
 vi.mock("../../../middleware/validate.js", () => ({
   validateBody: vi.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()),
@@ -63,12 +67,10 @@ describe("GET /", () => {
     expect(res.body.data[0].isActive).toBe(true);
   });
 
-  it("returns all periods when no leagueId", async () => {
-    mockPrisma.period.findMany.mockResolvedValue([]);
-
+  it("returns 400 when leagueId is missing", async () => {
     const res = await supertest(app).get("/");
-    expect(res.status).toBe(200);
-    expect(res.body.data).toEqual([]);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/leagueId/i);
   });
 });
 

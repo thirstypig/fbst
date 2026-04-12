@@ -21,6 +21,8 @@ vi.mock("../../../lib/auditLog.js", () => ({ writeAuditLog: vi.fn() }));
 vi.mock("../../../middleware/auth.js", () => ({
   requireAuth: vi.fn((_req: unknown, _res: unknown, next: () => void) => next()),
   requireAdmin: vi.fn((_req: unknown, _res: unknown, next: () => void) => next()),
+  requireLeagueMember: vi.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()),
+  requireCommissionerOrAdmin: vi.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()),
 }));
 vi.mock("../../../middleware/validate.js", () => ({
   validateBody: vi.fn(() => (_req: unknown, _res: unknown, next: () => void) => next()),

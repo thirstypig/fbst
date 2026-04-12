@@ -97,10 +97,10 @@ describe("CategoryPeriodTable", () => {
     expect(screen.getByText(/AVG – P1/)).toBeInTheDocument();
   });
 
-  it("formats AVG stat as rate (leading dot)", () => {
+  it("formats AVG stat as rate (leading dot, 4 decimal places)", () => {
     renderWithRouter(<CategoryPeriodTable {...props} />);
-    expect(screen.getByText(".285")).toBeInTheDocument();
-    expect(screen.getByText(".312")).toBeInTheDocument();
+    expect(screen.getByText(".2850")).toBeInTheDocument();
+    expect(screen.getByText(".3120")).toBeInTheDocument();
   });
 
   it("sorts rows by points descending", () => {

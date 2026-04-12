@@ -37,6 +37,18 @@ vi.mock("../../../auth/AuthProvider", () => ({
   })),
 }));
 
+// Mock LeagueContext
+vi.mock("../../../contexts/LeagueContext", () => ({
+  useLeague: vi.fn(() => ({
+    leagueId: 1,
+    outfieldMode: "3",
+    seasonStatus: "IN_SEASON",
+    myTeamId: null,
+    leagues: [],
+    setLeagueId: vi.fn(),
+  })),
+}));
+
 // Mock ToastContext
 const mockToast = vi.fn();
 const mockConfirm = vi.fn().mockResolvedValue(true);

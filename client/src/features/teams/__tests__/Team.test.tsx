@@ -40,6 +40,9 @@ vi.mock("../../../lib/playerDisplay", () => ({
 vi.mock("../../../lib/sportConfig", () => ({
   mapPosition: (pos: string) => pos,
   positionToSlots: (pos: string) => [pos],
+  POS_SCORE: {
+    C: 0, "1B": 1, "2B": 2, "3B": 3, SS: 4, MI: 5, CM: 6, OF: 7, SP: 8, RP: 9, P: 10, DH: 11,
+  } as Record<string, number>,
 }));
 
 // Mock PlayerDetailModal

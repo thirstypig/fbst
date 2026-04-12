@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 // Mock auth
@@ -36,9 +36,11 @@ describe("Admin", () => {
     expect(screen.getByText(/Platform-level administration/)).toBeInTheDocument();
   });
 
-  it("shows AdminLeagueTools for admin users", () => {
+  it("shows AdminLeagueTools for admin users (after selecting League Tools tab)", () => {
     vi.mocked(useAuth).mockReturnValue({ user: { isAdmin: true } } as any);
     renderPage();
+    // Default tab is Product Roadmap (tasks); click League Tools to reveal the component
+    fireEvent.click(screen.getByRole("button", { name: /league tools/i }));
     expect(screen.getByTestId("admin-league-tools")).toBeInTheDocument();
   });
 
