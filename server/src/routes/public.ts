@@ -6,34 +6,6 @@ import { asyncHandler } from "../middleware/asyncHandler.js";
 export const publicRouter = Router();
 
 /**
- * Public league lookup by slug (viewer w/o login)
- * GET /api/public/leagues/:slug
- */
-publicRouter.get("/public/leagues/:slug", asyncHandler(async (req, res) => {
-  const slug = String(req.params.slug ?? "").trim();
-  if (!slug) return res.status(400).json({ error: "Missing slug" });
-
-  const league = await prisma.league.findFirst({
-    where: { publicSlug: slug, isPublic: true },
-    select: {
-      id: true,
-      name: true,
-      season: true,
-      isPublic: true,
-      publicSlug: true,
-      teams: {
-        select: { id: true, name: true, code: true, owner: true },
-        orderBy: { id: "asc" },
-      },
-    },
-  });
-
-  if (!league) return res.status(404).json({ error: "Public league not found" });
-
-  return res.json({ league });
-}));
-
-/**
  * GET /api/public/leagues
  * List all public leagues
  */
