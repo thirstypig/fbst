@@ -9,6 +9,7 @@ vi.mock("../../../db/prisma.js", () => ({
     team: { findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn(), deleteMany: vi.fn() },
     roster: { updateMany: vi.fn(), deleteMany: vi.fn() },
     auditLog: { findMany: vi.fn(), count: vi.fn() },
+    user: { findMany: vi.fn(), count: vi.fn() },
     auctionBid: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
     auctionLot: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
     auctionSession: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
@@ -415,5 +416,100 @@ describe("POST /admin/sync-prospects", () => {
 
     expect(res.status).toBe(200);
     expect(syncAAARosters).toHaveBeenCalledWith(2025);
+  });
+});
+
+// ── GET /admin/users ────────────────────────────────────────────
+
+describe("GET /admin/users", () => {
+  const sampleUser = (overrides: Record<string, unknown> = {}) => ({
+    id: 1,
+    email: "jimmy@example.com",
+    name: "Jimmy",
+    avatarUrl: null,
+    isAdmin: true,
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+    userMetrics: {
+      lastLoginAt: new Date("2026-04-10T00:00:00Z"),
+      totalLogins: 12,
+      totalSessions: 15,
+      totalSecondsOnSite: 7200,
+      avgSessionSec: 480,
+      signupSource: "google",
+    },
+    _count: { ownedTeams: 2 },
+    memberships: [{ leagueId: 20 }],
+    userSessions: [{ country: "US" }],
+    ...overrides,
+  });
+
+  beforeEach(() => {
+    mockPrisma.user.count.mockResolvedValue(1);
+    mockPrisma.user.findMany.mockResolvedValue([sampleUser()]);
+  });
+
+  it("returns users + total with default pagination", async () => {
+    const res = await supertest(app).get("/admin/users");
+
+    expect(res.status).toBe(200);
+    expect(res.body.total).toBe(1);
+    expect(res.body.page).toBe(1);
+    expect(res.body.pageSize).toBe(50);
+    expect(res.body.users).toHaveLength(1);
+    expect(res.body.users[0]).toMatchObject({
+      id: 1,
+      email: "jimmy@example.com",
+      leaguesOwned: 2,
+      leaguesCommissioned: 1,
+      country: "US",
+      tier: "unknown",
+    });
+  });
+
+  it("sorts by lastLoginAt DESC by default", async () => {
+    await supertest(app).get("/admin/users");
+    const args = mockPrisma.user.findMany.mock.calls[0][0];
+    expect(args.orderBy).toEqual({ userMetrics: { lastLoginAt: "desc" } });
+  });
+
+  it("caps pageSize at 200", async () => {
+    const res = await supertest(app).get("/admin/users?pageSize=500");
+    expect(res.status).toBe(400);
+  });
+
+  it("applies search filter (case-insensitive contains on email and name)", async () => {
+    await supertest(app).get("/admin/users?search=jimmy");
+    const args = mockPrisma.user.findMany.mock.calls[0][0];
+    expect(args.where).toEqual({
+      OR: [
+        { email: { contains: "jimmy", mode: "insensitive" } },
+        { name: { contains: "jimmy", mode: "insensitive" } },
+      ],
+    });
+  });
+
+  it("applies `active=today` filter via UserMetrics.lastLoginAt", async () => {
+    await supertest(app).get("/admin/users?active=today");
+    const args = mockPrisma.user.findMany.mock.calls[0][0];
+    expect(args.where.userMetrics.lastLoginAt).toHaveProperty("gte");
+  });
+
+  it("short-circuits non-unknown tier filter to empty result (pre-Stripe)", async () => {
+    const res = await supertest(app).get("/admin/users?tier=pro");
+    expect(res.status).toBe(200);
+    expect(res.body.users).toEqual([]);
+    expect(res.body.total).toBe(0);
+    expect(mockPrisma.user.findMany).not.toHaveBeenCalled();
+  });
+
+  it("handles users with no UserMetrics row (LEFT JOIN semantics)", async () => {
+    mockPrisma.user.findMany.mockResolvedValue([
+      sampleUser({ userMetrics: null, userSessions: [] }),
+    ]);
+    const res = await supertest(app).get("/admin/users");
+    expect(res.status).toBe(200);
+    expect(res.body.users[0].totalLogins).toBe(0);
+    expect(res.body.users[0].lastLoginAt).toBeNull();
+    expect(res.body.users[0].country).toBeNull();
   });
 });

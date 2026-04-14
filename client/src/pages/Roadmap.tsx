@@ -350,6 +350,31 @@ interface CompletedGroup {
 
 const completedFeatures: CompletedGroup[] = [
   {
+    label: "Session 63 — Admin IA Restructure, Dashboard Rebuild, Error Correlation, Session Tracking Plan",
+    items: [
+      { title: "Admin Dashboard (5-row card grid)", description: "Ops command center at /admin: 4 stat cards (users / active 30d / new this month / paid), League health + AI summary, Todo progress + Quick Links, recent activity feed + recent errors panel, League Tools collapsed below fold. Auto-refresh 60s + manual refresh.", session: "63" },
+      { title: "Admin IA Restructure", description: "Side nav reorganized into 6 sections with a dedicated Admin group, 3 subgroups (Operations / Planning / Reference). /admin 'Product Roadmap' tab renamed 'Launch Milestones' to eliminate collision with /roadmap page.", session: "63" },
+      { title: "Error Correlation System", description: "Every 500 returns ERR-<8hex> code + request id. Admin-only `detail` field with real error message. In-memory 100-entry ring buffer feeds admin dashboard's Recent Errors. X-Request-Id response header exposed via CORS.", session: "63" },
+      { title: "Client ErrorToast + ErrorProvider", description: "Global error surface: dismissible toast with click-to-copy error code, auto-dismiss with hover-pause, dedupes same-ref from retry loops. ApiError class with ref, detail, displayCode() helpers. ErrorBoundary enhanced with last-request-id.", session: "63" },
+      { title: "Cross-linking: Roadmap + Concepts ↔ Todos", description: "Stable anchor IDs on all Roadmap phases + Concept cards. Hash scroll + auto-expand on /roadmap#monetization, /concepts#pricing, etc. New RelatedTodos reverse-link panel shown on each phase/concept (admin-only).", session: "63" },
+      { title: "Todo Progress Bars", description: "Horizontal progress bar + {done}/{total} + percentage on every Todo category header.", session: "63" },
+      { title: "/admin/users Scaffold", description: "Admin users page with real GET /api/admin/users endpoint (filters, sort, pagination). Default sort lastLoginAt DESC per plan R14. Awaits DB migration to show real data.", session: "63" },
+      { title: "Session-Tracking Plan Deepened", description: "4-agent /deepen-plan review (security, performance, data-integrity, best-practices) folded 19 material revisions into docs/plans/2026-04-13-admin-users-session-tracking-plan.md. Migration SQL written; UserSession/UserMetrics/UserDeletionLog models ready to deploy.", session: "63" },
+      { title: "Task-System Consolidation Plan", description: "Proposal at docs/plans/2026-04-13-task-system-consolidation-plan.md to merge admin-tasks.json + todo-tasks.json into 3-level milestone→category→task hierarchy. Awaiting decision.", session: "63" },
+    ],
+  },
+  {
+    label: "Session 62 (cont.) — Admin Interconnected System, Waiver Priority Fix, Draft Report Regen, YouTube Fix",
+    items: [
+      { title: "Admin Interconnected System", description: "New /todo page (category-based micro-tasks with P0-P3 priority, step-by-step instructions, target dates, cross-links). AdminCrossNav shared across /todo /roadmap /concepts /changelog.", session: "62 (cont.)" },
+      { title: "Concepts Rebuilt — 4 Tabs", description: "Strategic concepts / SEO Pages / Integrations / UX Mockups with real content, phase badges (explore/prototype/planned/live/deferred), competitor tracking.", session: "62 (cont.)" },
+      { title: "Waiver Priority by Period", description: "UI now matches server logic — uses most-recent-completed-period standings (or active/season fallback). Source indicator visible. New GET /api/waiver-priority endpoint.", session: "62 (cont.)" },
+      { title: "Draft Report Regen Pipeline", description: "Admin bypass for IN_SEASON (?force=true); AI timeouts 60s→90s (Gemini) and 30s→90s (Anthropic); max_tokens 4096→8192. All 8 teams now graded A- to F.", session: "62 (cont.)" },
+      { title: "YouTube Prod Fix", description: "Switched to youtube-nocookie.com, removed origin= parameter. Fixes prod playback (was silently failing on Cloudflare+Railway deployment).", session: "62 (cont.)" },
+      { title: "27 Test Failures Fixed", description: "Pre-existing failures across standings, mlbSync, archive, periods, roster, waivers all resolved. Suite now 0 failing. Baseline: 673 → 672+ passing.", session: "62 (cont.)" },
+    ],
+  },
+  {
     label: "Session 62 — Auction Enrichment, Add/Drop Fix, Position Sort, Standings Verified",
     items: [
       { title: "Auction Player Enrichment", description: "finishCurrentLot and force-assign now set mlbTeam from nomination payload when creating Player records. Backfills existing players with null mlbTeam.", session: "62" },

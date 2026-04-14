@@ -4,7 +4,7 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
-## Session 2026-04-13 (Session 63) — Launch Readiness, Admin IA, Error Correlation, Dashboard Rebuild
+## Session 2026-04-13 (Session 63) — Launch Readiness, Admin IA, Error Correlation, Dashboard Rebuild, Session Tracking (Phase B)
 
 ### Completed
 
@@ -46,6 +46,24 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 **Task-system consolidation proposal** (NOT executed)
 - `docs/plans/2026-04-13-task-system-consolidation-plan.md` proposes merging `admin-tasks.json` + `todo-tasks.json` into 3-level hierarchy (milestone → category → task). Rejected 3 alternatives. Awaiting @jimmy decision.
+
+**Phase B — Session Tracking (parallel-agent execution)**
+- Added 3 Prisma models: `UserSession`, `UserMetrics`, `UserDeletionLog`. Schema changes include the HOT-update optimization: deliberately NO index on `UserSession.lastSeenAt` (per plan R6 — preserves HOT to avoid dead-tuple bloat). `fillfactor=80` + aggressive autovacuum baked into migration.
+- Hand-wrote migration SQL at `prisma/migrations/20260413200000_add_user_session_tracking/migration.sql` (DIRECT_URL auth failing from shell, so hand-rolled from Prisma model definitions). Safe to apply: additive-only, no data transformation, reversible with `DROP TABLE ... CASCADE`.
+- Built `server/src/lib/ipHash.ts` — HMAC-SHA256 with fail-fast on missing `IP_HASH_SECRET`, IPv4 /24 + IPv6 /48 truncation helpers.
+- Built `server/src/features/sessions/` — `POST /start | /heartbeat | /end` endpoints with ownership checks (silent 204 on mismatch per plan R2), 20/min heartbeat rate limit, concurrent-session cap 10, credential-stuffing canary at 100/hr, fire-and-forget AuditLog LOGIN entries (plan R17), single atomic `$executeRaw` UserMetrics rollup with `LEAST(dur, 28800)` clamp (plan R5).
+- Added `GET /api/admin/users` — paginated (max 200) / filterable (search / active window / tier) / sortable (default `lastLoginAt DESC` per plan R14), with leagues-owned and leagues-commissioned counts.
+- 15-min idle sweeper cron with `pg_try_advisory_lock` for multi-instance safety.
+- `client/src/hooks/useSessionHeartbeat.ts` — 30s heartbeat (plan R4), visibility-gated, BroadcastChannel leader election for one-session-per-browser (plan R3), `fetch({ keepalive: true })` on pagehide (plan R7 — `sendBeacon` cannot carry Authorization header).
+- `AuthProvider` integration: `endSession()` awaited before `supabase.auth.signOut()` so Bearer token is still valid for the `/end` call.
+- `/admin/users` page rebuilt from scaffold: stat cards, chip filters, debounced search, sortable columns, pagination. Consumes new endpoint.
+- `IP_HASH_SECRET=ef742c...` generated and added to local `server/.env` + `server/.env.example` documented.
+- Test-infrastructure gotcha caught: `req.ip` on Node's `IncomingMessage` is a getter; direct assignment silently fails. Fixed via `Object.defineProperty(req, "ip", { value, configurable: true })` in supertest setup.
+- 30 new tests (16 server session routes + ipHash, 7 client hook, 7 admin users) — full suite now 732 passing / 0 failing across client + server.
+
+**What's awaiting user action to activate Phase B:**
+- Apply migration SQL to Supabase (one-time; creates 3 new tables; safe + reversible)
+- Set `IP_HASH_SECRET` env var in Railway (server refuses to boot without it)
 
 ### Pending — awaiting @jimmy decisions
 

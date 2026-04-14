@@ -45,6 +45,7 @@ import { notificationsRouter } from "./features/notifications/index.js";
 // import { chatRouter } from "./features/chat/index.js";
 // import { attachChatWs } from "./features/chat/services/chatWsService.js";
 import { profilesRouter } from "./features/profiles/index.js";
+import { sessionsRouter } from "./features/sessions/index.js";
 
 import rateLimit from "express-rate-limit";
 import { attachUser } from "./middleware/auth.js";
@@ -58,7 +59,7 @@ import { syncAllActivePeriods, syncDailyStats } from './features/players/service
 import * as errorBuffer from './lib/errorBuffer.js';
 
 // Validate required env vars at startup
-const REQUIRED_ENV = ["DATABASE_URL", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SESSION_SECRET"];
+const REQUIRED_ENV = ["DATABASE_URL", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SESSION_SECRET", "IP_HASH_SECRET"];
 for (const key of REQUIRED_ENV) {
   if (!process.env[key]) {
     console.error(`FATAL: Missing required env var: ${key}`);
@@ -224,6 +225,7 @@ async function main() {
   // Chat removed — Board replaces it
   // app.use("/api/chat", chatRouter);
   app.use("/api", profilesRouter);
+  app.use("/api/sessions", sessionsRouter);
 
   // Daily MLB player sync at 5:00 AM PT (12:00 UTC during PDT, 13:00 UTC during PST)
   // Using 12:00 UTC as a reasonable default for PT mornings
@@ -284,6 +286,34 @@ async function main() {
     }
   });
   logger.info({}, "Scheduled weekly AAA prospects sync (Monday 14:00 UTC)");
+
+  // Every 15 min: close sessions idle > 30 min (plan R12).
+  // pg_try_advisory_lock keeps this safe under multi-instance deploys.
+  cron.schedule("*/15 * * * *", async () => {
+    try {
+      const lockKey = 0x53455353; // "SESS"
+      const locked = await prisma.$queryRaw<{ locked: boolean }[]>`SELECT pg_try_advisory_lock(${lockKey}) as locked`;
+      if (!locked[0]?.locked) return;
+      try {
+        const result = await prisma.$executeRaw`
+          UPDATE "UserSession"
+          SET "endedAt" = "lastSeenAt",
+              "durationSec" = EXTRACT(EPOCH FROM ("lastSeenAt" - "startedAt"))::int,
+              "endReason" = 'sweeper'
+          WHERE "endedAt" IS NULL
+            AND "lastSeenAt" < now() - interval '30 minutes'
+        `;
+        if (result > 0) {
+          logger.info({ closed: result }, "Idle session sweeper closed sessions");
+        }
+      } finally {
+        await prisma.$queryRaw`SELECT pg_advisory_unlock(${lockKey})`;
+      }
+    } catch (err) {
+      logger.error({ error: String(err) }, "Session sweeper failed");
+    }
+  });
+  logger.info({}, "Scheduled idle session sweeper every 15 minutes");
 
   // --- 1. Static Assets (Frontend) ---
   // Resolve path to client/dist relative to this file (server/src/index.ts -> server/src -> server -> root -> client/dist)

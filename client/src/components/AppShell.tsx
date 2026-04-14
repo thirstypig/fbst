@@ -182,8 +182,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         {
           title: "Reference",
           items: [
-            { to: "/changelog", label: "Changelog", show: Boolean(user?.isAdmin) },
-            { to: "/status", label: "Status", show: Boolean(user?.isAdmin) },
             { to: "/analytics", label: "Analytics", show: Boolean(user?.isAdmin) },
             { to: "/tech", label: "Under the Hood", show: Boolean(user?.isAdmin) },
           ],

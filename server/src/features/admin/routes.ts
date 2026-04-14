@@ -850,6 +850,139 @@ async function computeAdminStats(): Promise<AdminStatsResponse> {
   };
 }
 
+// ── GET /admin/users — paginated user list with engagement metrics ──
+
+const adminUsersQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).max(1000).optional().default(1),
+  pageSize: z.coerce.number().int().min(1).max(200).optional().default(50),
+  search: z.string().trim().max(120).optional(),
+  tier: z.enum(["free", "pro", "commissioner", "unknown"]).optional(),
+  active: z.enum(["today", "7d", "30d", "dormant"]).optional(),
+  sort: z.enum(["email", "signupAt", "lastLoginAt", "totalSessions", "totalSecondsOnSite"])
+    .optional()
+    .default("lastLoginAt"),
+  dir: z.enum(["asc", "desc"]).optional().default("desc"),
+});
+
+/**
+ * GET /api/admin/users — paginated admin view of users + session metrics.
+ * Uses the denormalized UserMetrics relation (plan R10) for fast filters/sorts.
+ */
+router.get("/admin/users", requireAuth, requireAdmin, asyncHandler(async (req, res) => {
+  const parsed = adminUsersQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({
+      error: "Validation failed",
+      details: parsed.error.issues.map((e) => ({ path: e.path.join("."), message: e.message })),
+    });
+  }
+  const { page, pageSize, search, tier, active, sort, dir } = parsed.data;
+
+  // Build filter WHERE clause
+  const where: Record<string, unknown> = {};
+
+  if (search) {
+    where.OR = [
+      { email: { contains: search, mode: "insensitive" } },
+      { name: { contains: search, mode: "insensitive" } },
+    ];
+  }
+
+  if (active) {
+    const now = Date.now();
+    const metricsFilter: Record<string, unknown> = {};
+    if (active === "today") {
+      metricsFilter.lastLoginAt = { gte: new Date(now - 24 * 60 * 60 * 1000) };
+    } else if (active === "7d") {
+      metricsFilter.lastLoginAt = { gte: new Date(now - 7 * 24 * 60 * 60 * 1000) };
+    } else if (active === "30d") {
+      metricsFilter.lastLoginAt = { gte: new Date(now - 30 * 24 * 60 * 60 * 1000) };
+    } else if (active === "dormant") {
+      metricsFilter.OR = [
+        { lastLoginAt: null },
+        { lastLoginAt: { lt: new Date(now - 30 * 24 * 60 * 60 * 1000) } },
+      ];
+    }
+    where.userMetrics = metricsFilter;
+  }
+
+  // tier filter is a no-op until Stripe ships — only "unknown" matches everybody.
+  // We short-circuit the other values to an empty result set so the UI can
+  // wire the filter chip today without risking bad data.
+  if (tier && tier !== "unknown") {
+    return res.json({ users: [], total: 0, page, pageSize });
+  }
+
+  // Build orderBy — route to the metrics relation where needed.
+  const sortDir = dir;
+  let orderBy: Record<string, unknown>;
+  switch (sort) {
+    case "email":
+      orderBy = { email: sortDir };
+      break;
+    case "signupAt":
+      orderBy = { createdAt: sortDir };
+      break;
+    case "lastLoginAt":
+      orderBy = { userMetrics: { lastLoginAt: sortDir } };
+      break;
+    case "totalSessions":
+      orderBy = { userMetrics: { totalSessions: sortDir } };
+      break;
+    case "totalSecondsOnSite":
+      orderBy = { userMetrics: { totalSecondsOnSite: sortDir } };
+      break;
+    default:
+      orderBy = { userMetrics: { lastLoginAt: "desc" } };
+  }
+
+  const [total, rows] = await Promise.all([
+    prisma.user.count({ where }),
+    prisma.user.findMany({
+      where,
+      orderBy,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      include: {
+        userMetrics: true,
+        _count: {
+          select: { ownedTeams: true },
+        },
+        memberships: {
+          where: { role: "COMMISSIONER" },
+          select: { leagueId: true },
+        },
+        userSessions: {
+          take: 1,
+          orderBy: { startedAt: "desc" },
+          select: { country: true },
+        },
+      },
+    }),
+  ]);
+
+  const users = rows.map((u) => ({
+    id: u.id,
+    email: u.email,
+    name: u.name,
+    avatarUrl: u.avatarUrl,
+    isAdmin: u.isAdmin,
+    signupAt: u.createdAt.toISOString(),
+    lastLoginAt: u.userMetrics?.lastLoginAt ? u.userMetrics.lastLoginAt.toISOString() : null,
+    totalLogins: u.userMetrics?.totalLogins ?? 0,
+    totalSessions: u.userMetrics?.totalSessions ?? 0,
+    totalSecondsOnSite: u.userMetrics?.totalSecondsOnSite ?? 0,
+    avgSessionSec: u.userMetrics?.avgSessionSec ?? 0,
+    leaguesOwned: u._count.ownedTeams,
+    leaguesCommissioned: u.memberships.length,
+    tier: "unknown" as const, // TODO: Stripe integration
+    signupSource: u.userMetrics?.signupSource ?? null,
+    country: u.userSessions[0]?.country ?? null,
+  }));
+
+  return res.json({ users, total, page, pageSize });
+}));
+
 /** GET /api/admin/stats — drives the admin dashboard top cards + feeds. */
 router.get("/admin/stats", requireAuth, requireAdmin, asyncHandler(async (_req, res) => {
   const now = Date.now();

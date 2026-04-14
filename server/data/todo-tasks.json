@@ -6,6 +6,48 @@
       "description": "Railway migration, marketing site, CI/CD, monitoring",
       "tasks": [
         {
+          "id": "apply-session-tracking-migration",
+          "title": "Apply session-tracking DB migration (UserSession, UserMetrics, UserDeletionLog)",
+          "status": "in_progress",
+          "priority": "p1",
+          "owner": "jimmy",
+          "instructions": [
+            "Open Supabase SQL Editor: https://supabase.com/dashboard/project/oaogpsshewmcazhehryl/sql/new",
+            "Open the migration file in your editor: prisma/migrations/20260413200000_add_user_session_tracking/migration.sql",
+            "Copy the ENTIRE contents (all 95 lines)",
+            "Paste into the Supabase SQL editor text area",
+            "Click the green 'Run' button in the top-right (or Cmd+Enter / Ctrl+Enter)",
+            "Expect 'Success. No rows returned' in green at the bottom — this is correct for CREATE TABLE",
+            "Verify: paste `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('UserSession', 'UserMetrics', 'UserDeletionLog');` and Run — should see 3 rows",
+            "Rollback if anything goes wrong: DROP TABLE \"UserSession\", \"UserMetrics\", \"UserDeletionLog\" CASCADE;",
+            "Once verified, mark this task done and tell Claude 'migration applied'"
+          ],
+          "roadmapLink": "/roadmap#engagement",
+          "conceptLink": "/concepts#commissioner-ai",
+          "targetDate": "2026-04-13",
+          "notes": "One-time step. Creates 3 new tables — touches nothing existing. Safe; fully reversible via DROP TABLE CASCADE."
+        },
+        {
+          "id": "set-ip-hash-secret-railway",
+          "title": "Set IP_HASH_SECRET env var in Railway",
+          "status": "not_started",
+          "priority": "p1",
+          "owner": "jimmy",
+          "instructions": [
+            "Open Railway dashboard: https://railway.app/dashboard",
+            "Click your FBST API service",
+            "Click the 'Variables' tab",
+            "Click 'New Variable' (or '+ Add Variable')",
+            "Name: IP_HASH_SECRET",
+            "Value: ef742c7673969de89e64867f6a98a82287cbc479424d30caf30a9c5b050f7cea",
+            "Click Save — Railway will trigger a redeploy automatically (~2 min)",
+            "Verify deploy succeeded: check Railway 'Deployments' tab, most recent should be green",
+            "Come back and tell Claude 'env set' so we can push Phase B code"
+          ],
+          "notes": "32-byte hex secret used by lib/ipHash.ts to HMAC user IPs before storing. Fail-fast at server boot if missing — that's intentional; the server will refuse to run without it so IPs never accidentally save raw to prod. Rotate yearly per plan R8.",
+          "targetDate": "2026-04-13"
+        },
+        {
           "id": "deploy-marketing-site",
           "title": "Deploy marketing site to GitHub Pages",
           "status": "in_progress",
@@ -213,7 +255,7 @@
         {
           "id": "fix-pre-existing-test-failures",
           "title": "Fix pre-existing test failures (standings, mlbSync, archive, etc.)",
-          "status": "not_started",
+          "status": "done",
           "priority": "p2",
           "owner": "dev",
           "instructions": [
@@ -222,7 +264,9 @@
             "Fix players/__tests__/mlbSyncService.test.ts: syncPositionEligibility (5 failures)",
             "Fix archive, periods, roster, waivers route tests",
             "Goal: 0 failing tests in npm run test"
-          ]
+          ],
+          "notes": "Shipped cf92977 (Session 62 cont.) — 'test: fix 27 pre-existing test failures — 0 failing suite'. Session 63 verified green: server 531 passed / 7 skipped / 0 failed; client 201 passed / 0 failed.",
+          "updatedAt": "2026-04-13T20:30:00.000Z"
         },
         {
           "id": "reduce-as-any-casts",
