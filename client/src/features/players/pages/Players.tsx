@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { Search } from "lucide-react";
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { Search, Star, Loader2 } from "lucide-react";
 import { getPlayerSeasonStats, getPlayerPeriodStats, type PlayerSeasonStat, type PeriodStatRow, fmtRate } from '../../../api';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import PlayerExpandedRow from '../../auction/components/PlayerExpandedRow';
@@ -15,11 +15,19 @@ import { getMlbTeamAbbr } from '../../../lib/playerDisplay';
 import { PlayerNameCell } from '../../../components/shared/PlayerNameCell';
 import { useLeague } from '../../../contexts/LeagueContext';
 import { StatsUpdated } from '../../../components/shared/StatsTables';
+import { getWatchlist, addToWatchlist, removeFromWatchlist } from '../../watchlist/api';
+import { reportError } from '../../../lib/errorBus';
 
 export default function Players() {
-  const { leagueId, outfieldMode } = useLeague();
+  const { leagueId, outfieldMode, myTeamId, seasonStatus } = useLeague();
   const [loading, setLoading] = useState(true);
   const [players, setPlayers] = useState<PlayerSeasonStat[]>([]);
+
+  // Watchlist state — set of Player.id values currently on the user's watchlist.
+  // Only populated if the user owns a team in the active league.
+  const [watchedIds, setWatchedIds] = useState<Set<number>>(new Set());
+  const [watchPending, setWatchPending] = useState<Set<number>>(new Set());
+  const canWatch = myTeamId != null && seasonStatus === "IN_SEASON";
 
   // View State
   const [viewGroup, setViewGroup] = useState<'hitters' | 'pitchers'>('hitters');
@@ -187,6 +195,63 @@ export default function Players() {
     setExpandedId(prev => (prev === id ? null : id));
   };
 
+  // Load the user's watchlist once we know which team they own.
+  useEffect(() => {
+    if (myTeamId == null) {
+      setWatchedIds(new Set());
+      return;
+    }
+    let alive = true;
+    (async () => {
+      try {
+        const res = await getWatchlist(myTeamId);
+        if (!alive) return;
+        setWatchedIds(new Set(res.items.map((w) => w.player.id)));
+      } catch (err) {
+        // Silent fail — row-level "add" will still work; just no pre-marked state.
+        reportError(err, { source: "watchlist-load" });
+      }
+    })();
+    return () => { alive = false; };
+  }, [myTeamId]);
+
+  const toggleWatch = useCallback(
+    async (playerId: number, isCurrentlyWatched: boolean) => {
+      if (myTeamId == null) return;
+      setWatchPending((prev) => new Set(prev).add(playerId));
+      // Optimistic update
+      setWatchedIds((prev) => {
+        const next = new Set(prev);
+        if (isCurrentlyWatched) next.delete(playerId);
+        else next.add(playerId);
+        return next;
+      });
+      try {
+        if (isCurrentlyWatched) {
+          await removeFromWatchlist(playerId, myTeamId);
+        } else {
+          await addToWatchlist({ teamId: myTeamId, playerId });
+        }
+      } catch (err) {
+        // Rollback on failure
+        setWatchedIds((prev) => {
+          const next = new Set(prev);
+          if (isCurrentlyWatched) next.add(playerId);
+          else next.delete(playerId);
+          return next;
+        });
+        reportError(err, { source: isCurrentlyWatched ? "watchlist-remove" : "watchlist-add" });
+      } finally {
+        setWatchPending((prev) => {
+          const next = new Set(prev);
+          next.delete(playerId);
+          return next;
+        });
+      }
+    },
+    [myTeamId],
+  );
+
   if (loading) return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-[var(--lg-text-muted)]">
       <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-6"></div>
@@ -258,6 +323,11 @@ export default function Players() {
                                     </>
                                 )}
 
+                                {canWatch && (
+                                  <th scope="col" className="text-center w-10 text-xs font-medium text-[var(--lg-text-muted)]" title="Watchlist">
+                                    <Star className="w-3.5 h-3.5 inline" aria-label="Watchlist" />
+                                  </th>
+                                )}
                                 <SortableHeader sortKey="fantasy" activeSortKey={sortKey} sortDesc={sortDesc} onSort={handleSort} align="center" className="pr-8 w-48">Fantasy Team</SortableHeader>
                             </ThemedTr>
                        </ThemedThead>
@@ -303,6 +373,40 @@ export default function Players() {
                                                 </>
                                            )}
         
+                                           {canWatch && (
+                                             <ThemedTd align="center">
+                                               {(() => {
+                                                 const pid = p.id;
+                                                 if (pid == null) return null;
+                                                 const isWatched = watchedIds.has(pid);
+                                                 const isPending = watchPending.has(pid);
+                                                 return (
+                                                   <button
+                                                     type="button"
+                                                     disabled={isPending}
+                                                     aria-label={isWatched ? "Remove from watchlist" : "Add to watchlist"}
+                                                     aria-pressed={isWatched}
+                                                     title={isWatched ? "Remove from watchlist" : "Add to watchlist"}
+                                                     onClick={(e) => {
+                                                       e.stopPropagation();
+                                                       toggleWatch(pid, isWatched);
+                                                     }}
+                                                     className={`p-1 rounded transition-colors ${
+                                                       isWatched
+                                                         ? "text-amber-400 hover:text-amber-300"
+                                                         : "text-[var(--lg-text-muted)] opacity-30 group-hover:opacity-80 hover:text-amber-400"
+                                                     } ${isPending ? "cursor-wait" : "cursor-pointer"}`}
+                                                   >
+                                                     {isPending ? (
+                                                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                     ) : (
+                                                       <Star className={`w-3.5 h-3.5 ${isWatched ? "fill-current" : ""}`} />
+                                                     )}
+                                                   </button>
+                                                 );
+                                               })()}
+                                             </ThemedTd>
+                                           )}
                                            <ThemedTd align="center">
                                                {isTaken ? (
                                                    <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--lg-accent)]">

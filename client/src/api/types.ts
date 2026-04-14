@@ -203,6 +203,8 @@ export type PeriodCategoryStandingsResponse = {
 };
 
 export type PlayerSeasonStat = {
+  /** Prisma Player.id — stable DB identifier. Required for watchlist API. */
+  id?: number;
   mlb_id: string;
   row_id?: string;
   player_name?: string;

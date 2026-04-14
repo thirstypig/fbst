@@ -350,6 +350,7 @@ dataRouter.get("/player-season-stats", requireAuth, asyncHandler(async (req, res
       const ss = lastSeasonMap.get(mlbId);
 
       return {
+        id: p.id,                  // Prisma Player.id — needed for watchlist API
         mlb_id: mlbId,
         player_name: p.name,
         mlb_full_name: p.name,
