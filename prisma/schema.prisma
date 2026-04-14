@@ -136,8 +136,79 @@ model User {
   chatMessages           ChatMessage[]
   profile                UserProfile?
 
+  userSessions UserSession[]
+  userMetrics  UserMetrics?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ======================
+//  Session tracking (Session 63 — per docs/plans/2026-04-13-admin-users-session-tracking-plan.md)
+// ======================
+
+/// One row per browser per login cycle. Multi-tab coordination via
+/// BroadcastChannel keeps this at one row per browser, not per tab.
+/// lastSeenAt is deliberately NOT indexed — preserves Postgres HOT updates
+/// and avoids dead-tuple bloat (see plan R6).
+model UserSession {
+  id          Int      @id @default(autoincrement())
+  token       String   @unique @default(cuid())
+  userId      Int
+
+  ipHash      String?  // HMAC-SHA256(raw ip, env.IP_HASH_SECRET)
+  ipTruncated String?  // /24 for IPv4, /48 for IPv6 — retained 90d
+  ipRaw       String?  // full IP, purged at 7d (fraud window only)
+  userAgent   String?  @db.Text
+  country     String?  // Cloudflare CF-IPCountry
+
+  startedAt   DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  endedAt     DateTime?
+  durationSec Int?
+  endReason   String?   // "logout" | "idle" | "sweeper" | "session_cap"
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startedAt])
+}
+
+/// Denormalized rollup — one row per user. Heartbeats do NOT write here
+/// (plan R5). Duration is rolled up on session-end / sweeper.
+model UserMetrics {
+  userId                   Int       @id
+  totalLogins              Int       @default(0)
+  totalSessions            Int       @default(0)
+  totalSecondsOnSite       Int       @default(0)
+  avgSessionSec            Int       @default(0)
+  leaguesOwnedCount        Int       @default(0)
+  leaguesCommissionedCount Int       @default(0)
+  firstSeenAt              DateTime
+  lastSeenAt               DateTime
+  lastLoginAt              DateTime?
+  lastActivityAt           DateTime?
+  signupSource             String?   // "google" | "yahoo" | "email" | "invite"
+  signupUtmSource          String?
+  signupUtmCampaign        String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([lastSeenAt(sort: Desc)])
+  @@index([lastLoginAt(sort: Desc)])
+}
+
+/// Non-cascading log written BEFORE user deletion cascade runs.
+/// Preserves audit trail after GDPR right-to-erasure wipes everything else.
+model UserDeletionLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int      // original id, not FK — survives cascade
+  emailHash String   // HMAC(email, IP_HASH_SECRET)
+  deletedAt DateTime @default(now())
+  deletedBy Int?     // admin id if admin-initiated, null if self-delete
+  reason    String?
+  metadata  Json?
+
+  @@index([deletedAt])
 }
 
 model UserProfile {

@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from "
 import { API_BASE, fetchJsonApi } from "../api/base";
 import { supabase } from "../lib/supabase";
 import { track } from "../lib/posthog";
+import { useSessionHeartbeat } from "../hooks/useSessionHeartbeat";
 import { Session } from "@supabase/supabase-js";
 
 type User = {
@@ -61,6 +62,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [me, setMe] = useState<MeResponse>({ user: null });
   const [loading, setLoading] = useState(true);
+
+  // Session tracking: kicks off on first authenticated render, tears down
+  // on logout. One session per browser via BroadcastChannel coordination.
+  const { endSession } = useSessionHeartbeat(!!me.user);
 
   async function refresh() {
     try {
@@ -142,6 +147,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function logout() {
+    // End server-side session BEFORE signing out so the Bearer token is still
+    // valid when /api/sessions/end is called.
+    try {
+      await endSession();
+    } catch (e) {
+      console.error("Failed to end session", e);
+    }
     await supabase.auth.signOut();
     track("logout");
     // State update handled by onAuthStateChange

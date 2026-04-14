@@ -177,7 +177,7 @@ When adding cross-feature imports, document them here to maintain visibility.
 ## Shared Infrastructure (do NOT move into features)
 - `server/src/middleware/auth.ts` — global auth (attachUser, requireAuth, requireAdmin, requireLeagueRole, requireFranchiseCommissioner)
 - `server/src/middleware/seasonGuard.ts` — `requireSeasonStatus(allowedStatuses, leagueIdSource)` — enforces season-phase constraints on write endpoints
-- `server/src/lib/` — supabase.ts, prisma.ts, logger.ts, mlbApi.ts, utils.ts, auditLog.ts, emailService.ts, **errorBuffer.ts** (100-entry ring buffer for admin error dashboard, push/list/find with ERR- prefix normalization)
+- `server/src/lib/` — supabase.ts, prisma.ts, logger.ts, mlbApi.ts, utils.ts, auditLog.ts, emailService.ts, **errorBuffer.ts** (100-entry ring buffer for admin error dashboard, push/list/find with ERR- prefix normalization), **ipHash.ts** (HMAC-SHA256 + /24-/48 truncation, fail-fast if `IP_HASH_SECRET` missing)
 - `server/src/db/prisma.ts` — Prisma singleton
 - `client/src/auth/AuthProvider.tsx` — global React auth context
 - `client/src/api/base.ts` — fetchJsonApi, API_BASE config, **`ApiError` class** (status, url, requestId, ref, detail, body, serverMessage, displayCode()), **`getLastRequestId()`** for cross-effect correlation
@@ -186,6 +186,9 @@ When adding cross-feature imports, document them here to maintain visibility.
 - `client/src/components/ErrorProvider.tsx` — root-mounted subscriber that renders `<ErrorToast>` stack; must wrap everything in main.tsx
 - `client/src/components/ErrorToast.tsx` — dismissible toast showing ERR-prefixed code with click-to-copy, auto-dismiss 12s, hover pauses
 - `client/src/components/ErrorBoundary.tsx` — React render-error boundary; calls `getLastRequestId()` + `reportError()` on catch
+- `client/src/hooks/useSessionHeartbeat.ts` — 30s visibility-gated heartbeat, BroadcastChannel leader election (one session per browser, not per tab), `fetch({ keepalive: true })` on pagehide (never `sendBeacon` — doesn't support Authorization header). Mounted once in AuthProvider. Returns `{ endSession }` called before logout.
+- `server/src/features/sessions/routes.ts` — `POST /api/sessions/start | /heartbeat | /end`. Ownership check: `session.userId === req.user.id` or return 204 (plan R2 — avoid enumeration). Heartbeat rate-limited 20/min per userId, concurrent-session cap 10, credential-stuffing canary at 100/hr. Rollup to UserMetrics on end (plan R5).
+- `server/src/features/admin/routes.ts` — `GET /api/admin/users` with pagination (max 200), filters (search / active window / tier), sort (default `lastLoginAt DESC` per plan R14)
 - `client/src/components/ui/` — shadcn-style UI primitives (table.tsx has 3-tier density: compact/default/comfortable)
 - `client/src/components/ui/SortableHeader.tsx` — accessible sortable header (`<button>` in `<th>`, `aria-sort`, generic `<K extends string>`)
 - `client/src/components/ui/ThemedTable.tsx` — ThemedTable supports `density` and `zebra` props
@@ -221,7 +224,7 @@ When adding cross-feature imports, document them here to maintain visibility.
 - **Error responses MUST NOT leak internal details** — return `{ error: "Internal Server Error", requestId, ref }` for 500s; admins (`req.user?.isAdmin === true`) additionally get `detail: message`; log details server-side via `logger` with `{ ref, requestId, path, method, userId }`
 - **Request correlation** — every request gets an 8-char hex `req.requestId` set by middleware in `server/src/index.ts`; always echoed back via `X-Request-Id` response header (exposed to browser JS via `Access-Control-Expose-Headers`). User-facing code is `ERR-${requestId}`. Every 500 also pushes a record into the in-memory `errorBuffer` (capacity 100, newest-first, admin-visible at `GET /api/admin/errors`).
 - **Client-side error surface** — thrown `ApiError` (not plain `Error`) carries `status`, `url`, `requestId`, `ref`, `detail`, `body`, `serverMessage`. Callers that want the toast to appear should call `reportError(err, { source: "feature-name" })` from `client/src/lib/errorBus.ts`. `ErrorProvider` must wrap the app root in `main.tsx`.
-- **Required env vars** (`DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SESSION_SECRET`) validated at startup — server exits if missing
+- **Required env vars** (`DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SESSION_SECRET`, `IP_HASH_SECRET`) validated at startup — server exits if missing. `IP_HASH_SECRET` must be ≥32 chars (generate with `openssl rand -hex 32`); rotate yearly per session-tracking plan R8
 - **Dev-only endpoints** gated behind explicit env vars (e.g., `ENABLE_DEV_LOGIN=true`), never `NODE_ENV` checks
 
 ## Database
