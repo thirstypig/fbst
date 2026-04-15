@@ -9,6 +9,7 @@ import {
   FileText,
   Plug,
   Layout,
+  Palette,
   Check,
   X,
   Circle,
@@ -18,6 +19,7 @@ import { useLeague } from "../contexts/LeagueContext";
 import LeagueBoard from "../features/board/components/LeagueBoard";
 import AdminCrossNav from "../features/admin/components/AdminCrossNav";
 import RelatedTodos from "../features/admin/components/RelatedTodos";
+import ColorLab from "../features/admin/components/ColorLab";
 
 /* ── Strategic concepts ──────────────────────────────────────── */
 
@@ -222,13 +224,14 @@ const MOCKUPS: UxMockup[] = [
 
 /* ── Tab infrastructure ──────────────────────────────────────── */
 
-type TabId = "strategic" | "seo" | "integrations" | "mockups";
+type TabId = "strategic" | "seo" | "integrations" | "mockups" | "colors";
 
 const TABS: { id: TabId; label: string; icon: any }[] = [
   { id: "strategic", label: "Strategic", icon: Lightbulb },
   { id: "seo", label: "SEO Pages", icon: FileText },
   { id: "integrations", label: "Integrations", icon: Plug },
   { id: "mockups", label: "UX Mockups", icon: Layout },
+  { id: "colors", label: "Colors", icon: Palette },
 ];
 
 /* ── Marketplace preview (kept from old Concepts) ─────────────── */
@@ -261,6 +264,8 @@ export default function Concepts() {
       integrations: "integrations",
       mockups: "mockups",
       strategic: "strategic",
+      colors: "colors",
+      palette: "colors",
     };
     if (tabAliases[target]) {
       setTab(tabAliases[target]);
@@ -520,6 +525,9 @@ export default function Concepts() {
           })}
         </div>
       )}
+
+      {/* Colors tab */}
+      {tab === "colors" && <ColorLab />}
 
       {/* Live features section (kept below tabs) */}
       <section className="pt-8 border-t border-[var(--lg-border-faint)]">

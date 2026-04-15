@@ -36,9 +36,11 @@ async function test() {
     throw new Error("Reset token storage failed");
   }
 
-  // 3. Cleanup
+  // 3. Cleanup — go through the audit helper so R16 is preserved even in
+  // developer scripts. The log row itself is fine as a byproduct of tests.
   console.log("Cleaning up test user...");
-  await prisma.user.delete({ where: { id: user.id } });
+  const { deleteUserWithAudit } = await import("../lib/userDeletion.js");
+  await deleteUserWithAudit(user.id, { reason: "test_cleanup" });
   console.log("Cleanup complete.");
 
   console.log("--- Auth Logic Verification Passed ---");

@@ -494,19 +494,21 @@ const SeasonPage: React.FC = () => {
             <ThemedTable aria-label="Season standings matrix">
                 <ThemedThead>
                   <tr>
-                    <ThemedTh align="center" className="w-16">#</ThemedTh>
-                    <SortableHeader sortKey="team" activeSortKey={matrixSortKey} sortDesc={matrixSortDesc} onSort={handleMatrixSort} frozen className="min-w-[120px]">Team</SortableHeader>
+                    {/* Explicit widths on every column — table-layout: fixed distributes
+                        extra container width proportionally instead of piling it into Team. */}
+                    <ThemedTh align="center" className="w-12">#</ThemedTh>
+                    <SortableHeader sortKey="team" activeSortKey={matrixSortKey} sortDesc={matrixSortDesc} onSort={handleMatrixSort} frozen className="w-[180px]">Team</SortableHeader>
 
                     {periodIds.map((pid, idx) => (
-                      <SortableHeader key={pid} sortKey={`p_${idx}`} activeSortKey={matrixSortKey} sortDesc={matrixSortDesc} onSort={handleMatrixSort} align="center" className="min-w-[80px]">
+                      <SortableHeader key={pid} sortKey={`p_${idx}`} activeSortKey={matrixSortKey} sortDesc={matrixSortDesc} onSort={handleMatrixSort} align="center" className="w-[70px]">
                         {periodNames[idx] ? periodNames[idx].replace("Period ", "P") : `P${idx + 1}`}
                       </SortableHeader>
                     ))}
 
-                    <SortableHeader sortKey="total" activeSortKey={matrixSortKey} sortDesc={matrixSortDesc} onSort={handleMatrixSort} align="center" className="min-w-[120px]">
+                    <SortableHeader sortKey="total" activeSortKey={matrixSortKey} sortDesc={matrixSortDesc} onSort={handleMatrixSort} align="center" className="w-[90px]">
                       TOTAL
                     </SortableHeader>
-                    <ThemedTh align="right" className="pr-8"> </ThemedTh>
+                    <ThemedTh align="right" className="pr-8 w-[100px]"> </ThemedTh>
                   </tr>
                 </ThemedThead>
 

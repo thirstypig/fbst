@@ -310,7 +310,8 @@ export const CategoryPeriodTable: React.FC<CategoryPeriodTableProps> = ({
       </h3>
       <div className="lg-card p-0 overflow-hidden bg-transparent">
         <div className="overflow-x-auto">
-      <ThemedTable bare density="compact" zebra aria-label={`${label} standings for period ${periodId}`}>
+      {/* 4 short cols — no mobile-scroll floor needed. */}
+      <ThemedTable bare density="compact" zebra minWidth={0} aria-label={`${label} standings for period ${periodId}`}>
         <ThemedThead>
           <ThemedTr>
             <ThemedTh frozen>Team</ThemedTh>
@@ -439,7 +440,8 @@ export const TeamSeasonSummaryTable: React.FC<TeamSeasonSummaryProps> = ({
       </h3>
       <div className="lg-card p-0 overflow-hidden bg-transparent">
         <div className="overflow-x-auto">
-          <ThemedTable bare density="compact" zebra aria-label={`Season summary for ${summary.teamName}`}>
+          {/* Summary cards — narrow 2-col tables, let them hug content. */}
+          <ThemedTable bare density="compact" zebra minWidth={0} aria-label={`Season summary for ${summary.teamName}`}>
             <ThemedThead>
               <ThemedTr>
                 <ThemedTh frozen>Period</ThemedTh>

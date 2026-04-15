@@ -4,6 +4,70 @@ This file tracks session-over-session progress, pending work, and concerns. Revi
 
 ---
 
+## Session 2026-04-14 (Session 64) — Session 63 P0/P1 Burn-Down, Table Layout Overhaul, Color Lab, AI Temperature
+
+### Completed
+
+**FanGraphs morning audit — 100% parity**
+- Compared FBST Season standings to FanGraphs OGBA OnRoto — every raw stat and roto point matched to displayed precision across all 10 categories × 8 teams (80 cells) plus the 8 point totals. Session 60 concerns (ERA/WHIP rounding, K/W timing drift) are resolved. Tool is audit-ready.
+
+**Sessions 404 fix + local dev recovery**
+- Express was started pre-Session 63 commit, so `/api/sessions/start` and `/api/admin/users` 404'd. Restart + investigation surfaced a downstream issue: `server/.env.local` was redirecting Prisma to a nonexistent `localhost:5432/fbst_dev` (dotenv loaded it first, `.env` couldn't override the already-set var). `server/.env` DB password was also out of sync with repo-root `.env` (password rotation never propagated). Backed up `.env.local` → `.env.local.bak`, synced password into `server/.env`. Health now 200.
+
+**Table layout overhaul — reclaim wasted real estate**
+- Morning complaint: Players Name col was 442px (40% of table) absorbing leftover width; Season Point Matrix team col was 305px. Root cause: `.lg-table { width: 100% }` in `index.css` + `min-w-full` on `ThemedTable`/`TableCard` inner `<table>` forced desktop stretch while auto-layout dumped extra into one unconstrained column.
+- First pass (shrink-to-content) fixed the column bloat but left dead space right.
+- Final pass: `w-full` + `table-layout: fixed` everywhere, explicit widths on every column so remainder distributes proportionally. Added `minWidth` prop to ThemedTable for small tables (minWidth=0 on 4-col category tables, 600px floor on 9+ col tables for mobile scroll).
+- Result: Players Name 442 → 288, Season Team 305 → 180, Team page PLAYER 373 → 379 (proportionally sized in 9-col), Season Period 10× category tables 600 → 397, Admin Users cols 146 (all equal) → 90–304 proportional. Zero dead space on desktop, `min-w-[600px]` scroll floor preserved for mobile.
+
+**Heartbeat 401 silencing**
+- `useSessionHeartbeat` was reporting every error as a user-facing toast — including the predictable 401/403s that fire during auth boot, token refresh, and logout. Added `isTransientAuthErr()` guard; 401/403 now silently retry, 5xx/network still toast.
+
+**Color System Lab (/concepts#colors)**
+- New tab in Concepts page. 5 dark palettes (Current, Neutral Slate, Graphite + Amber, Forest Green, Ink + Crimson), 4 light palettes (Current, Warm Newsprint, Cool Stone, Cream + Rust). Click "Preview site-wide" to apply inline CSS variable overrides to `<html>` + toggle `.dark` class + write `localStorage.fbst-theme` so ThemeProvider doesn't fight. Persists across SPA nav (inline styles survive route changes) AND full page reloads (`applyPersistedPalette()` runs in `main.tsx` before React mounts, reads `sessionStorage.fbst:color-lab-preview`, reapplies). Reset button restores.
+
+**AI temperature tuning (aiAnalysisService)**
+- Threaded `temperature` through `getModel()` for both Gemini (generationConfig) and Anthropic (request body). 11 call sites now declare intent: 0.3 (trade + waiver post-facto), 0.4 (grades + analytical advice), 0.5 (draft report narrative), 0.6 (weekly insights), 0.8 (league digest creative banter). Was defaulting to 1.0 before.
+
+**P0 #1 — IPv6 truncation bug** (Session 63 post-review finding)
+- `truncateIp()` was producing `::1::`, `2001:db8::::`, `fe80:::::` — malformed garbage from a naive `split(":")` that didn't expand `::` first. Rewrote with a proper IPv6 expander: handles compressed forms, IPv4-mapped-in-IPv6 (`::ffff:a.b.c.d`), zone indices (`fe80::1%eth0`), and rejects malformed inputs instead of mangling them. 16 new tests covering every shape the review flagged. The old 6-test file passed for the wrong reason (its sample `2001:db8:85a3:0:0:8a2e:370:7334` had no `::`, never exercised the bug codepath) — deleted as misplaced duplicate.
+
+**P0 #2 — IP retention + session row purge cron**
+- Schema comment promised 7-day purge of `UserSession.ipRaw` (GDPR), nothing implemented. Added daily cron at 04:15 UTC: NULL out `ipRaw` after 7d, DELETE whole session rows after 90d. `pg_try_advisory_lock(0x50555247)` keeps it multi-instance safe, different key from the 15-min idle sweeper so they can't block each other.
+
+**P1 — Middleware ordering** (Session 63 self-flagged + review consensus)
+- `express.json()` ran BEFORE request-ID middleware, so JSON parse errors escaped untagged as `ERR-unknown` — an attacker could flood the 100-entry error ring buffer with collisions. Swapped order: request-ID now runs first. Verified with `curl -d '{this is not json'` → `ERR-1f84b062` (real code).
+
+**P1 — UserDeletionLog writer (plan R16)**
+- Plan R16 promised `UserDeletionLog` survives the GDPR cascade; there were zero writers, only one direct `prisma.user.delete` call (a test script). Built `deleteUserWithAudit(userId, opts)` helper: writes the log row with HMAC-hashed email in the same `$transaction` as the cascade delete. Updated the test script to route through the helper. Added `hashEmail()` to `ipHash.ts` (reuses `IP_HASH_SECRET`). 5 tests covering happy path, admin-initiated, email normalization, missing user, metadata.
+
+### Pending / Next Steps
+
+From Session 63 `/ce:review` backlog (10 P1, 13 P2/P3 remaining):
+- **Heartbeat single-statement** — replace SELECT+UPDATE with one conditional UPDATE (halves DB round-trips, fixes a subtle dedupe race).
+- **Admin stats query design** — `active30d` raw SQL on AuditLog hit `MaxClientsInSessionMode` today; switch to `UserMetrics.lastLoginAt` index.
+- **`/admin/stats` single-flight dedup** — N dashboards opening on cache expiry = N full query sets.
+- **Admin metric bugs** — `leaguesOwned` returns `_count.ownedTeams` (teams, not leagues). `avgSessionSec` biased low.
+- **Dead denormalized columns** — `UserMetrics.leaguesOwnedCount`, `leaguesCommissionedCount`, `lastActivityAt` never written; either populate or drop.
+- **Profile endpoint missing `requireAuth`** — anonymous enumeration of membership data.
+- **Admin routes file size** — 1031 lines, split into sub-routers (leagueAdmin/syncAdmin/tasksAdmin/usersAdmin/errorsAdmin).
+- **R13 impersonation decision** — cut entirely vs. plan promise. Officially defer or implement behind flag.
+- **Task-system consolidation** — `admin-tasks.json` + `todo-tasks.json` plan written but not executed.
+- **Prisma `any` casts in profiles route** — kieran-ts flagged "root cast — removing dissolves several downstream findings."
+
+### Concerns / Tech Debt
+
+- Supabase pooler exhaustion during dev today — today's restart churn left connections hanging; transient but a reminder the `active30d` raw-SQL fix is urgent.
+- Service worker keeps caching stale Vite dev assets with 503s after HMR; unregister + cache clear fixes it. Known pattern.
+
+### Test Results
+
+- Server: 546 passing, 7 skipped, 0 failing (added 21 tests: 16 ipHash + 5 userDeletion; removed 6-test duplicate)
+- Client: 201 passing, 0 failing
+- TypeCheck: clean (both client + server)
+
+---
+
 ## Session 2026-04-13 (Session 63) — Launch Readiness, Admin IA, Error Correlation, Dashboard Rebuild, Session Tracking (Phase B)
 
 ### Completed

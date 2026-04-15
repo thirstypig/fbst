@@ -33,6 +33,12 @@ export function TableCard({
   );
 }
 
+/**
+ * Table fills its container (`w-full`) with `table-layout: fixed` so stat
+ * columns share remaining space evenly instead of one unconstrained column
+ * (Player Name) absorbing everything. The `min-w-[600px]` floor keeps
+ * horizontal scroll working on mobile.
+ */
 export function Table({
   children,
   className,
@@ -40,7 +46,14 @@ export function Table({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <table className={["min-w-full text-xs", className ?? ""].join(" ")}>{children}</table>;
+  return (
+    <table
+      style={{ tableLayout: "fixed" }}
+      className={["w-full min-w-[600px] text-xs", className ?? ""].join(" ")}
+    >
+      {children}
+    </table>
+  );
 }
 
 export function THead({

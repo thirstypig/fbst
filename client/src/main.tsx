@@ -14,6 +14,11 @@ import { PostHogTracker } from "./components/PostHogTracker";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import ErrorProvider from "./components/ErrorProvider";
 import { initPostHog } from "./lib/posthog";
+import { applyPersistedPalette } from "./lib/colorLabPalettes";
+
+// Reapply any Color Lab preview the user picked before this reload. Must
+// run before React renders to avoid a flash of unstyled (default) colors.
+applyPersistedPalette();
 
 // Initialize PostHog before render
 initPostHog();

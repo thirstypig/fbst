@@ -523,12 +523,12 @@ export default function Team() {
                 <Table>
                   <THead>
                     <Tr>
-                      <Th align="center">POS</Th>
+                      <Th align="center" w={50}>POS</Th>
                       <Th align="center">PLAYER</Th>
-                      <Th align="center">TM</Th>
-                      <Th align="center">$</Th>
-                      <Th align="center">STATUS</Th>
-                      <Th align="center">SOURCE</Th>
+                      <Th align="center" w={60}>TM</Th>
+                      <Th align="center" w={60}>$</Th>
+                      <Th align="center" w={120}>STATUS</Th>
+                      <Th align="center" w={100}>SOURCE</Th>
                     </Tr>
                   </THead>
                   <tbody>
@@ -603,15 +603,17 @@ export default function Team() {
               <Table>
                 <THead>
                   <Tr>
-                    <Th align="center">POS</Th>
-                    <Th align="center">PLAYER</Th>
-                    <Th align="center">TM</Th>
-                    <Th align="center">AB</Th>
-                    <Th align="center">R</Th>
-                    <Th align="center">HR</Th>
-                    <Th align="center">RBI</Th>
-                    <Th align="center">SB</Th>
-                    <Th align="center">AVG</Th>
+                    {/* All columns explicitly sized so table-layout: fixed distributes
+                        any extra width proportionally, not dumped into PLAYER. */}
+                    <Th align="center" w={50}>POS</Th>
+                    <Th align="center" w={240}>PLAYER</Th>
+                    <Th align="center" w={60}>TM</Th>
+                    <Th align="center" w={70}>AB</Th>
+                    <Th align="center" w={60}>R</Th>
+                    <Th align="center" w={60}>HR</Th>
+                    <Th align="center" w={60}>RBI</Th>
+                    <Th align="center" w={60}>SB</Th>
+                    <Th align="center" w={80}>AVG</Th>
                   </Tr>
                 </THead>
 
@@ -758,17 +760,18 @@ export default function Team() {
               <Table>
                 <THead>
                   <Tr>
-                    <Th align="center">POS</Th>
-                    <Th align="center">PLAYER</Th>
-                    <Th align="center">TM</Th>
-                    <Th align="center">W</Th>
-                    <Th align="center">SV</Th>
-                    <Th align="center">K</Th>
-                    <Th align="center">IP</Th>
-                    <Th align="center">ER</Th>
-                    <Th align="center" title="Walks + Hits (WHIP numerator)">BB+H</Th>
-                    <Th align="center">ERA</Th>
-                    <Th align="center">WHIP</Th>
+                    {/* All columns explicitly sized — proportional distribution of extra. */}
+                    <Th align="center" w={50}>POS</Th>
+                    <Th align="center" w={220}>PLAYER</Th>
+                    <Th align="center" w={55}>TM</Th>
+                    <Th align="center" w={50}>W</Th>
+                    <Th align="center" w={50}>SV</Th>
+                    <Th align="center" w={55}>K</Th>
+                    <Th align="center" w={55}>IP</Th>
+                    <Th align="center" w={55}>ER</Th>
+                    <Th align="center" w={65} title="Walks + Hits (WHIP numerator)">BB+H</Th>
+                    <Th align="center" w={65}>ERA</Th>
+                    <Th align="center" w={70}>WHIP</Th>
                   </Tr>
                 </THead>
 

@@ -301,7 +301,7 @@
      ============================================ */
 
   .lg-table {
-    width: 100%;
+    /* width: auto — tables hug content by default; opt in to w-full when stretch is desired */
     border-collapse: separate;
     border-spacing: 0;
     font-size: var(--lg-font-size-sm);
