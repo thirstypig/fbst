@@ -19,8 +19,18 @@ interface AIModel {
   generateContent(prompt: string): Promise<{ response: { text(): string } }>;
 }
 
+/**
+ * Temperature guidelines for this service:
+ *   0.3 — critical/factual analysis (trades, waivers post-facto)
+ *   0.4 — analytical grading (draft grades, keeper recs, bid advice)
+ *   0.5–0.6 — mixed (draft report narrative, weekly insights)
+ *   0.8 — creative prose with personality (league digest, banter)
+ * Callers pass the value they want; `getModel(temp)` returns a model wired
+ * with that temperature for both Gemini and Anthropic backends.
+ */
+
 /** Create Anthropic-backed model using raw fetch (no SDK dependency). */
-function createAnthropicModel(apiKey: string): AIModel {
+function createAnthropicModel(apiKey: string, temperature: number): AIModel {
   return {
     async generateContent(prompt: string) {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -33,6 +43,7 @@ function createAnthropicModel(apiKey: string): AIModel {
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
           max_tokens: 8192,
+          temperature,
           messages: [{ role: 'user', content: prompt }],
         }),
         signal: AbortSignal.timeout(90_000),
@@ -91,13 +102,20 @@ export interface DraftReportResult {
 let _geminiDisabled = false;
 
 export class AIAnalysisService {
-  /** Try Gemini first, fall back to Anthropic Claude. */
-  private async getModel(): Promise<AIModel | null> {
+  /**
+   * Try Gemini first, fall back to Anthropic Claude. `temperature` controls
+   * output variance for both providers (see temperature guidelines above).
+   * Default 0.7 matches industry standard for mixed analytical/creative work.
+   */
+  private async getModel(temperature: number = 0.7): Promise<AIModel | null> {
     // Try Gemini (unless previously disabled by quota/error)
     if (!_geminiDisabled) {
       const genAI = await ensureGenAI();
       if (genAI) {
-        const geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const geminiModel = genAI.getGenerativeModel({
+          model: 'gemini-2.5-flash',
+          generationConfig: { temperature },
+        });
         // Wrap Gemini model to detect quota errors and auto-fallback
         const anthropicKey = process.env.ANTHROPIC_API_KEY || '';
         if (anthropicKey) {
@@ -115,7 +133,7 @@ export class AIAnalysisService {
                 const msg = String(err?.message ?? err);
                 logger.warn({ error: msg.substring(0, 200) }, "Gemini failed, switching to Anthropic");
                 _geminiDisabled = true;
-                return createAnthropicModel(anthropicKey).generateContent(prompt);
+                return createAnthropicModel(anthropicKey, temperature).generateContent(prompt);
               }
             },
           };
@@ -127,7 +145,7 @@ export class AIAnalysisService {
     // Fallback: Anthropic Claude
     const anthropicKey = process.env.ANTHROPIC_API_KEY || '';
     if (anthropicKey) {
-      return createAnthropicModel(anthropicKey);
+      return createAnthropicModel(anthropicKey, temperature);
     }
 
     return null;
@@ -170,7 +188,8 @@ export class AIAnalysisService {
     };
     error?: string;
   }> {
-    const model = await this.getModel();
+    // Creative: banter, hot/cold team prose, bold predictions — voice matters
+    const model = await this.getModel(0.8);
     if (!model) {
       return { success: false, error: 'AI league digest is not available' };
     }
@@ -311,7 +330,8 @@ FINAL CHECK: Re-read every sentence in your response. If ANY sentence contains a
    * Analyze team's period-over-period performance trends
    */
   async analyzeTeamTrends(year: number, teamCode: string): Promise<AnalysisResult> {
-    const model = await this.getModel();
+    // Analytical: factual historical trend summary — low variance preferred
+    const model = await this.getModel(0.4);
     if (!model) {
       return { success: false, error: 'AI analysis is not available' };
     }
@@ -414,7 +434,8 @@ Keep it conversational and insightful. Use specific numbers.`;
    * Analyze team's auction draft strategy
    */
   async analyzeDraft(year: number, teamCode: string): Promise<AnalysisResult> {
-    const model = await this.getModel();
+    // Analytical: draft grade + rationale — keep consistent across runs
+    const model = await this.getModel(0.4);
     if (!model) {
       return { success: false, error: 'AI analysis is not available' };
     }
@@ -530,7 +551,8 @@ Keep it conversational. Highlight specific players and prices.`;
     report?: DraftReportResult;
     error?: string;
   }> {
-    const model = await this.getModel();
+    // Mixed: per-team grades + narrative analysis — some variance OK
+    const model = await this.getModel(0.5);
     if (!model) {
       return { success: false, error: 'AI draft report is not available' };
     }
@@ -758,7 +780,8 @@ For categoryStrengths/categoryWeaknesses, format like: "HR (Olson, Ohtani, Turne
     grades?: { teamId: number; teamName: string; grade: string; summary: string }[];
     error?: string;
   }> {
-    const model = await this.getModel();
+    // Analytical: grade letters + summary — consistency across teams matters
+    const model = await this.getModel(0.4);
     if (!model) {
       return { success: false, error: 'Draft grading is temporarily unavailable' };
     }
@@ -844,7 +867,8 @@ IMPORTANT: Return ONLY a valid JSON array, no markdown, no code blocks. Example 
     result?: { fairness: string; winner: string; analysis: string; recommendation: string; categoryImpact?: string | null; keeperNote?: string | null; positionNote?: string | null };
     error?: string;
   }> {
-    const model = await this.getModel();
+    // Critical analysis: who won the trade, fairness grade — facts-first
+    const model = await this.getModel(0.3);
     if (!model) {
       return { success: false, error: 'AI trade analysis is not available' };
     }
@@ -958,7 +982,8 @@ Return ONLY a valid JSON object (no markdown, no code blocks) with these fields:
     result?: { recommendations: { playerId: number; playerName: string; keeperCost: number; reasoning: string; rank: number }[]; strategy: string };
     error?: string;
   }> {
-    const model = await this.getModel();
+    // Analytical: ranked keeper picks by value — deterministic reasoning
+    const model = await this.getModel(0.4);
     if (!model) {
       return { success: false, error: 'AI keeper recommendation is not available' };
     }
@@ -1035,7 +1060,8 @@ Use these exact playerIds from the roster: ${teamRoster.map(r => `${r.playerName
     result?: { suggestedBid: number; confidence: string; reasoning: string };
     error?: string;
   }> {
-    const model = await this.getModel();
+    // Numerical advice: suggested waiver bid — low variance required
+    const model = await this.getModel(0.4);
     if (!model) {
       return { success: false, error: 'AI waiver advice is not available' };
     }
@@ -1112,7 +1138,8 @@ Return ONLY a valid JSON object (no markdown, no code blocks) with:
     };
     error?: string;
   }> {
-    const model = await this.getModel();
+    // Mixed: team performance narrative + data callouts — some flavor OK
+    const model = await this.getModel(0.6);
     if (!model) {
       return { success: false, error: 'AI insights are not available' };
     }
@@ -1254,7 +1281,8 @@ Categories: "Hot Bats", "Cold Bats", "Pitching", "Injury", "Waiver Wire", "Stand
     };
     error?: string;
   }> {
-    const model = await this.getModel();
+    // In-auction advice: suggested bid + reasoning — consistency per context
+    const model = await this.getModel(0.4);
     if (!model) {
       return { success: false, error: 'AI bid advice is not available' };
     }
@@ -1355,7 +1383,8 @@ Return ONLY a valid JSON object (no markdown, no code blocks):
     result?: { assessment: string; bidGrade: string; categoryImpact: string };
     error?: string;
   }> {
-    const model = await this.getModel();
+    // Post-facto: bid grade + category impact — factual, low variance
+    const model = await this.getModel(0.3);
     if (!model) {
       return { success: false, error: 'AI waiver analysis is not available' };
     }

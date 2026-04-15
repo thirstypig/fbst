@@ -474,29 +474,32 @@ export default function AdminUsers() {
         <ThemedTable bare density="default" aria-label="Users">
           <ThemedThead>
             <ThemedTr>
-              <ThemedTh onClick={() => toggleSort("email")}>
+              {/* Explicit widths so the User column gets the lion's share
+                  and stat cols stay tight — table-layout: fixed otherwise
+                  divides evenly and wastes horizontal space. */}
+              <ThemedTh className="w-[260px]" onClick={() => toggleSort("email")}>
                 User
                 <SortIcon active={sortKey === "email"} dir={sortDir} />
               </ThemedTh>
-              <ThemedTh onClick={() => toggleSort("lastLoginAt")}>
+              <ThemedTh className="w-[140px]" onClick={() => toggleSort("lastLoginAt")}>
                 Last login
                 <SortIcon active={sortKey === "lastLoginAt"} dir={sortDir} />
               </ThemedTh>
-              <ThemedTh align="right" onClick={() => toggleSort("totalSessions")}>
+              <ThemedTh align="right" className="w-[90px]" onClick={() => toggleSort("totalSessions")}>
                 Sessions
                 <SortIcon active={sortKey === "totalSessions"} dir={sortDir} />
               </ThemedTh>
-              <ThemedTh align="right" onClick={() => toggleSort("totalSecondsOnSite")}>
+              <ThemedTh align="right" className="w-[110px]" onClick={() => toggleSort("totalSecondsOnSite")}>
                 Time on site
                 <SortIcon active={sortKey === "totalSecondsOnSite"} dir={sortDir} />
               </ThemedTh>
-              <ThemedTh align="right">Leagues</ThemedTh>
-              <ThemedTh>Tier</ThemedTh>
-              <ThemedTh onClick={() => toggleSort("signupAt")}>
+              <ThemedTh align="right" className="w-[90px]">Leagues</ThemedTh>
+              <ThemedTh className="w-[80px]">Tier</ThemedTh>
+              <ThemedTh className="w-[130px]" onClick={() => toggleSort("signupAt")}>
                 Joined
                 <SortIcon active={sortKey === "signupAt"} dir={sortDir} />
               </ThemedTh>
-              <ThemedTh>Actions</ThemedTh>
+              <ThemedTh className="w-[100px]">Actions</ThemedTh>
             </ThemedTr>
           </ThemedThead>
           <ThemedTbody>

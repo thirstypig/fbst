@@ -117,12 +117,12 @@ async function main() {
     })
   );
   app.use(cookieParser());
-  app.use(express.json({ limit: "1mb" }));
-  app.use(express.urlencoded({ limit: "1mb", extended: true }));
 
-  // Request ID tracking — accepts a client-supplied id (validated) or generates
-  // an 8-char hex so it's easy for a user to read/copy from an error toast.
-  // Always echoed back via X-Request-Id so the client can correlate with logs.
+  // Request ID tracking must run BEFORE any body parser — otherwise malformed
+  // JSON escapes untagged as `ERR-unknown`, which an attacker can exploit to
+  // flood the 100-entry error ring buffer with collisions (Session 63 P1).
+  // Accepts a client-supplied id (validated) or generates an 8-char hex;
+  // always echoed back via X-Request-Id so clients can correlate with logs.
   app.use((req, res, next) => {
     const clientId = String(req.headers["x-request-id"] || "").slice(0, 64);
     req.requestId = /^[a-zA-Z0-9_-]+$/.test(clientId) && clientId.length > 0
@@ -133,6 +133,9 @@ async function main() {
     res.setHeader("Access-Control-Expose-Headers", "X-Request-Id");
     next();
   });
+
+  app.use(express.json({ limit: "1mb" }));
+  app.use(express.urlencoded({ limit: "1mb", extended: true }));
 
   // Prevent Cloudflare/CDN from caching API responses
   app.use("/api", (_req, res, next) => {
@@ -314,6 +317,42 @@ async function main() {
     }
   });
   logger.info({}, "Scheduled idle session sweeper every 15 minutes");
+
+  // Daily 04:15 UTC: data retention on UserSession (plan R8).
+  //   • `ipRaw` (full IP) is only kept for a 7-day fraud window, then nulled.
+  //   • Whole rows are deleted after 90 days — `ipTruncated` and `ipHash`
+  //     are enough for long-term analytics without storing individual rows.
+  // Advisory lock keeps this safe under multi-instance Railway deploys.
+  cron.schedule("15 4 * * *", async () => {
+    try {
+      const lockKey = 0x50555247; // "PURG"
+      const locked = await prisma.$queryRaw<{ locked: boolean }[]>`SELECT pg_try_advisory_lock(${lockKey}) as locked`;
+      if (!locked[0]?.locked) return;
+      try {
+        const ipPurged = await prisma.$executeRaw`
+          UPDATE "UserSession"
+          SET "ipRaw" = NULL
+          WHERE "ipRaw" IS NOT NULL
+            AND "startedAt" < now() - interval '7 days'
+        `;
+        const rowsDeleted = await prisma.$executeRaw`
+          DELETE FROM "UserSession"
+          WHERE "startedAt" < now() - interval '90 days'
+        `;
+        if (ipPurged > 0 || rowsDeleted > 0) {
+          logger.info(
+            { ipPurged, rowsDeleted },
+            "Daily UserSession retention purge complete",
+          );
+        }
+      } finally {
+        await prisma.$queryRaw`SELECT pg_advisory_unlock(${lockKey})`;
+      }
+    } catch (err) {
+      logger.error({ error: String(err) }, "UserSession retention purge failed");
+    }
+  });
+  logger.info({}, "Scheduled daily UserSession retention purge at 04:15 UTC (7d ipRaw, 90d rows)");
 
   // --- 1. Static Assets (Frontend) ---
   // Resolve path to client/dist relative to this file (server/src/index.ts -> server/src -> server -> root -> client/dist)

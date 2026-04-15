@@ -29,6 +29,12 @@ interface ThemedTableProps {
   'aria-label'?: string;
   /** Visible caption rendered below the table */
   caption?: string;
+  /**
+   * Mobile-scroll floor in pixels. Default 600 suits 10+ column tables
+   * (players, period matrix). Tables with ≤5 short columns should pass a
+   * smaller value (320) or `0` so they hug content and don't force scroll.
+   */
+  minWidth?: number;
 }
 
 /**
@@ -37,13 +43,21 @@ interface ThemedTableProps {
  * Set `density` for fine-grained control: "compact" | "default" | "comfortable".
  * Set `zebra={true}` for alternating row backgrounds.
  */
-export function ThemedTable({ children, className = '', bare = false, density = "compact", zebra = false, caption, ...rest }: ThemedTableProps) {
+export function ThemedTable({ children, className = '', bare = false, density = "compact", zebra = false, caption, minWidth = 600, ...rest }: ThemedTableProps) {
   const zebraClass = zebra ? "lg-table" : "";
   const ariaLabel = rest['aria-label'];
+  // `w-full` + `table-layout: fixed` together mean the table fills its
+  // container AND columns with explicit widths keep them — unspecified
+  // columns share the remainder evenly. This beats `table-layout: auto`
+  // where one unconstrained column (e.g. Player Name) absorbs all leftover
+  // space and dwarfs the stats next to it.
+  const tableStyle: React.CSSProperties = { tableLayout: "fixed" };
+  if (minWidth > 0) tableStyle.minWidth = `${minWidth}px`;
 
   const tableEl = (
     <table
-      className={cn("w-full min-w-[600px] caption-bottom text-sm", zebraClass, bare ? className : "")}
+      style={tableStyle}
+      className={cn("w-full caption-bottom text-sm", zebraClass, bare ? className : "")}
       aria-label={ariaLabel}
     >
       {children}

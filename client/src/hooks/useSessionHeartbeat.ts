@@ -1,7 +1,17 @@
 import { useEffect, useRef, useCallback } from "react";
-import { API_BASE, fetchJsonApi } from "../api/base";
+import { API_BASE, ApiError, fetchJsonApi } from "../api/base";
 import { supabase } from "../lib/supabase";
 import { reportError } from "../lib/errorBus";
+
+/**
+ * Session heartbeat runs during auth transitions (login, token refresh,
+ * logout) where a 401 is expected and transient. Surfacing those as
+ * user-facing toasts is noise — 5xx or network failures are the only
+ * things worth a toast. The retry loop handles recovery silently.
+ */
+function isTransientAuthErr(err: unknown): boolean {
+  return err instanceof ApiError && (err.status === 401 || err.status === 403);
+}
 
 const CHANNEL_NAME = "fbst-session";
 const STORAGE_KEY = "fbst:sessionToken";
@@ -67,7 +77,7 @@ export function useSessionHeartbeat(enabled: boolean): UseSessionHeartbeatResult
         keepalive: true,
       });
     } catch (err) {
-      reportError(err, { source: "session-heartbeat" });
+      if (!isTransientAuthErr(err)) reportError(err, { source: "session-heartbeat" });
     }
   }, []);
 
@@ -206,8 +216,8 @@ export function useSessionHeartbeat(enabled: boolean): UseSessionHeartbeatResult
           body: JSON.stringify({ token }),
         });
       } catch (err) {
-        // Silent — next tick tries again. Report for debug telemetry.
-        reportError(err, { source: "session-heartbeat" });
+        // Silent for 401/403 — auth is in flight. Report other classes for telemetry.
+        if (!isTransientAuthErr(err)) reportError(err, { source: "session-heartbeat" });
       }
     }
 
@@ -236,7 +246,7 @@ export function useSessionHeartbeat(enabled: boolean): UseSessionHeartbeatResult
           }
         }
       } catch (err) {
-        reportError(err, { source: "session-heartbeat" });
+        if (!isTransientAuthErr(err)) reportError(err, { source: "session-heartbeat" });
         if (attempt < START_RETRY_DELAYS_MS.length) {
           startRetryTimer = window.setTimeout(
             () => attemptStart(attempt + 1),

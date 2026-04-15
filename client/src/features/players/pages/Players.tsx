@@ -302,7 +302,7 @@ export default function Players() {
                    <ThemedTable bare density="compact" zebra aria-label="Player statistics">
                        <ThemedThead sticky>
                             <ThemedTr>
-                                <SortableHeader sortKey="name" activeSortKey={sortKey} sortDesc={sortDesc} onSort={handleSort} frozen className="pl-2 min-w-[140px]">Name</SortableHeader>
+                                <SortableHeader sortKey="name" activeSortKey={sortKey} sortDesc={sortDesc} onSort={handleSort} frozen className="pl-2 w-[220px]">Name</SortableHeader>
                                 <SortableHeader sortKey="mlb_team" activeSortKey={sortKey} sortDesc={sortDesc} onSort={handleSort} align="center" className="w-16">MLB</SortableHeader>
 
                                 {viewGroup === 'hitters' ? (
