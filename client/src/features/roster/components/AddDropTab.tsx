@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { Star } from 'lucide-react';
 import { getPrimaryPosition, getLastName, POS_ORDER } from '../../../lib/baseballUtils';
 import { getPlayerPeriodStats, PlayerSeasonStat, PeriodStatRow, fmtRate } from '../../../api';
 import { NL_TEAMS, AL_TEAMS } from '../../../lib/sportConfig';
@@ -11,6 +12,7 @@ import { PlayerFilterBar } from '../../../components/shared/PlayerFilterBar';
 import PlayerDetailModal from '../../../components/shared/PlayerDetailModal';
 import PlayerExpandedRow from '../../auction/components/PlayerExpandedRow';
 import { useLeague } from '../../../contexts/LeagueContext';
+import { useMyWatchlist } from '../../watchlist/hooks/useMyWatchlist';
 
 interface AddDropTabProps {
     players: PlayerSeasonStat[];
@@ -21,7 +23,8 @@ interface AddDropTabProps {
 }
 
 export default function AddDropTab({ players, myTeamRoster, onClaim, onDrop, disabled }: AddDropTabProps) {
-    const { leagueId } = useLeague();
+    const { leagueId, myTeamId } = useLeague();
+    const { watchedIds, pendingIds, toggle: toggleWatch, canWatch } = useMyWatchlist(myTeamId);
 
     // View state
     const [viewGroup, setViewGroup] = useState<'hitters' | 'pitchers'>('hitters');
@@ -284,6 +287,28 @@ export default function AddDropTab({ players, myTeamRoster, onClaim, onDrop, dis
 
                                         <ThemedTd align="center">
                                             <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
+                                                {canWatch && p.id != null && (() => {
+                                                    const pid = p.id as number;
+                                                    const isWatched = watchedIds.has(pid);
+                                                    const isPending = pendingIds.has(pid);
+                                                    return (
+                                                        <button
+                                                            type="button"
+                                                            disabled={isPending}
+                                                            aria-label={isWatched ? "Remove from watchlist" : "Add to watchlist"}
+                                                            aria-pressed={isWatched}
+                                                            title={isWatched ? "Remove from watchlist" : "Add to watchlist"}
+                                                            onClick={() => toggleWatch(pid, isWatched)}
+                                                            className={`p-1 rounded transition-colors ${
+                                                                isWatched
+                                                                    ? "text-amber-400 hover:text-amber-300"
+                                                                    : "text-[var(--lg-text-muted)] opacity-30 group-hover:opacity-80 hover:text-amber-400"
+                                                            } ${isPending ? "cursor-wait" : "cursor-pointer"}`}
+                                                        >
+                                                            <Star className={`w-3.5 h-3.5 ${isWatched ? "fill-current" : ""}`} />
+                                                        </button>
+                                                    );
+                                                })()}
                                                 {!isTaken && (
                                                     <button
                                                         onClick={() => onClaim(p)}

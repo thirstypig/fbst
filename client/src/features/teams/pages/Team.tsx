@@ -938,8 +938,8 @@ export default function Team() {
           </div>
         )}
 
-        {/* Watchlist & Trading Block (own team only during IN_SEASON) */}
-        {dbTeamId && seasonStatus === "IN_SEASON" && myTeamId === dbTeamId && (
+        {/* Watchlist & Trading Block (own team only — watchlist available during DRAFT + IN_SEASON) */}
+        {dbTeamId && myTeamId === dbTeamId && seasonStatus !== "SETUP" && seasonStatus !== "COMPLETED" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-10">
             <div className="lg-card p-4">
               <WatchlistPanel teamId={dbTeamId} />
