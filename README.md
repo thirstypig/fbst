@@ -1,6 +1,10 @@
 # The Fantastic Leagues (FBST)
 
-Fantasy baseball league management tool for the OGBA league. Full-stack monorepo with React client and Express API server, organized by domain feature modules.
+Fantasy baseball league management tool — AI-powered insights, auction drafts, commissioner tools. Full-stack TypeScript monorepo organized by domain feature modules.
+
+Public: [thefantasticleagues.com](https://thefantasticleagues.com) · Repo: [thirstypig/TheFantasticLeagues](https://github.com/thirstypig/TheFantasticLeagues)
+
+> `FBST` remains the internal shorthand across code, docs, and commit messages. The repo name is the brand; the shorthand is for engineers.
 
 ## Architecture
 
@@ -8,136 +12,140 @@ Fantasy baseball league management tool for the OGBA league. Full-stack monorepo
 fbst/
 ├── client/                  # React + Vite + TypeScript frontend
 │   └── src/
-│       ├── features/        # 15 domain feature modules
-│       │   ├── auth/        #   Login, signup, password reset
-│       │   ├── leagues/     #   League CRUD, rules
-│       │   ├── teams/       #   Team management, roster views
-│       │   ├── players/     #   Player search, stats
-│       │   ├── roster/      #   Roster grid, controls, import
-│       │   ├── standings/   #   Standings, categories
-│       │   ├── trades/      #   Trade proposals
-│       │   ├── waivers/     #   Waiver claims
-│       │   ├── transactions/#   Transaction history
-│       │   ├── auction/     #   Live auction draft
-│       │   ├── keeper-prep/ #   Keeper selection
-│       │   ├── commissioner/#   Commissioner tools
-│       │   ├── admin/       #   System admin
-│       │   ├── archive/     #   Historical data
-│       │   └── periods/     #   Stat periods, season views
-│       ├── components/      # Shared components (AppShell, NavBar, ui/)
-│       ├── api/             # Shared API infra (base, types, barrel)
-│       ├── auth/            # AuthProvider (Supabase)
-│       └── lib/             # Utilities
-├── server/                  # Express + TypeScript API server
+│       └── features/        # 27 domain feature modules (mirrored with server)
+├── server/                  # Express + TypeScript API (ESM, Prisma)
 │   └── src/
-│       ├── features/        # 15 domain feature modules (mirrors client)
-│       ├── middleware/      # Auth middleware
-│       ├── lib/             # Shared infra (supabase, prisma, logger)
-│       └── db/              # Prisma singleton
+│       └── features/        # Matching 27 feature modules
 ├── prisma/                  # Schema + migrations
-└── scripts/                 # Data processing scripts
+├── mcp-servers/mlb-data/    # Local MCP proxy for MLB Stats API (SQLite cache, rate limiter)
+├── scripts/                 # Data processing + one-off audits
+└── docs/                    # Plans, solutions, brainstorms, audits
 ```
+
+Feature modules include: auth, leagues, teams, players, roster, standings, trades, waivers, transactions, auction, draft, matchups, keeper-prep, commissioner, franchises, seasons, periods, admin, archive, mlb-feed, ai, watchlist, trading-block, board, notifications, profiles, **reports** (Weekly Report at `/report`).
+
+See [`CLAUDE.md`](./CLAUDE.md) for the full module table + cross-feature dependency map.
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React 18, Vite, TypeScript, Tailwind CSS, React Router v6 |
-| Backend | Node.js, Express, TypeScript |
-| Database | PostgreSQL via Prisma ORM |
-| Auth | Supabase (Google/Yahoo OAuth, JWT) |
-| Testing | Vitest, React Testing Library, MSW |
-| Deployment | Render (HTTP, SSL termination at proxy) |
+| Frontend | React 18, Vite, TypeScript (strict), Tailwind CSS, React Router v6, shadcn-style UI primitives |
+| Backend | Node.js 22, Express, TypeScript (strict, ESM), Zod for request validation |
+| Database | PostgreSQL via Supabase; Prisma ORM |
+| Auth | Supabase Auth (Google/Yahoo OAuth, email/password) |
+| AI | Google Gemini 2.5 Flash (primary), Anthropic Claude Sonnet 4 (fallback) |
+| Email | Resend (transactional, league invites) |
+| Testing | Vitest, React Testing Library |
+| Deployment | Railway (API + static client); Cloudflare DNS + CDN |
+| MCP | Local MCP server proxying `statsapi.mlb.com` with SQLite cache |
+
+## Ports
+
+| Service | Port |
+|---------|------|
+| Vite dev | 3010 |
+| Express API | 4010 |
+| PostgreSQL | 5442 |
+| Redis | 6381 |
+
+See [`MASTER-PORTS.md`](./MASTER-PORTS.md) for details.
 
 ## Quick Start
 
-### Prerequisites
-- Node.js 22.x
-- PostgreSQL database (Neon / Render / local)
-
-### Development
+**Prerequisites:** Node.js 22.x, access to a Supabase project, Supabase service role key.
 
 ```bash
-# Install dependencies
-cd server && npm install && cd ../client && npm install && cd ..
+# Install dependencies (root workspace + client + server)
+npm install
+cd client && npm install && cd ../server && npm install && cd ..
 
-# Set up environment
+# Set up env
 cp server/.env.example server/.env
-# Edit server/.env with DATABASE_URL, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+# Edit server/.env:
+#   DATABASE_URL (Supabase pooled URL)
+#   SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
+#   SESSION_SECRET (openssl rand -hex 32)
+#   IP_HASH_SECRET (openssl rand -hex 32)
+#   GEMINI_API_KEY + ANTHROPIC_API_KEY (optional — AI features)
+#   RESEND_API_KEY (optional — email invites)
 
-# Database setup
+# Run Prisma migrations
 cd server && npx prisma migrate dev && cd ..
 
-# Start both servers (two terminals)
+# Start both servers (two terminals, or one with &)
 npm run server    # Express on :4010
-npm run dev       # Vite on :3010 (proxies /api to :4010)
+npm run dev       # Vite on :3010 (proxies /api → :4010)
 ```
 
-### Testing
+## Testing
 
 ```bash
-npm run test          # All tests
-npm run test:server   # Server unit + integration tests
-npm run test:client   # Client unit tests
+npm run test          # All tests (server + client + MCP)
+npm run test:server   # Server unit + integration
+npm run test:client   # Client component + hook tests
 ```
 
-## API Convention
+Current baseline: **571 server / 201 client / 50 MCP = 822 tests**.
 
-All server routes are behind `/api`. Client uses `VITE_API_BASE_URL` (defaults to `http://localhost:4010`).
+## Conventions
 
-Key endpoints:
-- `GET /api/health` — Health check
-- `GET /api/auth/me` — Current user session
-- `GET /api/leagues` — List leagues
-- `GET /api/teams` — List teams
-- `GET /api/player-season-stats` — Player statistics
-- `POST /api/trades` — Propose trade
-- `POST /api/waivers` — Submit waiver claim
-- `GET /api/auction/state` — Auction state
+See [`CLAUDE.md`](./CLAUDE.md) for the authoritative conventions guide. Key points:
 
-Client config: never put `/api` inside `VITE_API_BASE_URL`. Always append `/api/...` in code.
+- **Strict TypeScript** both sides. Server uses `.js` import extensions (ESM); client omits extensions.
+- **Prisma singleton** — always `import { prisma } from "../db/prisma.js"`; never `new PrismaClient()` inline.
+- **Named route exports** — `export const fooRouter = router;` (no default exports for routers).
+- **All writes** require `requireAuth`; admin-only endpoints require `requireAdmin`.
+- **Season-gated writes** use `requireSeasonStatus([...])` (auction DRAFT, trades/waivers IN_SEASON).
+- **Error correlation** — every 500 returns `ERR-<requestId>`; admins get `detail: message` in the body.
+- **`fetchJsonApi`** from `client/src/api/base.ts` — auto-injects Bearer token; throws `ApiError`.
+- **Tables** — `w-full` + `table-layout: fixed` + explicit width per column. See `docs/solutions/ui-bugs/table-layout-fixed-for-proportional-columns.md`.
 
-## Data Pipeline (OnRoto Transactions)
+## API
 
-External stat worker (`fbst-stats-worker/`) produces CSV/JSON inputs:
+All server routes mount under `/api`. Client config uses `VITE_API_BASE_URL` (defaults to `http://localhost:4010`) — never embed `/api` inside that env var; always append `/api/...` in code.
 
-```bash
-# Generate transaction data
-cd ../fbst-stats-worker
-source .venv/bin/activate
-python parse_onroto_transactions_html.py \
-  --season 2025 \
-  --infile data/onroto_transactions_2025.html \
-  --outcsv ogba_transactions_2025.csv \
-  --outjson ogba_transactions_2025.json
+Notable surfaces:
 
-# Import into FBST database
-cd ../fbst/server
-LEAGUE_NAME="OGBA" SEASON=2025 INFILE="path/to/transactions.json" \
-  npx tsx src/scripts/import_onroto_transactions.ts
-```
+- `GET /api/auth/me` — current user session
+- `GET /api/standings/season?leagueId=N` — live roto standings
+- `GET /api/mlb/league-digest?leagueId=N[&weekKey=YYYY-Www]` — weekly AI digest
+- `GET /api/reports/:leagueId/:weekKey?` — Weekly Report aggregator (`/report` page)
+- `POST /api/auction/bid` — live auction bid (WebSocket broadcast side-effect)
+- `POST /api/watchlist` — per-team watchlist add
+- `GET /api/admin/stats` — admin dashboard stats (10s in-memory cache)
 
-## Deployment (Render)
+## Deployment (Railway)
 
-- **Server**: Root `server/`, start `npm start`, env: `DATABASE_URL`, `PORT`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
-- **Client**: Root `client/`, build `npm run build`, publish `client/dist`, env: `VITE_API_BASE_URL`
+- **API service** — root `server/`, start `npm start`, required env: `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SESSION_SECRET`, `IP_HASH_SECRET`. Railway redeploys on push to `main`.
+- **Client** — separately hosted (or served as static asset); build with `npm run build` in `client/`, `VITE_API_BASE_URL` set to the API origin.
+- **Marketing site** — separate `thefantasticleagues-www` repo, Astro on GitHub Pages.
+
+## Scripts & Audits
+
+- `server/src/scripts/fangraphs-audit.ts` — aggregates season stats with roster-ownership windows for cell-by-cell comparison against FanGraphs OnRoto. Run: `cd server && npx tsx src/scripts/fangraphs-audit.ts [leagueId=20]`
+- `server/src/scripts/` — one-off audits + data migrations. See `docs/` for plans.
 
 ## Troubleshooting
 
-**Prisma P1000**: Re-copy connection string from Neon, replace `DATABASE_URL` in `.env`, re-run `npx prisma migrate dev`.
-
-**`zsh: command not found: python`**: Use `python3` or activate venv: `source .venv/bin/activate`
+- **Prisma fails to connect** — check `DATABASE_URL`, ensure Supabase project is not paused, and that the pooler connection string uses `pgbouncer=true`.
+- **`zsh: command not found: python`** — use `python3`, or activate the stats-worker venv.
+- **Service worker serving stale assets** — unregister via DevTools → Application → Service Workers, then clear HTTP cache + in-memory cache.
+- **Railway deploy fails silently** — always run `cd client && npx tsc --noEmit && cd ../server && npx tsc --noEmit` before pushing. Vite dev mode hides TypeScript errors that break Railway builds. See `docs/solutions/deployment/silent-railway-build-failures-vite-tsc-gap.md`.
 
 ## Documentation
 
-- **`CLAUDE.md`** — Architecture reference, conventions, testing strategy, feature module guide
-- **`FEEDBACK.md`** — Session-over-session development log, pending items, tech debt tracking
-- **`docs/`** — Additional documentation
+- [`CLAUDE.md`](./CLAUDE.md) — architecture reference, conventions, testing strategy, feature module guide
+- [`FEEDBACK.md`](./FEEDBACK.md) — session-over-session development log
+- [`TODO.md`](./TODO.md) — historical tech-debt register (largely superseded by `/admin/todo`)
+- [`docs/plans/`](./docs/plans/) — feature and refactor plans
+- [`docs/solutions/`](./docs/solutions/) — postmortems and learnings
+- [`mcp-servers/mlb-data/README.md`](./mcp-servers/mlb-data/README.md) — MCP proxy architecture
 
 ## Coding Guidelines
 
-- **SOLID Principles** — Single Responsibility, Open-Closed, Liskov Substitution, Interface Segregation, Dependency Inversion
-- **DRY** — Extract common logic into reusable functions/modules
-- **KISS** — Strive for simplicity; avoid over-engineering
-- **Clean Code** — Readable, self-documenting with meaningful names
-- **Error Handling** — Robust handling with structured logging via `logger`
+- **SOLID** — single responsibility, open/closed, Liskov, interface segregation, dependency inversion
+- **DRY** — extract common logic; resist premature abstraction (three similar lines > a premature generalization)
+- **KISS** — avoid over-engineering; no feature flags or backwards-compat shims when you can change the code directly
+- **Clean code** — meaningful names; minimal comments (explain *why*, not *what*)
+- **Error handling** — structured logging via `logger`; no swallowed exceptions

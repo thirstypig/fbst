@@ -26,7 +26,7 @@ All 5 Railway deploys in a single day failed silently. Production at `app.thefan
 
 ### How It Was Discovered
 
-Checked production after committing session work. Login page showed old layout. Investigated via GitHub API: `gh api repos/thirstypig/fbst/deployments` — all 5 deploys returned `state: "failure"`.
+Checked production after committing session work. Login page showed old layout. Investigated via GitHub API: `gh api repos/thirstypig/TheFantasticLeagues/deployments` — all 5 deploys returned `state: "failure"`. (Historical: at incident time the repo was `thirstypig/fbst`; renamed 2026-04-16 with auto-redirect.)
 
 ## Root Cause
 
